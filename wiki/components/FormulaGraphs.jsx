@@ -3,7 +3,7 @@
 // so the chart, readout and data table are present before hydration. Sliders drive every value; the chart
 // can also be clicked or dragged, but nothing depends on pointer input.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { UPDATES_PER_SECOND, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate } from '@/lib/formulas.js';
+import { UPDATES_PER_SECOND, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate, scoopInflow } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fixed = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
@@ -310,7 +310,7 @@ function RadiatorGraph() {
         <>
           <Range id={`${uid}-fan`} label="Electric fan availability" value={fanPower} min={0} max={1} step={0.05} onChange={(v) => setFanPower(+v.toFixed(2))} valueText={fixed(fanPower, 2)} hint="0 to 1, the electrical availability the game reads. Use 0 for a radiator without a fan." />
           <Check id={`${uid}-enc`} label="Inside an enclosed compartment" checked={enclosed} onChange={setEnclosed} hint="Airflow does not count when enclosed." />
-          <Range id={`${uid}-x`} label="Selected airspeed" value={airspeed} min={0} max={120} step={1} onChange={setAirspeed} valueText={`${fixed(airspeed, 0)} internal units`} />
+          <Range id={`${uid}-x`} label="Selected airspeed" value={airspeed} min={0} max={120} step={1} onChange={setAirspeed} valueText={`${fixed(airspeed, 0)} m/s`} />
         </>
       )}
       chart={(width) => (
@@ -319,7 +319,7 @@ function RadiatorGraph() {
           width={width}
           title="Radiator cooling rate against airspeed"
           desc={desc}
-          x={{ min: 0, max: 120, ticks: steps(0, 120, 20), format: (v) => fixed(v, 0), label: 'Relative airspeed (internal units)' }}
+          x={{ min: 0, max: 120, ticks: steps(0, 120, 20), format: (v) => fixed(v, 0), label: 'Relative airspeed (m/s)' }}
           y={{ min: 0, max: 0.01, ticks: [0, 0.003, 0.006, 0.009], format: (v) => fixed(v, 3) }}
           series={[{ key: 'rate', className: 'graph-line-a', points: samples.map((s) => [s.v, s.fraction]) }]}
           selected={{ x: airspeed, points: [{ key: 'rate', y: at.fraction, className: 'graph-dot-a' }] }}
@@ -444,7 +444,73 @@ function ExchangerGraph() {
   );
 }
 
-const GRAPHS = { engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph };
+/* ---------- air scoop ---------- */
+
+function ScoopGraph() {
+  const uid = useUid();
+  const [networkPressure, setPressure] = useState(1);
+  const [airspeed, setAirspeed] = useState(5);
+  const samples = useMemo(
+    () => steps(0, 20, 0.5).map((v) => ({ v, at: scoopInflow({ airspeed: v, networkPressure }), empty: scoopInflow({ airspeed: v, networkPressure: 0 }) })),
+    [networkPressure],
+  );
+  const at = scoopInflow({ airspeed, networkPressure });
+  const summary = `At ${fixed(airspeed, 1)} m/s into a network at pressure ${fixed(networkPressure, 2)}: ${fixed(at.litresPerSecond, 0)} L/s on the tooltip, ${fixed(at.perSecond, 2)} amount per second${at.saturated ? ', at the cap' : ''}.`;
+  const status = useSettled(summary);
+  const desc = `Tooltip flow rises from ${fixed(samples[0].at.litresPerSecond, 0)} L/s when still to the 2400 L/s cap at ${fixed(at.saturationSpeed, 1)} m/s for a network at pressure ${fixed(networkPressure, 2)}. A network pulled to 0 starts at 1200 L/s and caps at 5 m/s. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: `Network at pressure ${fixed(networkPressure, 2)}`, className: 'graph-line-a' },
+        { label: 'Network pulled to pressure 0', className: 'graph-line-b' },
+      ]}
+      controls={(
+        <>
+          <Range id={`${uid}-p`} label="Network pressure" value={networkPressure} min={0} max={1} step={0.05} onChange={(v) => setPressure(+v.toFixed(2))} valueText={fixed(networkPressure, 2)} hint="1 is sea-level air. An engine drawing from the network pulls it lower." />
+          <Range id={`${uid}-x`} label="Selected airspeed" value={airspeed} min={0} max={20} step={0.5} onChange={setAirspeed} valueText={`${fixed(airspeed, 1)} m/s`} hint="Speed along the mouth direction, relative to the wind." />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Air scoop inflow against airspeed"
+          desc={desc}
+          x={{ min: 0, max: 20, ticks: steps(0, 20, 2.5), format: (v) => fixed(v, v % 1 ? 1 : 0), label: 'Airspeed into the mouth (m/s)' }}
+          y={{ min: 0, max: 2400, ticks: [0, 600, 1200, 1800, 2400], format: (v) => fixed(v, 0) }}
+          series={[
+            { key: 'at', className: 'graph-line-a', points: samples.map((s) => [s.v, s.at.litresPerSecond]) },
+            { key: 'empty', className: 'graph-line-b', points: samples.map((s) => [s.v, s.empty.litresPerSecond]) },
+          ]}
+          selected={{ x: airspeed, points: [{ key: 'empty', y: scoopInflow({ airspeed, networkPressure: 0 }).litresPerSecond, className: 'graph-dot-b' }, { key: 'at', y: at.litresPerSecond, className: 'graph-dot-a' }] }}
+          onSelect={(v) => setAirspeed(snap(v, 0, 20, 0.5))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At ${fixed(airspeed, 1)} m/s`}
+          rows={[
+            ['Bias (0.1 × airspeed)', fixed(at.bias, 2)],
+            ['Moved per update', `${fixed(at.perUpdate, 4)} amount`],
+            ['Port counter', fixed(at.counter, 1)],
+            ['Tooltip reading', `${fixed(at.litresPerSecond, 0)} L/s`],
+            ['Per simulated second', `${fixed(at.perSecond, 2)} amount`],
+            ['At the cap', at.saturated ? 'Yes' : `No, cap from ${fixed(at.saturationSpeed, 1)} m/s`, at.saturated ? 'graph-ok' : undefined],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Tooltip flow in L/s, network at pressure ${fixed(networkPressure, 2)} and at 0`,
+        cols: ['Airspeed (m/s)', `Pressure ${fixed(networkPressure, 2)} (L/s)`, 'Pressure 0 (L/s)', `Pressure ${fixed(networkPressure, 2)} (amount/s)`],
+        rows: samples.filter((s) => s.v % 2 === 0).map((s) => [fixed(s.v, 0), fixed(s.at.litresPerSecond, 0), fixed(s.empty.litresPerSecond, 0), fixed(s.at.perSecond, 2)]),
+      }}
+    />
+  );
+}
+
+const GRAPHS = { engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph };
 
 export default function FormulaGraph({ kind }) {
   const G = GRAPHS[kind];

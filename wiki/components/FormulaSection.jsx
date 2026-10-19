@@ -12,12 +12,17 @@ const FINDINGS = {
   ],
   radiator: ['Radiator cooling fraction', 'Radiator airflow divisor', 'Radiator fan term cap and electric fan gain'],
   exchanger: ['Exchanger step fraction', 'Exchange threshold and ambient leak'],
+  scoop: [
+    'Scoop speed gain', 'Port window', 'Step fraction', 'Gas readout factor', 'Readout factor',
+    'Inspection flow scale', 'Inspection flow format', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
   engine: 'Cylinder efficiency against crank speed',
   radiator: 'Radiator cooling rate against airspeed',
   exchanger: 'Heat exchanger temperatures over updates',
+  scoop: 'Air scoop inflow against airspeed',
 };
 
 /*
@@ -127,8 +132,8 @@ const RADIATOR = {
     />
   ),
   assumptions: [
-    'Airspeed is the game\'s internal relative air speed. Its unit is not confirmed, so the axis shows the raw value.',
-    'The rate is per simulation update. How many updates make a second is not established here.',
+    'Airspeed is the radiator\'s speed relative to the wind, in m/s. It uses the same body velocity and wind vector as the air scoop, whose unit is decoded.',
+    'The rate is per simulation update. Active vehicles get 60 updates per simulated second, so a gap keeps (1 - r)^60 of itself after one second.',
     'Fan availability is the electrical availability value the game reads for an electric radiator. Use 0 for a radiator without a fan.',
     'The graph shows the rate, not a temperature over time. Pumping and the rest of the fluid loop are not included.',
   ],
@@ -160,12 +165,45 @@ const EXCHANGER = {
   assumptions: [
     'Both compartments are closed. Fluid flowing in or out through the ports, which a working exchanger normally has, is not modelled.',
     'Capacity weighting is the per-side value from the game\'s gas and liquid capacity helpers. It is an internal weighting, not the exchanger size or fluid volume, so the ratios offered are examples.',
-    'The horizontal axis counts simulation updates. Converting updates to seconds is not established.',
+    'The horizontal axis counts simulation updates. Active vehicles get 60 per simulated second, so 200 updates is 3.3 seconds.',
     'Temperatures are in the game\'s own units.',
   ],
 };
 
-const CONTENT = { engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER };
+const SCOOP = {
+  intro: (
+    <p>
+      Moving an air scoop mouth first through the air adds a bias to the outside pressure, so it fills a pipe network faster than a still
+      port. Inflow grows with airspeed until it reaches a cap of 2 ÷ 30 amount per update. The inspection tooltip shows the flow in
+      L/s, which counts one gas amount as 600 L.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="b">{mi('b')}{mo('=')}{mn('0.1')}{mo('×')}{mi('s')}</mrow>,
+        <mrow key="m">{mi('m')}{mo('=')}<mfrac><mrow>{mi('min')}{mo('(')}{mn('1')}{mo('−')}{sub('P', 'net')}{mo('+')}{mn('2')}{mi('b')}{mo(',')}{mn('2')}{mo(')')}</mrow>{mn('30')}</mfrac></mrow>,
+        <mrow key="l">{mi('Q')}{mo('=')}{mi('m')}{mo('×')}{mn('600')}{mo('×')}{mn('60')}<mspace width="0.3em" /><mtext>L/s</mtext></mrow>,
+      ]}
+      text={[
+        'b = 0.1 * s, s = airspeed along the mouth direction in m/s, relative to the wind',
+        'm = min(1 - P_net + 2b, 2) / 30 amount per update, P_net = network pressure (1 = sea-level air)',
+        'Port counter = 600 * m; tooltip Q = counter * 60 L/s',
+        'Per simulated second: 60 * m amount',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Sea level, so outside pressure is 1. At altitude the 1 and the cap of 2 scale with outside pressure while the bias does not.',
+    'The scoop is the only port moving gas into a network of at least 8 volume units with room to spare. Other inflow ports share the allocation, and a network with no free volume takes nothing.',
+    'Exchange factor 1: no volcano nearby. Inside an enclosed compartment there is no speed term at all.',
+    'Network pressures from 0 to 1 only. Above outside pressure plus 2 × bias the scoop pushes gas out, which this graph does not show.',
+    'Rates at a fixed network pressure. As the network fills its pressure rises and the flow falls.',
+    'The tooltip uses a fixed 600 L per gas amount. It does not divide by network pressure, so it is not the compressed volume in the pipes.',
+  ],
+};
+
+const CONTENT = { engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP };
 
 function Evidence({ items }) {
   return (

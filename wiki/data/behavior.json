@@ -19463,7 +19463,7 @@
     },
     {
       "id": "part-scoop-intake-2",
-      "summary": "Takes outside air through its Fluid port. Speed along the part's local X axis adds 0.1 × speed of bias, which acts like 2 × that much extra outside pressure; inside an enclosed compartment it is a plain port.",
+      "summary": "Takes outside air through its Fluid port. Airspeed in m/s along the part's local +X axis, the side the mouth faces, adds 0.1 × speed of bias, which acts like 2 × that much extra outside pressure; inside an enclosed compartment it is a plain port.",
       "sections": [
         {
           "title": "Operating conditions",
@@ -19475,19 +19475,23 @@
         },
         {
           "title": "Speed term",
-          "body": "The update takes the port's velocity, including spin, subtracts the air-velocity vector the radiators also use, and projects the result on the part's local X axis. Bias = 0.1 × voxel count × that speed, clamped to -10…10; the scoop has 1 voxel, so the clamp is hit at 100 speed units. The sign matters. Moving along -X gives a negative bias that favors outflow from the network, and sideways motion adds nothing. The code fixes the axis but not which mesh face it is, so check the direction in game."
+          "body": "The update takes the port's velocity, including spin, subtracts the wind and projects the result on the part's local X axis. The mesh mouth faces local +X, so driving mouth first in still air gives a positive speed; air entering the mouth moves along -X. Speed is in m/s: the linear speed sensor, whose output is documented in m/s, uses the same velocity calculation without conversion.\n\nBias = 0.1 × voxel count × that speed, clamped to -10…10; the scoop has 1 voxel, so the clamp is hit at 100 m/s. Moving tail first gives a negative bias that favors outflow from the network, and sideways motion adds nothing."
+        },
+        {
+          "title": "Wind",
+          "body": "The subtracted vector is the vehicle's cached weather wind, so the scoop responds to airspeed rather than ground speed. Facing into a headwind raises the bias, and a tailwind as fast as the vehicle cancels it. The game samples the wind once per vehicle at its transformed origin, not at each scoop. The sample includes local weather-cell wind and is scaled by 1 - shelter, so inside a weather shelter volume it is 0. A vehicle whose parent-body link (vehicle+0x14b8) is set gets zero wind on this path."
         },
         {
           "title": "Flow per update and per second",
-          "body": "The port routine works in pressure units where 1 is sea-level air. For a gas-filled pipe network of 8 or more volume units, away from the target-pressure and free-window clamps, the demand is (P_net - (p_out + 2 × bias)) ÷ 15 amount per update, negative meaning inflow, and inflow demand stops growing at 2 ÷ 15 × p_out. The move magnitude is at most 0.5 × factor × the absolute demand, using the network's allocation from the previous update. At exactly P_net - p_out - bias = 0 the routine instead sets demand to 0.\n\nAt sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 speed units, and stays at 0.0667 above that. The port readout shows 600 × a gas amount: 10, 20, 30 and 40. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 (20), so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too.\n\nComponent updates run 60 times per simulated second, so under the same assumptions the sea-level cap is 4 amount per second, 2400 per second on the readout's scale of 600 per amount (the readout itself shows the 40 moved in one update), the still scoop into a network at 0 takes 2 amount per second, and below the cap flow into a network at 1 is 0.4 × speed amount per second. These are rates at a fixed state; a filling network raises P_net and the flow falls."
+          "body": "The port routine works in pressure units where 1 is sea-level air. For a gas-filled pipe network of 8 or more volume units, away from the target-pressure and free-window clamps, the demand is (P_net - (p_out + 2 × bias)) ÷ 15 amount per update, negative meaning inflow, and inflow demand stops growing at 2 ÷ 15 × p_out. The move magnitude is at most 0.5 × factor × the absolute demand, using the network's allocation from the previous update. At exactly P_net - p_out - bias = 0 the routine instead sets demand to 0.\n\nAt sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 m/s, and stays at 0.0667 above that. The port counter stores 600 × the gas amount moved in one update (10, 20, 30 and 40), and the inspection tooltip multiplies it by 60 and shows L/s: 600, 1200, 1800 and 2400 L/s. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 amount per update, 1200 L/s, so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too.\n\nComponent updates run 60 times per simulated second, so under the same assumptions the sea-level cap is 4 amount per second, shown as 2400 L/s. The still scoop into a network at 0 takes 2 amount per second (1200 L/s), and below the cap flow into a network at 1 is 0.4 × speed amount per second, 240 × speed L/s up to 10 m/s. The tooltip therefore counts 1 gas amount as 600 L. That factor is fixed and does not divide by network pressure, so the figure is not the compressed volume in the pipes. These are rates at a fixed state; a filling network raises P_net and the flow falls."
+        },
+        {
+          "title": "Near volcanoes",
+          "body": "In air, the move is also scaled by an exchange factor. Volcanoes lower it: each active volcano adds a source with strength volcanic_heat² and radius 0.5 × eruption_radius at its position. The factor is max(0.01, 1 - volcanic_heat² × eruption_radius ÷ (2 × distance)) for the strongest source, so a hot volcano with a wide eruption radius can cut intake to 0.01 of normal near it. Away from volcanoes the factor is 1. Under water it stays 1."
         },
         {
           "title": "Sealed network",
-          "body": "The simplified demand has a zero at P_net = p_out + 2 × bias: 3 at 10 speed units, 11 at 50 and 21 at 100 or more, where the bias clamp caps it. The exact branch also gives zero demand at P_net = p_out + bias. These are mathematical zero-demand points, not a verified final pressure for a filling network."
-        },
-        {
-          "title": "Open measurement questions",
-          "body": "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the unit the port readout displays, and what the point sources that lower the factor near them are."
+          "body": "The simplified demand has a zero at P_net = p_out + 2 × bias: 3 at 10 m/s, 11 at 50 and 21 at 100 or more, where the bias clamp caps it. The exact branch also gives zero demand at P_net = p_out + bias. These are mathematical zero-demand points, not a verified final pressure for a filling network."
         }
       ],
       "findings": [
@@ -19639,6 +19643,175 @@
           }
         },
         {
+          "label": "Mouth direction",
+          "value": "local +X",
+          "detail": "The open mouth faces the part's local +X, the scoop axis for normal placement. Driving mouth first in still air gives positive projected speed and a positive bias, favoring network inflow; air entering the mouth moves along -X. Mirroring flips the mesh and the scoop axis through the same definition bits. Inputs: resource:rom/meshes/modular_engine_intake_scoop_1x1.mesh:66dad8651d50:mouth, native:stormworks64.exe:f9206d85c82f:0x14031bdb0@0x14031c3e3, native:stormworks64.exe:f9206d85c82f:0x140315150@0x1403155b9, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efd3a.",
+          "evidenceId": "derived:550f43b3fcce",
+          "status": "derived",
+          "source": {
+            "path": "rom/meshes/modular_engine_intake_scoop_1x1.mesh",
+            "sha256": "66dad8651d508aa64887e6cb3e4c9d0167ec1186fe5ed54b043e3814a57a39b3"
+          }
+        },
+        {
+          "label": "Air Scoop Intake 1x1 · mesh mouth",
+          "value": "+X",
+          "detail": "rom/meshes/modular_engine_intake_scoop_1x1.mesh: meshes/modular_engine_intake_scoop_1x1.mesh, 320 vertices, 564 indices. Extent x = -0.125 to 0.125 m. A ray along X through y = 0.0625, z = 0 meets triangles only at x = 0.085 (recess) and x = -0.125 (closed back), none at the x = 0.125 face, so that face is open. Mesh positions are copied unchanged into the vertex buffer and drawn through the component transform times the definition mesh matrix, so mesh +X is component local +X. Report: investigation/air-scoop-followup.md.",
+          "evidenceId": "resource:rom/meshes/modular_engine_intake_scoop_1x1.mesh:66dad8651d50:mouth",
+          "status": "observed",
+          "source": {
+            "path": "rom/meshes/modular_engine_intake_scoop_1x1.mesh",
+            "sha256": "66dad8651d508aa64887e6cb3e4c9d0167ec1186fe5ed54b043e3814a57a39b3"
+          }
+        },
+        {
+          "label": "Mesh axis signs",
+          "value": "definition+0x7b0, +0x7c4, +0x7d8 = ±1",
+          "detail": "After the base mesh at definition+0x3a0 is loaded, the setup reads the same definition byte +0x40 the scoop axis helper uses and writes the X, Y and Z diagonal signs of the definition mesh matrix; bits clear give +1 with no axis permutation. The render path 0x140320cf0 multiplies the component transform by that matrix before drawing. Report: investigation/air-scoop-followup.md. Function 0x14031bdb0-0x14031c83c; instruction bytes 0fb64f40 at 0x14031c3e3. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/mesh-sign-transform.asm:L1-L28; ../air-scoop-followup/asm/mesh-path.asm; ../air-scoop-followup/asm/mesh-render.asm; ../air-scoop-followup/pseudocode/0x14031bdb0.c; ../air-scoop-followup/pseudocode/0x140320cf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14031bdb0@0x14031c3e3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031c3e3"
+          }
+        },
+        {
+          "label": "Mesh matrix default",
+          "value": "identity",
+          "detail": "The definition constructor starts the mesh matrix at definition+0x7b0 as identity (diagonal stores at 0x1403155b9, 0x1403155d1, 0x1403155e9 and 0x140315601). Report: investigation/air-scoop-followup.md. Function 0x140315150-0x1403159dc; instruction bytes 48c787b00700000000803f at 0x1403155b9. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/mesh-transform-default.asm:L1-L10. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140315150@0x1403155b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403155b9"
+          }
+        },
+        {
+          "label": "Scoop speed unit",
+          "value": "m/s",
+          "detail": "The scoop's point velocity uses the body fields and helpers of the linear speed sensor, whose output port reads them unscaled and is described as m/s; the scoop subtracts the cached wind before projecting. The angular velocity is then rad/s by dimensional inference. Inputs: resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L41-L41, resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5476, native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5664, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efee9.",
+          "evidenceId": "derived:b47eb42aedf0",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/linear_speed_sensor.xml",
+            "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+            "lineStart": 41,
+            "lineEnd": 41
+          }
+        },
+        {
+          "label": "Linear Speed Sensor · port Linear Speed",
+          "value": "The sensor's linear speed in m/s.",
+          "detail": "linear_speed_sensor: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L41-L41",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/linear_speed_sensor.xml",
+            "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+            "lineStart": 41,
+            "lineEnd": 41
+          }
+        },
+        {
+          "label": "Linear Speed Sensor · logic_gate_type",
+          "value": "19",
+          "detail": "linear_speed_sensor: definition attribute logic_gate_type. Value 19 (0x13) selects the linear speed case of the logic update.",
+          "evidenceId": "resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/linear_speed_sensor.xml",
+            "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Linear speed point velocity",
+          "value": "v + w × r",
+          "detail": "Logic case 0x13 crosses body+0xa4 with the rotated point offset (0x1401758e0) and adds body+0x98 (0x140175bb0 at 0x1403c5489), the same calls the scoop makes at 0x1403efefc and 0x1403eff0f. Report: investigation/air-scoop-followup.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e86504dbff at 0x1403c5476. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/linear-speed.asm:L1-L35; ../air-scoop-followup/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5476",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c5476"
+          }
+        },
+        {
+          "label": "Linear speed output",
+          "value": "component+0x694, unscaled",
+          "detail": "The selected absolute, directional, horizontal or vertical speed is stored at component+0x694 without a unit conversion. Report: investigation/air-scoop-followup.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f11b694060000 at 0x1403c5664. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/linear-speed.asm:L36-L143; ../air-scoop-followup/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5664",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c5664"
+          }
+        },
+        {
+          "label": "Subtracted vector",
+          "value": "cached weather wind",
+          "detail": "The vector the scoop and the case 9 radiators subtract is the vehicle's cached weather wind, sampled once per vehicle at its transformed origin and scaled by 1 - shelter; it is zero when vehicle+0x14b8 holds a parent-body link. The scoop therefore responds to airspeed relative to the wind. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405497fe, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bacf6, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad47, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad83, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efee9.",
+          "evidenceId": "derived:7dfa1cd0ab26",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405497fe"
+          }
+        },
+        {
+          "label": "Fluid argument 10",
+          "value": "vehicle+0x14d0",
+          "detail": "The dispatcher takes vehicle+0x14d0, stores it in the outgoing argument slot [rsp+0x48] at 0x14054989c and calls the component update through vtable slot +0x358 at 0x1405498d6. The fluid update saves that argument at 0x1403ef907 and passes it to the vector subtraction at 0x1403eff14. Report: investigation/air-scoop-followup.md. Function 0x140549240-0x140549ef6; instruction bytes 4c8d83d0140000 at 0x1405497fe. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/component-vector-pass.asm:L66-L105; ../air-scoop-followup/asm/fluid-vector-use.asm:L1-L64; ../air-scoop-followup/pseudocode/0x140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405497fe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405497fe"
+          }
+        },
+        {
+          "label": "Wind cache, parent-body case",
+          "value": "vehicle+0x14b8 set: 0",
+          "detail": "Called from the scene update at 0x1405e9173 with the weather at scene+0xbade8. When vehicle+0x14b8 holds a parent-body link the routine skips sampling and writes a zero vector. Report: investigation/air-scoop-followup.md. Function 0x1404bab00-0x1404baf7c; instruction bytes 4883bbb8140000007570 at 0x1404bacf6. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/vehicle-wind-write.asm:L40-L73; ../air-scoop-followup/asm/scene-wind-call.asm:L8-L22; ../air-scoop-followup/pseudocode/0x1404bab00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bacf6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bacf6"
+          }
+        },
+        {
+          "label": "Wind shelter complement",
+          "value": "1",
+          "detail": "Each wind component from the weather sample 0x1402c1830 (taken at the translation of the vehicle's transformed matrix, with local weather-cell wind included) is multiplied by this minus the shelter value 0x1402c10e0, the largest attenuation among the weather shelter boxes; inside an inner box that value is 1. Report: investigation/air-scoop-followup.md. Function 0x1404bab00-0x1404baf7c; instruction bytes f30f100d7d516f00 at 0x1404bad47 address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/vehicle-wind-write.asm:L54-L73; ../air-scoop-followup/asm/weather-shelter.asm; ../air-scoop-followup/pseudocode/0x1402c10e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad47",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bad47"
+          }
+        },
+        {
+          "label": "Cached wind store",
+          "value": "vehicle+0x14d0 = wind × (1 - shelter)",
+          "detail": "Writes the X, Y and Z of the sheltered wind to vehicle+0x14d0, one vector per vehicle. Report: investigation/air-scoop-followup.md. Function 0x1404bab00-0x1404baf7c; instruction bytes f3410f111af30f115104f30f114008 at 0x1404bad83. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/vehicle-wind-write.asm:L48-L73; ../air-scoop-followup/asm/weather-wind.asm; ../air-scoop-followup/pseudocode/0x1402c1830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad83",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bad83"
+          }
+        },
+        {
           "label": "Compartment case",
           "value": "outside = compartment+0x30, factor 1",
           "detail": "The factor output is set to 1. With a compartment pointer the routine returns that compartment's fluid state and stops, so an enclosed scoop exchanges with the compartment. Function 0x140311f20-0x140311f79; instruction bytes c7060000803f4885c97414488b8424e80000004883c130488908e932020000 at 0x140311f5a. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L7-L20; ../air-scoop/pseudocode/0x140311f20.c:L24-L27,L86-L88. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -19768,6 +19941,90 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x14031216e"
+          }
+        },
+        {
+          "label": "Exchange factor near a volcano",
+          "value": "max(0.01, 1 - volcanic_heat² × eruption_radius ÷ (2 × distance))",
+          "detail": "Volcanoes populate the source list 0x14030e1f0 reads: strength volcanic_heat², radius eruption_radius × 0.5, at the volcano position. The air branch takes the largest strength × radius ÷ distance and floors the factor at 0.01. This identifies a producer; it is not an exhaustive search of every writer to the list. Inputs: native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fa84, native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fb62, native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fbde, native:stormworks64.exe:f9206d85c82f:0x14055e7d0@0x140b884b8, native:stormworks64.exe:f9206d85c82f:0x14055e7d0@0x140b88378, native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fa6f, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x14031216e.",
+          "evidenceId": "derived:192d6ce29f3b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14055fa84"
+          }
+        },
+        {
+          "label": "Volcano source append",
+          "value": "world+0x2d0",
+          "detail": "With positive heat and no live source the volcano update allocates a 0x20-byte source, adds 0x2d0 to the world pointer it was passed (scene+0xbaef0, the object the fluid update hands to 0x140311f20) and appends a counted handle to that list (count store at 0x14055fab3). Report: investigation/air-scoop-followup.md. Function 0x14055eff0-0x14056015e; instruction bytes 4881c3d0020000 at 0x14055fa84. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/volcano-source.asm:L12-L45; ../air-scoop-followup/asm/scene-wind-call.asm:L37-L56; ../air-scoop-followup/asm/component-vector-pass.asm; ../air-scoop-followup/pseudocode/0x14055eff0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fa84",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14055fa84"
+          }
+        },
+        {
+          "label": "Source defaults",
+          "value": "strength 1, radius 1000",
+          "detail": "Constructor defaults that the volcano path then replaces. Report: investigation/air-scoop-followup.md. Function 0x14055eff0-0x14056015e; instruction bytes c740180000803fc7401c00007a44 at 0x14055fa6f. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/volcano-source.asm:L12-L45; ../air-scoop-followup/asm/volcano-call.asm; ../air-scoop-followup/pseudocode/0x14055eff0.c; ../air-scoop-followup/pseudocode/0x140561660.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fa6f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14055fa6f"
+          }
+        },
+        {
+          "label": "Volcano source radius scale",
+          "value": "0.5",
+          "detail": "Source radius (+0x1c) = record+0x44 × this; the source position is copied from the volcano position doubles at 0x14055fb46-0x14055fb59. Report: investigation/air-scoop-followup.md. Function 0x14055eff0-0x14056015e; instruction bytes f30f590552016500 at 0x14055fb62 address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/volcano-source.asm:L78-L93; ../air-scoop-followup/pseudocode/0x14055eff0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fb62",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14055fb62"
+          }
+        },
+        {
+          "label": "Volcano source strength",
+          "value": "heat²",
+          "detail": "After the heat at record+0x6c decays and is clamped to 0…1 (0x14055fb7a-0x14055fb8b), it is squared and written as the source strength (+0x18). The volcano releases the handle once heat is no longer positive. Report: investigation/air-scoop-followup.md. Function 0x14055eff0-0x14056015e; instruction bytes f30f59c0488b00f30f114018 at 0x14055fbde. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/volcano-source.asm:L90-L120; ../air-scoop-followup/pseudocode/0x14055eff0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055eff0@0x14055fbde",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14055fbde"
+          }
+        },
+        {
+          "label": "Volcano field +0x6c",
+          "value": "volcanic_heat",
+          "detail": "The record serializer binds record+0x6c to this name at 0x14055eb92. Report: investigation/air-scoop-followup.md. Function 0x14055e7d0-0x14055efe5; it references the string 'volcanic_heat' at 0x140b884b8. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/volcano-field-names.asm:L1-L28; ../air-scoop-followup/asm/volcano-serialization.asm; ../air-scoop-followup/pseudocode/0x14055e7d0.c; ../air-scoop-followup/pseudocode/0x1409140f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055e7d0@0x140b884b8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b884b8"
+          }
+        },
+        {
+          "label": "Volcano field +0x44",
+          "value": "eruption_radius",
+          "detail": "The record serializer binds record+0x44 to this name at 0x14055ed5b. Report: investigation/air-scoop-followup.md. Function 0x14055e7d0-0x14055efe5; it references the string 'eruption_radius' at 0x140b88378. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/volcano-field-names.asm:L1-L28; ../air-scoop-followup/asm/volcano-serialization.asm; ../air-scoop-followup/pseudocode/0x14055e7d0.c; ../air-scoop-followup/pseudocode/0x1409140f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055e7d0@0x140b88378",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b88378"
           }
         },
         {
@@ -19975,6 +20232,54 @@
           }
         },
         {
+          "label": "Port counter store",
+          "value": "port+0x34 = Σ × sign",
+          "detail": "Multiplies the scaled sum by the sign argument (1 from the exchange call at 0x1402ed2da) and stores it at port+0x34. Report: investigation/air-scoop-followup.md. Function 0x1402ec210-0x1402ec2a0; instruction bytes f30f59caf30f114934 at 0x1402ec25b. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/port-readout.asm:L1-L28. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec25b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec25b"
+          }
+        },
+        {
+          "label": "Inspection flow scale",
+          "value": "60",
+          "detail": "Loaded into xmm7 by the component inspection text for its fluid-port list (component+0xd0). Report: investigation/air-scoop-followup.md. Function 0x140329fb0-0x14032abb9; instruction bytes f30f103d5e628800 at 0x14032a4fa address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/flow-tooltip.asm:L1-L35; ../air-scoop-followup/pseudocode/0x140329fb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140329fb0@0x14032a4fa",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14032a4fa"
+          }
+        },
+        {
+          "label": "Inspection flow value",
+          "value": "port+0x34 × 60",
+          "detail": "For a connected port (port+0x20 set) the inspection text reads port+0x34 and multiplies it by xmm7 before formatting. Report: investigation/air-scoop-followup.md. Function 0x140329fb0-0x14032abb9; instruction bytes f30f107734f30f59f7 at 0x14032a563. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/flow-tooltip.asm:L1-L35; ../air-scoop-followup/pseudocode/0x140329fb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140329fb0@0x14032a563",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14032a563"
+          }
+        },
+        {
+          "label": "Inspection flow format",
+          "value": "%.2fL/s",
+          "detail": "The scaled port counter is printed with this format, in litres per second. Report: investigation/air-scoop-followup.md. Function 0x140329fb0-0x14032abb9; it references the string '%.2fL/s' at 0x140b60610. Interpretation rests on retained output investigation/native/behavior/../air-scoop-followup/asm/flow-tooltip.asm:L1-L35; ../air-scoop-followup/pseudocode/0x140329fb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140329fb0@0x140b60610",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b60610"
+          }
+        },
+        {
           "label": "Exterior air pressure",
           "value": "0 m: 1.0000; 1000 m: 0.8856; 2000 m: 0.7821; 5000 m: 0.5289; 10000 m: 0.2566; 20000 m: 0.0413",
           "detail": "p_out = (1 - 2.2413793e-05 × y)^5.3595023 for y ≤ 40000 m, else 0; 1 = sea level. Port pressure = 60 × amount ÷ volume = ratio. Inputs: native:stormworks64.exe:f9206d85c82f:0x140311f79@0x14031212d, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312139, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312118, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312151, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x1403120cc, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec7cc.",
@@ -20012,9 +20317,9 @@
         },
         {
           "label": "Scoop transfer at sea level",
-          "value": "0: 0.0000 (0); 2.5: 0.0167 (10); 5: 0.0333 (20); 7.5: 0.0500 (30); 10: 0.0667 (40); 20: 0.0667 (40)",
-          "detail": "Amount moved per update (readout units in brackets, amount × 600) against speed along the axis, network at pressure 1, sole port, factor 1: 0.5 × min(2 × bias, 2) ÷ 15. Network at pressure 0: 0: 0.0333 (20); 2.5: 0.0500 (30); 5: 0.0667 (40). Inputs: derived:24de75632861, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9ee, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9dd, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca050, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec233, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec242, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec221.",
-          "evidenceId": "derived:2d48d3d9d064",
+          "value": "0: 0.0000 (counter 0, 0 L/s); 2.5: 0.0167 (counter 10, 600 L/s); 5: 0.0333 (counter 20, 1200 L/s); 7.5: 0.0500 (counter 30, 1800 L/s); 10: 0.0667 (counter 40, 2400 L/s); 20: 0.0667 (counter 40, 2400 L/s)",
+          "detail": "Amount moved per update against speed along the axis in m/s, network at pressure 1, sole port, factor 1: 0.5 × min(2 × bias, 2) ÷ 15. The port counter is amount × 600; the inspection tooltip shows counter × 60 in L/s. Network at pressure 0: 0: 0.0333 (counter 20, 1200 L/s); 2.5: 0.0500 (counter 30, 1800 L/s); 5: 0.0667 (counter 40, 2400 L/s). Inputs: derived:24de75632861, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9ee, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9dd, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca050, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec233, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec242, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec221, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec25b, native:stormworks64.exe:f9206d85c82f:0x140329fb0@0x14032a4fa, native:stormworks64.exe:f9206d85c82f:0x140329fb0@0x14032a563, native:stormworks64.exe:f9206d85c82f:0x140329fb0@0x140b60610, derived:b47eb42aedf0.",
+          "evidenceId": "derived:dbbc862b5a4d",
           "status": "derived",
           "source": {
             "path": "stormworks64.exe",
@@ -20036,9 +20341,9 @@
         },
         {
           "label": "Scoop transfer per simulated second",
-          "value": "cap 4 (2400 readout units); still scoop into pressure 0: 2; unsaturated at pressure 1: 0.4 × speed",
-          "detail": "Amount moved per update × 60 updates per simulated second, under the same sole-port, sea-level, free-room assumptions as the per-update table; readout units are amount × 600. Inputs: derived:2d48d3d9d064, derived:7d3ff454a23f.",
-          "evidenceId": "derived:a883d0c5144b",
+          "value": "cap 4 amount/s (2400 L/s); still scoop into pressure 0: 2 amount/s (1200 L/s); unsaturated at pressure 1: 0.4 × speed amount/s (240 × speed L/s) up to 10 m/s; 1 amount = 600 L",
+          "detail": "Amount moved per update × 60 updates per simulated second, under the same sole-port, sea-level, free-room assumptions as the per-update table. The tooltip shows the per-update counter × 60, so one gas amount per second displays as 600 L/s. The factor is fixed; it does not divide by network pressure. Inputs: derived:dbbc862b5a4d, derived:7d3ff454a23f.",
+          "evidenceId": "derived:81e1317f4294",
           "status": "derived",
           "source": {
             "path": "stormworks64.exe",
@@ -20135,9 +20440,22 @@
         "Static decompilation of one build; the game was not run and no flow was measured.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.",
         "The flow figures assume the scoop is the only port moving gas into a network of at least 8 volume units with room to spare. With several ports, the allocation gives each f·|f| ÷ Σ|f|, and the move lags the demand by one update.",
-        "The vector subtracted from the point velocity is argument 10 of the fluid update; it is taken to be air velocity because the radiators subtract it for their airflow term, but its source was not traced."
+        "Volcanoes are the producer of exchange-factor sources found in this build. The search identified that writer but did not exhaustively exclude every other writer to the list.",
+        "The L/s figure on the inspection tooltip is a fixed display factor of 600 L per gas amount. It does not measure the compressed gas volume in the network."
       ],
       "sources": [
+        {
+          "path": "rom/data/definitions/linear_speed_sensor.xml",
+          "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/linear_speed_sensor.xml",
+          "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+          "lineStart": 41,
+          "lineEnd": 41
+        },
         {
           "path": "rom/data/definitions/scoop_intake_2.xml",
           "sha256": "0f9cb86521aa435f1274c77d26f017ac025a86197126a08de4f335200a5c867e",
@@ -20157,6 +20475,10 @@
           "lineEnd": 58
         },
         {
+          "path": "rom/meshes/modular_engine_intake_scoop_1x1.mesh",
+          "sha256": "66dad8651d508aa64887e6cb3e4c9d0167ec1186fe5ed54b043e3814a57a39b3"
+        },
+        {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402ec221"
@@ -20170,6 +20492,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402ec242"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec25b"
         },
         {
           "path": "stormworks64.exe",
@@ -20289,6 +20616,36 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403155b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031c3e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032a4fa"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032a563"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c5476"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c5664"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403efc60"
         },
         {
@@ -20334,12 +20691,52 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bacf6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bad47"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bad83"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca050"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405497fe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14055fa6f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14055fa84"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14055fb62"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14055fbde"
         },
         {
           "path": "stormworks64.exe",
@@ -20365,6 +20762,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b60610"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b88378"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b884b8"
         },
         {
           "path": "stormworks64.exe",
@@ -25414,12 +25826,12 @@
       "weapon-xxl-barrel",
       "wheel-with-suspension"
     ],
-    "findingCount": 1167,
+    "findingCount": 1192,
     "findingsByStatus": {
-      "derived": 78,
-      "observed": 1089
+      "derived": 82,
+      "observed": 1110
     },
-    "nativeFindingCount": 380,
+    "nativeFindingCount": 400,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -25470,9 +25882,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 60,
-      "native": 148,
-      "resource": 833
+      "derived": 64,
+      "native": 166,
+      "resource": 837
     }
   }
 }

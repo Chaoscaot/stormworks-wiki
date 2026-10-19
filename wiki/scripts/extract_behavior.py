@@ -280,6 +280,41 @@ class Evidence:
         return self.located(path, start, end, "%s · listed voxels" % self.block(bid)["name"], count,
                             "%s: %d <voxel> element(s) in the definition. %s" % (bid, count, meaning))
 
+    def mesh_mouth(self, bid, x_face, x_recess, y, z, detail):
+        """Open side of a part mesh: a ray along X at (y, z) must hit the recess and the back face but not the front face."""
+        name = self.attr(bid, "mesh_data_name", "")["value"]
+        path = "rom/" + name
+        data = (self.root / path).read_bytes()
+        digest = sha(data)
+        if data[:4] != b"mesh" or struct.unpack_from("<HHH", data, 6) != (1, struct.unpack_from("<H", data, 8)[0], 0x13):
+            raise ValueError("Unexpected mesh header in " + path)
+        count = struct.unpack_from("<H", data, 8)[0]
+        verts = [struct.unpack_from("<3f", data, 14 + 28 * i) for i in range(count)]
+        at = 14 + 28 * count
+        n = struct.unpack_from("<I", data, at)[0]
+        index = struct.unpack_from("<%dH" % n, data, at + 4)
+        if max(index) >= count:
+            raise ValueError("Mesh index out of range in " + path)
+        hits = set()
+        for t in range(0, n, 3):
+            a, b, c = (verts[i] for i in index[t:t + 3])
+            den = (b[1] - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (b[2] - a[2])
+            if abs(den) < 1e-12:
+                continue
+            u = ((y - a[1]) * (c[2] - a[2]) - (c[1] - a[1]) * (z - a[2])) / den
+            v = ((b[1] - a[1]) * (z - a[2]) - (y - a[1]) * (b[2] - a[2])) / den
+            if u >= 0 and v >= 0 and u + v <= 1:
+                hits.add(round(a[0] + u * (b[0] - a[0]) + v * (c[0] - a[0]), 6))
+        xs = [v[0] for v in verts]
+        if max(xs) != x_face or sorted(hits) != [-x_face, x_recess]:
+            raise ValueError("Mesh mouth check failed in %s: hits %s" % (path, sorted(hits)))
+        self.used["resource"] += 1
+        return {"label": "%s · mesh mouth" % self.block(bid)["name"], "value": "+X",
+                "detail": "%s: %s, %d vertices, %d indices. Extent x = %g to %g m. A ray along X through y = %g, z = %g meets triangles only at x = %g (recess) and x = %g (closed back), none at the x = %g face, so that face is open. %s" % (
+                    path, name, count, n, -x_face, x_face, y, z, x_recess, -x_face, x_face, detail),
+                "evidenceId": "resource:%s:%s:mouth" % (path, digest[:12]), "status": "observed",
+                "source": {"path": path, "sha256": digest}}
+
     def case_table(self, func, address, hexbytes, table, targets, label, detail):
         """Dispatch instruction bytes plus the image-relative jump table it indexes."""
         n = self.native
@@ -441,6 +476,35 @@ WHERE.update({
     (0x140549240, 0x1405498D6): RATE + "asm/stormworks64-component-dispatch.asm:L55-L110; " + RATE + "tables.txt:L7-L12",
     (0x1405E3A80, 0x1405E3AEA): RATE + "asm/stormworks64-physics-worker.asm:L19-L31; " + RATE + "pseudocode/0x1405e3a80.c; " + RATE + "tables.txt:L4,L13-L14",
     (0x1405E3A80, 0x1405E3ADD): RATE + "asm/stormworks64-physics-worker.asm:L20-L31; " + RATE + "asm/stormworks64-physics-accumulator.asm",
+})
+
+# air-scoop follow-up pass; files under investigation/native/air-scoop-followup/.
+SCOOP2 = "../air-scoop-followup/"
+SCOOP2_REPORT = "investigation/air-scoop-followup.md"
+F_MESH_SETUP = 0x14031BDB0  # definition mesh setup: mesh axis signs from definition byte +0x40
+F_DEF_INIT = 0x140315150    # definition constructor: identity mesh matrix at +0x7b0
+F_LOGIC = 0x1403C4D20       # logic component update; case 0x13 is the linear speed sensor
+F_WIND = 0x1404BAB00        # per-vehicle cached weather wind at vehicle+0x14d0
+F_VOLCANO = 0x14055EFF0     # volcano update: exterior-factor source in world+0x2d0
+F_VOLCANO_SER = 0x14055E7D0  # volcano record serializer
+F_TOOLTIP = 0x140329FB0     # component inspection text, fluid-port flow line
+_V = SCOOP2 + "asm/volcano-source.asm"
+WHERE.update({
+    (0x14031BDB0, 0x14031C3E3): SCOOP2 + "asm/mesh-sign-transform.asm:L1-L28; " + SCOOP2 + "asm/mesh-path.asm; " + SCOOP2 + "asm/mesh-render.asm; " + SCOOP2 + "pseudocode/0x14031bdb0.c; " + SCOOP2 + "pseudocode/0x140320cf0.c",
+    (0x140315150, 0x1403155B9): SCOOP2 + "asm/mesh-transform-default.asm:L1-L10",
+    (0x1403C4D20, 0x1403C5476): SCOOP2 + "asm/linear-speed.asm:L1-L35; " + SCOOP2 + "pseudocode/0x1403c4d20.c",
+    (0x1403C4D20, 0x1403C5664): SCOOP2 + "asm/linear-speed.asm:L36-L143; " + SCOOP2 + "pseudocode/0x1403c4d20.c",
+    (0x140549240, 0x1405497FE): SCOOP2 + "asm/component-vector-pass.asm:L66-L105; " + SCOOP2 + "asm/fluid-vector-use.asm:L1-L64; " + SCOOP2 + "pseudocode/0x140549240.c",
+    (0x1404BAB00, 0x1404BACF6): SCOOP2 + "asm/vehicle-wind-write.asm:L40-L73; " + SCOOP2 + "asm/scene-wind-call.asm:L8-L22; " + SCOOP2 + "pseudocode/0x1404bab00.c",
+    (0x1404BAB00, 0x1404BAD47): SCOOP2 + "asm/vehicle-wind-write.asm:L54-L73; " + SCOOP2 + "asm/weather-shelter.asm; " + SCOOP2 + "pseudocode/0x1402c10e0.c",
+    (0x1404BAB00, 0x1404BAD83): SCOOP2 + "asm/vehicle-wind-write.asm:L48-L73; " + SCOOP2 + "asm/weather-wind.asm; " + SCOOP2 + "pseudocode/0x1402c1830.c",
+    (0x14055EFF0, 0x14055FA6F): _V + ":L12-L45; " + SCOOP2 + "asm/volcano-call.asm; " + SCOOP2 + "pseudocode/0x14055eff0.c; " + SCOOP2 + "pseudocode/0x140561660.c",
+    (0x14055EFF0, 0x14055FA84): _V + ":L12-L45; " + SCOOP2 + "asm/scene-wind-call.asm:L37-L56; " + SCOOP2 + "asm/component-vector-pass.asm; " + SCOOP2 + "pseudocode/0x14055eff0.c",
+    (0x14055EFF0, 0x14055FB62): _V + ":L78-L93; " + SCOOP2 + "pseudocode/0x14055eff0.c",
+    (0x14055EFF0, 0x14055FBDE): _V + ":L90-L120; " + SCOOP2 + "pseudocode/0x14055eff0.c",
+    (0x14055E7D0, None): SCOOP2 + "asm/volcano-field-names.asm:L1-L28; " + SCOOP2 + "asm/volcano-serialization.asm; " + SCOOP2 + "pseudocode/0x14055e7d0.c; " + SCOOP2 + "pseudocode/0x1409140f0.c",
+    (0x140329FB0, None): SCOOP2 + "asm/flow-tooltip.asm:L1-L35; " + SCOOP2 + "pseudocode/0x140329fb0.c",
+    (0x1402EC210, 0x1402EC25B): SCOOP2 + "asm/port-readout.asm:L1-L28",
 })
 
 
@@ -1755,12 +1819,68 @@ def air_scoop(B, E):
     gas60 = op(F_READOUT, 0x1402EC233, "f30f590525458c00", 0x140BB0760, "Gas readout factor", "Gas amounts only.")
     ten = op(F_READOUT, 0x1402EC242, "f30f590502448c00", 0x140BB064C, "Readout factor", "All fluids.")
 
+    # Follow-up pass: mouth side, speed unit, subtracted vector, factor sources and tooltip unit.
+    if not (E.root / SCOOP2_REPORT).is_file():
+        raise ValueError("Air-scoop follow-up report missing: " + SCOOP2_REPORT)
+    FU = " Report: %s." % SCOOP2_REPORT
+    scoop = "scoop_intake_2"
+    mouth = E.mesh_mouth(scoop, 0.125, 0.085, 0.0625, 0.0,
+                         "Mesh positions are copied unchanged into the vertex buffer and drawn through the component transform times the definition mesh matrix, so mesh +X is component local +X." + FU)
+    msign = code(F_MESH_SETUP, 0x14031C3E3, "0fb64f40", "Mesh axis signs", "definition+0x7b0, +0x7c4, +0x7d8 = ±1",
+                 "After the base mesh at definition+0x3a0 is loaded, the setup reads the same definition byte +0x40 the scoop axis helper uses and writes the X, Y and Z diagonal signs of the definition mesh matrix; bits clear give +1 with no axis permutation. The render path 0x140320cf0 multiplies the component transform by that matrix before drawing." + FU)
+    mident = code(F_DEF_INIT, 0x1403155B9, "48c787b00700000000803f", "Mesh matrix default", "identity",
+                  "The definition constructor starts the mesh matrix at definition+0x7b0 as identity (diagonal stores at 0x1403155b9, 0x1403155d1, 0x1403155e9 and 0x140315601)." + FU)
+    facing = E.derived("Mouth direction", "local +X",
+                       "The open mouth faces the part's local +X, the scoop axis for normal placement. Driving mouth first in still air gives positive projected speed and a positive bias, favoring network inflow; air entering the mouth moves along -X. Mirroring flips the mesh and the scoop axis through the same definition bits.",
+                       [mouth, msign, mident, axis])
+    ls_tag = E.attr("linear_speed_sensor", "logic_gate_type", "Value 19 (0x13) selects the linear speed case of the logic update.")
+    ls_port = E.port("linear_speed_sensor", "Linear Speed")
+    ls_vel = code(F_LOGIC, 0x1403C5476, "e86504dbff", "Linear speed point velocity", "v + w × r",
+                  "Logic case 0x13 crosses body+0xa4 with the rotated point offset (0x1401758e0) and adds body+0x98 (0x140175bb0 at 0x1403c5489), the same calls the scoop makes at 0x1403efefc and 0x1403eff0f." + FU)
+    ls_out = code(F_LOGIC, 0x1403C5664, "f3410f11b694060000", "Linear speed output", "component+0x694, unscaled",
+                  "The selected absolute, directional, horizontal or vertical speed is stored at component+0x694 without a unit conversion." + FU)
+    unit = E.derived("Scoop speed unit", "m/s",
+                     "The scoop's point velocity uses the body fields and helpers of the linear speed sensor, whose output port reads them unscaled and is described as m/s; the scoop subtracts the cached wind before projecting. The angular velocity is then rad/s by dimensional inference.",
+                     [ls_port, ls_tag, ls_vel, ls_out, relv])
+    wpass = code(F_DISPATCH, 0x1405497FE, "4c8d83d0140000", "Fluid argument 10", "vehicle+0x14d0",
+                 "The dispatcher takes vehicle+0x14d0, stores it in the outgoing argument slot [rsp+0x48] at 0x14054989c and calls the component update through vtable slot +0x358 at 0x1405498d6. The fluid update saves that argument at 0x1403ef907 and passes it to the vector subtraction at 0x1403eff14." + FU)
+    wzero = code(F_WIND, 0x1404BACF6, "4883bbb8140000007570", "Wind cache, parent-body case", "vehicle+0x14b8 set: 0",
+                 "Called from the scene update at 0x1405e9173 with the weather at scene+0xbade8. When vehicle+0x14b8 holds a parent-body link the routine skips sampling and writes a zero vector." + FU)
+    wshel = op(F_WIND, 0x1404BAD47, "f30f100d7d516f00", 0x140BAFECC, "Wind shelter complement",
+               "Each wind component from the weather sample 0x1402c1830 (taken at the translation of the vehicle's transformed matrix, with local weather-cell wind included) is multiplied by this minus the shelter value 0x1402c10e0, the largest attenuation among the weather shelter boxes; inside an inner box that value is 1." + FU)
+    wstore = code(F_WIND, 0x1404BAD83, "f3410f111af30f115104f30f114008", "Cached wind store", "vehicle+0x14d0 = wind × (1 - shelter)",
+                  "Writes the X, Y and Z of the sheltered wind to vehicle+0x14d0, one vector per vehicle." + FU)
+    wind = E.derived("Subtracted vector", "cached weather wind",
+                     "The vector the scoop and the case 9 radiators subtract is the vehicle's cached weather wind, sampled once per vehicle at its transformed origin and scaled by 1 - shelter; it is zero when vehicle+0x14b8 holds a parent-body link. The scoop therefore responds to airspeed relative to the wind.",
+                     [wpass, wzero, wshel, wstore, relv])
+    vlist = code(F_VOLCANO, 0x14055FA84, "4881c3d0020000", "Volcano source append", "world+0x2d0",
+                 "With positive heat and no live source the volcano update allocates a 0x20-byte source, adds 0x2d0 to the world pointer it was passed (scene+0xbaef0, the object the fluid update hands to 0x140311f20) and appends a counted handle to that list (count store at 0x14055fab3)." + FU)
+    vdef = code(F_VOLCANO, 0x14055FA6F, "c740180000803fc7401c00007a44", "Source defaults", "strength 1, radius 1000",
+                "Constructor defaults that the volcano path then replaces." + FU)
+    vrad = op(F_VOLCANO, 0x14055FB62, "f30f590552016500", 0x140BAFCBC, "Volcano source radius scale",
+              "Source radius (+0x1c) = record+0x44 × this; the source position is copied from the volcano position doubles at 0x14055fb46-0x14055fb59." + FU)
+    vstr = code(F_VOLCANO, 0x14055FBDE, "f30f59c0488b00f30f114018", "Volcano source strength", "heat²",
+                "After the heat at record+0x6c decays and is clamped to 0…1 (0x14055fb7a-0x14055fb8b), it is squared and written as the source strength (+0x18). The volcano releases the handle once heat is no longer positive." + FU)
+    vheat = E.string(F_VOLCANO_SER, 0x140B884B8, "volcanic_heat", "Volcano field +0x6c", "The record serializer binds record+0x6c to this name at 0x14055eb92." + FU)
+    vrads = E.string(F_VOLCANO_SER, 0x140B88378, "eruption_radius", "Volcano field +0x44", "The record serializer binds record+0x44 to this name at 0x14055ed5b." + FU)
+    volcano = E.derived("Exchange factor near a volcano", "max(0.01, 1 - volcanic_heat² × eruption_radius ÷ (2 × distance))",
+                        "Volcanoes populate the source list 0x14030e1f0 reads: strength volcanic_heat², radius eruption_radius × 0.5, at the volcano position. The air branch takes the largest strength × radius ÷ distance and floors the factor at 0.01. This identifies a producer; it is not an exhaustive search of every writer to the list.",
+                        [vlist, vrad, vstr, vheat, vrads, vdef, floor])
+    store = code(F_READOUT, 0x1402EC25B, "f30f59caf30f114934", "Port counter store", "port+0x34 = Σ × sign",
+                 "Multiplies the scaled sum by the sign argument (1 from the exchange call at 0x1402ed2da) and stores it at port+0x34." + FU)
+    tip = op(F_TOOLTIP, 0x14032A4FA, "f30f103d5e628800", 0x140BB0760, "Inspection flow scale",
+             "Loaded into xmm7 by the component inspection text for its fluid-port list (component+0xd0)." + FU)
+    tipmul = code(F_TOOLTIP, 0x14032A563, "f30f107734f30f59f7", "Inspection flow value", "port+0x34 × 60",
+                  "For a connected port (port+0x20 set) the inspection text reads port+0x34 and multiplies it by xmm7 before formatting." + FU)
+    tipfmt = E.string(F_TOOLTIP, 0x140B60610, "%.2fL/s", "Inspection flow format", "The scaled port counter is printed with this format, in litres per second." + FU)
+
     # Derived curves from the verified constants (formulas in investigation/air-scoop.md).
     L, X, CEIL, V60, W8 = k(0x140BAF880), k(0x140BB0504), 40000.0, k(0x140BB0760), k(0x140BB0600)
     G, LO, HI, HALF = k(0x140BAFAD0), k(0x140BB0F94), k(0x140BB064C), k(0x140BAFCBC)
     rho = lambda h: (1 - h * L) ** X if h <= CEIL else 0.0
     wp = lambda d: k(0x140BB0710) + k(0x140BB0700) / (k(0x140BB0C28) - d * k(0x140BAF8F8))  # 30 - 29/(1 + 0.001 d)
-    gas_l = V60 * HI
+    gas_l = V60 * HI  # port counter per gas amount moved in one update
+    lps = gas_l * k(0x140BB0760)  # inspection L/s per gas amount moved in one update
     air = E.derived("Exterior air pressure", "; ".join("%d m: %.4f" % (h, rho(h)) for h in (0, 1000, 2000, 5000, 10000, 20000)),
                     "p_out = (1 - %s × y)^%s for y ≤ 40000 m, else 0; 1 = sea level. Port pressure = %s × amount ÷ volume = ratio." % (fmt(L), fmt(X), fmt(V60)),
                     [lapse, expo, ceil, per_v, total, per_w])
@@ -1774,49 +1894,58 @@ def air_scoop(B, E):
         return HALF * (2 / 15) * (rho(0) - target)
     pts = [(s, moved(s, 1.0)) for s in (0, 2.5, 5, 7.5, 10, 20)]
     pts0 = [(s, moved(s, 0.0)) for s in (0, 2.5, 5)]
+    row = lambda s, t: "%g: %.4f (counter %g, %g L/s)" % (s, t, round(t * gas_l, 2), round(t * lps, 2))
     law = E.derived("Scoop demand law", "demand = (P_net - (p_out + 2 × bias)) ÷ 15, inflow ≤ 2 ÷ 15 × p_out",
                     "With both windows 8 in a gas network (network volume ≥ 8, p_out ≤ 150), away from target-pressure and free-window clamps, both nonzero-difference branches of 0x1402ec710 give demand = (P_net - p_out - 2 × bias) ÷ 15 amount per update; negative is inflow. The inflow target cannot fall below 0, so inflow demand ≤ 2 ÷ 15 × p_out. Bias = clamp(%s × voxels × speed, %s, %s) with 1 voxel on scoop_intake_2." % (fmt(G), fmt(LO), fmt(HI)),
                     [diff, pclamp, win, per_w, gain, clamp, clamp_hi, voxels, dot])
-    table = E.derived("Scoop transfer at sea level", "; ".join("%g: %.4f (%g)" % (s, t, round(t * gas_l, 2)) for s, t in pts),
-                      "Amount moved per update (readout units in brackets, amount × %s) against speed along the axis, network at pressure 1, sole port, factor 1: 0.5 × min(2 × bias, 2) ÷ 15. Network at pressure 0: %s." % (
-                          fmt(gas_l), "; ".join("%g: %.4f (%g)" % (s, t, round(t * gas_l, 2)) for s, t in pts0)),
-                      [law, half, step, alloc, gas60, ten, readout])
+    table = E.derived("Scoop transfer at sea level", "; ".join(row(s, t) for s, t in pts),
+                      "Amount moved per update against speed along the axis in m/s, network at pressure 1, sole port, factor 1: 0.5 × min(2 × bias, 2) ÷ 15. The port counter is amount × %s; the inspection tooltip shows counter × %s in L/s. Network at pressure 0: %s." % (
+                          fmt(gas_l), fmt(k(0x140BB0760)), "; ".join(row(s, t) for s, t in pts0)),
+                      [law, half, step, alloc, gas60, ten, readout, store, tip, tipmul, tipfmt, unit])
     R = update_rate(E)["findings"]
     ups = update_rate(E)["ups"]
     cap_s, static_s = moved(20, 1.0) * ups, moved(0, 0.0) * ups
     slope_s = (moved(5, 1.0) - moved(0, 1.0)) / 5 * ups
-    flow_s = E.derived("Scoop transfer per simulated second", "cap %.4g (%g readout units); still scoop into pressure 0: %.4g; unsaturated at pressure 1: %.4g × speed" % (
-                           cap_s, round(cap_s * gas_l, 2), static_s, slope_s),
-                       "Amount moved per update × %d updates per simulated second, under the same sole-port, sea-level, free-room assumptions as the per-update table; readout units are amount × %s." % (ups, fmt(gas_l)),
+    knee = (2 * rho(0) - (rho(0) - 1.0)) / (2 * G)  # speed where the pressure-1 curve reaches the cap
+    flow_s = E.derived("Scoop transfer per simulated second",
+                       "cap %.4g amount/s (%g L/s); still scoop into pressure 0: %.4g amount/s (%g L/s); unsaturated at pressure 1: %.4g × speed amount/s (%g × speed L/s) up to %g m/s; 1 amount = %g L" % (
+                           cap_s, round(cap_s * gas_l, 2), static_s, round(static_s * gas_l, 2), slope_s, round(slope_s * gas_l, 2), knee, gas_l),
+                       "Amount moved per update × %d updates per simulated second, under the same sole-port, sea-level, free-room assumptions as the per-update table. The tooltip shows the per-update counter × %s, so one gas amount per second displays as %s L/s. The factor is fixed; it does not divide by network pressure." % (ups, fmt(k(0x140BB0760)), fmt(gas_l)),
                        [table] + R[:1])
     stall = E.derived("Sealed-network stall pressure", "; ".join("%d: %g" % (s, 1 + 2 * min(G * s, HI)) for s in (10, 50, 100)),
                       "The simplified demand reaches 0 at P_net = p_out + 2 × bias; listed against speed at sea level. The bias clamp caps that zero at 21. The exact routine also sets demand to 0 when P_net - p_out - bias equals 0, so this is not a guaranteed filling endpoint.", [law])
 
-    scoop = "scoop_intake_2"
     B.family("part-scoop-intake-2",
-             "Takes outside air through its Fluid port. Speed along the part's local X axis adds 0.1 × speed of bias, which acts like 2 × that much extra outside pressure; inside an enclosed compartment it is a plain port.",
+             "Takes outside air through its Fluid port. Airspeed in m/s along the part's local +X axis, the side the mouth faces, adds 0.1 × speed of bias, which acts like 2 × that much extra outside pressure; inside an enclosed compartment it is a plain port.",
              [section("Operating conditions",
                       "Case 0xf shares the fluid-update block of cases 0, 0xc and 0x17, which does nothing until the Fluid port is connected. Each update 0x140311f20 builds the state outside the port. If the scoop sits in an enclosed compartment, outside means that compartment's air, the factor is 1 and no speed term is added. Otherwise the outside is fresh air when the port is above the water surface and sea water when it is below."),
               section("Outside pressure",
                       "Air pressure is (1 - 2.2413793e-05 × y)^5.3595023 with y the port's world height in metres, 1 at sea level, 0.8856 at 1000 m, 0.5289 at 5000 m and 0.2566 at 10000 m. Above 40000 m it is 0. The air is 20 units split 15.792, 4.2 and 0.007999999 across fluid indices 11, 10 and 4, the dry-air nitrogen, oxygen and carbon dioxide shares, though the code does not name them.",
                       "Under water the pressure is 30 - 29 ÷ (1 + 0.001 × depth): 1.2871 at 10 m, 3.6364 at 100 m, 15.5 at 1000 m. The outside fluid is 20 units of index 6 plus any oil the world map holds at that spot, so a submerged scoop pulls water."),
               section("Speed term",
-                      "The update takes the port's velocity, including spin, subtracts the air-velocity vector the radiators also use, and projects the result on the part's local X axis. Bias = 0.1 × voxel count × that speed, clamped to -10…10; the scoop has 1 voxel, so the clamp is hit at 100 speed units. The sign matters. Moving along -X gives a negative bias that favors outflow from the network, and sideways motion adds nothing. The code fixes the axis but not which mesh face it is, so check the direction in game."),
+                      "The update takes the port's velocity, including spin, subtracts the wind and projects the result on the part's local X axis. The mesh mouth faces local +X, so driving mouth first in still air gives a positive speed; air entering the mouth moves along -X. Speed is in m/s: the linear speed sensor, whose output is documented in m/s, uses the same velocity calculation without conversion.",
+                      "Bias = 0.1 × voxel count × that speed, clamped to -10…10; the scoop has 1 voxel, so the clamp is hit at 100 m/s. Moving tail first gives a negative bias that favors outflow from the network, and sideways motion adds nothing."),
+              section("Wind",
+                      "The subtracted vector is the vehicle's cached weather wind, so the scoop responds to airspeed rather than ground speed. Facing into a headwind raises the bias, and a tailwind as fast as the vehicle cancels it. The game samples the wind once per vehicle at its transformed origin, not at each scoop. The sample includes local weather-cell wind and is scaled by 1 - shelter, so inside a weather shelter volume it is 0. A vehicle whose parent-body link (vehicle+0x14b8) is set gets zero wind on this path."),
               section("Flow per update and per second",
                       "The port routine works in pressure units where 1 is sea-level air. For a gas-filled pipe network of 8 or more volume units, away from the target-pressure and free-window clamps, the demand is (P_net - (p_out + 2 × bias)) ÷ 15 amount per update, negative meaning inflow, and inflow demand stops growing at 2 ÷ 15 × p_out. The move magnitude is at most 0.5 × factor × the absolute demand, using the network's allocation from the previous update. At exactly P_net - p_out - bias = 0 the routine instead sets demand to 0.",
-                      "At sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 speed units, and stays at 0.0667 above that. The port readout shows 600 × a gas amount: 10, 20, 30 and 40. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 (20), so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too.",
-                      "Component updates run 60 times per simulated second, so under the same assumptions the sea-level cap is 4 amount per second, 2400 per second on the readout's scale of 600 per amount (the readout itself shows the 40 moved in one update), the still scoop into a network at 0 takes 2 amount per second, and below the cap flow into a network at 1 is 0.4 × speed amount per second. These are rates at a fixed state; a filling network raises P_net and the flow falls."),
+                      "At sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 m/s, and stays at 0.0667 above that. The port counter stores 600 × the gas amount moved in one update (10, 20, 30 and 40), and the inspection tooltip multiplies it by 60 and shows L/s: 600, 1200, 1800 and 2400 L/s. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 amount per update, 1200 L/s, so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too.",
+                      "Component updates run 60 times per simulated second, so under the same assumptions the sea-level cap is 4 amount per second, shown as 2400 L/s. The still scoop into a network at 0 takes 2 amount per second (1200 L/s), and below the cap flow into a network at 1 is 0.4 × speed amount per second, 240 × speed L/s up to 10 m/s. The tooltip therefore counts 1 gas amount as 600 L. That factor is fixed and does not divide by network pressure, so the figure is not the compressed volume in the pipes. These are rates at a fixed state; a filling network raises P_net and the flow falls."),
+              section("Near volcanoes",
+                      "In air, the move is also scaled by an exchange factor. Volcanoes lower it: each active volcano adds a source with strength volcanic_heat² and radius 0.5 × eruption_radius at its position. The factor is max(0.01, 1 - volcanic_heat² × eruption_radius ÷ (2 × distance)) for the strongest source, so a hot volcano with a wide eruption radius can cut intake to 0.01 of normal near it. Away from volcanoes the factor is 1. Under water it stays 1."),
               section("Sealed network",
-                      "The simplified demand has a zero at P_net = p_out + 2 × bias: 3 at 10 speed units, 11 at 50 and 21 at 100 or more, where the bias clamp caps it. The exact branch also gives zero demand at P_net = p_out + bias. These are mathematical zero-demand points, not a verified final pressure for a filling network."),
-              section("Open measurement questions",
-                      "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the unit the port readout displays, and what the point sources that lower the factor near them are.")],
+                      "The simplified demand has a zero at P_net = p_out + 2 × bias: 3 at 10 m/s, 11 at 50 and 21 at 100 or more, where the bias clamp caps it. The exact branch also gives zero demand at P_net = p_out + bias. These are mathematical zero-demand points, not a verified final pressure for a filling network.")],
              [E.attr(scoop, "water_component_type", "Value 15 (0xf) selects the scoop branch of the fluid update."), E.tooltip(scoop),
               gate, branch, axis, relv, dot, gain, clamp, clamp_hi, passon, voxels,
-              inside, wet, lapse, expo, ceil, per_v, total] + mix + [floor, sea] + wconst +
-             [win, per_w, whelp, diff, pclamp, step, half, incap, alloc, readout, gas60, ten, air, water, law, table, stall, flow_s] + R,
+              facing, mouth, msign, mident, unit, ls_port, ls_tag, ls_vel, ls_out,
+              wind, wpass, wzero, wshel, wstore,
+              inside, wet, lapse, expo, ceil, per_v, total] + mix + [floor, volcano, vlist, vdef, vrad, vstr, vheat, vrads, sea] + wconst +
+             [win, per_w, whelp, diff, pclamp, step, half, incap, alloc, readout, gas60, ten, store, tip, tipmul, tipfmt,
+              air, water, law, table, stall, flow_s] + R,
              ["Static decompilation of one build; the game was not run and no flow was measured.", TICK,
               "The flow figures assume the scoop is the only port moving gas into a network of at least 8 volume units with room to spare. With several ports, the allocation gives each f·|f| ÷ Σ|f|, and the move lags the demand by one update.",
-              "The vector subtracted from the point velocity is argument 10 of the fluid update; it is taken to be air velocity because the radiators subtract it for their airflow term, but its source was not traced."])
+              "Volcanoes are the producer of exchange-factor sources found in this build. The search identified that writer but did not exhaustively exclude every other writer to the list.",
+              "The L/s figure on the inspection tooltip is a fixed display factor of 600 L per gas amount. It does not measure the compressed gas volume in the network."])
 
 
 def build(root):

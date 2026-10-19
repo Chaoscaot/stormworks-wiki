@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -82,4 +82,39 @@ test('per-update fractions compound over 60 updates per simulated second', () =>
   near((t.temperatureA - t.temperatureB) / 100, gapLeftAfter(0.03));
   assert.throws(() => gapLeftAfter(1.5), RangeError);
   assert.throws(() => gapLeftAfter(0.003, -1), RangeError);
+});
+test('air scoop inflow follows the sea-level law and the L/s tooltip conversion', () => {
+  const q = (airspeed, networkPressure = 1) => scoopInflow({ airspeed, networkPressure });
+  near(q(0).litresPerSecond, 0);
+  near(q(2.5).litresPerSecond, 600);
+  near(q(5).counter, 20);
+  near(q(10).litresPerSecond, 2400);
+  near(q(20).litresPerSecond, 2400); // capped at 1/15 amount per update
+  near(q(10).perSecond, 4);
+  near(q(0, 0).litresPerSecond, 1200);
+  near(q(0, 0).perSecond, 2);
+  near(q(4).litresPerSecond, 240 * 4); // unsaturated, network at 1: 240 L/s per m/s
+  near(q(0, 1).saturationSpeed, 10);
+  near(q(0, 0).saturationSpeed, 5);
+  assert.equal(q(9.5).saturated, false);
+  assert.equal(q(10).saturated, true);
+  near(SCOOP_COUNTER_PER_AMOUNT * SCOOP_TOOLTIP_SCALE / UPDATES_PER_SECOND, 600); // L per gas amount
+  assert.throws(() => q(-1), RangeError);
+  assert.throws(() => q(5, 1.5), RangeError);
+  assert.deepEqual(graphKindsForFamily('part-scoop-intake-2'), ['scoop']);
+});
+test('scoop graph constants and display format remain tied to verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const scoop = data.families.find(f => f.id === 'part-scoop-intake-2');
+  const value = (label) => {
+    const f = scoop.findings.find(x => x.label === label);
+    assert.ok(f?.source?.address, `${label}: native address is required`);
+    return f.value;
+  };
+  assert.equal(Number(value('Scoop speed gain')), 0.1);
+  assert.equal(Number(value('Step fraction')), 0.5);
+  assert.equal(Number(value('Port window')), 8);
+  assert.equal(Number(value('Gas readout factor')) * Number(value('Readout factor')), SCOOP_COUNTER_PER_AMOUNT);
+  assert.equal(Number(value('Inspection flow scale')), SCOOP_TOOLTIP_SCALE);
+  assert.equal(value('Inspection flow format'), '%.2fL/s');
 });

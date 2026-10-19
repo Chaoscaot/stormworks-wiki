@@ -1401,7 +1401,7 @@
       {
         "file": "wiki/README.md",
         "pointer": "line:37",
-        "text": "Modular engine cylinder, fluid radiator and heat exchanger articles (and their component pages) have an \"Interactive graphs\" section. `components/FormulaSection.jsx` renders the formula as MathML, the assumptions and the cited executable constants on the server. `components/FormulaGraphs.jsx` is the client chart: native sliders, a select and checkboxes drive an SVG plot, a persistent selected-point readout and a data table, all server-rendered in their default state. The formulas live in `lib/formulas.js`, and `graphKindsForFamily` decides which families get a graph. There is no jet thrust graph because the full thrust formula is not verified.",
+        "text": "Modular engine cylinder, fluid radiator, heat exchanger and air scoop articles (and their component pages) have an \"Interactive graphs\" section. `components/FormulaSection.jsx` renders the formula as MathML, the assumptions and the cited executable constants on the server. `components/FormulaGraphs.jsx` is the client chart: native sliders, a select and checkboxes drive an SVG plot, a persistent selected-point readout and a data table, all server-rendered in their default state. The formulas live in `lib/formulas.js`, and `graphKindsForFamily` decides which families get a graph. There is no jet thrust graph because the full thrust formula is not verified.",
         "scope": "Application text"
       }
     ]
@@ -2107,25 +2107,6 @@
         "file": "wiki/data/behavior.json",
         "pointer": "/families/114/limitations/0",
         "text": "Equal configuration does not prove identical propagation code.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-scoop-intake-2",
-    "title": "Air Scoop Intake 1x1: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-scoop-intake-2",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/limitations/3",
-        "text": "The vector subtracted from the point velocity is argument 10 of the fluid update; it is taken to be air velocity because the radiators subtract it for their airflow term, but its source was not traced.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/sections/5/body",
-        "text": "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the unit the port readout displays, and what the point sources that lower the factor near them are.",
         "scope": "Practical behavior guidance"
       }
     ]

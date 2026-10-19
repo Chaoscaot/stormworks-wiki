@@ -2,6 +2,7 @@
 // Engine: investigation/native/behavior/pseudocode/0x140449670.c:230-244,300-312.
 // Exchanger: asm/water.asm:4480-4528, using the interpolation helper 0x1408f04b0.
 // Radiator: asm/water.asm:3540-3661. Speeds and capacities retain internal units.
+// Air scoop: investigation/air-scoop.md (flow law) and investigation/air-scoop-followup.md (m/s, L/s display).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -64,6 +65,32 @@ export function exchangerTemperatures({ temperatureA, temperatureB, capacityA, c
   };
 }
 
+// Port counter per gas amount moved in one update (× 60 for gas, × 10 for every fluid); the inspection
+// tooltip multiplies the counter by 60 and prints L/s.
+export const SCOOP_COUNTER_PER_AMOUNT = 600;
+export const SCOOP_TOOLTIP_SCALE = 60;
+
+// Sea-level inflow of a scoop that is the only inflow port on a gas network of at least 8 volume units with
+// room to spare, exchange factor 1 (no volcano nearby): moved = min(1 - P + 2 × 0.1 × s, 2) ÷ 30 per update.
+export function scoopInflow({ airspeed, networkPressure }) {
+  finite([airspeed, networkPressure]);
+  if (airspeed < 0 || networkPressure < 0 || networkPressure > 1) {
+    throw new RangeError('Use a nonnegative airspeed and a network pressure from zero to one.');
+  }
+  const bias = clamp(0.1 * airspeed, -10, 10);
+  const drive = 1 - networkPressure + 2 * bias;
+  const perUpdate = Math.min(drive, 2) / 30;
+  return {
+    bias,
+    perUpdate,
+    perSecond: perUpdate * UPDATES_PER_SECOND,
+    counter: perUpdate * SCOOP_COUNTER_PER_AMOUNT,
+    litresPerSecond: perUpdate * SCOOP_COUNTER_PER_AMOUNT * SCOOP_TOOLTIP_SCALE,
+    saturated: drive >= 2,
+    saturationSpeed: (1 + networkPressure) / (2 * 0.1),
+  };
+}
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -71,5 +98,6 @@ const FAMILY_GRAPHS = {
   'air-liquid-heat-exchanger': ['exchanger'],
   'liquid-liquid-heat-exchanger': ['exchanger'],
   'air-air-heat-exchanger': ['exchanger'],
+  'part-scoop-intake-2': ['scoop'],
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];
