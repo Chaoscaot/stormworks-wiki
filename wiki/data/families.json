@@ -1676,7 +1676,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
+        "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve.",
         "Two filenames contain different size numbers from their display names. The display names are retained as size labels; neither spelling establishes complete physical dimensions."
       ]
     },
@@ -2780,9 +2780,9 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "The size rule does not specify footprint, voxel count or surface area. The names do not supply complete physical dimensions.",
-        "Temperature units, flow requirements, fluid compatibility, internal pumping and the direction or rate of heat exchange in a particular installation remain unverified.",
+        "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve.",
+        "The tooltip's size rule does not name footprint, voxel count or surface area; native code sizes each compartment by the listed voxel count. The names do not supply complete physical dimensions.",
+        "Temperatures are in °C. Native code shows no species filter and no internal pump on either side; flow direction and rate depend on the connected networks, and heat moves down the gap between the two compartments.",
         "The common pump_pressure=0.01 and engine_max_force=1000 fields do not prove that an exchanger pumps fluid or produces mechanical power."
       ]
     },
@@ -80737,8 +80737,8 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "Temperature units and inlet/outlet measurement locations are unspecified. The definition of size in the heat-exchange rule is unknown."
+        "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve.",
+        "Temp A and Temp B report the two stored compartments in °C after the heat step, not inlet or outlet temperatures. Native code takes size as the listed voxel count: each side holds 0.5 × voxels volume units."
       ]
     },
     {

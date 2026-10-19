@@ -11,7 +11,11 @@ const FINDINGS = {
     'Lean edge of combustion window at cold', 'Cylinder intake cut-off speed', 'Minimum running speed and window slope',
   ],
   radiator: ['Radiator cooling fraction', 'Radiator airflow divisor', 'Radiator fan term cap and electric fan gain'],
-  exchanger: ['Exchanger step fraction', 'Exchange threshold and ambient leak'],
+  exchanger: [
+    'Exchanger compartment volume factor', 'Liquid capacity helper', 'Gas capacity helper', 'Exchanger step fraction',
+    'Exchange threshold and ambient leak', 'Exchanger port order', 'B Out exchange factor', 'Recipient amount in temperature mixing',
+    'Low-flow exchange flow scale', 'Ambient controller duration', 'Component updates per simulated second',
+  ],
   scoop: [
     'Scoop speed gain', 'Port window', 'Step fraction', 'Gas readout factor', 'Readout factor',
     'Inspection flow scale', 'Inspection flow format', 'Component updates per simulated second',
@@ -32,7 +36,7 @@ const FINDINGS = {
 const TITLES = {
   engine: 'Cylinder efficiency against crank speed',
   radiator: 'Radiator cooling rate against airspeed',
-  exchanger: 'Heat exchanger temperatures over updates',
+  exchanger: 'Heat exchanger temperatures over time',
   scoop: 'Air scoop inflow against airspeed',
   surface: 'Surface force, lift and drag against airspeed',
   classic: 'Diesel use and speed step against engine RPS',
@@ -159,31 +163,38 @@ const RADIATOR = {
 const EXCHANGER = {
   intro: (
     <p>
-      Each update the two sides of a heat exchanger move toward each other by 3% of the gap. The capacity weighting decides how that step is
-      split: the side with less weighting moves further. With the ambient leak on, both sides also drift toward the surrounding temperature
-      by 0.1% of their own gap.
+      An exchanger has two mixed compartments of 0.5 × its listed voxels each, 10 L per volume unit. Each update fluid moves through
+      the ports first, then the two sides move toward each other by 3% of the gap, split by q: the stored liquid amount on a liquid side,
+      or the gas amount on an air side, which is pressure × volume ÷ 60. Both sides then drift 0.1% toward the surrounding temperature.
+      The through-flow model steps this 60 times per simulated second with fixed inlet and outlet networks and a flow you choose.
     </p>
   ),
   formula: (
     <Formula
       lines={[
-        <mrow key="a"><msup>{mi('A')}{mo('′')}</msup>{mo('=')}{mi('A')}{mo('+')}{mn('0.03')}<mfrac>{sub('q', 'B')}<mrow>{sub('q', 'A')}{mo('+')}{sub('q', 'B')}</mrow></mfrac><mrow>{mo('(')}{mi('B')}{mo('−')}{mi('A')}{mo(')')}</mrow></mrow>,
-        <mrow key="b"><msup>{mi('B')}{mo('′')}</msup>{mo('=')}{mi('B')}{mo('+')}{mn('0.03')}<mfrac>{sub('q', 'A')}<mrow>{sub('q', 'A')}{mo('+')}{sub('q', 'B')}</mrow></mfrac><mrow>{mo('(')}{mi('A')}{mo('−')}{mi('B')}{mo(')')}</mrow></mrow>,
-        <mrow key="l"><mtext>leak:</mtext><mspace width="0.5em" /><msup>{mi('X')}{mo('″')}</msup>{mo('=')}<msup>{mi('X')}{mo('′')}</msup>{mo('+')}{mn('0.001')}<mrow>{mo('(')}{sub('T', 'ambient')}{mo('−')}<msup>{mi('X')}{mo('′')}</msup>{mo(')')}</mrow></mrow>,
+        <mrow key="v">{mi('V')}{mo('=')}{mn('0.5')}{mo('×')}{mi('voxels')}<mspace width="1em" />{sub('q', 'liquid')}{mo('=')}{mi('fill')}{mo('×')}{mi('V')}<mspace width="1em" />{sub('q', 'gas')}{mo('=')}<mfrac><mrow>{mi('P')}{mi('V')}</mrow>{mn('60')}</mfrac></mrow>,
+        <mrow key="m">{sub('T', 'in')}{mo('→')}{mi('A')}{mo(':')}<mspace width="0.5em" /><msup>{mi('A')}{mo('′')}</msup>{mo('=')}{mi('A')}{mo('+')}<mfrac>{mi('x')}<mrow>{sub('n', 'A')}{mo('+')}{mn('2')}{mi('x')}</mrow></mfrac><mrow>{mo('(')}{sub('T', 'in')}{mo('−')}{mi('A')}{mo(')')}</mrow></mrow>,
+        <mrow key="a"><msup>{mi('A')}{mo('″')}</msup>{mo('=')}<msup>{mi('A')}{mo('′')}</msup>{mo('+')}{mn('0.03')}<mfrac>{sub('q', 'B')}<mrow>{sub('q', 'A')}{mo('+')}{sub('q', 'B')}</mrow></mfrac><mrow>{mo('(')}<msup>{mi('B')}{mo('′')}</msup>{mo('−')}<msup>{mi('A')}{mo('′')}</msup>{mo(')')}</mrow></mrow>,
+        <mrow key="l">{mi('X')}{mo('←')}{mi('X')}{mo('+')}{mn('0.001')}<mrow>{mo('(')}{sub('T', 'ambient')}{mo('−')}{mi('X')}{mo(')')}</mrow></mrow>,
       ]}
       text={[
-        "A' = A + 0.03 * qB / (qA + qB) * (B - A)",
-        "B' = B + 0.03 * qA / (qA + qB) * (A - B)",
-        'Both use the temperatures from before the step. The exchange runs only when qA + qB > 0.001.',
-        "With ambient leak, each side X: X'' = X' + 0.001 * (T_ambient - X')",
+        'V = 0.5 * listed voxels per side; q_liquid = fill * V; q_gas = P * V / 60 (pure gas, P in atm)',
+        'Ports in order A In, A Out, B In, B Out. A packet x arriving in a side that held amount n before the move:',
+        "  A' = A + x / (n + 2x) * (T_in - A); the Out port emits the side's temperature at that moment",
+        'Below x = 0.01 per update a direct port exchange also moves temperature.',
+        "A'' = A' + 0.03 * qB / (qA + qB) * (B' - A'); B'' = B' + 0.03 * qA / (qA + qB) * (A' - B'), only when qA + qB > 0.001",
+        'Then each side X: X + 0.001 * (T_ambient - X). Temp A and Temp B read the result.',
+        'Liquid flow x = L/s / 600 per update; gas flow x = expanded L/s / 36000 per update.',
       ].join('\n')}
     />
   ),
   assumptions: [
-    'Both compartments are closed. Fluid flowing in or out through the ports, which a working exchanger normally has, is not modelled.',
-    'Capacity weighting is the per-side value from the game\'s gas and liquid capacity helpers. It is an internal weighting, not the exchanger size or fluid volume, so the ratios offered are examples.',
-    'The horizontal axis counts simulation updates. Active vehicles get 60 per simulated second, so 200 updates is 3.3 seconds.',
-    'Temperatures are in the game\'s own units.',
+    'Through-flow uses the report\'s model: each side draws from a 40 L inlet network held at 3.9 amount and the inlet temperature, and discharges into a 40 L outlet network held at 0.1 amount. Both sides start at their inlet temperatures. The flow is prescribed. A real installation\'s flow depends on its pumps, pressures and other ports, which the model does not predict.',
+    'The model rejects a flow above the port\'s local step limit, which depends on fill and pressure. The two largest air-liquid sizes start at 0.95 fill because 0.8 leaves too little liquid pressure for the default 6 L/s.',
+    'Each side holds one pure fluid: liquid at the chosen fill or gas at the chosen pressure. A mixed side counts only its own phase toward q.',
+    'The surrounding temperature is fixed. In the game it is sampled every 16 updates from the weather, the water depth or an enclosing compartment and nearby heat sources, and ramped in over 16 updates.',
+    'Closed mode has no flow at all. Both sides of a part have the same volume, so there only the fill and pressure settings change the split.',
+    'Temperatures are in °C. The emitted temperature is the fluid leaving the Out port, which can differ from Temp A and Temp B.',
   ],
 };
 

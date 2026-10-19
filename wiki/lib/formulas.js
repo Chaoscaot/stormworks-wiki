@@ -1,6 +1,7 @@
 // Models of recovered code, not measured vehicle performance. Sources are rendered by FormulaSection.
 // Engine: investigation/native/behavior/pseudocode/0x140449670.c:230-244,300-312.
-// Exchanger: asm/water.asm:4480-4528, using the interpolation helper 0x1408f04b0.
+// Exchanger: asm/water.asm:4480-4528, using the interpolation helper 0x1408f04b0; volumes, capacity and through-flow in
+// investigation/heat-exchangers.md.
 // Radiator: asm/water.asm:3540-3661. Speeds and capacities retain internal units.
 // Air scoop: investigation/air-scoop.md (flow law) and investigation/air-scoop-followup.md (m/s, L/s display).
 // Control surfaces: investigation/control-surfaces.md (rudder update 0x1403dfd20).
@@ -64,6 +65,210 @@ export function exchangerTemperatures({ temperatureA, temperatureB, capacityA, c
   return {
     temperatureA: mean + capacityB / capacity * gap,
     temperatureB: mean - capacityA / capacity * gap,
+  };
+}
+
+// Heat exchangers: investigation/heat-exchangers.md, through-flow ported from investigation/native/heat-exchangers/tools/model.py.
+// Each side is one mixed compartment of 0.5 × listed voxels volume units, 10 L each. q is the stored amount of the side's phase:
+// a liquid side holds fill × V, a pure gas side P × V ÷ 60. Temperatures in °C. Gas flows are expanded display L/s (600 L per amount).
+export const EXCHANGER = {
+  fraction: 0.03, threshold: 0.001, ambientFraction: 0.001, volumePerVoxel: 0.5, litresPerUnit: 10,
+  sampleEvery: 16, rampUpdates: 16, retarget: 0.1, litresPerGasAmount: 600,
+};
+// Listed voxels and water_component_type sides from rom/data/definitions/<id>.xml (16 liquid-liquid, 17 air-air, 18 air-liquid).
+export const EXCHANGER_VARIANTS = [
+  { id: 'heat_exchanger_2_2', family: 'air-air-heat-exchanger', name: 'Air-Air Heat Exchanger 2x2', voxels: 4, sides: ['gas', 'gas'] },
+  { id: 'heat_exchanger_5_5', family: 'air-air-heat-exchanger', name: 'Air-Air Heat Exchanger 2x5', voxels: 50, sides: ['gas', 'gas'] },
+  { id: 'heat_exchanger_9_9', family: 'air-air-heat-exchanger', name: 'Air-Air Heat Exchanger 3x9', voxels: 243, sides: ['gas', 'gas'] },
+  { id: 'air_exchanger', family: 'air-liquid-heat-exchanger', name: 'Air-Liquid Heat Exchanger 1x2', voxels: 2, sides: ['gas', 'liquid'] },
+  { id: 'air_exchanger_5_2', family: 'air-liquid-heat-exchanger', name: 'Air-Liquid Heat Exchanger 5x2', voxels: 10, sides: ['gas', 'liquid'] },
+  { id: 'air_exchanger_5_3', family: 'air-liquid-heat-exchanger', name: 'Air-Liquid Heat Exchanger 5x3', voxels: 45, sides: ['gas', 'liquid'] },
+  { id: 'air_exchanger_9_3', family: 'air-liquid-heat-exchanger', name: 'Air-Liquid Heat Exchanger 9x3', voxels: 81, sides: ['gas', 'liquid'] },
+  { id: 'air_exchanger_9_5', family: 'air-liquid-heat-exchanger', name: 'Air-Liquid Heat Exchanger 9x5', voxels: 225, sides: ['gas', 'liquid'] },
+  { id: 'intercooler', family: 'liquid-liquid-heat-exchanger', name: 'Liquid-Liquid Heat Exchanger 2x2', voxels: 4, sides: ['liquid', 'liquid'] },
+  { id: 'intercooler_large', family: 'liquid-liquid-heat-exchanger', name: 'Liquid-Liquid Heat Exchanger 5x5', voxels: 25, sides: ['liquid', 'liquid'] },
+];
+export const exchangerVolume = (id) => {
+  const v = EXCHANGER_VARIANTS.find((x) => x.id === id);
+  if (!v) throw new RangeError(`Unknown exchanger ${id}.`);
+  return v.voxels * EXCHANGER.volumePerVoxel;
+};
+
+// Stored amount of a side's phase: fill × V for liquid, P × V ÷ 60 for pure gas.
+export function exchangerCapacity({ volume, phase, fill = 0.8, pressure = 30 }) {
+  finite([volume, fill, pressure]);
+  if (volume <= 0 || fill <= 0 || fill > 1 || pressure <= 0 || pressure > 60) {
+    throw new RangeError('Use a positive volume, a fill above 0 up to 1 and a gas pressure above 0 up to 60 atm.');
+  }
+  return phase === 'gas' ? (volume * pressure) / 60 : volume * fill;
+}
+
+// One mixed compartment with the window pressure law of 0x1402eb460 / 0x1402eb500, pure gas or pure liquid.
+function hxState(volume, amount, temperature, gas) {
+  return { volume, amount, temperature, gas };
+}
+function hxWindow(s) {
+  if (s.volume <= 8) return s.amount;
+  if (s.gas) return s.amount * Math.min(1, 8 / s.volume);
+  return Math.max((s.amount * 4) / (60 * s.volume), s.amount - s.volume + 8);
+}
+const hxPressure = (s) => (60 * hxWindow(s)) / Math.min(s.volume, 8);
+
+// 0x1402ec710 demand with bias 0 and both direction flags 0, signed network -> internal.
+function hxDemand(network, internal) {
+  const pa = hxPressure(network);
+  const pb = hxPressure(internal);
+  const wa = Math.min(network.volume, 8);
+  const wb = Math.min(internal.volume, 8);
+  const fa = hxWindow(network);
+  const fb = hxWindow(internal);
+  const mean = (pa * wa + pb * wb) / (wa + wb);
+  if (pa > pb) {
+    const target = clamp(clamp(mean, pa - 20, pa + 20), 0, 60);
+    return Math.min(pa ? (1 - target / pa) * fa : 0, wb - fb);
+  }
+  if (pa < pb) {
+    const target = clamp(clamp(mean, pb - 20, pb + 20), 0, 60);
+    return Math.max(pb ? -(1 - target / pb) * fb : 0, -(wa - fa));
+  }
+  return 0;
+}
+
+// The recipient is weighted by its amount after the move (0x1402ece2b).
+function hxMove(donor, recipient, amount) {
+  donor.amount -= amount;
+  recipient.amount += amount;
+  if (recipient.amount + amount > 0.001) {
+    recipient.temperature += (amount / (recipient.amount + amount)) * (donor.temperature - recipient.temperature);
+  }
+}
+
+// Prescribed flow through one port, checked against the local step bound, then the low-flow exchange (0x1402ed390).
+// Returns the temperature of the moved packet, or null when the flow exceeds the bound.
+function hxPort(network, internal, flow, factor = 1) {
+  const f = clamp(factor, 0, 1);
+  const d = hxDemand(network, internal);
+  let limit = 0.5 * Math.abs(d) * f;
+  if (flow > 0) limit = Math.min(limit, hxWindow(network), network.amount, Math.min(internal.volume, 8));
+  else if (flow < 0) limit = Math.min(limit, internal.amount, 1);
+  if (flow * d < 0 || Math.abs(flow) > limit + 1e-12) return { ok: false, limit, demand: d };
+  const packet = flow > 0 ? network.temperature : internal.temperature;
+  if (flow > 0) hxMove(network, internal, flow);
+  else if (flow < 0) hxMove(internal, network, -flow);
+  if (network.amount > 0.0001 && internal.amount > 0.0001) {
+    const e = Math.min(0.1 * f * Math.max(0, 1 - Math.abs(flow) / 0.01), internal.amount, network.amount);
+    internal.temperature += (e / internal.volume) * (network.temperature - internal.temperature);
+    network.temperature += (e / network.volume) * (internal.temperature - network.temperature);
+  }
+  return { ok: true, packet };
+}
+
+// Linear controller 0x1408cddd0 / 0x1408cde20 with duration 16, starting at 20 °C.
+export function exchangerAmbientController() {
+  const c = { target: 20, output: 20, start: 20, delta: 0, age: 0 };
+  const update = (sample = null) => {
+    if (sample !== null && sample !== c.target) {
+      if (Math.abs(sample - c.target) > EXCHANGER.retarget) c.age = 0;
+      c.target = sample;
+      c.start = c.output;
+      c.delta = sample - c.output;
+    }
+    if (Math.abs(c.delta) > 0.001 && c.age <= EXCHANGER.rampUpdates) {
+      if (c.age !== 0) c.output = c.start + (c.delta * c.age) / EXCHANGER.rampUpdates;
+      c.age += 1;
+    } else {
+      c.output = c.start = c.target;
+      c.delta = c.age = 0;
+    }
+    return c.output;
+  };
+  update.state = c;
+  return update;
+}
+
+// Mutual step on the old temperatures, then ambient relaxation of both sides.
+function hxThermal(a, b, ambient) {
+  const qa = a.amount;
+  const qb = b.amount;
+  if (qa + qb > EXCHANGER.threshold) {
+    const ta = a.temperature;
+    const tb = b.temperature;
+    a.temperature = ta + ((EXCHANGER.fraction * qb) / (qa + qb)) * (tb - ta);
+    b.temperature = tb + ((EXCHANGER.fraction * qa) / (qa + qb)) * (ta - tb);
+  }
+  a.temperature += EXCHANGER.ambientFraction * (ambient - a.temperature);
+  b.temperature += EXCHANGER.ambientFraction * (ambient - b.temperature);
+}
+
+/*
+ * 60 Hz stepping of one exchanger with prescribed actual flows, after tools/model.py. Each side draws from a volume-4 inlet
+ * network restored every update to inletAmount at its inlet temperature and discharges into a volume-4 outlet network restored
+ * to outletAmount, keeping its temperature. Ports run A In, A Out, B In, B Out (reversed sides swap In and Out), then the
+ * mutual and ambient steps. Emitted temperatures are the packets leaving through the outlet port; Temp A and Temp B are the
+ * stored temperatures after the update. Samples are taken every `sampleEvery` updates. When a requested flow exceeds the
+ * port's local step bound the run stops and `rejected` says where; the model does not predict what a pump delivers.
+ */
+export function exchangerThroughFlow({
+  variant, flowA = 60, flowB = 60, inletA = 100, inletB = 20, ambient = 20, fillA = 0.8, fillB = 0.8, pressureA = 30, pressureB = 30,
+  seconds = 600, reverseA = false, reverseB = false, sampleEvery = 60, inletAmount = 3.9, outletAmount = 0.1,
+}) {
+  finite([flowA, flowB, inletA, inletB, ambient, fillA, fillB, pressureA, pressureB, seconds, sampleEvery, inletAmount, outletAmount]);
+  const v = EXCHANGER_VARIANTS.find((x) => x.id === variant);
+  if (!v) throw new RangeError(`Unknown exchanger ${variant}.`);
+  if (flowA < 0 || flowB < 0) throw new RangeError('Flows must be nonnegative; use the reverse flags for direction.');
+  if (seconds < 0 || !Number.isInteger(sampleEvery) || sampleEvery < 1) throw new RangeError('Use nonnegative seconds and a positive whole sample interval.');
+  const volume = v.voxels * EXCHANGER.volumePerVoxel;
+  const gas = v.sides.map((s) => s === 'gas');
+  const q = [
+    exchangerCapacity({ volume, phase: v.sides[0], fill: fillA, pressure: pressureA }),
+    exchangerCapacity({ volume, phase: v.sides[1], fill: fillB, pressure: pressureB }),
+  ];
+  const sides = [hxState(volume, q[0], inletA, gas[0]), hxState(volume, q[1], inletB, gas[1])];
+  const inlet = [inletA, inletB];
+  const flows = [flowA / (gas[0] ? 36000 : 600), flowB / (gas[1] ? 36000 : 600)];
+  const reverse = [reverseA, reverseB];
+  const inlets = [hxState(4, inletAmount, inletA, gas[0]), hxState(4, inletAmount, inletB, gas[1])];
+  const outlets = [hxState(4, outletAmount, inletA, gas[0]), hxState(4, outletAmount, inletB, gas[1])];
+  const ambientAt = exchangerAmbientController();
+  const packet = [null, null];
+  const samples = [{ t: 0, storedA: inletA, storedB: inletB, emittedA: null, emittedB: null }];
+  const ticks = Math.round(seconds * 60);
+  let rejected = null;
+  let change = Infinity;
+  let previous = null;
+  for (let tick = 0; tick < ticks && !rejected; tick += 1) {
+    for (let i = 0; i < 2 && !rejected; i += 1) {
+      inlets[i].amount = inletAmount;
+      inlets[i].temperature = inlet[i];
+      outlets[i].amount = outletAmount;
+      for (let index = 0; index < 2; index += 1) {
+        const isInlet = index === (reverse[i] ? 1 : 0);
+        // B Out (side B's second port) scales its exchange by clamp(0.5 × B's amount, 0, 1).
+        const factor = i === 1 && index === 1 ? clamp(0.5 * sides[i].amount, 0, 1) : 1;
+        const r = hxPort(isInlet ? inlets[i] : outlets[i], sides[i], isInlet ? flows[i] : -flows[i], factor);
+        if (!r.ok) {
+          rejected = { update: tick, second: tick / 60, side: i ? 'B' : 'A', port: isInlet ? 'In' : 'Out', limit: r.limit, flow: flows[i] };
+          break;
+        }
+        if (!isInlet) packet[i] = flows[i] ? r.packet : null;
+      }
+    }
+    if (rejected) break;
+    hxThermal(sides[0], sides[1], ambientAt(tick % EXCHANGER.sampleEvery === 0 ? ambient : null));
+    const current = [sides[0].temperature, sides[1].temperature, outlets[0].temperature, outlets[1].temperature];
+    if (previous) change = Math.max(...current.map((x, k) => Math.abs(x - previous[k])));
+    previous = current;
+    if ((tick + 1) % sampleEvery === 0 || tick + 1 === ticks) {
+      samples.push({ t: (tick + 1) / 60, storedA: sides[0].temperature, storedB: sides[1].temperature, emittedA: packet[0], emittedB: packet[1] });
+    }
+  }
+  const last = samples.at(-1);
+  const gap = inletA - inletB;
+  return {
+    variant, volume, litres: volume * EXCHANGER.litresPerUnit, sides: v.sides, capacity: q, flowPerUpdate: flows,
+    samples, rejected, final: last, lastChange: change,
+    amounts: [sides[0].amount, sides[1].amount],
+    hotDrop: gap && last.emittedA !== null ? (inletA - last.emittedA) / gap : null,
   };
 }
 

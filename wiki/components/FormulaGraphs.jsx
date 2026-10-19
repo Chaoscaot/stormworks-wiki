@@ -3,7 +3,10 @@
 // so the chart, readout and data table are present before hydration. Sliders drive every value; the chart
 // can also be clicked or dragged, but nothing depends on pointer input.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { CLASSIC, CLASSIC_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate, scoopInflow, surfaceForce } from '@/lib/formulas.js';
+import {
+  CLASSIC, CLASSIC_VARIANTS, EXCHANGER, EXCHANGER_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, radiatorRate, scoopInflow, surfaceForce,
+} from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fixed = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
@@ -350,7 +353,12 @@ function RadiatorGraph() {
 
 /* ---------- heat exchanger ---------- */
 
-const RATIOS = [['1:4', 1, 4], ['1:2', 1, 2], ['1:1', 1, 1], ['2:1', 2, 1], ['4:1', 4, 1]];
+// Default flows by family, matching the worked examples in investigation/heat-exchangers.md: gas sides in expanded L/s.
+const HX_FLOWS = { 'air-air-heat-exchanger': [600, 600], 'air-liquid-heat-exchanger': [600, 6], 'liquid-liquid-heat-exchanger': [60, 60] };
+// The two largest air-liquid sizes need more liquid fill for the default 6 L/s: at 0.8 their liquid pressure window is too small.
+const hxFill = (id) => (id === 'air_exchanger_9_3' || id === 'air_exchanger_9_5' ? 0.95 : 0.8);
+const HX_DURATIONS = { 30: 15, 120: 30, 300: 60, 600: 120 }; // simulated seconds → updates between samples
+const hxFlowRange = (phase) => (phase === 'gas' ? { max: 4800, step: 60, unit: 'L/s of gas' } : { max: 120, step: 1, unit: 'L/s' });
 
 function niceDomain(values) {
   const lo = Math.floor(Math.min(...values) / 10) * 10;
@@ -361,15 +369,84 @@ function niceDomain(values) {
   return { min: lo, max: hi, ticks: steps(lo, hi, step) };
 }
 
-function ExchangerGraph() {
+function SideAmount({ uid, side, phase, fill, pressure, setFill, setPressure }) {
+  return phase === 'gas' ? (
+    <Range id={`${uid}-p${side}`} label={`Side ${side} gas pressure`} value={pressure} min={1} max={60} step={1} onChange={setPressure} valueText={`${pressure} atm`} hint="Pure gas: q = pressure × volume ÷ 60." />
+  ) : (
+    <Range id={`${uid}-f${side}`} label={`Side ${side} liquid fill`} value={fill} min={0.05} max={1} step={0.05} onChange={(v) => setFill(+v.toFixed(2))} valueText={pct(fill)} hint="q = fill × volume." />
+  );
+}
+
+function ExchangerGraph({ family, variant }) {
   const uid = useUid();
+  const own = EXCHANGER_VARIANTS.filter((v) => v.family === family);
+  const parts = own.length ? own : EXCHANGER_VARIANTS;
+  const first = parts.find((v) => v.id === variant) ?? parts[0];
+  const [part, setPart] = useState(first.id);
+  const [mode, setMode] = useState('flow');
+  const [fillA, setFillA] = useState(0.8);
+  const [fillB, setFillB] = useState(hxFill(first.id));
+  const [pressureA, setPressureA] = useState(30);
+  const [pressureB, setPressureB] = useState(30);
+  const [ambient, setAmbient] = useState(20);
+  // Closed compartments.
   const [temperatureA, setA] = useState(90);
   const [temperatureB, setB] = useState(20);
-  const [ratio, setRatio] = useState('1:1');
   const [ambientLeak, setLeak] = useState(false);
-  const [ambient, setAmbient] = useState(20);
   const [updates, setUpdates] = useState(50);
-  const [, capacityA, capacityB] = RATIOS.find((r) => r[0] === ratio);
+  // Through-flow.
+  const [flowA, setFlowA] = useState((HX_FLOWS[first.family] ?? [60, 60])[0]);
+  const [flowB, setFlowB] = useState((HX_FLOWS[first.family] ?? [60, 60])[1]);
+  const [inletA, setInletA] = useState(100);
+  const [inletB, setInletB] = useState(20);
+  const [reverseA, setReverseA] = useState(false);
+  const [reverseB, setReverseB] = useState(false);
+  const [duration, setDuration] = useState(120);
+  const [second, setSecond] = useState(120);
+  const v = EXCHANGER_VARIANTS.find((x) => x.id === part);
+  const volume = exchangerVolume(part);
+  const capacityA = exchangerCapacity({ volume, phase: v.sides[0], fill: fillA, pressure: pressureA });
+  const capacityB = exchangerCapacity({ volume, phase: v.sides[1], fill: fillB, pressure: pressureB });
+  const choose = (id) => {
+    const next = EXCHANGER_VARIANTS.find((x) => x.id === id);
+    setPart(id);
+    setFillB(hxFill(id));
+    const flows = HX_FLOWS[next.family] ?? [60, 60];
+    setFlowA(flows[0]);
+    setFlowB(flows[1]);
+  };
+  const sideName = (i) => (v.sides[i] === 'gas' ? 'air' : 'liquid');
+  const sharedControls = (
+    <>
+      <div className="graph-field">
+        <label htmlFor={`${uid}-mode`}>Model</label>
+        <select id={`${uid}-mode`} value={mode} onChange={(e) => setMode(e.target.value)} aria-describedby={`${uid}-mode-hint`}>
+          <option value="flow">Through-flow</option>
+          <option value="closed">Closed</option>
+        </select>
+        <span id={`${uid}-mode-hint`} className="graph-field-hint">Through-flow steps the report&apos;s 60 Hz model; closed shows the exchange step alone.</span>
+      </div>
+      <div className="graph-field">
+        <label htmlFor={`${uid}-part`}>Part</label>
+        <select id={`${uid}-part`} value={part} onChange={(e) => choose(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+          {parts.map((x) => <option key={x.id} value={x.id}>{`${own.length ? '' : `${x.family.split('-heat')[0]} `}${x.name.split(' ').at(-1)}, ${x.voxels * EXCHANGER.volumePerVoxel * EXCHANGER.litresPerUnit} L`}</option>)}
+        </select>
+        <span id={`${uid}-part-hint`} className="graph-field-hint">{`${v.name}: ${+volume.toFixed(2)} volume units, ${+(volume * EXCHANGER.litresPerUnit).toFixed(1)} L per side (0.5 × ${v.voxels} voxels).`}</span>
+      </div>
+      <SideAmount uid={uid} side="A" phase={v.sides[0]} fill={fillA} pressure={pressureA} setFill={setFillA} setPressure={setPressureA} />
+      <SideAmount uid={uid} side="B" phase={v.sides[1]} fill={fillB} pressure={pressureB} setFill={setFillB} setPressure={setPressureB} />
+    </>
+  );
+  const qRows = [
+    ['q side A, side B', `${fixed(capacityA, 3)}, ${fixed(capacityB, 3)}`],
+    ['Side A moves per update', pct((EXCHANGER.fraction * capacityB) / (capacityA + capacityB)) + ' of the gap'],
+  ];
+  return mode === 'closed'
+    ? <ClosedExchanger {...{ uid, sharedControls, qRows, capacityA, capacityB, temperatureA, temperatureB, setA, setB, ambientLeak, setLeak, ambient, setAmbient, updates, setUpdates, name: v.name }} />
+    : <FlowingExchanger {...{ uid, sharedControls, part, v, sideName, fillA, fillB, pressureA, pressureB, flowA, flowB, setFlowA, setFlowB, inletA, inletB, setInletA, setInletB, ambient, setAmbient, reverseA, reverseB, setReverseA, setReverseB, duration, setDuration, second, setSecond, capacityA, capacityB }} />;
+}
+
+function ClosedExchanger({ uid, sharedControls, qRows, capacityA, capacityB, temperatureA, temperatureB, setA, setB, ambientLeak, setLeak, ambient, setAmbient, updates, setUpdates, name }) {
   const run = (n) => exchangerTemperatures({ temperatureA, temperatureB, capacityA, capacityB, updates: n, ambient, ambientLeak });
   const samples = useMemo(
     () => steps(0, 200, 2).map((n) => ({ n, ...exchangerTemperatures({ temperatureA, temperatureB, capacityA, capacityB, updates: n, ambient, ambientLeak }) })),
@@ -377,32 +454,26 @@ function ExchangerGraph() {
   );
   const at = run(updates);
   const y = niceDomain([temperatureA, temperatureB, ...(ambientLeak ? [ambient] : [])]);
-  const summary = `After ${updates} updates: side A ${fixed(at.temperatureA, 1)}, side B ${fixed(at.temperatureB, 1)}, gap ${fixed(Math.abs(at.temperatureA - at.temperatureB), 1)}.`;
+  const summary = `After ${updates} updates: Temp A ${fixed(at.temperatureA, 1)} °C, Temp B ${fixed(at.temperatureB, 1)} °C, gap ${fixed(Math.abs(at.temperatureA - at.temperatureB), 1)}.`;
   const status = useSettled(summary);
   const end = samples.at(-1);
-  const desc = `Side A starts at ${temperatureA} and side B at ${temperatureB}. After 200 updates they read ${fixed(end.temperatureA, 1)} and ${fixed(end.temperatureB, 1)}. ${summary}`;
+  const desc = `${name}, closed. Side A starts at ${temperatureA} °C and side B at ${temperatureB} °C. After 200 updates they read ${fixed(end.temperatureA, 1)} and ${fixed(end.temperatureB, 1)}. ${summary}`;
   return (
     <Frame
       uid={uid}
       status={status}
       legend={[
-        { label: 'Side A', className: 'graph-line-a' },
-        { label: 'Side B', className: 'graph-line-b' },
+        { label: 'Temp A', className: 'graph-line-a' },
+        { label: 'Temp B', className: 'graph-line-b' },
       ]}
       controls={(
         <>
-          <Range id={`${uid}-a`} label="Side A start temperature" value={temperatureA} min={0} max={150} step={1} onChange={setA} valueText={fixed(temperatureA, 0)} />
-          <Range id={`${uid}-b`} label="Side B start temperature" value={temperatureB} min={0} max={150} step={1} onChange={setB} valueText={fixed(temperatureB, 0)} />
-          <div className="graph-field">
-            <label htmlFor={`${uid}-q`}>Capacity weighting, side A to side B</label>
-            <select id={`${uid}-q`} value={ratio} onChange={(e) => setRatio(e.target.value)} aria-describedby={`${uid}-q-hint`}>
-              {RATIOS.map(([r]) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <span id={`${uid}-q-hint`} className="graph-field-hint">An internal weighting, not the exchanger size or fluid volume.</span>
-          </div>
+          {sharedControls}
+          <Range id={`${uid}-a`} label="Side A start temperature" value={temperatureA} min={0} max={150} step={1} onChange={setA} valueText={`${temperatureA} °C`} />
+          <Range id={`${uid}-b`} label="Side B start temperature" value={temperatureB} min={0} max={150} step={1} onChange={setB} valueText={`${temperatureB} °C`} />
           <Check id={`${uid}-leak`} label="Ambient leak" checked={ambientLeak} onChange={setLeak} hint="Both sides also drift toward the surrounding temperature." />
           {ambientLeak ? (
-            <Range id={`${uid}-amb`} label="Surrounding temperature" value={ambient} min={0} max={60} step={1} onChange={setAmbient} valueText={fixed(ambient, 0)} />
+            <Range id={`${uid}-amb`} label="Surrounding temperature" value={ambient} min={0} max={60} step={1} onChange={setAmbient} valueText={`${ambient} °C`} />
           ) : null}
           <Range id={`${uid}-x`} label="Selected update" value={updates} min={0} max={200} step={1} onChange={setUpdates} valueText={`update ${updates}`} />
         </>
@@ -411,16 +482,16 @@ function ExchangerGraph() {
         <Chart
           uid={uid}
           width={width}
-          title="Heat exchanger temperatures over simulation updates"
+          title="Heat exchanger temperatures over simulation updates, closed compartments"
           desc={desc}
-          x={{ min: 0, max: 200, ticks: steps(0, 200, 25), format: (v) => fixed(v, 0), label: 'Simulation updates' }}
-          y={{ ...y, format: (v) => fixed(v, 0) }}
+          x={{ min: 0, max: 200, ticks: steps(0, 200, 25), format: (x) => fixed(x, 0), label: 'Simulation updates' }}
+          y={{ ...y, format: (x) => fixed(x, 0) }}
           series={[
             { key: 'a', className: 'graph-line-a', points: samples.map((s) => [s.n, s.temperatureA]) },
             { key: 'b', className: 'graph-line-b', points: samples.map((s) => [s.n, s.temperatureB]) },
           ]}
           selected={{ x: updates, points: [{ key: 'a', y: at.temperatureA, className: 'graph-dot-a' }, { key: 'b', y: at.temperatureB, className: 'graph-dot-b' }] }}
-          onSelect={(v) => setUpdates(snap(v, 0, 200, 1))}
+          onSelect={(x) => setUpdates(snap(x, 0, 200, 1))}
         />
       )}
       readout={(
@@ -428,17 +499,119 @@ function ExchangerGraph() {
           title={`After ${updates} updates`}
           rows={[
             ['Simulated time', `${fixed(updates / UPDATES_PER_SECOND, 2)} s`],
-            ['Side A', fixed(at.temperatureA, 2)],
-            ['Side B', fixed(at.temperatureB, 2)],
+            ['Temp A', `${fixed(at.temperatureA, 2)} °C`],
+            ['Temp B', `${fixed(at.temperatureB, 2)} °C`],
             ['Gap', fixed(Math.abs(at.temperatureA - at.temperatureB), 2)],
             ['Share of the starting gap left', temperatureA === temperatureB ? 'No gap' : pct(Math.abs(at.temperatureA - at.temperatureB) / Math.abs(temperatureA - temperatureB))],
+            ...qRows,
           ]}
         />
       )}
       table={{
-        caption: `Temperatures with weighting ${ratio}${ambientLeak ? `, ambient leak toward ${ambient}` : ', no ambient leak'}`,
-        cols: ['Update', 'Side A', 'Side B'],
+        caption: `Closed ${name}, q ${fixed(capacityA, 3)} and ${fixed(capacityB, 3)}${ambientLeak ? `, ambient leak toward ${ambient} °C` : ', no ambient leak'}`,
+        cols: ['Update', 'Temp A (°C)', 'Temp B (°C)'],
         rows: samples.filter((s) => s.n % 10 === 0).map((s) => [String(s.n), fixed(s.temperatureA, 2), fixed(s.temperatureB, 2)]),
+      }}
+    />
+  );
+}
+
+function FlowingExchanger({
+  uid, sharedControls, part, v, sideName, fillA, fillB, pressureA, pressureB, flowA, flowB, setFlowA, setFlowB, inletA, inletB, setInletA, setInletB,
+  ambient, setAmbient, reverseA, reverseB, setReverseA, setReverseB, duration, setDuration, second, setSecond, capacityA, capacityB,
+}) {
+  const every = HX_DURATIONS[duration];
+  const run = useMemo(
+    () => exchangerThroughFlow({ variant: part, flowA, flowB, inletA, inletB, ambient, fillA, fillB, pressureA, pressureB, seconds: duration, reverseA, reverseB, sampleEvery: every }),
+    [part, flowA, flowB, inletA, inletB, ambient, fillA, fillB, pressureA, pressureB, duration, reverseA, reverseB, every],
+  );
+  const step = every / UPDATES_PER_SECOND;
+  const at = run.samples.reduce((best, s) => (Math.abs(s.t - second) < Math.abs(best.t - second) ? s : best), run.samples[0]);
+  const y = niceDomain([inletA, inletB, ambient]);
+  const rangeA = hxFlowRange(v.sides[0]);
+  const rangeB = hxFlowRange(v.sides[1]);
+  const rej = run.rejected;
+  const refusal = rej ? `The model rejects these flows: at ${fixed(rej.second, 2)} s side ${rej.side} ${rej.port} would need ${fixed(rej.flow, 4)} amount per update, above its local bound of ${fixed(rej.limit, 4)}. Lower the flow or raise the fill or pressure.` : '';
+  const emitted = (x) => (x === null ? 'No flow' : `${fixed(x, 2)} °C`);
+  const summary = rej ? refusal : `At ${fixed(at.t, 1)} s: Temp A ${fixed(at.storedA, 2)} °C, Temp B ${fixed(at.storedB, 2)} °C; side A emits ${emitted(at.emittedA)}, side B ${emitted(at.emittedB)}.`;
+  const status = useSettled(summary);
+  const end = run.final;
+  const desc = `${v.name} with ${flowA} ${rangeA.unit} through side A at ${inletA} °C and ${flowB} ${rangeB.unit} through side B at ${inletB} °C, ambient ${ambient} °C. ${rej ? refusal : `After ${duration} s Temp A reads ${fixed(end.storedA, 2)} and Temp B ${fixed(end.storedB, 2)} °C.`} ${rej ? '' : summary}`;
+  const series = [
+    { key: 'sa', className: 'graph-line-a', points: run.samples.map((s) => [s.t, s.storedA]) },
+    { key: 'sb', className: 'graph-line-b', points: run.samples.map((s) => [s.t, s.storedB]) },
+    { key: 'ea', className: 'graph-line-a graph-line-thin', points: run.samples.filter((s) => s.emittedA !== null).map((s) => [s.t, s.emittedA]) },
+    { key: 'eb', className: 'graph-line-b graph-line-thin', points: run.samples.filter((s) => s.emittedB !== null).map((s) => [s.t, s.emittedB]) },
+  ].filter((s) => s.points.length);
+  const dots = [
+    { key: 'sa', y: at.storedA, className: 'graph-dot-a' },
+    { key: 'sb', y: at.storedB, className: 'graph-dot-b' },
+  ];
+  const tableEvery = duration / 10;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Temp A, stored', className: 'graph-line-a' },
+        { label: 'Temp B, stored', className: 'graph-line-b' },
+        { label: 'Side A emitted', className: 'graph-line-a graph-line-thin' },
+        { label: 'Side B emitted', className: 'graph-line-b graph-line-thin' },
+      ]}
+      controls={(
+        <>
+          {sharedControls}
+          <Range id={`${uid}-qa`} label={`Side A flow (${sideName(0)})`} value={flowA} min={0} max={rangeA.max} step={rangeA.step} onChange={setFlowA} valueText={`${flowA} ${rangeA.unit}`} hint={v.sides[0] === 'gas' ? 'Expanded gas litres, 600 L per amount.' : undefined} />
+          <Range id={`${uid}-qb`} label={`Side B flow (${sideName(1)})`} value={flowB} min={0} max={rangeB.max} step={rangeB.step} onChange={setFlowB} valueText={`${flowB} ${rangeB.unit}`} hint={v.sides[1] === 'gas' ? 'Expanded gas litres, 600 L per amount.' : undefined} />
+          <Range id={`${uid}-ia`} label="Side A inlet temperature" value={inletA} min={0} max={150} step={1} onChange={setInletA} valueText={`${inletA} °C`} />
+          <Range id={`${uid}-ib`} label="Side B inlet temperature" value={inletB} min={0} max={150} step={1} onChange={setInletB} valueText={`${inletB} °C`} />
+          <Range id={`${uid}-amb`} label="Surrounding temperature" value={ambient} min={0} max={60} step={1} onChange={setAmbient} valueText={`${ambient} °C`} />
+          <Check id={`${uid}-ra`} label="Reverse side A" checked={reverseA} onChange={setReverseA} hint="Feed side A through its Out port." />
+          <Check id={`${uid}-rb`} label="Reverse side B" checked={reverseB} onChange={setReverseB} hint="Feed side B through its Out port." />
+          <div className="graph-field">
+            <label htmlFor={`${uid}-dur`}>Simulated time</label>
+            <select id={`${uid}-dur`} value={duration} onChange={(e) => { const d = Number(e.target.value); setDuration(d); setSecond(d); }}>
+              {Object.keys(HX_DURATIONS).map((d) => <option key={d} value={d}>{`${d} s`}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-x`} label="Selected time" value={second} min={0} max={duration} step={step} onChange={setSecond} valueText={`${fixed(second, 2)} s`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Heat exchanger temperatures with fluid flowing through"
+          desc={desc}
+          x={{ min: 0, max: duration, ticks: steps(0, duration, duration / 6), format: (x) => fixed(x, x % 1 ? 1 : 0), label: 'Simulated seconds' }}
+          y={{ ...y, format: (x) => fixed(x, 0) }}
+          series={series}
+          selected={{ x: at.t, points: dots }}
+          onSelect={(x) => setSecond(snap(x, 0, duration, step))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={rej ? 'Flow rejected' : `At ${fixed(at.t, 2)} s`}
+          rows={[
+            ...(rej ? [['Model result', refusal, 'graph-no']] : []),
+            ['Temp A, stored', `${fixed(at.storedA, 2)} °C`],
+            ['Temp B, stored', `${fixed(at.storedB, 2)} °C`],
+            ['Side A emitted', emitted(at.emittedA)],
+            ['Side B emitted', emitted(at.emittedB)],
+            ['Side A change, inlet to emitted', at.emittedA === null ? 'No flow' : `${fixed(at.emittedA - inletA, 2)} °C`],
+            ['Side B change, inlet to emitted', at.emittedB === null ? 'No flow' : `${fixed(at.emittedB - inletB, 2)} °C`],
+            ['q side A, side B', `${fixed(capacityA, 3)}, ${fixed(capacityB, 3)}`],
+            ['Flow per update, A and B', `${fixed(run.flowPerUpdate[0], 4)}, ${fixed(run.flowPerUpdate[1], 4)} amount`],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${v.name}, ${flowA} ${rangeA.unit} at ${inletA} °C and ${flowB} ${rangeB.unit} at ${inletB} °C, ambient ${ambient} °C`,
+        cols: ['Second', 'Temp A (°C)', 'Temp B (°C)', 'Side A emitted (°C)', 'Side B emitted (°C)'],
+        rows: run.samples
+          .filter((s) => Math.abs(s.t / tableEvery - Math.round(s.t / tableEvery)) < 1e-9)
+          .map((s) => [fixed(s.t, 0), fixed(s.storedA, 2), fixed(s.storedB, 2), s.emittedA === null ? 'n/a' : fixed(s.emittedA, 2), s.emittedB === null ? 'n/a' : fixed(s.emittedB, 2)]),
       }}
     />
   );

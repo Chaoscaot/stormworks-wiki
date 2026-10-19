@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CLASSIC, CLASSIC_VARIANTS, classicEngine, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { CLASSIC, CLASSIC_VARIANTS, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -261,4 +261,74 @@ test('classic engine graph constants remain tied to verified native findings', (
     assert.equal(at('engine_max_force'), v.force, v.id);
     assert.equal(at('electric_magnitude'), v.magnitude, v.id);
   }
+});
+test('exchanger through-flow port reproduces the worked examples of tools/check_model.py', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) < 5e-6, `${a} != ${b}`);
+  // Emitted A, emitted B, Temp A, Temp B after 600 simulated seconds: investigation/heat-exchangers.md, worked examples table.
+  const cases = [
+    [{ variant: 'intercooler', flowA: 6, flowB: 6 }, [61.135127, 47.770989, 60.89373, 47.943479]],
+    [{ variant: 'intercooler', flowA: 30, flowB: 30 }, [78.504464, 38.939873, 77.853084, 39.513808]],
+    [{ variant: 'intercooler', flowA: 60, flowB: 60 }, [85.535272, 33.127461, 84.684406, 33.899665]],
+    [{ variant: 'intercooler_large', flowA: 6, flowB: 6 }, [41.239967, 38.740043, 41.181266, 38.758764]],
+    [{ variant: 'intercooler_large', flowA: 30, flowB: 30 }, [58.841934, 47.769224, 58.637167, 47.907379]],
+    [{ variant: 'intercooler_large', flowA: 60, flowB: 60 }, [66.020601, 46.640616, 65.684172, 46.904384]],
+    [{ variant: 'air_exchanger', flowA: 600, flowB: 6 }, [79.80096, 47.714071, 79.149378, 48.05622]],
+    [{ variant: 'air_exchanger_9_5', flowA: 600, flowB: 6, fillB: 0.95 }, [27.463176, 26.749019, 27.44169, 26.74965]],
+    [{ variant: 'heat_exchanger_2_2', flowA: 600, flowB: 600 }, [71.545089, 43.855476, 71.078615, 44.246549]],
+    [{ variant: 'intercooler', flowA: 1, flowB: 1 }, [82.721573, 35.522658, 81.951576, 36.214411]],
+    [{ variant: 'intercooler', flowA: 30, flowB: 30, reverseB: true }, [78.367471, 39.095352, 77.711939, 39.095352]],
+  ];
+  for (const [input, [ea, eb, sa, sb]] of cases) {
+    const r = exchangerThroughFlow({ ...input, seconds: 600 });
+    assert.equal(r.rejected, null, input.variant);
+    assert.ok(r.lastChange < 1e-8, `${input.variant} has not settled`);
+    close(r.final.emittedA, ea);
+    close(r.final.emittedB, eb);
+    close(r.final.storedA, sa);
+    close(r.final.storedB, sb);
+  }
+  // Hot-side drop for the two liquid-liquid sizes at 60 L/s, report: 18.0809 % and 42.4742 %.
+  close(exchangerThroughFlow({ variant: 'intercooler', flowA: 60, flowB: 60 }).hotDrop, 0.180809);
+  close(exchangerThroughFlow({ variant: 'intercooler_large', flowA: 60, flowB: 60 }).hotDrop, 0.424742);
+  // An impossible flow is rejected rather than accepted.
+  const bad = exchangerThroughFlow({ variant: 'air_exchanger', flowA: 1e6, flowB: 1e6, seconds: 1 });
+  assert.equal(bad.rejected.update, 0);
+  assert.equal(bad.samples.length, 1);
+  assert.throws(() => exchangerThroughFlow({ variant: 'intercooler', flowA: -1 }), RangeError);
+  assert.throws(() => exchangerThroughFlow({ variant: 'radiator' }), RangeError);
+});
+test('exchanger volumes, capacities and ambient controller follow the heat-exchanger report', () => {
+  assert.deepEqual(EXCHANGER_VARIANTS.map((v) => exchangerVolume(v.id) * EXCHANGER.litresPerUnit), [20, 250, 1215, 10, 50, 225, 405, 1125, 20, 125]);
+  assert.equal(exchangerVolume('intercooler_large') / exchangerVolume('intercooler'), 6.25);
+  near(exchangerCapacity({ volume: 2, phase: 'gas', pressure: 30 }), 1);
+  near(exchangerCapacity({ volume: 2, phase: 'gas', pressure: 60 }), 2);
+  near(exchangerCapacity({ volume: 2, phase: 'liquid', fill: 0.8 }), 1.6);
+  assert.throws(() => exchangerCapacity({ volume: 2, phase: 'gas', pressure: 61 }), RangeError);
+  // 18-sample step response and retargeting of the 16-update linear controller.
+  const step = exchangerAmbientController();
+  assert.deepEqual(Array.from({ length: 18 }, (_, i) => step(i === 0 ? 100 : null)), [...Array.from({ length: 17 }, (_, i) => 20 + 5 * i), 100]);
+  const c = exchangerAmbientController();
+  c(30); c(); c(40);
+  near(c.state.age, 1);
+  near(c.state.output, 20.625);
+  c(40.05);
+  near(c.state.age, 2);
+  // Gap left after one second of exchange alone.
+  near(0.97 ** UPDATES_PER_SECOND, 0.160806669022);
+});
+test('exchanger graph constants and volumes remain tied to verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const findings = data.families.flatMap((f) => f.findings);
+  const value = (label) => findings.find((x) => x.label === label);
+  for (const [label, v] of [['Exchanger compartment volume factor', EXCHANGER.volumePerVoxel], ['Exchanger step fraction', EXCHANGER.fraction],
+    ['Exchange threshold and ambient leak', EXCHANGER.ambientFraction], ['B Out exchange factor', 0.5], ['Ambient controller reset threshold', EXCHANGER.retarget]]) {
+    assert.ok(value(label)?.source?.address, `${label}: native address is required`);
+    assert.equal(Number(value(label).value), v, label);
+  }
+  for (const v of EXCHANGER_VARIANTS) {
+    const f = value(`${v.name} · volume per side`);
+    assert.ok(f, v.name);
+    assert.equal(f.value, `V = ${exchangerVolume(v.id)}, ${exchangerVolume(v.id) * EXCHANGER.litresPerUnit} L`);
+  }
+  for (const id of ['air-air-heat-exchanger', 'air-liquid-heat-exchanger', 'liquid-liquid-heat-exchanger']) assert.deepEqual(graphKindsForFamily(id), ['exchanger']);
 });

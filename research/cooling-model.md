@@ -127,7 +127,7 @@ Round up. Real layouts need more, because radiator water runs cooler than manifo
 - `behavior.md` said "Heating gain is 6000/heat capacity" without a capacity. The capacity is now recovered: `C = 1 + 40 · Σ cylinder voxels`. Registration in `0x1404b4330` adds 40 per voxel to a starting value of 1 stored by the group constructor at `0x1404b3c44`. An earlier version of this note assumed a start of zero.
 - `0x1402eb5e0` is not a radiator volume or capacity helper. It sums the liquid fluid amounts in a compartment. Radiator volume is `voxels`, set in the fluid initializer `0x1403ef450`.
 - The coolant manifold does not hold coolant in its own voxels. It sets the volume of the group's shared compartment to `0.01·C + N`.
-- `behavior.md` treats the "q" in the exchanger and radiator weighting as an unknown capacity. The compartment amounts at `+0x40` (or the water amounts) are the likely q, but this was not checked at the exchanger call site.
+- The exchanger q is the unweighted stored amount of the side's phase: gas slots on an air side, liquid slots on a liquid side. Pure gas gives q = P × V ÷ 60. `investigation/heat-exchangers.md` checks this at the exchanger call site.
 - Engine cooling is coupling-limited, not only radiator-limited. With `0.04 · V_cool` per °C, large engines need a big temperature drop between engine and coolant (about 29 °C for one 5x5 at 20 RPS) before any radiator can help.
 
 ## Calculator integration note

@@ -1893,36 +1893,75 @@
     },
     {
       "category": "Heat exchange",
-      "summary": "Exchangers equalise two compartments by a fixed fraction per update weighted by how much fluid each side holds; radiators cool toward the surroundings and gain up to three times their passive rate from an electric fan or airflow.",
+      "summary": "Exchangers mix two compartments of 0.5 × listed voxels each, moving 0.03 of the gap per update weighted by each side's stored gas or liquid amount; radiators cool toward the surroundings and gain up to three times their passive rate from an electric fan or airflow.",
       "sections": [
         {
           "title": "How the game moves heat",
-          "body": "The fluid-component update gives every exchanger two internal compartments, A and B. Each update A moves toward B by 0.03·qB/(qA+qB) of the temperature gap and B moves toward A by 0.03·qA/(qA+qB), so heat is conserved and the gap shrinks by a constant fraction regardless of variant. The q terms are capacity values taken from the fluid inside each compartment. The fraction itself does not depend on the variant, so any size advantage must come through q or through-flow; it is plausible that larger variants hold more fluid, but their compartment volumes were not recovered, so that advantage is inferred, not shown.\n\nBoth compartments also leak toward the surrounding temperature by 0.001 per update. Radiators use a separate rule: the compartment moves toward the surrounding temperature by 0.003 × (1 + fan), with the fan term clamped to 0…2."
+          "body": "Every exchanger has two mixed compartments, A and B, each of volume V = 0.5 × the definition's listed voxels, 10 L per volume unit. Per side that is 20, 250 and 1215 L for the air-air sizes, 10, 50, 225, 405 and 1125 L for air-liquid, and 20 and 125 L for liquid-liquid. Each update, when qA + qB > 0.001, A moves toward B by 0.03 × qB ÷ (qA + qB) of the old gap and B toward A by 0.03 × qA ÷ (qA + qB). q is the stored amount of the side's phase: gas slots 3, 4, 7, 10, 11 and 12 on an air side, liquid slots 0, 1, 2, 5, 6, 8 and 9 on a liquid side, each species with weight 1. At equal fill and gas pressure a larger variant has proportionally more q; the 0.03 fraction is the same for all of them.\n\nBoth compartments then move 0.001 toward the filtered surrounding temperature. Radiators use a separate rule: the compartment moves toward the surrounding temperature by 0.003 × (1 + fan), with the fan term clamped to 0…2."
+        },
+        {
+          "title": "Capacity and pressure",
+          "body": "q is in native amount units: 1 amount is 10 L of liquid, or 600 L of gas at the expanded readout. For pure gas q = P × V ÷ 60, so doubling an air side's pressure doubles its q. At 1 atm a gas side has q = V ÷ 60, against V for a full liquid side of the same volume; at 60 atm the two match. The capacity helpers apply no pressure, temperature or per-species factor of their own. Fluid of the wrong phase counts 0 toward that side's q but still passes through the ports and raises pressure."
+        },
+        {
+          "title": "Ports and through-flow",
+          "body": "Each update runs four port exchanges before the heat step, in the order A In, A Out, B In, B Out, all with bias 0 and no species filter. A side moves fluid only when both of its ports are connected; the heat step runs either way. B Out uses an exchange factor of clamp(0.5 × B's total amount, 0, 1). The exchanger has no pump and its In and Out labels do not set a direction, so pressure and the networks' demand decide which way fluid goes. Arriving fluid is mixed by the compartment's amount after the move, and below 0.01 amount per update a direct port exchange also carries heat without net flow. Each side is a single mixed volume, so there is no counterflow or parallel-flow geometry."
         },
         {
           "title": "Per-second rates",
           "body": "Component updates run 60 times per simulated second. The fractions compound, so they are not multiplied by 60. With constant coefficients and nothing else acting, one simulated second leaves 0.161 of the gap between an exchanger's two compartments (time constant 0.547 s), 0.942 of a gap to fixed ambient through the leak alone (16.7 s), 0.835 of a passive radiator's gap to fixed ambient (5.55 s) and 0.581 at the full radiator multiplier of 3 (1.84 s). Through-flow and changing temperatures need the full model stepped 60 times per second."
         },
         {
-          "title": "Practical setup",
-          "body": "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts relative airflow as fan, reaching the maximum term at an air speed of 80 in the game's speed units (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's."
+          "title": "Surrounding temperature",
+          "body": "An exchanger samples the surrounding temperature at its own position every 16 updates (0.267 simulated seconds). Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."
         },
         {
-          "title": "Measurement questions",
-          "body": "The unit and per-fluid weighting of the q capacity terms and the filter applied to the surrounding-temperature sample (refreshed every 16 updates, 0.267 simulated seconds) were not recovered. Measure exchanger outlet temperatures at fixed flow to see how through-flow changes the isolated per-second figures."
+          "title": "Practical setup",
+          "body": "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts relative airflow as fan, reaching the maximum term at an air speed of 80 in the game's speed units (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's."
         }
       ],
       "limitations": [
         "Native findings come from static decompilation of one build; no in-game measurement was made.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.",
-        "The compartment volume of each exchanger variant was not recovered, so the size advantage cannot be stated as a ratio."
+        "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
+        "The complete set of local heat sources that feed the surrounding-temperature sample, and their strengths, was not traced."
       ],
       "sources": [
         {
           "path": "rom/data/definitions/air_exchanger.xml",
           "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
+          "lineStart": 89,
+          "lineEnd": 98
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger.xml",
+          "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
           "lineStart": 129,
           "lineEnd": 129
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_5_2.xml",
+          "sha256": "80b55af06373fc154de2f57713a79e45bf242ea32357ae32a35722fd2ba5710f",
+          "lineStart": 188,
+          "lineEnd": 229
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_5_3.xml",
+          "sha256": "13e6f3e4220a1bda078c2d3766bea56f984b6e39072207bf5289b0aa4b9e913e",
+          "lineStart": 449,
+          "lineEnd": 630
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_9_3.xml",
+          "sha256": "4f26f70fad5e97ef6c658ad428421309de09cd8b22f4ab364d19d46d8f97fec8",
+          "lineStart": 785,
+          "lineEnd": 1110
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_9_5.xml",
+          "sha256": "6d023ad645d0b98ac3b7582bcc3bc9040f5489415f8df15f93b519d5cba90ead",
+          "lineStart": 1145,
+          "lineEnd": 2046
         },
         {
           "path": "rom/data/definitions/fluid_radiator.xml",
@@ -1939,8 +1978,32 @@
         {
           "path": "rom/data/definitions/heat_exchanger_2_2.xml",
           "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
+          "lineStart": 125,
+          "lineEnd": 142
+        },
+        {
+          "path": "rom/data/definitions/heat_exchanger_2_2.xml",
+          "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
           "lineStart": 173,
           "lineEnd": 173
+        },
+        {
+          "path": "rom/data/definitions/heat_exchanger_5_5.xml",
+          "sha256": "dc0a3aaca9a43c81a59fa7549006137e63568ec73a32ba887be7b6c3a38eaf09",
+          "lineStart": 341,
+          "lineEnd": 542
+        },
+        {
+          "path": "rom/data/definitions/heat_exchanger_9_9.xml",
+          "sha256": "53a310f3743531421d4df4039c860d1513f258b237dd6cf8095c926a5580e3e1",
+          "lineStart": 932,
+          "lineEnd": 1905
+        },
+        {
+          "path": "rom/data/definitions/intercooler.xml",
+          "sha256": "9e9892b84242c18bfead39cbe80fe783df660943383705d697bb47933c2affbb",
+          "lineStart": 125,
+          "lineEnd": 142
         },
         {
           "path": "rom/data/definitions/intercooler.xml",
@@ -1949,9 +2012,135 @@
           "lineEnd": 173
         },
         {
+          "path": "rom/data/definitions/intercooler_large.xml",
+          "sha256": "2e24cf74aa563c7ebb077792a7ddab2f6974d9583b318636eeba8d21e6b7e1ed",
+          "lineStart": 449,
+          "lineEnd": 550
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb471"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb600"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb680"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ece2b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed316"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed334"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fdcd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031002e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403100f1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031010d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031011c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee846"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7ad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7d3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3863"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f49b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4aa2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4b7a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c25"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c47"
+        },
+        {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f4c98"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cd8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cfe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f9fa7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca050"
         },
         {
           "path": "stormworks64.exe",
@@ -1982,6 +2171,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cddee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cde35"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408f04b0"
         },
         {
           "path": "stormworks64.exe",
@@ -3295,19 +3499,31 @@
   "families": [
     {
       "id": "air-air-heat-exchanger",
-      "summary": "Equalises two gas compartments by 0.03 of the gap per update, weighted by gas capacity on each side.",
+      "summary": "Mixes two gas compartments of 20, 250 or 1215 L each, moving 0.03 of the gap per update weighted by stored gas amount, which rises with pressure.",
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "Case 0x11 uses the gas capacity helper for both sides; each side passes gas only with both its In and Out ports connected."
+          "body": "Case 0x11 uses the gas capacity helper for both sides: q is the stored amount of the air slot, CO2, steam, oxygen, nitrogen and hydrogen, each with weight 1. Liquid in a side counts 0. Each side passes gas only with both its In and Out ports connected."
         },
         {
           "title": "Performance drivers",
-          "body": "The per-update rule is the same as for the other exchangers: 0.03 of the gap, weighted by the opposite side's share of capacity, plus a 0.001 drift toward ambient. Without through-flow, 0.161 of the gap remains after one simulated second."
+          "body": "The per-update rule is the same as for the other exchangers: 0.03 of the gap, weighted by the opposite side's share of q, plus a 0.001 drift toward ambient. Without through-flow, 0.161 of the gap remains after one simulated second."
         },
         {
-          "title": "Open measurement questions",
-          "body": "How gas pressure affects the capacity term was not recovered; measure the exchanger at different manifold pressures."
+          "title": "Gas pressure",
+          "body": "For pure gas q = P × V ÷ 60, so doubling a side's pressure doubles its q and the lower-pressure side moves further toward the other. The helper adds no pressure or temperature factor of its own. If a side also holds liquid, its q is the gas amount alone, not P × V ÷ 60."
+        },
+        {
+          "title": "Variant tradeoffs",
+          "body": "The 2x2, 2x5 and 3x9 hold 2, 25 and 121.5 volume units per side (20, 250 and 1215 L), ratios 1, 12.5 and 60.75. The files are named heat_exchanger_2_2, heat_exchanger_5_5 and heat_exchanger_9_9; the listed voxel count, not the name, sets the volume."
+        },
+        {
+          "title": "Flow example",
+          "body": "The 2x2 at 30 atm with 600 L/s of expanded gas through each side, inlets 100 and 20 °C and ambient 20 °C, emits 71.55 and 43.86 °C. Temp A and Temp B settle at 71.08 and 44.25 °C. These are outputs of the report's 60 Hz model with fixed boundary networks and a prescribed flow, not game measurements or a pump rating. The interactive graph below runs the same model."
+        },
+        {
+          "title": "Setup and interactions",
+          "body": "Temp A and Temp B read the stored compartment temperatures in °C after this update's exchange and ambient step. Fluid leaving the Out ports was emitted earlier in the same update, so its temperature can differ. Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."
         }
       ],
       "findings": [
@@ -3321,6 +3537,18 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x140bafa00"
+          }
+        },
+        {
+          "label": "Exchanger weight for side A",
+          "value": "0.03",
+          "detail": "qB × this ÷ (qA + qB) is the fraction passed to the interpolation helper 0x1408f04b0 for A, using the temperatures saved at 0x1403f4c34 and 0x1403f4c42; A is stored at 0x1403f4c61. B then uses qA × the same constant (0x1403f4c6a) and the saved old A, stored at 0x1403f4c87. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f5915b1ad7b00 at 0x1403f4c47 address binary32 0.03 (bytes 8fc2f53c) at 0x140bafa00. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L137-L158; ../heat-exchangers/asm/lerp.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c47",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c47"
           }
         },
         {
@@ -3348,6 +3576,18 @@
           }
         },
         {
+          "label": "Ambient leak after one simulated second",
+          "value": "0.942 left after 1 s; time constant 16.7 s",
+          "detail": "(1 - 0.001)^60 = 0.941736 of a gap remains after one simulated second when the coefficient and target stay fixed and nothing else acts; time constant -1 ÷ (60 × ln(1 - 0.001)) = 16.658332 s. 60 × 0.001 is not the fraction removed per second. Inputs: derived:7d3ff454a23f, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x140baf8f8.",
+          "evidenceId": "derived:76b86db25c7c",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
           "label": "Air-Air Heat Exchanger 2x2 · tooltip",
           "value": "A heat exchanger that averages heat between two air systems at a rate proportional to the component's size.",
           "detail": "heat_exchanger_2_2: developer-authored description; intended behaviour, not a measurement.",
@@ -3358,6 +3598,395 @@
             "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
             "lineStart": 173,
             "lineEnd": 173
+          }
+        },
+        {
+          "label": "Air-air capacity selection",
+          "value": "qA = gas, qB = gas",
+          "detail": "Type 17 calls the gas helper 0x1402eb660 for A here and for B at 0x1403f4bd6. Compartment A is component+0x598 and B is +0x5e4; the update reads water_component_type from definition+0xecc at 0x1403f4bb5. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 83f911751d498d8e98050000e8946aefff at 0x1403f4bbb. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L114-L137. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4bbb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4bbb"
+          }
+        },
+        {
+          "label": "Exchanger size ratio",
+          "value": "1, 12.5, 60.75",
+          "detail": "Per-side volume of each variant ÷ the smallest of the family (Air-Air Heat Exchanger 2x2 V = 2, Air-Air Heat Exchanger 2x5 V = 25, Air-Air Heat Exchanger 3x9 V = 121.5). At equal liquid fill and gas pressure both q values scale by these ratios; the fraction of the gap closed per update, 0.03 weighted by q share, does not change. At equal external flow, inventory and ambient loss scale too, so the ratio is not an outlet-temperature multiplier. Report: investigation/heat-exchangers.md. Inputs: derived:1c25666da99c, derived:daa42da8d2d2, derived:d106802e8024.",
+          "evidenceId": "derived:a7d5db3fe99e",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/heat_exchanger_2_2.xml",
+            "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
+            "lineStart": 125,
+            "lineEnd": 142
+          }
+        },
+        {
+          "label": "Air-Air Heat Exchanger 2x2 · model steady state",
+          "value": "emitted 71.55 and 43.86 °C; Temp A 71.08, Temp B 44.25 °C",
+          "detail": "Output of the report's 60 Hz model (tools/model.py), not a game measurement, re-derived here as the closed-form steady state for forward flow of at least 0.01 amount per update. Inlets A 100 °C and B 20 °C, ambient 20 °C, liquid fill 0.8, gas pressure 30 atm; side A 600 L/s of expanded gas (0.0166667 per update), side B 600 L/s of expanded gas (0.0166667 per update); qA = 1, qB = 1. Emitted packets 71.545089 and 43.855476 °C, stored Temp A 71.078615 and Temp B 44.246549 °C. The hot side drops by 35.6 % of the 80 °C inlet gap, which includes ambient loss and the post-transfer mixing rule, so it is not a conserved-energy effectiveness. The model holds both boundary networks at fixed amounts and takes the flow as given; it does not predict what a pump delivers. Report: investigation/heat-exchangers.md. Inputs: derived:1c25666da99c, derived:bc7ee6d437a5, derived:d4b779950768, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4aa2, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe, native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ece2b, native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed316.",
+          "evidenceId": "derived:2c4d650cea25",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/heat_exchanger_2_2.xml",
+            "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
+            "lineStart": 125,
+            "lineEnd": 142
+          }
+        },
+        {
+          "label": "Air-Air Heat Exchanger 2x2 · volume per side",
+          "value": "V = 2, 20 L",
+          "detail": "4 listed voxels × 0.5 = 2 volume units per side, × 10 = 20 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/heat_exchanger_2_2.xml:c6cec68a1c57:L125-L142, resource:rom/data/definitions/heat_exchanger_2_2.xml:c6cec68a1c57:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:1c25666da99c",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/heat_exchanger_2_2.xml",
+            "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
+            "lineStart": 125,
+            "lineEnd": 142
+          }
+        },
+        {
+          "label": "Air-Air Heat Exchanger 2x5 · volume per side",
+          "value": "V = 25, 250 L",
+          "detail": "50 listed voxels × 0.5 = 25 volume units per side, × 10 = 250 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/heat_exchanger_5_5.xml:dc0a3aaca9a4:L341-L542, resource:rom/data/definitions/heat_exchanger_5_5.xml:dc0a3aaca9a4:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:daa42da8d2d2",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/heat_exchanger_5_5.xml",
+            "sha256": "dc0a3aaca9a43c81a59fa7549006137e63568ec73a32ba887be7b6c3a38eaf09",
+            "lineStart": 341,
+            "lineEnd": 542
+          }
+        },
+        {
+          "label": "Air-Air Heat Exchanger 3x9 · volume per side",
+          "value": "V = 121.5, 1215 L",
+          "detail": "243 listed voxels × 0.5 = 121.5 volume units per side, × 10 = 1215 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/heat_exchanger_9_9.xml:53a310f37435:L932-L1905, resource:rom/data/definitions/heat_exchanger_9_9.xml:53a310f37435:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:d106802e8024",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/heat_exchanger_9_9.xml",
+            "sha256": "53a310f3743531421d4df4039c860d1513f258b237dd6cf8095c926a5580e3e1",
+            "lineStart": 932,
+            "lineEnd": 1905
+          }
+        },
+        {
+          "label": "Exchanger compartment volume factor",
+          "value": "0.5",
+          "detail": "The fluid initializer's jump table sends water_component_type 16, 17 and 18 to 0x1403ef79f. That block converts the listed voxel count (definition+0xb8, filled by the voxel-list loader 0x140900500 once per <voxel>) to binary32, multiplies it by this and stores V for side A at component+0x5a0 (0x1403ef7b5). One volume unit is 10 L. The tank factor 1.5625 belongs to a different case and does not apply here. Report: investigation/heat-exchangers.md. Function 0x1403ef450-0x1403ef847; instruction bytes f30f590507057c00 at 0x1403ef7ad address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/initializer.asm:L201-L210; ../heat-exchangers/asm/definition-voxels.asm; ../heat-exchangers/pseudocode/0x1403ef450.c; ../heat-exchangers/pseudocode/0x140900500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ef7ad"
+          }
+        },
+        {
+          "label": "Exchanger side B volume",
+          "value": "0.5 × voxels",
+          "detail": "The same block repeats the multiply by 0.5 (0x1403ef7cb) and stores the result at component+0x5ec, so both sides of every exchanger have the same volume. Report: investigation/heat-exchangers.md. Function 0x1403ef450-0x1403ef847; instruction bytes f30f1183ec050000 at 0x1403ef7d3. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/initializer.asm:L201-L210; ../heat-exchangers/pseudocode/0x1403ef450.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ef7d3"
+          }
+        },
+        {
+          "label": "Gas capacity helper",
+          "value": "q = sum of slots 3, 4, 7, 10, 11, 12",
+          "detail": "0x1402eb660 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb68d (addss with coefficient 1) and skips it at 0x1402eb692. Added slots: 3, 4, 7, 10, 11, 12. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb6a8 read as image-relative dwords. Function 0x1402eb660-0x1402eb750; instruction bytes 418b8c91a8b62e00 at 0x1402eb680. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L35-L55; ../heat-exchangers/pseudocode/0x1402eb660.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb660@0x1402eb680",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb680"
+          }
+        },
+        {
+          "label": "Liquid capacity helper",
+          "value": "q = sum of slots 0, 1, 2, 5, 6, 8, 9",
+          "detail": "0x1402eb5e0 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb60d (addss with coefficient 1) and skips it at 0x1402eb612. Added slots: 0, 1, 2, 5, 6, 8, 9. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb628 read as image-relative dwords. Function 0x1402eb5e0-0x1402eb6e0; instruction bytes 418b8c9128b62e00 at 0x1402eb600. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L7-L27; ../heat-exchangers/pseudocode/0x1402eb5e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb600"
+          }
+        },
+        {
+          "label": "Exchanger capacity q",
+          "value": "pure gas q = P × V ÷ 60; liquid q = stored liquid amount",
+          "detail": "q is the side's stored amount of its phase in native units, 10 L of liquid or 600 L of expanded gas per amount. Inference from the pressure law: pure gas has P = 60 × G ÷ V, so q = G = P × V ÷ 60 and doubling pressure doubles q at a fixed volume. At equal volume a 1 atm gas side has V ÷ 60 and a full liquid side V; at 60 atm the gas side equals the full liquid side. With gas and liquid in one side, sum the gas amounts instead of using P × V ÷ 60. Wrong-phase contents give 0 toward that side's q but still move through the ports. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402eb660@0x1402eb680, native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600, derived:d59de08c3571, native:stormworks64.exe:f9206d85c82f:0x1402eb550@0x1402eb550, native:stormworks64.exe:f9206d85c82f:0x1403f9e40@0x1403f9fa7, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3863.",
+          "evidenceId": "derived:bc7ee6d437a5",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb680"
+          }
+        },
+        {
+          "label": "Exchange gate",
+          "value": "qA + qB > 0.001",
+          "detail": "Compares qA + qB with 0.001 and skips the mutual step when the sum is not larger. The sum, not each side, is tested, so one occupied side can still pull an empty side's temperature. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 450f2fc1 at 0x1403f4c25. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L137-L158; ../heat-exchangers/asm/lerp.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c25",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c25"
+          }
+        },
+        {
+          "label": "Interpolation helper",
+          "value": "a + t × (b − a)",
+          "detail": "The whole helper: loads b, subtracts a, multiplies by t and adds a. No clamp. Report: investigation/heat-exchangers.md. Function 0x1408f04b0-0x1408f04d0; instruction bytes f30f1002f30f5c01f30f59c2f30f5801c3 at 0x1408f04b0. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/lerp.asm:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408f04b0@0x1408f04b0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408f04b0"
+          }
+        },
+        {
+          "label": "Exchanger mutual step",
+          "value": "A += 0.03 × qB ÷ (qA + qB) × (B − A); B += 0.03 × qA ÷ (qA + qB) × (A − B)",
+          "detail": "Both use the old temperatures. Inference: at fixed q the step conserves qA × TA + qB × TB and multiplies the gap by 0.97 each update, 0.97^60 = 0.160807 after one simulated second. The exchanged amount-temperature quantity 0.03 × qA × qB ÷ (qA + qB) × (TA − TB) is a native capacity unit, not joules. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c47, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c25, native:stormworks64.exe:f9206d85c82f:0x1408f04b0@0x1408f04b0, derived:7d3ff454a23f.",
+          "evidenceId": "derived:d4b779950768",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c47"
+          }
+        },
+        {
+          "label": "Exchanger ambient step",
+          "value": "X + 0.001 × (ambient − X)",
+          "detail": "After the mutual step, A (component+0x5dc) and then B (+0x628, at 0x1403f5065) move toward the controller output at +0x644 by the 0.001 held in xmm9. The outputs at 0x1403f5073-0x1403f5098 then publish +0x5dc as Temp A and +0x628 as Temp B, the stored temperatures after both steps. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 410f28d1498d9644060000498d8edc050000e89bb74f00 at 0x1403f4cfe. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L176-L205. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cfe"
+          }
+        },
+        {
+          "label": "Exchanger port pair test",
+          "value": "both ports connected",
+          "detail": "Ports A In (+0x148) and A Out (+0x180) are tested with 0x1402ec1a0, which checks port+0x20; B In (+0x1b8) and B Out (+0x1f0) follow at 0x1403f49e3. A pair exchanges only when both of its ports are connected. The heat step runs either way. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 498d8e48010000e8db77efff at 0x1403f49b9. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L8-L32; ../heat-exchangers/asm/port-connected.asm; ../heat-exchangers/pseudocode/0x1402ec1a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f49b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f49b9"
+          }
+        },
+        {
+          "label": "Exchanger port order",
+          "value": "A In, A Out, B In, B Out",
+          "detail": "Four calls to the port exchange 0x1402ec710, at 0x1403f4aa2 (A In), 0x1403f4af4 (A Out), 0x1403f4b4d (B In) and 0x1403f4ba9 (B Out), all with bias 0, both direction flags 0 and all species, before the capacity step. No pump bias or power request exists in this case, so pressure and allocated demand can drive either port in either direction. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e8697cefff at 0x1403f4aa2. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L42-L112; ../heat-exchangers/asm/port.asm; ../heat-exchangers/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4aa2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4aa2"
+          }
+        },
+        {
+          "label": "B Out exchange factor",
+          "value": "0.5",
+          "detail": "B Out's factor is B's total amount (component+0x624, loaded at 0x1403f4b71) × this, clamped to 0…1 by the solver. It scales B Out's step limit and low-flow exchange after B In has changed the amount. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f591d3ab17b00 at 0x1403f4b7a address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L95-L112; ../heat-exchangers/asm/port.asm; ../heat-exchangers/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4b7a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4b7a"
+          }
+        },
+        {
+          "label": "Recipient amount in temperature mixing",
+          "value": "post-transfer amount",
+          "detail": "After a port move the recipient's total (+0x40) is read after it has grown by the packet q, then q is added again for the divisor: T = (A' × T + q × T_donor) ÷ (A' + q), with A' the amount after the move. The two-port solver does the same at 0x1402ee017 and 0x1402ee4b8. This weighting differs from ordinary mixing: 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not 46.7 °C. Report: investigation/fluid-transport.md. Function 0x1402eca04-0x1402ed308; instruction bytes f3410f105b40 at 0x1402ece2b. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L431-L442; ../fluid-transport/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ece2b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ece2b"
+          }
+        },
+        {
+          "label": "Low-flow exchange flow scale",
+          "value": "0.01",
+          "detail": "After a radiator or manifold port move, e = 0.1 × max(0, 1 - |q| ÷ this) is passed to 0x1402ed390, limited by both sides' amounts. Both amounts must exceed 0.0001. Report: investigation/fluid-transport.md. Function 0x1402ed308-0x1402ed371; instruction bytes f30f5e053a268c00 at 0x1402ed316 address binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L716-L732; ../fluid-transport/asm/thermal-helper.asm:L74-L83,L281-L298; ../fluid-transport/pseudocode/0x1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed316",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed316"
+          }
+        },
+        {
+          "label": "Low-flow exchange rate",
+          "value": "0.1",
+          "detail": "The helper moves the component's temperature by e ÷ its volume toward the pipe network's, then the network's by e ÷ its volume toward the new component temperature. For pure water amounts stay unchanged, so heat crosses a port even with no net flow. Report: investigation/fluid-transport.md. Function 0x1402ed308-0x1402ed371; instruction bytes f30f590d94278c00 at 0x1402ed334 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L716-L732; ../fluid-transport/asm/thermal-helper.asm:L74-L83,L281-L298; ../fluid-transport/pseudocode/0x1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed334",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed334"
+          }
+        },
+        {
+          "label": "Network allocation",
+          "value": "port+0x2c = f·|f| ÷ Σ × room",
+          "detail": "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114a2cf30f114a3044897a28 at 0x1404ca050. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1404c9d20-network-allocation.asm:L26-L40,L151-L202. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca050",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca050"
+          }
+        },
+        {
+          "label": "Exchanger surrounding-temperature sample",
+          "value": "call 0x14030fd60",
+          "detail": "On updates whose low four bits are 0 the exchanger samples the surrounding temperature at its own grid position (component+0x18 × 0.25, transformed to world space by the calls at 0x1403f4a19-0x1403f4a3d), passing the enclosing-compartment pointer component+0x4b0. The sample goes to the controller at +0x630 through 0x1408cddd0 (0x1403f4ced), and every update calls 0x1408cde20 (0x1403f4cf9). Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e883b0f1ff at 0x1403f4cd8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L159-L180; ../heat-exchangers/asm/position.asm; ../heat-exchangers/asm/ambient.asm; ../heat-exchangers/pseudocode/0x14030fd60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cd8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cd8"
+          }
+        },
+        {
+          "label": "Exchanger surrounding temperature",
+          "value": "weather blend or enclosing compartment, plus local sources, ramped over 16 updates",
+          "detail": "Sampled every 16 updates (0.267 s) at the component's world position: Ta + clamp((h − y + 0.25) ÷ 24, 0, 1) × (Tw − Ta), replaced by the enclosing compartment's temperature when there is one, then raised by the strongest local source and pulled toward 400 by the strongest local factor. The controller reaches each new sample 16 updates after it arrives. A target sampled at the wave surface is 1/96 water. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cd8, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x1403100f1, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031010d, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031011c, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14030fdcd, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14031002e, native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846, native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee, native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35, derived:7d3ff454a23f.",
+          "evidenceId": "derived:09c95b77a62a",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cd8"
+          }
+        },
+        {
+          "label": "Weather blend depth offset",
+          "value": "11.75",
+          "detail": "With h the wave-surface height (0x1402bbbb0) and y the sample height, the routine forms (y + this) − h, subtracts 12 (0x14031010d), negates and divides by 24 (0x14031011c), then clamps to 0…1: w = clamp((h − y + 0.25) ÷ 24, 0, 1). It returns Ta + w × (Tw − Ta), with Tw the water weather temperature (0x1402c15e0) and Ta the air weather temperature (0x1402c16d0). Pure air from y ≥ h + 0.25, pure water from y ≤ h − 23.75. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f20f580d3f028a00 at 0x1403100f1 address binary64 11.75 (bytes 0000000000802740) at 0x140bb0338. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/asm/water-height.asm; ../heat-exchangers/asm/weather-water-air.asm; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x1403100f1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403100f1"
+          }
+        },
+        {
+          "label": "Weather blend offset",
+          "value": "12",
+          "detail": "Subtracted after the depth offset. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f30f5c3d4f058a00 at 0x14031010d address binary32 12 (bytes 00004041) at 0x140bb0664. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031010d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031010d"
+          }
+        },
+        {
+          "label": "Weather blend depth span",
+          "value": "24",
+          "detail": "Divides the depth term before the 0…1 clamp. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f30f5e3db8058a00 at 0x14031011c address binary32 24 (bytes 0000c041) at 0x140bb06dc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031011c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031011c"
+          }
+        },
+        {
+          "label": "Enclosing compartment temperature",
+          "value": "compartment+0x74",
+          "detail": "With a nonzero enclosing-compartment pointer the sample uses that compartment's fluid temperature instead of the weather blend. Report: investigation/heat-exchangers.md. Function 0x14030fd60-0x140310094; instruction bytes f3450f105f74 at 0x14030fdcd. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/ambient.asm:L30-L40; ../heat-exchangers/pseudocode/0x14030fd60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14030fdcd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fdcd"
+          }
+        },
+        {
+          "label": "Local heat-source ceiling",
+          "value": "400",
+          "detail": "With B = base + the largest local source increment H, the sample returns B + F × (min(this, B + this) − B), F the largest local factor. Both are maxima over the source collections, not sums. Report: investigation/heat-exchangers.md. Function 0x14030fd60-0x140310094; instruction bytes f30f1005de078a00 at 0x14031002e address binary32 400 (bytes 0000c843) at 0x140bb0814. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/ambient.asm:L180-L203; ../heat-exchangers/asm/ambient-source-shape.asm; ../heat-exchangers/pseudocode/0x14030fd60.c; ../heat-exchangers/pseudocode/0x14030bd10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14031002e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031002e"
+          }
+        },
+        {
+          "label": "Ambient controller duration",
+          "value": "16 updates",
+          "detail": "The constructor stores binary32 16 as the duration of the controller at component+0x630 and starts its target, output and start at 20 °C (0x1403ee86c). Report: investigation/heat-exchangers.md. Function 0x1403ee3d0-0x1403eea64; instruction bytes c7864c06000000008041 at 0x1403ee846. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/constructor.asm:L184-L191. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee846"
+          }
+        },
+        {
+          "label": "Ambient controller reset threshold",
+          "value": "0.1",
+          "detail": "A new sample S ≠ target sets start = output and delta = S − output; the age is reset to 0 only when |S − target| exceeds this. Report: investigation/heat-exchangers.md. Function 0x1408cddd0-0x1408cde20; instruction bytes 0f2f05db1c2e00 at 0x1408cddee address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/controller.asm:L20-L37; ../heat-exchangers/pseudocode/0x1408cddd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cddee"
+          }
+        },
+        {
+          "label": "Ambient controller ramp",
+          "value": "0.001",
+          "detail": "While |delta| exceeds this and age ≤ 16, output = start + delta × age ÷ 16 (linear mode 0 of 0x14092c960) and age grows by 1 each update; otherwise output = target. An isolated step reaches the new sample 16 updates after it is submitted. Report: investigation/heat-exchangers.md. Function 0x1408cde20-0x1408cdec8; instruction bytes 0f2f05bc1a2e00 at 0x1408cde35 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/controller.asm:L41-L80; ../heat-exchangers/asm/linear-filter.asm; ../heat-exchangers/pseudocode/0x1408cde20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cde35"
           }
         },
         {
@@ -3511,15 +4140,27 @@
         }
       ],
       "limitations": [
-        "The gas capacity weighting was not recovered.",
+        "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
           "path": "rom/data/definitions/heat_exchanger_2_2.xml",
           "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
+          "lineStart": 125,
+          "lineEnd": 142
+        },
+        {
+          "path": "rom/data/definitions/heat_exchanger_2_2.xml",
+          "sha256": "c6cec68a1c57dfd1cde32dd76e251cd61bf488012c55f7a073d03e3b1129ede8",
           "lineStart": 173,
           "lineEnd": 173
+        },
+        {
+          "path": "rom/data/definitions/heat_exchanger_5_5.xml",
+          "sha256": "dc0a3aaca9a43c81a59fa7549006137e63568ec73a32ba887be7b6c3a38eaf09",
+          "lineStart": 341,
+          "lineEnd": 542
         },
         {
           "path": "rom/data/definitions/heat_exchanger_5_5.xml",
@@ -3530,8 +4171,124 @@
         {
           "path": "rom/data/definitions/heat_exchanger_9_9.xml",
           "sha256": "53a310f3743531421d4df4039c860d1513f258b237dd6cf8095c926a5580e3e1",
+          "lineStart": 932,
+          "lineEnd": 1905
+        },
+        {
+          "path": "rom/data/definitions/heat_exchanger_9_9.xml",
+          "sha256": "53a310f3743531421d4df4039c860d1513f258b237dd6cf8095c926a5580e3e1",
           "lineStart": 1936,
           "lineEnd": 1936
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb600"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb680"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ece2b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed316"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed334"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fdcd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031002e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403100f1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031010d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031011c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee846"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7ad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7d3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f49b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4aa2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4b7a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4bbb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c25"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c47"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cd8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cfe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca050"
         },
         {
           "path": "stormworks64.exe",
@@ -3566,6 +4323,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cddee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cde35"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408f04b0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140baf8f8"
         },
         {
@@ -3577,27 +4349,27 @@
     },
     {
       "id": "air-liquid-heat-exchanger",
-      "summary": "Equalises an air compartment with a liquid compartment by 0.03 of the gap per update, weighted by each side's fluid capacity.",
+      "summary": "Mixes a gas compartment and a liquid compartment of 10 to 1125 L each, moving 0.03 of the gap per update weighted by stored gas and liquid amount.",
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "Case 0x12 of the fluid-component update treats side A as gas (Air In/Air Out) and side B as liquid (Fluid In/Fluid Out). Fluid only flows through a side whose In and Out ports are both connected; the A/B exchange itself runs whenever the two compartments together hold more than 0.001 capacity units."
+          "body": "Case 0x12 of the fluid-component update treats side A as gas (Air In/Air Out) and side B as liquid (Fluid In/Fluid Out): qA is the stored gas amount and qB the stored liquid amount. A side passes fluid only when its In and Out ports are both connected; the A/B exchange runs whenever qA + qB > 0.001, with or without flow. Neither side has a species filter or a pump bias, so fluid can run either way through a port pair."
         },
         {
           "title": "Performance drivers",
-          "body": "Per update, A moves toward B by 0.03·qB/(qA+qB) and B toward A by 0.03·qA/(qA+qB). Both sides use the same rule; only the capacity helper differs by fluid type. When the liquid side's capacity is much larger than the air side's, the air moves toward the liquid temperature by close to 0.03 of the gap per update while the liquid barely changes; with similar capacities each side moves about half that. The fraction is capped at 0.03 per update, so closing a large gap takes many updates and depends on fresh fluid flowing through. With no through-flow and no ambient leak, 0.161 of the gap remains after one simulated second (60 updates)."
+          "body": "Per update, A moves toward B by 0.03 × qB ÷ (qA + qB) and B toward A by 0.03 × qA ÷ (qA + qB). The air side holds q = P × V ÷ 60 and the liquid side its stored liquid, so below 60 atm the liquid usually has the larger q and the air moves further toward it. With no through-flow and no ambient leak, 0.161 of the gap remains after one simulated second (60 updates)."
         },
         {
           "title": "Variant tradeoffs",
-          "body": "All five variants share the same code path and the same 0.03 fraction. If larger variants hold more fluid in their compartments (plausible but not established, because compartment volumes were not recovered), q and the heat moved per update would rise with size."
+          "body": "All five variants share the 0.03 fraction. Each side holds 10, 50, 225, 405 or 1125 L (V = 1, 5, 22.5, 40.5 and 112.5), so at equal liquid fill and gas pressure both q values scale by 1, 5, 22.5, 40.5 and 112.5 relative to the 1x2. The fraction of the gap closed per update does not change. At equal external flow a larger variant also holds more fluid and loses more to ambient, so the volume ratio is not an outlet-temperature ratio."
+        },
+        {
+          "title": "Flow example",
+          "body": "The 1x2 with 100 °C air at 30 atm and 600 L/s of expanded gas on side A, and 20 °C liquid at 0.8 fill and 6 L/s on side B, ambient 20 °C, emits air at 79.80 °C and liquid at 47.71 °C. Temp A and Temp B settle at 79.15 and 48.06 °C. These are outputs of the report's 60 Hz model with fixed boundary networks and a prescribed flow, not game measurements or a pump rating. The interactive graph below runs the same model."
         },
         {
           "title": "Setup and interactions",
-          "body": "Temp A and Temp B read the internal compartments, so they show how close the two sides are, not inlet temperatures. Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."
-        },
-        {
-          "title": "Open measurement questions",
-          "body": "Measure Temp A/Temp B against flow rate to calibrate how fast fluid passing through refreshes each compartment, and compare variants at equal flow to quantify the size effect."
+          "body": "Temp A and Temp B read the stored compartment temperatures in °C after this update's exchange and ambient step. Fluid leaving the Out ports was emitted earlier in the same update, so its temperature can differ. Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."
         }
       ],
       "findings": [
@@ -3611,6 +4383,18 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x140bafa00"
+          }
+        },
+        {
+          "label": "Exchanger weight for side A",
+          "value": "0.03",
+          "detail": "qB × this ÷ (qA + qB) is the fraction passed to the interpolation helper 0x1408f04b0 for A, using the temperatures saved at 0x1403f4c34 and 0x1403f4c42; A is stored at 0x1403f4c61. B then uses qA × the same constant (0x1403f4c6a) and the saved old A, stored at 0x1403f4c87. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f5915b1ad7b00 at 0x1403f4c47 address binary32 0.03 (bytes 8fc2f53c) at 0x140bafa00. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L137-L158; ../heat-exchangers/asm/lerp.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c47",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c47"
           }
         },
         {
@@ -3686,6 +4470,421 @@
             "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
             "lineStart": 84,
             "lineEnd": 84
+          }
+        },
+        {
+          "label": "Air-liquid capacity selection",
+          "value": "qA = gas, qB = liquid",
+          "detail": "Type 18 calls the gas helper for A (Air In/Air Out) here and the liquid helper for B (Fluid In/Fluid Out) at 0x1403f4c0b. Compartment A is component+0x598 and B is +0x5e4; the update reads water_component_type from definition+0xecc at 0x1403f4bb5. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 83f912751e498d8e98050000e85f6aefff at 0x1403f4bf0. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L114-L137. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4bf0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4bf0"
+          }
+        },
+        {
+          "label": "Exchanger size ratio",
+          "value": "1, 5, 22.5, 40.5, 112.5",
+          "detail": "Per-side volume of each variant ÷ the smallest of the family (Air-Liquid Heat Exchanger 1x2 V = 1, Air-Liquid Heat Exchanger 5x2 V = 5, Air-Liquid Heat Exchanger 5x3 V = 22.5, Air-Liquid Heat Exchanger 9x3 V = 40.5, Air-Liquid Heat Exchanger 9x5 V = 112.5). At equal liquid fill and gas pressure both q values scale by these ratios; the fraction of the gap closed per update, 0.03 weighted by q share, does not change. At equal external flow, inventory and ambient loss scale too, so the ratio is not an outlet-temperature multiplier. Report: investigation/heat-exchangers.md. Inputs: derived:650adaf35653, derived:d268eb043ea7, derived:63951bd8ab93, derived:a119b0279277, derived:12ff19daa6df.",
+          "evidenceId": "derived:f94142587c94",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/air_exchanger.xml",
+            "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
+            "lineStart": 89,
+            "lineEnd": 98
+          }
+        },
+        {
+          "label": "Air-Liquid Heat Exchanger 1x2 · model steady state",
+          "value": "emitted 79.80 and 47.71 °C; Temp A 79.15, Temp B 48.06 °C",
+          "detail": "Output of the report's 60 Hz model (tools/model.py), not a game measurement, re-derived here as the closed-form steady state for forward flow of at least 0.01 amount per update. Inlets A 100 °C and B 20 °C, ambient 20 °C, liquid fill 0.8, gas pressure 30 atm; side A 600 L/s of expanded gas (0.0166667 per update), side B 6 L/s of liquid (0.01 per update); qA = 0.5, qB = 0.8. Emitted packets 79.800960 and 47.714071 °C, stored Temp A 79.149378 and Temp B 48.056220 °C. The hot side drops by 25.2 % of the 80 °C inlet gap, which includes ambient loss and the post-transfer mixing rule, so it is not a conserved-energy effectiveness. The model holds both boundary networks at fixed amounts and takes the flow as given; it does not predict what a pump delivers. Report: investigation/heat-exchangers.md. Inputs: derived:650adaf35653, derived:bc7ee6d437a5, derived:d4b779950768, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4aa2, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe, native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ece2b, native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed316.",
+          "evidenceId": "derived:2a1b44745093",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/air_exchanger.xml",
+            "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
+            "lineStart": 89,
+            "lineEnd": 98
+          }
+        },
+        {
+          "label": "Air-Liquid Heat Exchanger 1x2 · volume per side",
+          "value": "V = 1, 10 L",
+          "detail": "2 listed voxels × 0.5 = 1 volume units per side, × 10 = 10 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/air_exchanger.xml:4122d92d2e85:L89-L98, resource:rom/data/definitions/air_exchanger.xml:4122d92d2e85:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:650adaf35653",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/air_exchanger.xml",
+            "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
+            "lineStart": 89,
+            "lineEnd": 98
+          }
+        },
+        {
+          "label": "Air-Liquid Heat Exchanger 5x2 · volume per side",
+          "value": "V = 5, 50 L",
+          "detail": "10 listed voxels × 0.5 = 5 volume units per side, × 10 = 50 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/air_exchanger_5_2.xml:80b55af06373:L188-L229, resource:rom/data/definitions/air_exchanger_5_2.xml:80b55af06373:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:d268eb043ea7",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/air_exchanger_5_2.xml",
+            "sha256": "80b55af06373fc154de2f57713a79e45bf242ea32357ae32a35722fd2ba5710f",
+            "lineStart": 188,
+            "lineEnd": 229
+          }
+        },
+        {
+          "label": "Air-Liquid Heat Exchanger 5x3 · volume per side",
+          "value": "V = 22.5, 225 L",
+          "detail": "45 listed voxels × 0.5 = 22.5 volume units per side, × 10 = 225 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/air_exchanger_5_3.xml:13e6f3e4220a:L449-L630, resource:rom/data/definitions/air_exchanger_5_3.xml:13e6f3e4220a:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:63951bd8ab93",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/air_exchanger_5_3.xml",
+            "sha256": "13e6f3e4220a1bda078c2d3766bea56f984b6e39072207bf5289b0aa4b9e913e",
+            "lineStart": 449,
+            "lineEnd": 630
+          }
+        },
+        {
+          "label": "Air-Liquid Heat Exchanger 9x3 · volume per side",
+          "value": "V = 40.5, 405 L",
+          "detail": "81 listed voxels × 0.5 = 40.5 volume units per side, × 10 = 405 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/air_exchanger_9_3.xml:4f26f70fad5e:L785-L1110, resource:rom/data/definitions/air_exchanger_9_3.xml:4f26f70fad5e:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:a119b0279277",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/air_exchanger_9_3.xml",
+            "sha256": "4f26f70fad5e97ef6c658ad428421309de09cd8b22f4ab364d19d46d8f97fec8",
+            "lineStart": 785,
+            "lineEnd": 1110
+          }
+        },
+        {
+          "label": "Air-Liquid Heat Exchanger 9x5 · volume per side",
+          "value": "V = 112.5, 1125 L",
+          "detail": "225 listed voxels × 0.5 = 112.5 volume units per side, × 10 = 1125 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/air_exchanger_9_5.xml:6d023ad645d0:L1145-L2046, resource:rom/data/definitions/air_exchanger_9_5.xml:6d023ad645d0:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:12ff19daa6df",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/air_exchanger_9_5.xml",
+            "sha256": "6d023ad645d0b98ac3b7582bcc3bc9040f5489415f8df15f93b519d5cba90ead",
+            "lineStart": 1145,
+            "lineEnd": 2046
+          }
+        },
+        {
+          "label": "Exchanger compartment volume factor",
+          "value": "0.5",
+          "detail": "The fluid initializer's jump table sends water_component_type 16, 17 and 18 to 0x1403ef79f. That block converts the listed voxel count (definition+0xb8, filled by the voxel-list loader 0x140900500 once per <voxel>) to binary32, multiplies it by this and stores V for side A at component+0x5a0 (0x1403ef7b5). One volume unit is 10 L. The tank factor 1.5625 belongs to a different case and does not apply here. Report: investigation/heat-exchangers.md. Function 0x1403ef450-0x1403ef847; instruction bytes f30f590507057c00 at 0x1403ef7ad address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/initializer.asm:L201-L210; ../heat-exchangers/asm/definition-voxels.asm; ../heat-exchangers/pseudocode/0x1403ef450.c; ../heat-exchangers/pseudocode/0x140900500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ef7ad"
+          }
+        },
+        {
+          "label": "Exchanger side B volume",
+          "value": "0.5 × voxels",
+          "detail": "The same block repeats the multiply by 0.5 (0x1403ef7cb) and stores the result at component+0x5ec, so both sides of every exchanger have the same volume. Report: investigation/heat-exchangers.md. Function 0x1403ef450-0x1403ef847; instruction bytes f30f1183ec050000 at 0x1403ef7d3. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/initializer.asm:L201-L210; ../heat-exchangers/pseudocode/0x1403ef450.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ef7d3"
+          }
+        },
+        {
+          "label": "Gas capacity helper",
+          "value": "q = sum of slots 3, 4, 7, 10, 11, 12",
+          "detail": "0x1402eb660 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb68d (addss with coefficient 1) and skips it at 0x1402eb692. Added slots: 3, 4, 7, 10, 11, 12. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb6a8 read as image-relative dwords. Function 0x1402eb660-0x1402eb750; instruction bytes 418b8c91a8b62e00 at 0x1402eb680. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L35-L55; ../heat-exchangers/pseudocode/0x1402eb660.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb660@0x1402eb680",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb680"
+          }
+        },
+        {
+          "label": "Liquid capacity helper",
+          "value": "q = sum of slots 0, 1, 2, 5, 6, 8, 9",
+          "detail": "0x1402eb5e0 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb60d (addss with coefficient 1) and skips it at 0x1402eb612. Added slots: 0, 1, 2, 5, 6, 8, 9. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb628 read as image-relative dwords. Function 0x1402eb5e0-0x1402eb6e0; instruction bytes 418b8c9128b62e00 at 0x1402eb600. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L7-L27; ../heat-exchangers/pseudocode/0x1402eb5e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb600"
+          }
+        },
+        {
+          "label": "Exchanger capacity q",
+          "value": "pure gas q = P × V ÷ 60; liquid q = stored liquid amount",
+          "detail": "q is the side's stored amount of its phase in native units, 10 L of liquid or 600 L of expanded gas per amount. Inference from the pressure law: pure gas has P = 60 × G ÷ V, so q = G = P × V ÷ 60 and doubling pressure doubles q at a fixed volume. At equal volume a 1 atm gas side has V ÷ 60 and a full liquid side V; at 60 atm the gas side equals the full liquid side. With gas and liquid in one side, sum the gas amounts instead of using P × V ÷ 60. Wrong-phase contents give 0 toward that side's q but still move through the ports. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402eb660@0x1402eb680, native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600, derived:d59de08c3571, native:stormworks64.exe:f9206d85c82f:0x1402eb550@0x1402eb550, native:stormworks64.exe:f9206d85c82f:0x1403f9e40@0x1403f9fa7, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3863.",
+          "evidenceId": "derived:bc7ee6d437a5",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb680"
+          }
+        },
+        {
+          "label": "Exchange gate",
+          "value": "qA + qB > 0.001",
+          "detail": "Compares qA + qB with 0.001 and skips the mutual step when the sum is not larger. The sum, not each side, is tested, so one occupied side can still pull an empty side's temperature. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 450f2fc1 at 0x1403f4c25. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L137-L158; ../heat-exchangers/asm/lerp.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c25",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c25"
+          }
+        },
+        {
+          "label": "Interpolation helper",
+          "value": "a + t × (b − a)",
+          "detail": "The whole helper: loads b, subtracts a, multiplies by t and adds a. No clamp. Report: investigation/heat-exchangers.md. Function 0x1408f04b0-0x1408f04d0; instruction bytes f30f1002f30f5c01f30f59c2f30f5801c3 at 0x1408f04b0. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/lerp.asm:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408f04b0@0x1408f04b0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408f04b0"
+          }
+        },
+        {
+          "label": "Exchanger mutual step",
+          "value": "A += 0.03 × qB ÷ (qA + qB) × (B − A); B += 0.03 × qA ÷ (qA + qB) × (A − B)",
+          "detail": "Both use the old temperatures. Inference: at fixed q the step conserves qA × TA + qB × TB and multiplies the gap by 0.97 each update, 0.97^60 = 0.160807 after one simulated second. The exchanged amount-temperature quantity 0.03 × qA × qB ÷ (qA + qB) × (TA − TB) is a native capacity unit, not joules. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c47, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c25, native:stormworks64.exe:f9206d85c82f:0x1408f04b0@0x1408f04b0, derived:7d3ff454a23f.",
+          "evidenceId": "derived:d4b779950768",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c47"
+          }
+        },
+        {
+          "label": "Exchanger ambient step",
+          "value": "X + 0.001 × (ambient − X)",
+          "detail": "After the mutual step, A (component+0x5dc) and then B (+0x628, at 0x1403f5065) move toward the controller output at +0x644 by the 0.001 held in xmm9. The outputs at 0x1403f5073-0x1403f5098 then publish +0x5dc as Temp A and +0x628 as Temp B, the stored temperatures after both steps. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 410f28d1498d9644060000498d8edc050000e89bb74f00 at 0x1403f4cfe. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L176-L205. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cfe"
+          }
+        },
+        {
+          "label": "Exchanger port pair test",
+          "value": "both ports connected",
+          "detail": "Ports A In (+0x148) and A Out (+0x180) are tested with 0x1402ec1a0, which checks port+0x20; B In (+0x1b8) and B Out (+0x1f0) follow at 0x1403f49e3. A pair exchanges only when both of its ports are connected. The heat step runs either way. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 498d8e48010000e8db77efff at 0x1403f49b9. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L8-L32; ../heat-exchangers/asm/port-connected.asm; ../heat-exchangers/pseudocode/0x1402ec1a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f49b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f49b9"
+          }
+        },
+        {
+          "label": "Exchanger port order",
+          "value": "A In, A Out, B In, B Out",
+          "detail": "Four calls to the port exchange 0x1402ec710, at 0x1403f4aa2 (A In), 0x1403f4af4 (A Out), 0x1403f4b4d (B In) and 0x1403f4ba9 (B Out), all with bias 0, both direction flags 0 and all species, before the capacity step. No pump bias or power request exists in this case, so pressure and allocated demand can drive either port in either direction. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e8697cefff at 0x1403f4aa2. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L42-L112; ../heat-exchangers/asm/port.asm; ../heat-exchangers/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4aa2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4aa2"
+          }
+        },
+        {
+          "label": "B Out exchange factor",
+          "value": "0.5",
+          "detail": "B Out's factor is B's total amount (component+0x624, loaded at 0x1403f4b71) × this, clamped to 0…1 by the solver. It scales B Out's step limit and low-flow exchange after B In has changed the amount. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f591d3ab17b00 at 0x1403f4b7a address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L95-L112; ../heat-exchangers/asm/port.asm; ../heat-exchangers/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4b7a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4b7a"
+          }
+        },
+        {
+          "label": "Recipient amount in temperature mixing",
+          "value": "post-transfer amount",
+          "detail": "After a port move the recipient's total (+0x40) is read after it has grown by the packet q, then q is added again for the divisor: T = (A' × T + q × T_donor) ÷ (A' + q), with A' the amount after the move. The two-port solver does the same at 0x1402ee017 and 0x1402ee4b8. This weighting differs from ordinary mixing: 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not 46.7 °C. Report: investigation/fluid-transport.md. Function 0x1402eca04-0x1402ed308; instruction bytes f3410f105b40 at 0x1402ece2b. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L431-L442; ../fluid-transport/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ece2b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ece2b"
+          }
+        },
+        {
+          "label": "Low-flow exchange flow scale",
+          "value": "0.01",
+          "detail": "After a radiator or manifold port move, e = 0.1 × max(0, 1 - |q| ÷ this) is passed to 0x1402ed390, limited by both sides' amounts. Both amounts must exceed 0.0001. Report: investigation/fluid-transport.md. Function 0x1402ed308-0x1402ed371; instruction bytes f30f5e053a268c00 at 0x1402ed316 address binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L716-L732; ../fluid-transport/asm/thermal-helper.asm:L74-L83,L281-L298; ../fluid-transport/pseudocode/0x1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed316",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed316"
+          }
+        },
+        {
+          "label": "Low-flow exchange rate",
+          "value": "0.1",
+          "detail": "The helper moves the component's temperature by e ÷ its volume toward the pipe network's, then the network's by e ÷ its volume toward the new component temperature. For pure water amounts stay unchanged, so heat crosses a port even with no net flow. Report: investigation/fluid-transport.md. Function 0x1402ed308-0x1402ed371; instruction bytes f30f590d94278c00 at 0x1402ed334 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L716-L732; ../fluid-transport/asm/thermal-helper.asm:L74-L83,L281-L298; ../fluid-transport/pseudocode/0x1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed334",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed334"
+          }
+        },
+        {
+          "label": "Network allocation",
+          "value": "port+0x2c = f·|f| ÷ Σ × room",
+          "detail": "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114a2cf30f114a3044897a28 at 0x1404ca050. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1404c9d20-network-allocation.asm:L26-L40,L151-L202. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca050",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca050"
+          }
+        },
+        {
+          "label": "Exchanger surrounding-temperature sample",
+          "value": "call 0x14030fd60",
+          "detail": "On updates whose low four bits are 0 the exchanger samples the surrounding temperature at its own grid position (component+0x18 × 0.25, transformed to world space by the calls at 0x1403f4a19-0x1403f4a3d), passing the enclosing-compartment pointer component+0x4b0. The sample goes to the controller at +0x630 through 0x1408cddd0 (0x1403f4ced), and every update calls 0x1408cde20 (0x1403f4cf9). Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e883b0f1ff at 0x1403f4cd8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L159-L180; ../heat-exchangers/asm/position.asm; ../heat-exchangers/asm/ambient.asm; ../heat-exchangers/pseudocode/0x14030fd60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cd8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cd8"
+          }
+        },
+        {
+          "label": "Exchanger surrounding temperature",
+          "value": "weather blend or enclosing compartment, plus local sources, ramped over 16 updates",
+          "detail": "Sampled every 16 updates (0.267 s) at the component's world position: Ta + clamp((h − y + 0.25) ÷ 24, 0, 1) × (Tw − Ta), replaced by the enclosing compartment's temperature when there is one, then raised by the strongest local source and pulled toward 400 by the strongest local factor. The controller reaches each new sample 16 updates after it arrives. A target sampled at the wave surface is 1/96 water. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cd8, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x1403100f1, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031010d, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031011c, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14030fdcd, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14031002e, native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846, native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee, native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35, derived:7d3ff454a23f.",
+          "evidenceId": "derived:09c95b77a62a",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cd8"
+          }
+        },
+        {
+          "label": "Weather blend depth offset",
+          "value": "11.75",
+          "detail": "With h the wave-surface height (0x1402bbbb0) and y the sample height, the routine forms (y + this) − h, subtracts 12 (0x14031010d), negates and divides by 24 (0x14031011c), then clamps to 0…1: w = clamp((h − y + 0.25) ÷ 24, 0, 1). It returns Ta + w × (Tw − Ta), with Tw the water weather temperature (0x1402c15e0) and Ta the air weather temperature (0x1402c16d0). Pure air from y ≥ h + 0.25, pure water from y ≤ h − 23.75. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f20f580d3f028a00 at 0x1403100f1 address binary64 11.75 (bytes 0000000000802740) at 0x140bb0338. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/asm/water-height.asm; ../heat-exchangers/asm/weather-water-air.asm; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x1403100f1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403100f1"
+          }
+        },
+        {
+          "label": "Weather blend offset",
+          "value": "12",
+          "detail": "Subtracted after the depth offset. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f30f5c3d4f058a00 at 0x14031010d address binary32 12 (bytes 00004041) at 0x140bb0664. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031010d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031010d"
+          }
+        },
+        {
+          "label": "Weather blend depth span",
+          "value": "24",
+          "detail": "Divides the depth term before the 0…1 clamp. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f30f5e3db8058a00 at 0x14031011c address binary32 24 (bytes 0000c041) at 0x140bb06dc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031011c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031011c"
+          }
+        },
+        {
+          "label": "Enclosing compartment temperature",
+          "value": "compartment+0x74",
+          "detail": "With a nonzero enclosing-compartment pointer the sample uses that compartment's fluid temperature instead of the weather blend. Report: investigation/heat-exchangers.md. Function 0x14030fd60-0x140310094; instruction bytes f3450f105f74 at 0x14030fdcd. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/ambient.asm:L30-L40; ../heat-exchangers/pseudocode/0x14030fd60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14030fdcd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fdcd"
+          }
+        },
+        {
+          "label": "Local heat-source ceiling",
+          "value": "400",
+          "detail": "With B = base + the largest local source increment H, the sample returns B + F × (min(this, B + this) − B), F the largest local factor. Both are maxima over the source collections, not sums. Report: investigation/heat-exchangers.md. Function 0x14030fd60-0x140310094; instruction bytes f30f1005de078a00 at 0x14031002e address binary32 400 (bytes 0000c843) at 0x140bb0814. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/ambient.asm:L180-L203; ../heat-exchangers/asm/ambient-source-shape.asm; ../heat-exchangers/pseudocode/0x14030fd60.c; ../heat-exchangers/pseudocode/0x14030bd10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14031002e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031002e"
+          }
+        },
+        {
+          "label": "Ambient controller duration",
+          "value": "16 updates",
+          "detail": "The constructor stores binary32 16 as the duration of the controller at component+0x630 and starts its target, output and start at 20 °C (0x1403ee86c). Report: investigation/heat-exchangers.md. Function 0x1403ee3d0-0x1403eea64; instruction bytes c7864c06000000008041 at 0x1403ee846. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/constructor.asm:L184-L191. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee846"
+          }
+        },
+        {
+          "label": "Ambient controller reset threshold",
+          "value": "0.1",
+          "detail": "A new sample S ≠ target sets start = output and delta = S − output; the age is reset to 0 only when |S − target| exceeds this. Report: investigation/heat-exchangers.md. Function 0x1408cddd0-0x1408cde20; instruction bytes 0f2f05db1c2e00 at 0x1408cddee address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/controller.asm:L20-L37; ../heat-exchangers/pseudocode/0x1408cddd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cddee"
+          }
+        },
+        {
+          "label": "Ambient controller ramp",
+          "value": "0.001",
+          "detail": "While |delta| exceeds this and age ≤ 16, output = start + delta × age ÷ 16 (linear mode 0 of 0x14092c960) and age grows by 1 each update; otherwise output = target. An isolated step reaches the new sample 16 updates after it is submitted. Report: investigation/heat-exchangers.md. Function 0x1408cde20-0x1408cdec8; instruction bytes 0f2f05bc1a2e00 at 0x1408cde35 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/controller.asm:L41-L80; ../heat-exchangers/asm/linear-filter.asm; ../heat-exchangers/pseudocode/0x1408cde20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cde35"
           }
         },
         {
@@ -3995,7 +5194,7 @@
         }
       ],
       "limitations": [
-        "The q capacity weighting per fluid type and the through-flow rate were not recovered.",
+        "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -4010,6 +5209,12 @@
           "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
           "lineStart": 84,
           "lineEnd": 84
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger.xml",
+          "sha256": "4122d92d2e853503224eee441271f3069476958f7f577d0a05bed1cee2940669",
+          "lineStart": 89,
+          "lineEnd": 98
         },
         {
           "path": "rom/data/definitions/air_exchanger.xml",
@@ -4032,6 +5237,12 @@
         {
           "path": "rom/data/definitions/air_exchanger_5_2.xml",
           "sha256": "80b55af06373fc154de2f57713a79e45bf242ea32357ae32a35722fd2ba5710f",
+          "lineStart": 188,
+          "lineEnd": 229
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_5_2.xml",
+          "sha256": "80b55af06373fc154de2f57713a79e45bf242ea32357ae32a35722fd2ba5710f",
           "lineStart": 260,
           "lineEnd": 260
         },
@@ -4046,6 +5257,12 @@
           "sha256": "13e6f3e4220a1bda078c2d3766bea56f984b6e39072207bf5289b0aa4b9e913e",
           "lineStart": 444,
           "lineEnd": 444
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_5_3.xml",
+          "sha256": "13e6f3e4220a1bda078c2d3766bea56f984b6e39072207bf5289b0aa4b9e913e",
+          "lineStart": 449,
+          "lineEnd": 630
         },
         {
           "path": "rom/data/definitions/air_exchanger_5_3.xml",
@@ -4068,6 +5285,12 @@
         {
           "path": "rom/data/definitions/air_exchanger_9_3.xml",
           "sha256": "4f26f70fad5e97ef6c658ad428421309de09cd8b22f4ab364d19d46d8f97fec8",
+          "lineStart": 785,
+          "lineEnd": 1110
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_9_3.xml",
+          "sha256": "4f26f70fad5e97ef6c658ad428421309de09cd8b22f4ab364d19d46d8f97fec8",
           "lineStart": 1141,
           "lineEnd": 1141
         },
@@ -4086,8 +5309,124 @@
         {
           "path": "rom/data/definitions/air_exchanger_9_5.xml",
           "sha256": "6d023ad645d0b98ac3b7582bcc3bc9040f5489415f8df15f93b519d5cba90ead",
+          "lineStart": 1145,
+          "lineEnd": 2046
+        },
+        {
+          "path": "rom/data/definitions/air_exchanger_9_5.xml",
+          "sha256": "6d023ad645d0b98ac3b7582bcc3bc9040f5489415f8df15f93b519d5cba90ead",
           "lineStart": 2077,
           "lineEnd": 2077
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb600"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb680"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ece2b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed316"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed334"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fdcd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031002e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403100f1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031010d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031011c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee846"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7ad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7d3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f49b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4aa2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4b7a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4bf0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c25"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c47"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cd8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cfe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca050"
         },
         {
           "path": "stormworks64.exe",
@@ -4118,6 +5457,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cddee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cde35"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408f04b0"
         },
         {
           "path": "stormworks64.exe",
@@ -16469,23 +17823,27 @@
     },
     {
       "id": "liquid-liquid-heat-exchanger",
-      "summary": "Equalises two liquid compartments by 0.03 of the gap per update, weighted by liquid capacity on each side.",
+      "summary": "Mixes two liquid compartments of 20 L (2x2) or 125 L (5x5) each, moving 0.03 of the gap per update weighted by the stored liquid amount on each side.",
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "Case 0x10 uses the liquid capacity helper for both sides. Each side passes fluid only with both its In and Out ports connected."
+          "body": "Case 0x10 uses the liquid capacity helper for both sides: q is the stored amount of fresh water, diesel, jet fuel, oil, seawater, slurry and saturated slurry, each with weight 1, so fresh water and seawater count the same. Gas in a side counts 0. Each side passes fluid only with both its In and Out ports connected."
         },
         {
           "title": "Performance drivers",
-          "body": "Per update the hotter compartment loses and the colder gains heat in proportion 0.03·q_other/(qA+qB), conserving the capacity-weighted temperature. Without through-flow the gap keeps 0.161 of its size after one simulated second (time constant 0.547 s). Throughput depends on how quickly flowing liquid replaces each compartment's contents."
+          "body": "Per update the hotter compartment loses and the colder gains in proportion 0.03 × q_other ÷ (qA + qB), conserving qA × TA + qB × TB. Without through-flow the gap keeps 0.161 of its size after one simulated second (time constant 0.547 s). With flow, arriving liquid is mixed by the side's amount after the move, and the Out port carries the side's mixed temperature."
         },
         {
           "title": "Variant tradeoffs",
-          "body": "The 2x2 and 5x5 variants share the same fraction; a larger internal volume for the 5x5 would raise q, but the volumes were not recovered."
+          "body": "Each side holds V = 0.5 × listed voxels: 2 units (20 L) for the 2x2 with 4 voxels and 12.5 units (125 L) for the 5x5 with 25. At equal fill the 5x5 has 6.25 times the q on each side. The gap still shrinks by the same 0.03 fraction per update."
         },
         {
-          "title": "Open measurement questions",
-          "body": "Compare outlet temperatures of both variants at equal pump flow."
+          "title": "Equal-flow comparison",
+          "body": "At 60 L/s on each side, 0.8 fill, inlets of 100 and 20 °C and ambient 20 °C, the 2x2 emits 85.54 and 33.13 °C and the 5x5 66.02 and 46.64 °C. Temp A and Temp B read 84.68 and 33.90 °C for the 2x2, 65.68 and 46.90 °C for the 5x5. The hot side drops by 18.1 % and 42.5 % of the inlet gap; these figures include ambient loss and the game's mixing rule, so they are not a conserved-energy effectiveness. These are outputs of the report's 60 Hz model with fixed boundary networks and a prescribed flow, not game measurements or a pump rating. The interactive graph below runs the same model."
+        },
+        {
+          "title": "Setup and interactions",
+          "body": "Temp A and Temp B read the stored compartment temperatures in °C after this update's exchange and ambient step. Fluid leaving the Out ports was emitted earlier in the same update, so its temperature can differ. Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."
         }
       ],
       "findings": [
@@ -16499,6 +17857,18 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x140bafa00"
+          }
+        },
+        {
+          "label": "Exchanger weight for side A",
+          "value": "0.03",
+          "detail": "qB × this ÷ (qA + qB) is the fraction passed to the interpolation helper 0x1408f04b0 for A, using the temperatures saved at 0x1403f4c34 and 0x1403f4c42; A is stored at 0x1403f4c61. B then uses qA × the same constant (0x1403f4c6a) and the saved old A, stored at 0x1403f4c87. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f5915b1ad7b00 at 0x1403f4c47 address binary32 0.03 (bytes 8fc2f53c) at 0x140bafa00. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L137-L158; ../heat-exchangers/asm/lerp.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c47",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c47"
           }
         },
         {
@@ -16526,6 +17896,18 @@
           }
         },
         {
+          "label": "Ambient leak after one simulated second",
+          "value": "0.942 left after 1 s; time constant 16.7 s",
+          "detail": "(1 - 0.001)^60 = 0.941736 of a gap remains after one simulated second when the coefficient and target stay fixed and nothing else acts; time constant -1 ÷ (60 × ln(1 - 0.001)) = 16.658332 s. 60 × 0.001 is not the fraction removed per second. Inputs: derived:7d3ff454a23f, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x140baf8f8.",
+          "evidenceId": "derived:76b86db25c7c",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
           "label": "Liquid-Liquid Heat Exchanger 2x2 · tooltip",
           "value": "A heat exchanger that averages heat between two liquid systems at a rate proportional to the component's size.",
           "detail": "intercooler: developer-authored description; intended behaviour, not a measurement.",
@@ -16536,6 +17918,395 @@
             "sha256": "9e9892b84242c18bfead39cbe80fe783df660943383705d697bb47933c2affbb",
             "lineStart": 173,
             "lineEnd": 173
+          }
+        },
+        {
+          "label": "Liquid-liquid capacity selection",
+          "value": "qA = liquid, qB = liquid",
+          "detail": "Type 16 calls the liquid helper 0x1402eb5e0 for A here and for B at 0x1403f4c0b. Compartment A is component+0x598 and B is +0x5e4; the update reads water_component_type from definition+0xecc at 0x1403f4bb5. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 83f910750e498d8e98050000e8f269efff at 0x1403f4bdd. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L114-L137. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4bdd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4bdd"
+          }
+        },
+        {
+          "label": "Exchanger size ratio",
+          "value": "1, 6.25",
+          "detail": "Per-side volume of each variant ÷ the smallest of the family (Liquid-Liquid Heat Exchanger 2x2 V = 2, Liquid-Liquid Heat Exchanger 5x5 V = 12.5). At equal liquid fill and gas pressure both q values scale by these ratios; the fraction of the gap closed per update, 0.03 weighted by q share, does not change. At equal external flow, inventory and ambient loss scale too, so the ratio is not an outlet-temperature multiplier. Report: investigation/heat-exchangers.md. Inputs: derived:7595d574448a, derived:33eb7850eb95.",
+          "evidenceId": "derived:302309f81b5e",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/intercooler.xml",
+            "sha256": "9e9892b84242c18bfead39cbe80fe783df660943383705d697bb47933c2affbb",
+            "lineStart": 125,
+            "lineEnd": 142
+          }
+        },
+        {
+          "label": "Liquid-Liquid Heat Exchanger 2x2 · model steady state",
+          "value": "emitted 85.54 and 33.13 °C; Temp A 84.68, Temp B 33.90 °C",
+          "detail": "Output of the report's 60 Hz model (tools/model.py), not a game measurement, re-derived here as the closed-form steady state for forward flow of at least 0.01 amount per update. Inlets A 100 °C and B 20 °C, ambient 20 °C, liquid fill 0.8, gas pressure 30 atm; side A 60 L/s of liquid (0.1 per update), side B 60 L/s of liquid (0.1 per update); qA = 1.6, qB = 1.6. Emitted packets 85.535272 and 33.127461 °C, stored Temp A 84.684406 and Temp B 33.899665 °C. The hot side drops by 18.1 % of the 80 °C inlet gap, which includes ambient loss and the post-transfer mixing rule, so it is not a conserved-energy effectiveness. The model holds both boundary networks at fixed amounts and takes the flow as given; it does not predict what a pump delivers. Report: investigation/heat-exchangers.md. Inputs: derived:7595d574448a, derived:bc7ee6d437a5, derived:d4b779950768, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4aa2, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe, native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ece2b, native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed316.",
+          "evidenceId": "derived:16245c14a43f",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/intercooler.xml",
+            "sha256": "9e9892b84242c18bfead39cbe80fe783df660943383705d697bb47933c2affbb",
+            "lineStart": 125,
+            "lineEnd": 142
+          }
+        },
+        {
+          "label": "Liquid-Liquid Heat Exchanger 5x5 · model steady state",
+          "value": "emitted 66.02 and 46.64 °C; Temp A 65.68, Temp B 46.90 °C",
+          "detail": "Output of the report's 60 Hz model (tools/model.py), not a game measurement, re-derived here as the closed-form steady state for forward flow of at least 0.01 amount per update. Inlets A 100 °C and B 20 °C, ambient 20 °C, liquid fill 0.8, gas pressure 30 atm; side A 60 L/s of liquid (0.1 per update), side B 60 L/s of liquid (0.1 per update); qA = 10, qB = 10. Emitted packets 66.020601 and 46.640616 °C, stored Temp A 65.684172 and Temp B 46.904384 °C. The hot side drops by 42.5 % of the 80 °C inlet gap, which includes ambient loss and the post-transfer mixing rule, so it is not a conserved-energy effectiveness. The model holds both boundary networks at fixed amounts and takes the flow as given; it does not predict what a pump delivers. Report: investigation/heat-exchangers.md. Inputs: derived:33eb7850eb95, derived:bc7ee6d437a5, derived:d4b779950768, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4aa2, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe, native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ece2b, native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed316.",
+          "evidenceId": "derived:2a0d6d8e817c",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/intercooler_large.xml",
+            "sha256": "2e24cf74aa563c7ebb077792a7ddab2f6974d9583b318636eeba8d21e6b7e1ed",
+            "lineStart": 449,
+            "lineEnd": 550
+          }
+        },
+        {
+          "label": "Liquid-Liquid Heat Exchanger 2x2 · volume per side",
+          "value": "V = 2, 20 L",
+          "detail": "4 listed voxels × 0.5 = 2 volume units per side, × 10 = 20 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/intercooler.xml:9e9892b84242:L125-L142, resource:rom/data/definitions/intercooler.xml:9e9892b84242:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:7595d574448a",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/intercooler.xml",
+            "sha256": "9e9892b84242c18bfead39cbe80fe783df660943383705d697bb47933c2affbb",
+            "lineStart": 125,
+            "lineEnd": 142
+          }
+        },
+        {
+          "label": "Liquid-Liquid Heat Exchanger 5x5 · volume per side",
+          "value": "V = 12.5, 125 L",
+          "detail": "25 listed voxels × 0.5 = 12.5 volume units per side, × 10 = 125 L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm. Report: investigation/heat-exchangers.md. Inputs: resource:rom/data/definitions/intercooler_large.xml:2e24cf74aa56:L449-L550, resource:rom/data/definitions/intercooler_large.xml:2e24cf74aa56:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad, native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3.",
+          "evidenceId": "derived:33eb7850eb95",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/intercooler_large.xml",
+            "sha256": "2e24cf74aa563c7ebb077792a7ddab2f6974d9583b318636eeba8d21e6b7e1ed",
+            "lineStart": 449,
+            "lineEnd": 550
+          }
+        },
+        {
+          "label": "Exchanger compartment volume factor",
+          "value": "0.5",
+          "detail": "The fluid initializer's jump table sends water_component_type 16, 17 and 18 to 0x1403ef79f. That block converts the listed voxel count (definition+0xb8, filled by the voxel-list loader 0x140900500 once per <voxel>) to binary32, multiplies it by this and stores V for side A at component+0x5a0 (0x1403ef7b5). One volume unit is 10 L. The tank factor 1.5625 belongs to a different case and does not apply here. Report: investigation/heat-exchangers.md. Function 0x1403ef450-0x1403ef847; instruction bytes f30f590507057c00 at 0x1403ef7ad address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/initializer.asm:L201-L210; ../heat-exchangers/asm/definition-voxels.asm; ../heat-exchangers/pseudocode/0x1403ef450.c; ../heat-exchangers/pseudocode/0x140900500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7ad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ef7ad"
+          }
+        },
+        {
+          "label": "Exchanger side B volume",
+          "value": "0.5 × voxels",
+          "detail": "The same block repeats the multiply by 0.5 (0x1403ef7cb) and stores the result at component+0x5ec, so both sides of every exchanger have the same volume. Report: investigation/heat-exchangers.md. Function 0x1403ef450-0x1403ef847; instruction bytes f30f1183ec050000 at 0x1403ef7d3. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/initializer.asm:L201-L210; ../heat-exchangers/pseudocode/0x1403ef450.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef7d3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ef7d3"
+          }
+        },
+        {
+          "label": "Gas capacity helper",
+          "value": "q = sum of slots 3, 4, 7, 10, 11, 12",
+          "detail": "0x1402eb660 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb68d (addss with coefficient 1) and skips it at 0x1402eb692. Added slots: 3, 4, 7, 10, 11, 12. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb6a8 read as image-relative dwords. Function 0x1402eb660-0x1402eb750; instruction bytes 418b8c91a8b62e00 at 0x1402eb680. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L35-L55; ../heat-exchangers/pseudocode/0x1402eb660.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb660@0x1402eb680",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb680"
+          }
+        },
+        {
+          "label": "Liquid capacity helper",
+          "value": "q = sum of slots 0, 1, 2, 5, 6, 8, 9",
+          "detail": "0x1402eb5e0 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb60d (addss with coefficient 1) and skips it at 0x1402eb612. Added slots: 0, 1, 2, 5, 6, 8, 9. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb628 read as image-relative dwords. Function 0x1402eb5e0-0x1402eb6e0; instruction bytes 418b8c9128b62e00 at 0x1402eb600. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L7-L27; ../heat-exchangers/pseudocode/0x1402eb5e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb600"
+          }
+        },
+        {
+          "label": "Exchanger capacity q",
+          "value": "pure gas q = P × V ÷ 60; liquid q = stored liquid amount",
+          "detail": "q is the side's stored amount of its phase in native units, 10 L of liquid or 600 L of expanded gas per amount. Inference from the pressure law: pure gas has P = 60 × G ÷ V, so q = G = P × V ÷ 60 and doubling pressure doubles q at a fixed volume. At equal volume a 1 atm gas side has V ÷ 60 and a full liquid side V; at 60 atm the gas side equals the full liquid side. With gas and liquid in one side, sum the gas amounts instead of using P × V ÷ 60. Wrong-phase contents give 0 toward that side's q but still move through the ports. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402eb660@0x1402eb680, native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600, derived:d59de08c3571, native:stormworks64.exe:f9206d85c82f:0x1402eb550@0x1402eb550, native:stormworks64.exe:f9206d85c82f:0x1403f9e40@0x1403f9fa7, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3863.",
+          "evidenceId": "derived:bc7ee6d437a5",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb680"
+          }
+        },
+        {
+          "label": "Exchange gate",
+          "value": "qA + qB > 0.001",
+          "detail": "Compares qA + qB with 0.001 and skips the mutual step when the sum is not larger. The sum, not each side, is tested, so one occupied side can still pull an empty side's temperature. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 450f2fc1 at 0x1403f4c25. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L137-L158; ../heat-exchangers/asm/lerp.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c25",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c25"
+          }
+        },
+        {
+          "label": "Interpolation helper",
+          "value": "a + t × (b − a)",
+          "detail": "The whole helper: loads b, subtracts a, multiplies by t and adds a. No clamp. Report: investigation/heat-exchangers.md. Function 0x1408f04b0-0x1408f04d0; instruction bytes f30f1002f30f5c01f30f59c2f30f5801c3 at 0x1408f04b0. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/lerp.asm:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408f04b0@0x1408f04b0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408f04b0"
+          }
+        },
+        {
+          "label": "Exchanger mutual step",
+          "value": "A += 0.03 × qB ÷ (qA + qB) × (B − A); B += 0.03 × qA ÷ (qA + qB) × (A − B)",
+          "detail": "Both use the old temperatures. Inference: at fixed q the step conserves qA × TA + qB × TB and multiplies the gap by 0.97 each update, 0.97^60 = 0.160807 after one simulated second. The exchanged amount-temperature quantity 0.03 × qA × qB ÷ (qA + qB) × (TA − TB) is a native capacity unit, not joules. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c47, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4c25, native:stormworks64.exe:f9206d85c82f:0x1408f04b0@0x1408f04b0, derived:7d3ff454a23f.",
+          "evidenceId": "derived:d4b779950768",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4c47"
+          }
+        },
+        {
+          "label": "Exchanger ambient step",
+          "value": "X + 0.001 × (ambient − X)",
+          "detail": "After the mutual step, A (component+0x5dc) and then B (+0x628, at 0x1403f5065) move toward the controller output at +0x644 by the 0.001 held in xmm9. The outputs at 0x1403f5073-0x1403f5098 then publish +0x5dc as Temp A and +0x628 as Temp B, the stored temperatures after both steps. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 410f28d1498d9644060000498d8edc050000e89bb74f00 at 0x1403f4cfe. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L176-L205. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cfe"
+          }
+        },
+        {
+          "label": "Exchanger port pair test",
+          "value": "both ports connected",
+          "detail": "Ports A In (+0x148) and A Out (+0x180) are tested with 0x1402ec1a0, which checks port+0x20; B In (+0x1b8) and B Out (+0x1f0) follow at 0x1403f49e3. A pair exchanges only when both of its ports are connected. The heat step runs either way. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 498d8e48010000e8db77efff at 0x1403f49b9. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L8-L32; ../heat-exchangers/asm/port-connected.asm; ../heat-exchangers/pseudocode/0x1402ec1a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f49b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f49b9"
+          }
+        },
+        {
+          "label": "Exchanger port order",
+          "value": "A In, A Out, B In, B Out",
+          "detail": "Four calls to the port exchange 0x1402ec710, at 0x1403f4aa2 (A In), 0x1403f4af4 (A Out), 0x1403f4b4d (B In) and 0x1403f4ba9 (B Out), all with bias 0, both direction flags 0 and all species, before the capacity step. No pump bias or power request exists in this case, so pressure and allocated demand can drive either port in either direction. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e8697cefff at 0x1403f4aa2. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L42-L112; ../heat-exchangers/asm/port.asm; ../heat-exchangers/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4aa2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4aa2"
+          }
+        },
+        {
+          "label": "B Out exchange factor",
+          "value": "0.5",
+          "detail": "B Out's factor is B's total amount (component+0x624, loaded at 0x1403f4b71) × this, clamped to 0…1 by the solver. It scales B Out's step limit and low-flow exchange after B In has changed the amount. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f591d3ab17b00 at 0x1403f4b7a address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L95-L112; ../heat-exchangers/asm/port.asm; ../heat-exchangers/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4b7a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4b7a"
+          }
+        },
+        {
+          "label": "Recipient amount in temperature mixing",
+          "value": "post-transfer amount",
+          "detail": "After a port move the recipient's total (+0x40) is read after it has grown by the packet q, then q is added again for the divisor: T = (A' × T + q × T_donor) ÷ (A' + q), with A' the amount after the move. The two-port solver does the same at 0x1402ee017 and 0x1402ee4b8. This weighting differs from ordinary mixing: 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not 46.7 °C. Report: investigation/fluid-transport.md. Function 0x1402eca04-0x1402ed308; instruction bytes f3410f105b40 at 0x1402ece2b. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L431-L442; ../fluid-transport/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ece2b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ece2b"
+          }
+        },
+        {
+          "label": "Low-flow exchange flow scale",
+          "value": "0.01",
+          "detail": "After a radiator or manifold port move, e = 0.1 × max(0, 1 - |q| ÷ this) is passed to 0x1402ed390, limited by both sides' amounts. Both amounts must exceed 0.0001. Report: investigation/fluid-transport.md. Function 0x1402ed308-0x1402ed371; instruction bytes f30f5e053a268c00 at 0x1402ed316 address binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L716-L732; ../fluid-transport/asm/thermal-helper.asm:L74-L83,L281-L298; ../fluid-transport/pseudocode/0x1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed316",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed316"
+          }
+        },
+        {
+          "label": "Low-flow exchange rate",
+          "value": "0.1",
+          "detail": "The helper moves the component's temperature by e ÷ its volume toward the pipe network's, then the network's by e ÷ its volume toward the new component temperature. For pure water amounts stay unchanged, so heat crosses a port even with no net flow. Report: investigation/fluid-transport.md. Function 0x1402ed308-0x1402ed371; instruction bytes f30f590d94278c00 at 0x1402ed334 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/port-exchange.asm:L716-L732; ../fluid-transport/asm/thermal-helper.asm:L74-L83,L281-L298; ../fluid-transport/pseudocode/0x1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed334",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed334"
+          }
+        },
+        {
+          "label": "Network allocation",
+          "value": "port+0x2c = f·|f| ÷ Σ × room",
+          "detail": "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114a2cf30f114a3044897a28 at 0x1404ca050. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1404c9d20-network-allocation.asm:L26-L40,L151-L202. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca050",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca050"
+          }
+        },
+        {
+          "label": "Exchanger surrounding-temperature sample",
+          "value": "call 0x14030fd60",
+          "detail": "On updates whose low four bits are 0 the exchanger samples the surrounding temperature at its own grid position (component+0x18 × 0.25, transformed to world space by the calls at 0x1403f4a19-0x1403f4a3d), passing the enclosing-compartment pointer component+0x4b0. The sample goes to the controller at +0x630 through 0x1408cddd0 (0x1403f4ced), and every update calls 0x1408cde20 (0x1403f4cf9). Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e883b0f1ff at 0x1403f4cd8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L159-L180; ../heat-exchangers/asm/position.asm; ../heat-exchangers/asm/ambient.asm; ../heat-exchangers/pseudocode/0x14030fd60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cd8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cd8"
+          }
+        },
+        {
+          "label": "Exchanger surrounding temperature",
+          "value": "weather blend or enclosing compartment, plus local sources, ramped over 16 updates",
+          "detail": "Sampled every 16 updates (0.267 s) at the component's world position: Ta + clamp((h − y + 0.25) ÷ 24, 0, 1) × (Tw − Ta), replaced by the enclosing compartment's temperature when there is one, then raised by the strongest local source and pulled toward 400 by the strongest local factor. The controller reaches each new sample 16 updates after it arrives. A target sampled at the wave surface is 1/96 water. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cd8, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x1403100f1, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031010d, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031011c, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14030fdcd, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14031002e, native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846, native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee, native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35, derived:7d3ff454a23f.",
+          "evidenceId": "derived:09c95b77a62a",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cd8"
+          }
+        },
+        {
+          "label": "Weather blend depth offset",
+          "value": "11.75",
+          "detail": "With h the wave-surface height (0x1402bbbb0) and y the sample height, the routine forms (y + this) − h, subtracts 12 (0x14031010d), negates and divides by 24 (0x14031011c), then clamps to 0…1: w = clamp((h − y + 0.25) ÷ 24, 0, 1). It returns Ta + w × (Tw − Ta), with Tw the water weather temperature (0x1402c15e0) and Ta the air weather temperature (0x1402c16d0). Pure air from y ≥ h + 0.25, pure water from y ≤ h − 23.75. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f20f580d3f028a00 at 0x1403100f1 address binary64 11.75 (bytes 0000000000802740) at 0x140bb0338. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/asm/water-height.asm; ../heat-exchangers/asm/weather-water-air.asm; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x1403100f1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403100f1"
+          }
+        },
+        {
+          "label": "Weather blend offset",
+          "value": "12",
+          "detail": "Subtracted after the depth offset. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f30f5c3d4f058a00 at 0x14031010d address binary32 12 (bytes 00004041) at 0x140bb0664. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031010d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031010d"
+          }
+        },
+        {
+          "label": "Weather blend depth span",
+          "value": "24",
+          "detail": "Divides the depth term before the 0…1 clamp. Report: investigation/heat-exchangers.md. Function 0x1403100a0-0x14031018a; instruction bytes f30f5e3db8058a00 at 0x14031011c address binary32 24 (bytes 0000c041) at 0x140bb06dc. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/weather-temperature.asm:L24-L60; ../heat-exchangers/pseudocode/0x1403100a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031011c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031011c"
+          }
+        },
+        {
+          "label": "Enclosing compartment temperature",
+          "value": "compartment+0x74",
+          "detail": "With a nonzero enclosing-compartment pointer the sample uses that compartment's fluid temperature instead of the weather blend. Report: investigation/heat-exchangers.md. Function 0x14030fd60-0x140310094; instruction bytes f3450f105f74 at 0x14030fdcd. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/ambient.asm:L30-L40; ../heat-exchangers/pseudocode/0x14030fd60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14030fdcd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fdcd"
+          }
+        },
+        {
+          "label": "Local heat-source ceiling",
+          "value": "400",
+          "detail": "With B = base + the largest local source increment H, the sample returns B + F × (min(this, B + this) − B), F the largest local factor. Both are maxima over the source collections, not sums. Report: investigation/heat-exchangers.md. Function 0x14030fd60-0x140310094; instruction bytes f30f1005de078a00 at 0x14031002e address binary32 400 (bytes 0000c843) at 0x140bb0814. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/ambient.asm:L180-L203; ../heat-exchangers/asm/ambient-source-shape.asm; ../heat-exchangers/pseudocode/0x14030fd60.c; ../heat-exchangers/pseudocode/0x14030bd10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14031002e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031002e"
+          }
+        },
+        {
+          "label": "Ambient controller duration",
+          "value": "16 updates",
+          "detail": "The constructor stores binary32 16 as the duration of the controller at component+0x630 and starts its target, output and start at 20 °C (0x1403ee86c). Report: investigation/heat-exchangers.md. Function 0x1403ee3d0-0x1403eea64; instruction bytes c7864c06000000008041 at 0x1403ee846. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/constructor.asm:L184-L191. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee846"
+          }
+        },
+        {
+          "label": "Ambient controller reset threshold",
+          "value": "0.1",
+          "detail": "A new sample S ≠ target sets start = output and delta = S − output; the age is reset to 0 only when |S − target| exceeds this. Report: investigation/heat-exchangers.md. Function 0x1408cddd0-0x1408cde20; instruction bytes 0f2f05db1c2e00 at 0x1408cddee address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/controller.asm:L20-L37; ../heat-exchangers/pseudocode/0x1408cddd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cddee"
+          }
+        },
+        {
+          "label": "Ambient controller ramp",
+          "value": "0.001",
+          "detail": "While |delta| exceeds this and age ≤ 16, output = start + delta × age ÷ 16 (linear mode 0 of 0x14092c960) and age grows by 1 each update; otherwise output = target. An isolated step reaches the new sample 16 updates after it is submitted. Report: investigation/heat-exchangers.md. Function 0x1408cde20-0x1408cdec8; instruction bytes 0f2f05bc1a2e00 at 0x1408cde35 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/controller.asm:L41-L80; ../heat-exchangers/asm/linear-filter.asm; ../heat-exchangers/pseudocode/0x1408cde20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cde35"
           }
         },
         {
@@ -16663,10 +18434,16 @@
         }
       ],
       "limitations": [
-        "Compartment volumes and the capacity weighting were not recovered.",
+        "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
+        {
+          "path": "rom/data/definitions/intercooler.xml",
+          "sha256": "9e9892b84242c18bfead39cbe80fe783df660943383705d697bb47933c2affbb",
+          "lineStart": 125,
+          "lineEnd": 142
+        },
         {
           "path": "rom/data/definitions/intercooler.xml",
           "sha256": "9e9892b84242c18bfead39cbe80fe783df660943383705d697bb47933c2affbb",
@@ -16676,8 +18453,124 @@
         {
           "path": "rom/data/definitions/intercooler_large.xml",
           "sha256": "2e24cf74aa563c7ebb077792a7ddab2f6974d9583b318636eeba8d21e6b7e1ed",
+          "lineStart": 449,
+          "lineEnd": 550
+        },
+        {
+          "path": "rom/data/definitions/intercooler_large.xml",
+          "sha256": "2e24cf74aa563c7ebb077792a7ddab2f6974d9583b318636eeba8d21e6b7e1ed",
           "lineStart": 581,
           "lineEnd": 581
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb600"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb680"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ece2b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed316"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed334"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fdcd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031002e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403100f1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031010d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031011c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee846"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7ad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef7d3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f49b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4aa2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4b7a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4bdd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c25"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4c47"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cd8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cfe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca050"
         },
         {
           "path": "stormworks64.exe",
@@ -16708,6 +18601,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cddee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cde35"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408f04b0"
         },
         {
           "path": "stormworks64.exe",
@@ -39688,12 +41596,12 @@
       "weapon-xxl-barrel",
       "wheel-with-suspension"
     ],
-    "findingCount": 1915,
+    "findingCount": 2018,
     "findingsByStatus": {
-      "derived": 170,
-      "observed": 1745
+      "derived": 198,
+      "observed": 1820
     },
-    "nativeFindingCount": 927,
+    "nativeFindingCount": 1013,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -39736,7 +41644,7 @@
       },
       {
         "path": "wiki/data/families.json",
-        "sha256": "2279d7f04f6717d18db6e952b4089de22f16effef6f35983b44195f034959e46"
+        "sha256": "ab659e7c87c5685f6ddb636e26c9da7759c3d2fe8cd11f66ce1b44a198927657"
       },
       {
         "path": "stormworks64.exe",
@@ -39744,9 +41652,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 118,
-      "native": 388,
-      "resource": 1042
+      "derived": 138,
+      "native": 412,
+      "resource": 1062
     }
   }
 }

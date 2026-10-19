@@ -877,6 +877,201 @@ def fluid_network(E):
     return f
 
 
+# heat-exchanger pass; files under investigation/native/heat-exchangers/, report investigation/heat-exchangers.md.
+HX = "../heat-exchangers/"
+HX_REPORT = "investigation/heat-exchangers.md"
+F_LIQUID_Q = 0x1402EB5E0     # liquid capacity helper (leaf): stored amount of the liquid slots
+F_GAS_Q = 0x1402EB660        # gas capacity helper (leaf): stored amount of the gas slots
+F_LERP = 0x1408F04B0         # interpolation helper (leaf): a + t × (b − a)
+F_AMBIENT = 0x14030FD60      # surrounding-temperature sample: enclosing compartment and local sources
+F_WEATHER = 0x1403100A0      # weather temperature: air and water blend by depth below the wave surface
+F_RETARGET = 0x1408CDDD0     # linear controller: submit a new target
+F_RAMP = 0x1408CDE20         # linear controller: advance one update
+EXCHANGER_CASE = 0x1403F49B9  # fluid-update case shared by water_component_type 16, 17 and 18
+EXCHANGER_INIT = 0x1403EF79F  # fluid-initializer case shared by the same three types
+EXCHANGERS = (("heat_exchanger_2_2", 17), ("heat_exchanger_5_5", 17), ("heat_exchanger_9_9", 17),
+              ("air_exchanger", 18), ("air_exchanger_5_2", 18), ("air_exchanger_5_3", 18), ("air_exchanger_9_3", 18), ("air_exchanger_9_5", 18),
+              ("intercooler", 16), ("intercooler_large", 16))
+CAPACITY_SLOTS = {"liquid": (0, 1, 2, 5, 6, 8, 9), "gas": (3, 4, 7, 10, 11, 12)}
+# Worked examples in the report's table (tools/check_model.py): emitted A, emitted B, Temp A, Temp B in °C.
+HX_TABLE = {"intercooler": (85.535272, 33.127461, 84.684406, 33.899665),
+            "intercooler_large": (66.020601, 46.640616, 65.684172, 46.904384),
+            "air_exchanger": (79.800960, 47.714071, 79.149378, 48.056220),
+            "heat_exchanger_2_2": (71.545089, 43.855476, 71.078615, 44.246549)}
+_HA, _HP = HX + "asm/", HX + "pseudocode/"
+_HE = _HA + "exchange.asm"
+WHERE.update({
+    (0x1403EF450, 0x1403EF7AD): _HA + "initializer.asm:L201-L210; " + _HA + "definition-voxels.asm; " + _HP + "0x1403ef450.c; " + _HP + "0x140900500.c",
+    (0x1403EF450, 0x1403EF7D3): _HA + "initializer.asm:L201-L210; " + _HP + "0x1403ef450.c",
+    (0x1402EB5E0, 0x1402EB600): _HA + "capacity.asm:L7-L27; " + _HP + "0x1402eb5e0.c",
+    (0x1402EB660, 0x1402EB680): _HA + "capacity.asm:L35-L55; " + _HP + "0x1402eb660.c",
+    (0x1403EF860, 0x1403F4BBB): _HE + ":L114-L137",
+    (0x1403EF860, 0x1403F4BDD): _HE + ":L114-L137",
+    (0x1403EF860, 0x1403F4BF0): _HE + ":L114-L137",
+    (0x1403EF860, 0x1403F4C25): _HE + ":L137-L158; " + _HA + "lerp.asm",
+    (0x1403EF860, 0x1403F4C47): _HE + ":L137-L158; " + _HA + "lerp.asm",
+    (0x1403EF860, 0x1403F4C6A): _HE + ":L137-L158; " + _HA + "lerp.asm",
+    (0x1408F04B0, None): _HA + "lerp.asm:L7-L12",
+    (0x1403EF860, 0x1403F49B9): _HE + ":L8-L32; " + _HA + "port-connected.asm; " + _HP + "0x1402ec1a0.c",
+    (0x1403EF860, 0x1403F4AA2): _HE + ":L42-L112; " + _HA + "port.asm; " + _HP + "0x1402ec710.c",
+    (0x1403EF860, 0x1403F4B7A): _HE + ":L95-L112; " + _HA + "port.asm; " + _HP + "0x1402ec710.c",
+    (0x1403EF860, 0x1403F4CD8): _HE + ":L159-L180; " + _HA + "position.asm; " + _HA + "ambient.asm; " + _HP + "0x14030fd60.c",
+    (0x1403EF860, 0x1403F4CFE): _HE + ":L176-L205",
+    (0x14030FD60, 0x14030FDCD): _HA + "ambient.asm:L30-L40; " + _HP + "0x14030fd60.c",
+    (0x14030FD60, 0x14031002E): _HA + "ambient.asm:L180-L203; " + _HA + "ambient-source-shape.asm; " + _HP + "0x14030fd60.c; " + _HP + "0x14030bd10.c",
+    (0x1403100A0, 0x1403100F1): _HA + "weather-temperature.asm:L24-L60; " + _HA + "water-height.asm; " + _HA + "weather-water-air.asm; " + _HP + "0x1403100a0.c",
+    (0x1403100A0, 0x14031010D): _HA + "weather-temperature.asm:L24-L60; " + _HP + "0x1403100a0.c",
+    (0x1403100A0, 0x14031011C): _HA + "weather-temperature.asm:L24-L60; " + _HP + "0x1403100a0.c",
+    (0x1403EE3D0, 0x1403EE846): _HA + "constructor.asm:L184-L191",
+    (0x1408CDDD0, 0x1408CDDEE): _HA + "controller.asm:L20-L37; " + _HP + "0x1408cddd0.c",
+    (0x1408CDE20, 0x1408CDE35): _HA + "controller.asm:L41-L80; " + _HA + "linear-filter.asm; " + _HP + "0x1408cde20.c",
+})
+
+
+def exchanger_steady(qa, qb, xa, xb, tin_a, tin_b, ambient):
+    """Steady emitted and stored temperatures of two mixed compartments with forward flow x ≥ 0.01 per update and fixed amounts.
+
+    Independent closed form of the report's stepped model (tools/check_model.py): inlet mixing weight x ÷ (A + 2x), then the
+    q-weighted 0.03 exchange and 0.001 ambient relaxation. Below 0.01 the port's low-flow exchange adds a term this omits.
+    """
+    aa, ab = xa / (qa + 2 * xa), xb / (qb + 2 * xb)
+    ka, kb = 0.03 * qb / (qa + qb), 0.03 * qa / (qa + qb)
+    m11, m12 = 1 - (1 - aa) * 0.999 * (1 - ka), -(1 - aa) * 0.999 * ka
+    m21, m22 = -(1 - ab) * 0.999 * kb, 1 - (1 - ab) * 0.999 * (1 - kb)
+    r1, r2 = aa * tin_a + (1 - aa) * 0.001 * ambient, ab * tin_b + (1 - ab) * 0.001 * ambient
+    det = m11 * m22 - m12 * m21
+    u, v = (r1 * m22 - m12 * r2) / det, (m11 * r2 - r1 * m21) / det
+    return u, v, (u - aa * tin_a) / (1 - aa), (v - ab * tin_b) / (1 - ab)
+
+
+def heat_exchangers(E):
+    """Exchanger volumes, capacity helpers, port order, mutual and ambient terms, verified once and shared."""
+    if hasattr(E, "exchangers"):
+        return E.exchangers
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / HX_REPORT).is_file():
+        raise ValueError("Heat-exchanger report missing: " + HX_REPORT)
+    init = lambda t: n.base + struct.unpack("<I", n.raw(0x1403EF810 + 4 * n.raw(0x1403EF82C + t - 8, 1)[0], 4))[0]
+    for t in (16, 17, 18):
+        if init(t) != EXCHANGER_INIT:
+            raise ValueError("Fluid initializer case %d does not select %#x" % (t, EXCHANGER_INIT))
+        if n.base + struct.unpack("<I", n.raw(WATER_TABLE + 4 * t, 4))[0] != EXCHANGER_CASE:
+            raise ValueError("Fluid-update case %d does not select %#x" % (t, EXCHANGER_CASE))
+    rep = " Report: %s." % HX_REPORT
+    T, N = fluid_transport(E), fluid_network(E)
+    h = {}
+    # Compartment volumes.
+    h["v_half"] = op(F_FLUID_INIT, 0x1403EF7AD, "f30f590507057c00", 0x140BAFCBC, "Exchanger compartment volume factor",
+                     "The fluid initializer's jump table sends water_component_type 16, 17 and 18 to 0x1403ef79f. That block converts the listed voxel count (definition+0xb8, filled by the voxel-list loader 0x140900500 once per <voxel>) to binary32, multiplies it by this and stores V for side A at component+0x5a0 (0x1403ef7b5). One volume unit is 10 L. The tank factor 1.5625 belongs to a different case and does not apply here." + rep)
+    h["v_b"] = code(F_FLUID_INIT, 0x1403EF7D3, "f30f1183ec050000", "Exchanger side B volume", "0.5 × voxels",
+                    "The same block repeats the multiply by 0.5 (0x1403ef7cb) and stores the result at component+0x5ec, so both sides of every exchanger have the same volume." + rep)
+    vol = {}
+    for bid, wtype in EXCHANGERS:
+        typ = E.attr(bid, "water_component_type", "Selects the exchanger case of the fluid initializer and update (16 liquid-liquid, 17 air-air, 18 air-liquid).")
+        if typ["value"] != str(wtype):
+            raise ValueError("%s has water_component_type %s, expected %d" % (bid, typ["value"], wtype))
+        vox = E.voxels(bid, "The fluid initializer multiplies this count by 0.5 for each exchanger side.")
+        V = vox["value"] * 0.5
+        vol[bid] = (V, E.derived("%s · volume per side" % E.block(bid)["name"], "V = %s, %s L" % (fmt(V), fmt(10 * V)),
+                                 "%d listed voxels × 0.5 = %s volume units per side, × 10 = %s L. Each exchanger has two such compartments. This is geometric capacity, not a gas volume expanded to 1 atm." % (vox["value"], fmt(V), fmt(10 * V)) + rep,
+                                 [vox, typ, h["v_half"], h["v_b"]]))
+    h["vol"] = vol
+    # Capacity helpers.
+    for kind, func, at, entry, table, add, skip in (("liquid", F_LIQUID_Q, 0x1402EB600, "418b8c9128b62e00", 0x1402EB628, 0x1402EB60D, 0x1402EB612),
+                                                    ("gas", F_GAS_Q, 0x1402EB680, "418b8c91a8b62e00", 0x1402EB6A8, 0x1402EB68D, 0x1402EB692)):
+        slots = CAPACITY_SLOTS[kind]
+        targets = [add if i in slots else skip for i in range(13)]
+        x = E.case_table(func, at, entry, table, targets, "%s capacity helper" % kind.capitalize(),
+                         "%#x returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is %#x (addss with coefficient 1) and skips it at %#x. Added slots: %s. No pressure, temperature or per-species factor enters." % (
+                             func, add, skip, ", ".join(map(str, slots))) + rep)
+        x["value"] = "q = sum of slots " + ", ".join(map(str, slots))
+        h["q_" + kind] = x
+    sel = "Compartment A is component+0x598 and B is +0x5e4; the update reads water_component_type from definition+0xecc at 0x1403f4bb5."
+    h["sel_air"] = code(F_FLUID, 0x1403F4BBB, "83f911751d498d8e98050000e8946aefff", "Air-air capacity selection", "qA = gas, qB = gas",
+                        "Type 17 calls the gas helper 0x1402eb660 for A here and for B at 0x1403f4bd6. " + sel + rep)
+    h["sel_liquid"] = code(F_FLUID, 0x1403F4BDD, "83f910750e498d8e98050000e8f269efff", "Liquid-liquid capacity selection", "qA = liquid, qB = liquid",
+                           "Type 16 calls the liquid helper 0x1402eb5e0 for A here and for B at 0x1403f4c0b. " + sel + rep)
+    h["sel_mixed"] = code(F_FLUID, 0x1403F4BF0, "83f912751e498d8e98050000e85f6aefff", "Air-liquid capacity selection", "qA = gas, qB = liquid",
+                          "Type 18 calls the gas helper for A (Air In/Air Out) here and the liquid helper for B (Fluid In/Fluid Out) at 0x1403f4c0b. " + sel + rep)
+    # Mutual and ambient terms.
+    h["gate"] = code(F_FLUID, 0x1403F4C25, "450f2fc1", "Exchange gate", "qA + qB > 0.001",
+                     "Compares qA + qB with 0.001 and skips the mutual step when the sum is not larger. The sum, not each side, is tested, so one occupied side can still pull an empty side's temperature." + rep)
+    h["w_a"] = op(F_FLUID, 0x1403F4C47, "f30f5915b1ad7b00", 0x140BAFA00, "Exchanger weight for side A",
+                  "qB × this ÷ (qA + qB) is the fraction passed to the interpolation helper 0x1408f04b0 for A, using the temperatures saved at 0x1403f4c34 and 0x1403f4c42; A is stored at 0x1403f4c61. B then uses qA × the same constant (0x1403f4c6a) and the saved old A, stored at 0x1403f4c87." + rep)
+    h["lerp"] = code(F_LERP, F_LERP, "f30f1002f30f5c01f30f59c2f30f5801c3", "Interpolation helper", "a + t × (b − a)",
+                     "The whole helper: loads b, subtracts a, multiplies by t and adds a. No clamp." + rep)
+    h["filter"] = code(F_FLUID, 0x1403F4CFE, "410f28d1498d9644060000498d8edc050000e89bb74f00", "Exchanger ambient step", "X + 0.001 × (ambient − X)",
+                       "After the mutual step, A (component+0x5dc) and then B (+0x628, at 0x1403f5065) move toward the controller output at +0x644 by the 0.001 held in xmm9. The outputs at 0x1403f5073-0x1403f5098 then publish +0x5dc as Temp A and +0x628 as Temp B, the stored temperatures after both steps." + rep)
+    h["sample"] = code(F_FLUID, 0x1403F4CD8, "e883b0f1ff", "Exchanger surrounding-temperature sample", "call 0x14030fd60",
+                       "On updates whose low four bits are 0 the exchanger samples the surrounding temperature at its own grid position (component+0x18 × 0.25, transformed to world space by the calls at 0x1403f4a19-0x1403f4a3d), passing the enclosing-compartment pointer component+0x4b0. The sample goes to the controller at +0x630 through 0x1408cddd0 (0x1403f4ced), and every update calls 0x1408cde20 (0x1403f4cf9)." + rep)
+    h["w_11"] = op(F_WEATHER, 0x1403100F1, "f20f580d3f028a00", 0x140BB0338, "Weather blend depth offset",
+                   "With h the wave-surface height (0x1402bbbb0) and y the sample height, the routine forms (y + this) − h, subtracts 12 (0x14031010d), negates and divides by 24 (0x14031011c), then clamps to 0…1: w = clamp((h − y + 0.25) ÷ 24, 0, 1). It returns Ta + w × (Tw − Ta), with Tw the water weather temperature (0x1402c15e0) and Ta the air weather temperature (0x1402c16d0). Pure air from y ≥ h + 0.25, pure water from y ≤ h − 23.75." + rep, kind="f64")
+    h["w_12"] = op(F_WEATHER, 0x14031010D, "f30f5c3d4f058a00", 0x140BB0664, "Weather blend offset", "Subtracted after the depth offset." + rep)
+    h["w_24"] = op(F_WEATHER, 0x14031011C, "f30f5e3db8058a00", 0x140BB06DC, "Weather blend depth span", "Divides the depth term before the 0…1 clamp." + rep)
+    h["enclosed"] = code(F_AMBIENT, 0x14030FDCD, "f3450f105f74", "Enclosing compartment temperature", "compartment+0x74",
+                         "With a nonzero enclosing-compartment pointer the sample uses that compartment's fluid temperature instead of the weather blend." + rep)
+    h["local"] = op(F_AMBIENT, 0x14031002E, "f30f1005de078a00", 0x140BB0814, "Local heat-source ceiling",
+                    "With B = base + the largest local source increment H, the sample returns B + F × (min(this, B + this) − B), F the largest local factor. Both are maxima over the source collections, not sums." + rep)
+    h["ramp_init"] = code(F_WATER_CTOR, 0x1403EE846, "c7864c06000000008041", "Ambient controller duration", "16 updates",
+                          "The constructor stores binary32 16 as the duration of the controller at component+0x630 and starts its target, output and start at 20 °C (0x1403ee86c)." + rep)
+    h["retarget"] = op(F_RETARGET, 0x1408CDDEE, "0f2f05db1c2e00", 0x140BAFAD0, "Ambient controller reset threshold",
+                       "A new sample S ≠ target sets start = output and delta = S − output; the age is reset to 0 only when |S − target| exceeds this." + rep)
+    h["ramp"] = op(F_RAMP, 0x1408CDE35, "0f2f05bc1a2e00", 0x140BAF8F8, "Ambient controller ramp",
+                   "While |delta| exceeds this and age ≤ 16, output = start + delta × age ÷ 16 (linear mode 0 of 0x14092c960) and age grows by 1 each update; otherwise output = target. An isolated step reaches the new sample 16 updates after it is submitted." + rep)
+    # Ports.
+    h["pair"] = code(F_FLUID, 0x1403F49B9, "498d8e48010000e8db77efff", "Exchanger port pair test", "both ports connected",
+                     "Ports A In (+0x148) and A Out (+0x180) are tested with 0x1402ec1a0, which checks port+0x20; B In (+0x1b8) and B Out (+0x1f0) follow at 0x1403f49e3. A pair exchanges only when both of its ports are connected. The heat step runs either way." + rep)
+    h["ports"] = code(F_FLUID, 0x1403F4AA2, "e8697cefff", "Exchanger port order", "A In, A Out, B In, B Out",
+                      "Four calls to the port exchange 0x1402ec710, at 0x1403f4aa2 (A In), 0x1403f4af4 (A Out), 0x1403f4b4d (B In) and 0x1403f4ba9 (B Out), all with bias 0, both direction flags 0 and all species, before the capacity step. No pump bias or power request exists in this case, so pressure and allocated demand can drive either port in either direction." + rep)
+    h["b_out"] = op(F_FLUID, 0x1403F4B7A, "f30f591d3ab17b00", 0x140BAFCBC, "B Out exchange factor",
+                    "B Out's factor is B's total amount (component+0x624, loaded at 0x1403f4b71) × this, clamped to 0…1 by the solver. It scales B Out's step limit and low-flow exchange after B In has changed the amount." + rep)
+    for addr, hexbytes in ((0x1403F4AF4, "e8177cefff"), (0x1403F4B4D, "e8be7befff"), (0x1403F4BA9, "e8627befff"), (0x1403F4B71, "f3410f109e24060000")):
+        if n.raw(addr, len(hexbytes) // 2).hex() != hexbytes:
+            raise ValueError("Instruction bytes differ at %#x" % addr)
+    # Derived behaviour.
+    R = update_rate(E)
+    q_rule = E.derived("Exchanger capacity q", "pure gas q = P × V ÷ 60; liquid q = stored liquid amount",
+                       "q is the side's stored amount of its phase in native units, 10 L of liquid or 600 L of expanded gas per amount. Inference from the pressure law: pure gas has P = 60 × G ÷ V, so q = G = P × V ÷ 60 and doubling pressure doubles q at a fixed volume. At equal volume a 1 atm gas side has V ÷ 60 and a full liquid side V; at 60 atm the gas side equals the full liquid side. With gas and liquid in one side, sum the gas amounts instead of using P × V ÷ 60. Wrong-phase contents give 0 toward that side's q but still move through the ports." + rep,
+                       [h["q_gas"], h["q_liquid"], N["law"], N["phase"], N["species_60"], N["t_content"]])
+    mutual = E.derived("Exchanger mutual step", "A += 0.03 × qB ÷ (qA + qB) × (B − A); B += 0.03 × qA ÷ (qA + qB) × (A − B)",
+                       "Both use the old temperatures. Inference: at fixed q the step conserves qA × TA + qB × TB and multiplies the gap by 0.97 each update, 0.97^60 = %.6f after one simulated second. The exchanged amount-temperature quantity 0.03 × qA × qB ÷ (qA + qB) × (TA − TB) is a native capacity unit, not joules." % (0.97 ** R["ups"]) + rep,
+                       [h["w_a"], h["gate"], h["lerp"]] + R["findings"][:1])
+    ambient = E.derived("Exchanger surrounding temperature", "weather blend or enclosing compartment, plus local sources, ramped over 16 updates",
+                        "Sampled every 16 updates (%.3g s) at the component's world position: Ta + clamp((h − y + 0.25) ÷ 24, 0, 1) × (Tw − Ta), replaced by the enclosing compartment's temperature when there is one, then raised by the strongest local source and pulled toward 400 by the strongest local factor. The controller reaches each new sample 16 updates after it arrives. A target sampled at the wave surface is 1/96 water." % (16 / R["ups"]) + rep,
+                        [h["sample"], h["w_11"], h["w_12"], h["w_24"], h["enclosed"], h["local"], h["ramp_init"], h["retarget"], h["ramp"]] + R["findings"][:1])
+    ratios = {fam: [vol[b][0] / vol[members[0]][0] for b in members] for fam, members in
+              (("air", [b for b, t in EXCHANGERS if t == 17]), ("mixed", [b for b, t in EXCHANGERS if t == 18]), ("liquid", [b for b, t in EXCHANGERS if t == 16]))}
+    h["ratios"] = {fam: E.derived("Exchanger size ratio", ", ".join(fmt(r) for r in rs),
+                                  "Per-side volume of each variant ÷ the smallest of the family (%s). At equal liquid fill and gas pressure both q values scale by these ratios; the fraction of the gap closed per update, 0.03 weighted by q share, does not change. At equal external flow, inventory and ambient loss scale too, so the ratio is not an outlet-temperature multiplier." % ", ".join(
+                                      "%s V = %s" % (E.block(b)["name"], fmt(vol[b][0])) for b, t in EXCHANGERS if {"air": 17, "mixed": 18, "liquid": 16}[fam] == t) + rep,
+                                  [vol[b][1] for b, t in EXCHANGERS if {"air": 17, "mixed": 18, "liquid": 16}[fam] == t])
+                   for fam, rs in ratios.items()}
+    # Worked steady states: the report's table, re-derived here in closed form.
+    steady = {}
+    for bid, (flow_a, flow_b, gas_a, gas_b) in (("intercooler", (60, 60, False, False)), ("intercooler_large", (60, 60, False, False)),
+                                                ("air_exchanger", (600, 6, True, False)), ("heat_exchanger_2_2", (600, 600, True, True))):
+        V = vol[bid][0]
+        qa, qb = (V * 30 / 60 if gas_a else V * 0.8), (V * 30 / 60 if gas_b else V * 0.8)
+        xa, xb = flow_a / (36000 if gas_a else 600), flow_b / (36000 if gas_b else 600)
+        got = exchanger_steady(qa, qb, xa, xb, 100.0, 20.0, 20.0)
+        if any(abs(g - w) > 5e-6 for g, w in zip(got, HX_TABLE[bid])):
+            raise ValueError("Closed-form exchanger steady state for %s differs from the report: %s" % (bid, got))
+        steady[bid] = (got, flow_a, flow_b, gas_a, gas_b, qa, qb, xa, xb)
+    def example(bid):
+        (u, v, sa, sb), fa, fb, ga, gb, qa, qb, xa, xb = steady[bid]
+        unit = lambda g: "L/s of expanded gas" if g else "L/s of liquid"
+        return E.derived("%s · model steady state" % E.block(bid)["name"],
+                         "emitted %.2f and %.2f °C; Temp A %.2f, Temp B %.2f °C" % (u, v, sa, sb),
+                         "Output of the report's 60 Hz model (tools/model.py), not a game measurement, re-derived here as the closed-form steady state for forward flow of at least 0.01 amount per update. Inlets A 100 °C and B 20 °C, ambient 20 °C, liquid fill 0.8, gas pressure 30 atm; side A %g %s (%.6g per update), side B %g %s (%.6g per update); qA = %s, qB = %s. Emitted packets %.6f and %.6f °C, stored Temp A %.6f and Temp B %.6f °C. The hot side drops by %.1f %% of the 80 °C inlet gap, which includes ambient loss and the post-transfer mixing rule, so it is not a conserved-energy effectiveness. The model holds both boundary networks at fixed amounts and takes the flow as given; it does not predict what a pump delivers." % (
+                             fa, unit(ga), xa, fb, unit(gb), xb, fmt(qa), fmt(qb), u, v, sa, sb, (100 - u) / 80 * 100) + rep,
+                         [vol[bid][1], q_rule, mutual, h["ports"], h["filter"], T["solver"][2], T["solver"][3]])
+    h["examples"] = {bid: example(bid) for bid in steady}
+    h["q"], h["mutual"], h["ambient"] = q_rule, mutual, ambient
+    h["transport"] = [T["solver"][2], T["solver"][3], T["solver"][4], alloc_finding(E)]
+    E.exchangers = h
+    return h
+
+
 # control-surface pass; files under investigation/native/control-surfaces/, report investigation/control-surfaces.md.
 CS = "../control-surfaces/"
 CS_REPORT = "investigation/control-surfaces.md"
@@ -1562,58 +1757,81 @@ def heat_exchange(B, E):
     ups = update_rate(E)["ups"]
     refresh = per_second(E, "Surrounding-temperature refresh interval", "16 ÷ %d = %.3g s" % (ups, 16 / ups), "One sample every 16 component updates.")
     per_s = [hx_s, leak_s, rad_s, rad3_s] + R
+    H, N = heat_exchangers(E), fluid_network(E)
+    vols = H["vol"]
+    hx_core = [H["v_half"], H["v_b"], H["q_gas"], H["q_liquid"], H["q"], H["gate"], H["w_a"], H["lerp"], H["mutual"], H["filter"]]
+    hx_ports = [H["pair"], H["ports"], H["b_out"]] + H["transport"]
+    hx_ambient = [H["sample"], H["ambient"], H["w_11"], H["w_12"], H["w_24"], H["enclosed"], H["local"], H["ramp_init"], H["retarget"], H["ramp"]]
+    every_vol = [v[1] for v in vols.values()]
+    open_hx = "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks."
     B.category("Heat exchange",
-               "Exchangers equalise two compartments by a fixed fraction per update weighted by how much fluid each side holds; radiators cool toward the surroundings and gain up to three times their passive rate from an electric fan or airflow.",
+               "Exchangers mix two compartments of 0.5 × listed voxels each, moving 0.03 of the gap per update weighted by each side's stored gas or liquid amount; radiators cool toward the surroundings and gain up to three times their passive rate from an electric fan or airflow.",
                [section("How the game moves heat",
-                        "The fluid-component update gives every exchanger two internal compartments, A and B. Each update A moves toward B by 0.03·qB/(qA+qB) of the temperature gap and B moves toward A by 0.03·qA/(qA+qB), so heat is conserved and the gap shrinks by a constant fraction regardless of variant. The q terms are capacity values taken from the fluid inside each compartment. The fraction itself does not depend on the variant, so any size advantage must come through q or through-flow; it is plausible that larger variants hold more fluid, but their compartment volumes were not recovered, so that advantage is inferred, not shown.",
-                        "Both compartments also leak toward the surrounding temperature by 0.001 per update. Radiators use a separate rule: the compartment moves toward the surrounding temperature by 0.003 × (1 + fan), with the fan term clamped to 0…2."),
+                        "Every exchanger has two mixed compartments, A and B, each of volume V = 0.5 × the definition's listed voxels, 10 L per volume unit. Per side that is 20, 250 and 1215 L for the air-air sizes, 10, 50, 225, 405 and 1125 L for air-liquid, and 20 and 125 L for liquid-liquid. Each update, when qA + qB > 0.001, A moves toward B by 0.03 × qB ÷ (qA + qB) of the old gap and B toward A by 0.03 × qA ÷ (qA + qB). q is the stored amount of the side's phase: gas slots 3, 4, 7, 10, 11 and 12 on an air side, liquid slots 0, 1, 2, 5, 6, 8 and 9 on a liquid side, each species with weight 1. At equal fill and gas pressure a larger variant has proportionally more q; the 0.03 fraction is the same for all of them.",
+                        "Both compartments then move 0.001 toward the filtered surrounding temperature. Radiators use a separate rule: the compartment moves toward the surrounding temperature by 0.003 × (1 + fan), with the fan term clamped to 0…2."),
+                section("Capacity and pressure",
+                        "q is in native amount units: 1 amount is 10 L of liquid, or 600 L of gas at the expanded readout. For pure gas q = P × V ÷ 60, so doubling an air side's pressure doubles its q. At 1 atm a gas side has q = V ÷ 60, against V for a full liquid side of the same volume; at 60 atm the two match. The capacity helpers apply no pressure, temperature or per-species factor of their own. Fluid of the wrong phase counts 0 toward that side's q but still passes through the ports and raises pressure."),
+                section("Ports and through-flow",
+                        "Each update runs four port exchanges before the heat step, in the order A In, A Out, B In, B Out, all with bias 0 and no species filter. A side moves fluid only when both of its ports are connected; the heat step runs either way. B Out uses an exchange factor of clamp(0.5 × B's total amount, 0, 1). The exchanger has no pump and its In and Out labels do not set a direction, so pressure and the networks' demand decide which way fluid goes. Arriving fluid is mixed by the compartment's amount after the move, and below 0.01 amount per update a direct port exchange also carries heat without net flow. Each side is a single mixed volume, so there is no counterflow or parallel-flow geometry."),
                 section("Per-second rates",
                         "Component updates run 60 times per simulated second. The fractions compound, so they are not multiplied by 60. With constant coefficients and nothing else acting, one simulated second leaves 0.161 of the gap between an exchanger's two compartments (time constant 0.547 s), 0.942 of a gap to fixed ambient through the leak alone (16.7 s), 0.835 of a passive radiator's gap to fixed ambient (5.55 s) and 0.581 at the full radiator multiplier of 3 (1.84 s). Through-flow and changing temperatures need the full model stepped 60 times per second."),
+                section("Surrounding temperature",
+                        "An exchanger samples the surrounding temperature at its own position every 16 updates (0.267 simulated seconds). Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."),
                 section("Practical setup",
-                        "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts relative airflow as fan, reaching the maximum term at an air speed of 80 in the game's speed units (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's."),
-                section("Measurement questions",
-                        "The unit and per-fluid weighting of the q capacity terms and the filter applied to the surrounding-temperature sample (refreshed every 16 updates, 0.267 simulated seconds) were not recovered. Measure exchanger outlet temperatures at fixed flow to see how through-flow changes the isolated per-second figures.")],
-               [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips,
-               ["Native findings come from static decompilation of one build; no in-game measurement was made.", TICK,
-                "The compartment volume of each exchanger variant was not recovered, so the size advantage cannot be stated as a ratio."])
+                        "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts relative airflow as fan, reaching the maximum term at an air speed of 80 in the game's speed units (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's.")],
+               [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips + hx_core + hx_ports + hx_ambient + every_vol + [N["law"], N["species_60"], N["t_content"]],
+               ["Native findings come from static decompilation of one build; no in-game measurement was made.", TICK, open_hx,
+                "The complete set of local heat sources that feed the surrounding-temperature sample, and their strengths, was not traced."])
 
-    hx = "Both sides use the same rule; only the capacity helper differs by fluid type."
+    leak_note = "Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."
+    temps = "Temp A and Temp B read the stored compartment temperatures in °C after this update's exchange and ambient step. Fluid leaving the Out ports was emitted earlier in the same update, so its temperature can differ."
+    model_note = "These are outputs of the report's 60 Hz model with fixed boundary networks and a prescribed flow, not game measurements or a pump rating. The interactive graph below runs the same model."
+    al = [b for b, t in EXCHANGERS if t == 18]
+    ex = H["examples"]
     B.family("air-liquid-heat-exchanger",
-             "Equalises an air compartment with a liquid compartment by 0.03 of the gap per update, weighted by each side's fluid capacity.",
+             "Mixes a gas compartment and a liquid compartment of 10 to 1125 L each, moving 0.03 of the gap per update weighted by stored gas and liquid amount.",
              [section("Operating conditions",
-                      "Case 0x12 of the fluid-component update treats side A as gas (Air In/Air Out) and side B as liquid (Fluid In/Fluid Out). Fluid only flows through a side whose In and Out ports are both connected; the A/B exchange itself runs whenever the two compartments together hold more than 0.001 capacity units."),
+                      "Case 0x12 of the fluid-component update treats side A as gas (Air In/Air Out) and side B as liquid (Fluid In/Fluid Out): qA is the stored gas amount and qB the stored liquid amount. A side passes fluid only when its In and Out ports are both connected; the A/B exchange runs whenever qA + qB > 0.001, with or without flow. Neither side has a species filter or a pump bias, so fluid can run either way through a port pair."),
               section("Performance drivers",
-                      "Per update, A moves toward B by 0.03·qB/(qA+qB) and B toward A by 0.03·qA/(qA+qB). " + hx + " When the liquid side's capacity is much larger than the air side's, the air moves toward the liquid temperature by close to 0.03 of the gap per update while the liquid barely changes; with similar capacities each side moves about half that. The fraction is capped at 0.03 per update, so closing a large gap takes many updates and depends on fresh fluid flowing through. With no through-flow and no ambient leak, 0.161 of the gap remains after one simulated second (60 updates)."),
+                      "Per update, A moves toward B by 0.03 × qB ÷ (qA + qB) and B toward A by 0.03 × qA ÷ (qA + qB). The air side holds q = P × V ÷ 60 and the liquid side its stored liquid, so below 60 atm the liquid usually has the larger q and the air moves further toward it. With no through-flow and no ambient leak, 0.161 of the gap remains after one simulated second (60 updates)."),
               section("Variant tradeoffs",
-                      "All five variants share the same code path and the same 0.03 fraction. If larger variants hold more fluid in their compartments (plausible but not established, because compartment volumes were not recovered), q and the heat moved per update would rise with size."),
-              section("Setup and interactions",
-                      "Temp A and Temp B read the internal compartments, so they show how close the two sides are, not inlet temperatures. Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."),
-              section("Open measurement questions",
-                      "Measure Temp A/Temp B against flow rate to calibrate how fast fluid passing through refreshes each compartment, and compare variants at equal flow to quantify the size effect.")],
-             [step, floor, hx_s, leak_s, E.tooltip("air_exchanger"), E.port("air_exchanger", "Temp A"), E.port("air_exchanger", "Temp B")] + R,
-             ["The q capacity weighting per fluid type and the through-flow rate were not recovered.", TICK])
+                      "All five variants share the 0.03 fraction. Each side holds 10, 50, 225, 405 or 1125 L (V = 1, 5, 22.5, 40.5 and 112.5), so at equal liquid fill and gas pressure both q values scale by 1, 5, 22.5, 40.5 and 112.5 relative to the 1x2. The fraction of the gap closed per update does not change. At equal external flow a larger variant also holds more fluid and loses more to ambient, so the volume ratio is not an outlet-temperature ratio."),
+              section("Flow example",
+                      "The 1x2 with 100 °C air at 30 atm and 600 L/s of expanded gas on side A, and 20 °C liquid at 0.8 fill and 6 L/s on side B, ambient 20 °C, emits air at 79.80 °C and liquid at 47.71 °C. Temp A and Temp B settle at 79.15 and 48.06 °C. " + model_note),
+              section("Setup and interactions", temps + " " + leak_note)],
+             [step, H["w_a"], floor, hx_s, leak_s, E.tooltip("air_exchanger"), E.port("air_exchanger", "Temp A"), E.port("air_exchanger", "Temp B"), H["sel_mixed"], H["ratios"]["mixed"], ex["air_exchanger"]]
+             + [vols[b][1] for b in al] + hx_core + hx_ports + hx_ambient + R,
+             [open_hx, TICK])
     B.family("liquid-liquid-heat-exchanger",
-             "Equalises two liquid compartments by 0.03 of the gap per update, weighted by liquid capacity on each side.",
+             "Mixes two liquid compartments of 20 L (2x2) or 125 L (5x5) each, moving 0.03 of the gap per update weighted by the stored liquid amount on each side.",
              [section("Operating conditions",
-                      "Case 0x10 uses the liquid capacity helper for both sides. Each side passes fluid only with both its In and Out ports connected."),
+                      "Case 0x10 uses the liquid capacity helper for both sides: q is the stored amount of fresh water, diesel, jet fuel, oil, seawater, slurry and saturated slurry, each with weight 1, so fresh water and seawater count the same. Gas in a side counts 0. Each side passes fluid only with both its In and Out ports connected."),
               section("Performance drivers",
-                      "Per update the hotter compartment loses and the colder gains heat in proportion 0.03·q_other/(qA+qB), conserving the capacity-weighted temperature. Without through-flow the gap keeps 0.161 of its size after one simulated second (time constant 0.547 s). Throughput depends on how quickly flowing liquid replaces each compartment's contents."),
+                      "Per update the hotter compartment loses and the colder gains in proportion 0.03 × q_other ÷ (qA + qB), conserving qA × TA + qB × TB. Without through-flow the gap keeps 0.161 of its size after one simulated second (time constant 0.547 s). With flow, arriving liquid is mixed by the side's amount after the move, and the Out port carries the side's mixed temperature."),
               section("Variant tradeoffs",
-                      "The 2x2 and 5x5 variants share the same fraction; a larger internal volume for the 5x5 would raise q, but the volumes were not recovered."),
-              section("Open measurement questions",
-                      "Compare outlet temperatures of both variants at equal pump flow.")],
-             [step, floor, hx_s, E.tooltip("intercooler")] + R,
-             ["Compartment volumes and the capacity weighting were not recovered.", TICK])
+                      "Each side holds V = 0.5 × listed voxels: 2 units (20 L) for the 2x2 with 4 voxels and 12.5 units (125 L) for the 5x5 with 25. At equal fill the 5x5 has 6.25 times the q on each side. The gap still shrinks by the same 0.03 fraction per update."),
+              section("Equal-flow comparison",
+                      "At 60 L/s on each side, 0.8 fill, inlets of 100 and 20 °C and ambient 20 °C, the 2x2 emits 85.54 and 33.13 °C and the 5x5 66.02 and 46.64 °C. Temp A and Temp B read 84.68 and 33.90 °C for the 2x2, 65.68 and 46.90 °C for the 5x5. The hot side drops by 18.1 % and 42.5 % of the inlet gap; these figures include ambient loss and the game's mixing rule, so they are not a conserved-energy effectiveness. " + model_note),
+              section("Setup and interactions", temps + " " + leak_note)],
+             [step, H["w_a"], floor, hx_s, leak_s, E.tooltip("intercooler"), H["sel_liquid"], H["ratios"]["liquid"], ex["intercooler"], ex["intercooler_large"], vols["intercooler"][1], vols["intercooler_large"][1]]
+             + hx_core + hx_ports + hx_ambient + R,
+             [open_hx, TICK])
     B.family("air-air-heat-exchanger",
-             "Equalises two gas compartments by 0.03 of the gap per update, weighted by gas capacity on each side.",
+             "Mixes two gas compartments of 20, 250 or 1215 L each, moving 0.03 of the gap per update weighted by stored gas amount, which rises with pressure.",
              [section("Operating conditions",
-                      "Case 0x11 uses the gas capacity helper for both sides; each side passes gas only with both its In and Out ports connected."),
+                      "Case 0x11 uses the gas capacity helper for both sides: q is the stored amount of the air slot, CO2, steam, oxygen, nitrogen and hydrogen, each with weight 1. Liquid in a side counts 0. Each side passes gas only with both its In and Out ports connected."),
               section("Performance drivers",
-                      "The per-update rule is the same as for the other exchangers: 0.03 of the gap, weighted by the opposite side's share of capacity, plus a 0.001 drift toward ambient. Without through-flow, 0.161 of the gap remains after one simulated second."),
-              section("Open measurement questions",
-                      "How gas pressure affects the capacity term was not recovered; measure the exchanger at different manifold pressures.")],
-             [step, floor, hx_s, E.tooltip("heat_exchanger_2_2")] + R,
-             ["The gas capacity weighting was not recovered.", TICK])
+                      "The per-update rule is the same as for the other exchangers: 0.03 of the gap, weighted by the opposite side's share of q, plus a 0.001 drift toward ambient. Without through-flow, 0.161 of the gap remains after one simulated second."),
+              section("Gas pressure",
+                      "For pure gas q = P × V ÷ 60, so doubling a side's pressure doubles its q and the lower-pressure side moves further toward the other. The helper adds no pressure or temperature factor of its own. If a side also holds liquid, its q is the gas amount alone, not P × V ÷ 60."),
+              section("Variant tradeoffs",
+                      "The 2x2, 2x5 and 3x9 hold 2, 25 and 121.5 volume units per side (20, 250 and 1215 L), ratios 1, 12.5 and 60.75. The files are named heat_exchanger_2_2, heat_exchanger_5_5 and heat_exchanger_9_9; the listed voxel count, not the name, sets the volume."),
+              section("Flow example",
+                      "The 2x2 at 30 atm with 600 L/s of expanded gas through each side, inlets 100 and 20 °C and ambient 20 °C, emits 71.55 and 43.86 °C. Temp A and Temp B settle at 71.08 and 44.25 °C. " + model_note),
+              section("Setup and interactions", temps + " " + leak_note)],
+             [step, H["w_a"], floor, hx_s, leak_s, E.tooltip("heat_exchanger_2_2"), H["sel_air"], H["ratios"]["air"], ex["heat_exchanger_2_2"]]
+             + [vols[b][1] for b in ("heat_exchanger_2_2", "heat_exchanger_5_5", "heat_exchanger_9_9")] + hx_core + hx_ports + hx_ambient + R,
+             [open_hx, TICK])
     fan_draw = per_second(E, "Electric radiator fan draw per simulated second", "%s × %d = %.3g" % (floor["value"], ups, float(floor["value"]) * ups),
                           "Request of %s electricity units per powered update." % floor["value"])
     T = fluid_transport(E)

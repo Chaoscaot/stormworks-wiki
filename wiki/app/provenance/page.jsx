@@ -116,7 +116,8 @@ export default function Provenance() {
               Findings name retained pseudocode or assembly and cite addresses in the exact executable build. They have not been tested in a running game.
               Component formulas run once per simulation update. Active, normally simulated vehicles get 60 updates per simulated second, because the game
               follows each component pass with one 1/60 s physics tick. The wiki multiplies per-update amounts by 60 to get amounts per simulated second and
-              compounds relaxation fractions over 60 updates. Exchanger compartment volumes remain unresolved, so size advantages are labeled as inferences.
+              compounds relaxation fractions over 60 updates. Exchanger compartments hold 0.5 volume units per listed voxel on each side, read from the
+              fluid initializer, so exchanger size ratios are decoded. Exchanger outlet temperatures come from a 60 Hz model at a stated flow, not from play.
             </p>
           </>
         ) : null}

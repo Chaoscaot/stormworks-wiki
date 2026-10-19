@@ -95,19 +95,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/6/limitations/2",
-        "text": "The compartment volume of each exchanger variant was not recovered, so the size advantage cannot be stated as a ratio.",
+        "text": "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/6/sections/0/body",
-        "text": "The fluid-component update gives every exchanger two internal compartments, A and B. Each update A moves toward B by 0.03·qB/(qA+qB) of the temperature gap and B moves toward A by 0.03·qA/(qA+qB), so heat is conserved and the gap shrinks by a constant fraction regardless of variant. The q terms are capacity values taken from the fluid inside each compartment. The fraction itself does not depend on the variant, so any size advantage must come through q or through-flow; it is plausible that larger variants hold more fluid, but their compartment volumes were not recovered, so that advantage is inferred, not shown.\n\nBoth compartments also leak toward the surrounding temperature by 0.001 per update. Radiators use a separate rule: the compartment moves toward the surrounding temperature by 0.003 × (1 + fan), with the fan term clamped to 0…2.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/6/sections/3/body",
-        "text": "The unit and per-fluid weighting of the q capacity terms and the filter applied to the surrounding-temperature sample (refreshed every 16 updates, 0.267 simulated seconds) were not recovered. Measure exchanger outlet temperatures at fixed flow to see how through-flow changes the isolated per-second figures.",
+        "pointer": "/categories/6/limitations/3",
+        "text": "The complete set of local heat sources that feed the surrounding-temperature sample, and their strengths, was not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -318,19 +312,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/0/limitations/0",
-        "text": "The gas capacity weighting was not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/0/sections/2/body",
-        "text": "How gas pressure affects the capacity term was not recovered; measure the exchanger at different manifold pressures.",
+        "text": "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/5/limitations/4",
-        "text": "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
+        "text": "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -343,31 +331,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/1/limitations/0",
-        "text": "The q capacity weighting per fluid type and the through-flow rate were not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/1/sections/2/body",
-        "text": "All five variants share the same code path and the same 0.03 fraction. If larger variants hold more fluid in their compartments (plausible but not established, because compartment volumes were not recovered), q and the heat moved per update would rise with size.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/1/sections/4/body",
-        "text": "Measure Temp A/Temp B against flow rate to calibrate how fast fluid passing through refreshes each compartment, and compare variants at equal flow to quantify the size effect.",
+        "text": "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/6/limitations/4",
-        "text": "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/6/limitations/6",
-        "text": "Temperature units, flow requirements, fluid compatibility, internal pumping and the direction or rate of heat exchange in a particular installation remain unverified.",
+        "text": "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -901,31 +871,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/26/limitations/0",
-        "text": "Compartment volumes and the capacity weighting were not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/sections/2/body",
-        "text": "The 2x2 and 5x5 variants share the same fraction; a larger internal volume for the 5x5 would raise q, but the volumes were not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/sections/3/body",
-        "text": "Compare outlet temperatures of both variants at equal pump flow.",
+        "text": "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/264/limitations/4",
-        "text": "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/264/limitations/5",
-        "text": "Temperature units and inlet/outlet measurement locations are unspecified. The definition of size in the heat-exchange rule is unknown.",
+        "text": "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve.",
         "scope": "Definition-only extraction"
       }
     ]
