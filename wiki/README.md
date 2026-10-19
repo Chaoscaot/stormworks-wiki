@@ -8,13 +8,13 @@ A read-only wiki for Stormworks: Build and Rescue, built with Next.js (App Route
 | --- | --- |
 | `/` | Main page: category portals, the families with the most sizes, the most-cited mechanics articles, how to read a citation |
 | `/parts` | Every part article with its image, grouped by the research's editorial categories, each with the category's behaviour summary |
-| `/parts/[familyId]` | Part article: lead, infobox with image, how it behaves, research sections, choosing a variant (documented limits and behaviour only), logic and coupling tables, documented behaviour, definition figures (collapsed), limitations, see also, numbered references |
-| `/components` | Every component definition. Search, category, sort and paging work as plain GET forms, so they also work without JavaScript |
+| `/parts/[familyId]` | Part article: lead, infobox with image, how it behaves, research sections, choosing a variant (documented limits and behaviour only), logic and coupling tables, documented behaviour, definition figures (collapsed), limitations, see also, numbered references. The infobox gives both the wiki grouping (editorial) and the game category (decoded) |
+| `/components` | Every component definition. Search, wiki grouping, game category, sort and paging work as plain GET forms, so they also work without JavaScript |
 | `/components/[id]` | Every extracted fact for one variant: image, the family's behaviour write-up, interfaces, family facts, mechanics findings, constants, definition figures (collapsed), all raw attributes (filterable), physics nodes with nested elements |
 | `/mechanics`, `/mechanics/[id]` | Mechanics articles from `mechanics.json` and `native.json`. Findings are grouped by the file they cite |
 | `/constants` | Every constant, filterable by text, evidence source and data set |
 | `/tools/cooling` | Cooling capacity calculator with two methods. The ideal-flow estimate (default) sizes radiators for a modular engine from the heat, coolant and radiator terms recovered from the executable, and compares the four radiator types. The measured calibration sizes any engine from the user's paired readings and draws a temperature-time curve. Inputs can be shared as a URL |
-| `/provenance` | Game build, data sets, evidence labels, coverage, source disagreements, limitations |
+| `/provenance` | Game build, data sets, decoded numeric codes with their executable addresses, evidence labels, coverage, source disagreements, limitations |
 | `/search?q=` | Server-side search across parts, components, mechanics and constants. `&show=<group>` lists every match in one group |
 
 ## Data
@@ -27,11 +27,12 @@ A read-only wiki for Stormworks: Build and Rescue, built with Next.js (App Route
 - `native.json` (optional): same schema as `mechanics.json`, from static analysis of the executable. Records keep `origin: 'native'`
 - `build.json` (optional): Steam build identity
 - `images.json` (optional): one image per component ID, `{src, alt, kind, width, height, source}`. Only site-relative `src` paths whose file exists in `public/` are shown, so a missing file never renders as a broken image. Renders cite every mesh in `source.meshes`
+- `codes.json` (optional): names for the numeric category, logic and coupling codes, written by `scripts/extract_codes.py` from the numeric component codes investigation (`investigation/numeric-codes.md`). Each name cites the executable address it was read from. Without the file, codes show as raw numbers
 - `behavior.json` (optional): behaviour write-ups keyed by category string and family ID, each with `summary`, `sections` (`title`, `body`, optional `sources` and `status`), `findings`, `limitations` and `sources`
 
-Definition mass, value and voxel counts stay in collapsed "Definition figures" sections. Variant comparisons show only tooltips and behaviour findings, and say so when nothing is documented. `/`, `/parts` and `/provenance` are prerendered, so rebuild after changing `images.json` or `behavior.json`.
+Definition mass, value and voxel counts stay in collapsed "Definition figures" sections. Variant comparisons show only tooltips and behaviour findings, and say so when nothing is documented. `/`, `/parts` and `/provenance` are prerendered, so rebuild after changing `images.json`, `behavior.json` or `codes.json`.
 
-A finding or constant links to a component only when its `source.path` and `source.sha256` both match that component's definition. Raw codes (category, logic mode, logic type, coupling gender) are shown undecoded. Absent attributes read "Not in file", which is different from empty or zero. No units are shown unless the data states one.
+A finding or constant links to a component only when its `source.path` and `source.sha256` both match that component's definition. Category, logic mode, logic type and coupling gender are decoded from the identified executable build and shown with their raw code, for example "Mechanics (2)" or "Fluid (water, 3)" (`lib/codes.js`). Logic orientation uses local axis labels (x+ to z-). Coupling orientation stays a raw code, because its axis names are only inferred. Input and output name the logic connection role, not the direction of fluid or power. Coupling type is a literal string key, and neither it nor gender says which parts fit together. Absent attributes read "Not in file", which is different from empty or zero, and the game's default is shown next to them. No units are shown unless the data states one.
 
 Modular engine cylinder, fluid radiator and heat exchanger articles (and their component pages) have an "Interactive graphs" section. `components/FormulaSection.jsx` renders the formula as MathML, the assumptions and the cited executable constants on the server. `components/FormulaGraphs.jsx` is the client chart: native sliders, a select and checkboxes drive an SVG plot, a persistent selected-point readout and a data table, all server-rendered in their default state. The formulas live in `lib/formulas.js`, and `graphKindsForFamily` decides which families get a graph. There is no jet thrust graph because the full thrust formula is not verified.
 

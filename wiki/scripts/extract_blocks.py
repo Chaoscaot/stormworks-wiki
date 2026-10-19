@@ -281,7 +281,7 @@ Run `python3 wiki/scripts/extract_blocks.py` from the installation root. Use `--
 
 Logic and coupling entries expose literal attributes directly for consumers and retain them in `attributes`. `position` contains raw coordinate strings or null. `tag` and ordered `children` retain node structure. Physics `nodes` use the same structured format. Geometry summaries count source nodes and attribute values without decoding flags or shape IDs.
 
-Category is the literal root `category` string or null. There are no inferred category names. `summary.categories` counts these exact codes, and `summary.missing.category` separately counts absent codes. Physics selection is an editorial grouping by explicit source prefixes and names, labeled in each record. It is not a recovered game schema. Root attributes remain available if consumers need fields outside that grouping. No units are assigned to mass, value, force, dimensions or SDK constants. Tooltip and connector descriptions are source text and may mention units themselves.
+Category is the literal root `category` string or null. This file keeps it raw; `wiki/data/codes.json` maps it to the game's category name, decoded from the executable. `summary.categories` counts these exact codes, and `summary.missing.category` separately counts absent codes. Physics selection is an editorial grouping by explicit source prefixes and names, labeled in each record. It is not a recovered game schema. Root attributes remain available if consumers need fields outside that grouping. No units are assigned to mass, value, force, dimensions or SDK constants. Tooltip and connector descriptions are source text and may mention units themselves.
 
 ## Build identity and privacy
 
@@ -319,7 +319,7 @@ def main():
         "definition_count": len(blocks), "parsed_count": len(blocks), "failed_count": 0,
         "source_directory": "rom/data/definitions",
         "categories": dict(sorted(Counter(block["category"] for block in blocks if block["category"] is not None).items())),
-        "category_semantics": "Literal source codes; names and enum meanings not inferred",
+        "category_semantics": "Literal source codes. Decoded names are in codes.json (investigation/numeric-codes.md)",
         "missing": {key: sum(block[key] is None for block in blocks) for key in ("mass", "value", "category", "description")},
         "logic_nodes": sum(len(block["logic"]) for block in blocks),
         "couplings": sum(len(block["couplings"]) for block in blocks),
@@ -329,7 +329,7 @@ def main():
         },
         "sdk_constants": sdk_constants(root),
         "limitations": ["Static source metadata; runtime behavior and editor availability unverified.",
-                         "No inferred units, enum names, missing defaults or category names.",
+                         "No inferred units or missing defaults. Category, logic and coupling codes stay raw here; codes.json holds their decoded names.",
                          "Physics grouping is editorial; geometry is summarized, not fully exported."],
     }
     json_text = lambda value: json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n"

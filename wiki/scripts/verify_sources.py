@@ -31,7 +31,7 @@ def verify(value):
             verify(child)
 
 
-for name in ("blocks", "mechanics", "build", "native", "families"):
+for name in ("blocks", "mechanics", "build", "native", "families", "codes"):
     if not (WIKI / "data" / f"{name}.json").exists():
         continue
     data = json.loads((WIKI / "data" / f"{name}.json").read_text())

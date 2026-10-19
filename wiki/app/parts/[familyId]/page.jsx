@@ -10,8 +10,10 @@ import {
 } from '@/lib/data.js';
 import { createCiter } from '@/lib/citations.js';
 import { fmtNum, num, slug } from '@/lib/format.js';
+import { codeText } from '@/lib/codes.js';
 import {
-  couplingRows, findingRows, findingsByArticle, InterfaceCaveat, interfaceCols, logicRows, referenceRows,
+  codeCitations, COUPLING_KIND, couplingRows, findingRows, findingsByArticle, InterfaceCaveat, interfaceCols, LOGIC_KIND, logicRows,
+  referenceRows,
 } from '@/lib/interfaces.jsx';
 
 // Families whose articles link to the measurement-based cooling calculator.
@@ -142,6 +144,15 @@ export default async function FamilyPage({ params }) {
   ]);
   const fieldNotes = fields.filter((c) => c.meaning);
 
+  // The game's own category per variant. Variants of one family can differ, so each distinct value is listed.
+  const gameCats = [...new Map(blocks.map((b) => [codeText(b.gameCategory), b.gameCategory])).entries()].map(([text, d]) => ({
+    text,
+    n: d.source ? cite(d.source, { status: d.status, note: 'Game category name, read from the executable' }) : null,
+  }));
+  const codeCites = codeCitations([
+    ...(blocks.some((b) => b.logic.length) ? ['logic_mode', 'logic_type', ...(single ? ['logic_orientation'] : [])] : []),
+    ...(blocks.some((b) => b.couplings.length) ? ['coupling_gender'] : []),
+  ], cite);
   const logic = logicRows(vs, cite);
   const couplings = couplingRows(vs, cite);
   const refs = referenceRows(vs, cite);
@@ -224,7 +235,10 @@ export default async function FamilyPage({ params }) {
         subtitle={single ? 'Part' : `Part family, ${vs.length} variants`}
         media={<PartFigure image={image} name={image?.variant.block.name} cite={cite} />}
         rows={[
-          ['Category', f.category],
+          ['Wiki grouping', <Link href={`/parts#${slug(f.category)}`}>{f.category}</Link>],
+          ['Game category', gameCats.length === 1
+            ? <>{gameCats[0].text}{gameCats[0].n ? <Cite n={gameCats[0].n} /> : null}</>
+            : <ul className="plain">{gameCats.map((g) => <li key={g.text}>{g.text}{g.n ? <Cite n={g.n} /> : null}</li>)}</ul>],
           !single && ['Variants', <ul className="plain">{vs.map((v) => <li key={v.id}><Link href={`/components/${encodeURIComponent(v.id)}`}>{v.sizeLabel || v.block.name}</Link></li>)}</ul>],
           ['Logic nodes', range(blocks.map((b) => b.logic.length))],
           ['Couplings', range(blocks.map((b) => b.couplings.length))],
@@ -310,15 +324,15 @@ export default async function FamilyPage({ params }) {
       ) : null}
 
       <Section id="interfaces" title="Interfaces">
-        <InterfaceCaveat />
+        <InterfaceCaveat cites={codeCites} />
         {logic.length ? (
           <Section id="logic-nodes" title="Logic nodes" level={3}>
-            <WikiTable hideCaption id="logic-t" caption="Logic nodes" cols={interfaceCols(vs, 'Raw codes')} rows={logic} cards />
+            <WikiTable hideCaption id="logic-t" caption="Logic nodes" cols={interfaceCols(vs, LOGIC_KIND)} rows={logic} cards />
           </Section>
         ) : <p>No variant declares logic nodes.</p>}
         {couplings.length ? (
           <Section id="couplings" title="Physical couplings" level={3}>
-            <WikiTable hideCaption id="coupling-t" caption="Physical couplings" cols={interfaceCols(vs, 'Raw codes')} rows={couplings} cards />
+            <WikiTable hideCaption id="coupling-t" caption="Physical couplings" cols={interfaceCols(vs, COUPLING_KIND)} rows={couplings} cards />
           </Section>
         ) : null}
         {refs.length ? (
@@ -395,7 +409,10 @@ export default async function FamilyPage({ params }) {
         <ul>
           {limitations.map((l, i) => <li key={i}>{l}</li>)}
           <li>Nothing on this page has been measured in the running game. Values are static readings of shipped files.</li>
-          <li>Raw codes such as category, logic mode and logic type are shown undecoded.</li>
+          <li>
+            The game category, logic mode, logic type and coupling gender are named from the executable of the recorded build. Coupling
+            orientation stays a raw code. <Link href="/provenance#numeric-codes">All decoded codes</Link>.
+          </li>
           {f.fallback ? <li>This part is not yet part of a researched family, so there is no family-level write-up.</li> : null}
         </ul>
       </Section>

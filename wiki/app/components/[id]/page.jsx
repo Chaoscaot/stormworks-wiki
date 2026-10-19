@@ -9,9 +9,11 @@ import { BehaviorSections, citeBehavior, citeImage, Cites, PartFigure } from '@/
 import FormulaSection, { formulaGraphs } from '@/components/FormulaSection.jsx';
 import { behaviorForCategory, behaviorForFamily, constantsForBlock, familyForBlock, getBlock, imageFor } from '@/lib/data.js';
 import { createCiter } from '@/lib/citations.js';
+import { codeText } from '@/lib/codes.js';
 import { fileName, humanKey, isEmpty, isObj, plain, slug } from '@/lib/format.js';
 import {
-  couplingRows, findingRows, findingsByArticle, InterfaceCaveat, interfaceCols, logicRows, referenceRows,
+  codeCitations, CodeValue, COUPLING_KIND, couplingRows, findingRows, findingsByArticle, InterfaceCaveat, interfaceCols, LOGIC_KIND, logicRows,
+  referenceRows,
 } from '@/lib/interfaces.jsx';
 
 // Rendered on first request and then cached, which keeps the build and image small.
@@ -54,12 +56,16 @@ export default async function ComponentPage({ params }) {
   // Findings without a "Variant · " prefix describe the whole family, so they apply here too.
   const familyBehavior = (behavior?.findings ?? []).filter((x) => !String(x.label || '').includes(' · '));
   const has = (k) => k in r && r[k] !== undefined;
+  const gameCat = b.gameCategory;
+  const gameCatCite = gameCat.source ? cite(gameCat.source, { status: gameCat.status, note: 'Game category name, read from the executable' }) : null;
+  const gameCatValue = <><CodeValue d={gameCat} />{gameCatCite ? <Cite n={gameCatCite} /> : null}</>;
 
   const phys = isObj(r.physics) ? r.physics : {};
   const facts = [
     ['Name', b.name, 'Display name'],
     ['Identifier', <code>{b.id}</code>, 'Definition file name'],
-    ['Category code', <RawField present={has('category')} value={r.category} />, 'Raw category code, not decoded'],
+    ['Game category', <CodeValue d={gameCat} />, 'Game editor and inventory category, decoded from the executable. The number is the code in the file',
+      <span className="ev"><Stamp status="extracted" /><Cite n={src} />{gameCatCite ? <><Stamp status={gameCat.status} /><Cite n={gameCatCite} /></> : null}</span>],
     ['Mass', <RawField present={has('mass')} value={r.mass} />, 'Units not stated in the data'],
     ['Value', <RawField present={has('value')} value={r.value} />, 'Units not stated in the data'],
     b.short && ['Tooltip, short', b.short, 'In-game tooltip text'],
@@ -71,7 +77,7 @@ export default async function ComponentPage({ params }) {
       .filter(([k]) => isObj(phys[k]) && phys[k].count !== undefined)
       .map(([k, label]) => [label, phys[k].count, 'Count of source entries, not a physical size']),
     r.evidence_id && ['Evidence ID', <code>{r.evidence_id}</code>, 'Extractor record identifier'],
-  ].filter(Boolean).map(([k, v, m]) => [k, v, <span className="muted">{m}</span>, <span className="ev"><Stamp status="extracted" /><Cite n={src} /></span>]);
+  ].filter(Boolean).map(([k, v, m, ev]) => [k, v, <span className="muted">{m}</span>, ev ?? <span className="ev"><Stamp status="extracted" /><Cite n={src} /></span>]);
 
   const constants = constantsForBlock(b);
   const constantRows = constants.map((c) => [
@@ -81,6 +87,7 @@ export default async function ComponentPage({ params }) {
     <span className="ev"><Stamp status={c.raw.status} /><Cite n={cite(c.raw.source, { status: c.raw.status, type: c.raw.evidenceType })} /></span>,
   ]);
 
+  const codeCites = codeCitations([...(b.logic.length ? ['logic_mode', 'logic_type', 'logic_orientation'] : []), ...(b.couplings.length ? ['coupling_gender'] : [])], cite);
   const logic = logicRows(vs, cite);
   const couplings = couplingRows(vs, cite);
   const refs = referenceRows(vs, cite);
@@ -96,7 +103,7 @@ export default async function ComponentPage({ params }) {
     return [
       { text: k, code: true },
       v === '' || v === null ? { text: 'Empty', muted: true } : { text: plain(v), code: true },
-      c ? { text: c.raw.description || '' } : { text: 'Not decoded', muted: true },
+      c ? { text: c.raw.description || '' } : k === 'category' ? { text: `Game category ${codeText(gameCat)}` } : { text: 'Not decoded', muted: true },
       { text: `${fileName(b.source?.path)}`, stamp: 'extracted', stampLabel: 'Extracted' },
     ];
   });
@@ -140,10 +147,10 @@ export default async function ComponentPage({ params }) {
         note={<>Mass, value and other raw numbers are under <a href="#facts">Definition figures</a>.</>}
         rows={[
           family && ['Family', <Link href={`/parts/${encodeURIComponent(family.id)}`}>{family.title}</Link>],
-          family && ['Family category', family.category],
+          family && ['Wiki grouping', <Link href={`/parts#${slug(family.category)}`}>{family.category}</Link>],
+          ['Game category', gameCatValue],
           ['Logic nodes', b.logic.length],
           ['Couplings', b.couplings.length],
-          ['Category code', b.category ?? <span className="muted">Not in file</span>],
           ['Definition', <><code>{fileName(b.source?.path)}</code><Cite n={src} /></>],
         ]}
       />
@@ -188,15 +195,15 @@ export default async function ComponentPage({ params }) {
       <FormulaSection graphs={graphs} />
 
       <Section id="interfaces" title="Interfaces">
-        <InterfaceCaveat />
+        <InterfaceCaveat cites={codeCites} />
         {logic.length ? (
           <Section id="logic-nodes" title="Logic nodes" level={3}>
-            <WikiTable hideCaption id="logic-t" caption="Logic nodes" cols={interfaceCols(vs, 'Raw codes')} rows={logic} cards />
+            <WikiTable hideCaption id="logic-t" caption="Logic nodes" cols={interfaceCols(vs, LOGIC_KIND)} rows={logic} cards />
           </Section>
         ) : <p>This definition declares no logic nodes.</p>}
         {couplings.length ? (
           <Section id="couplings" title="Physical couplings" level={3}>
-            <WikiTable hideCaption id="coupling-t" caption="Physical couplings" cols={interfaceCols(vs, 'Raw codes')} rows={couplings} cards />
+            <WikiTable hideCaption id="coupling-t" caption="Physical couplings" cols={interfaceCols(vs, COUPLING_KIND)} rows={couplings} cards />
           </Section>
         ) : null}
         {refs.length ? (

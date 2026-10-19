@@ -1,0 +1,1495 @@
+{
+  "enums": {
+    "category": {
+      "title": "Game definition category",
+      "element": "definition",
+      "attribute": "category",
+      "field": "definition +0x2a8",
+      "default": 0,
+      "note": "Editor and inventory category. Separate from the wiki's editorial part grouping.",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140322a60"
+      },
+      "absent": {
+        "entries": 10,
+        "definitions": 10
+      },
+      "anchors": [
+        {
+          "address": "0x140316ac2",
+          "bytes": "4c 8d 8e a8 02 00 00",
+          "meaning": "The definition reader passes definition +0x2a8 as the output address."
+        },
+        {
+          "address": "0x14093d2b4",
+          "bytes": "33 c0 41 89 07",
+          "meaning": "An absent category attribute stores 0."
+        },
+        {
+          "address": "0x140606e76",
+          "bytes": "8b 90 a8 02 00 00",
+          "meaning": "The inventory reads definition +0x2a8 before calling the name switch."
+        },
+        {
+          "address": "0x140322a75",
+          "bytes": "83 fa 0f 0f 87 5c 02 00 00",
+          "meaning": "The name switch sends values above 15 to the fallback label."
+        },
+        {
+          "address": "0x140322a88",
+          "bytes": "8b 94 81 1c 2d 32 00 48 03 d1 ff e2",
+          "meaning": "The name switch indexes the 16-entry jump table at 0x140322d1c."
+        }
+      ],
+      "values": {
+        "0": {
+          "name": "Blocks",
+          "label": "Blocks",
+          "status": "observed",
+          "entries": 39,
+          "definitions": 39,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322ab3"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d1c",
+              "bytes": "94 2a 32 00",
+              "target": "0x140322a94"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322ab3",
+              "bytes": "48 8d 15 86 d1 83 00",
+              "string": {
+                "address": "0x140b5fc40",
+                "text": "Blocks"
+              }
+            }
+          ]
+        },
+        "1": {
+          "name": "Vehicle Control",
+          "label": "Vehicle Control",
+          "status": "observed",
+          "entries": 67,
+          "definitions": 67,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322adf"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d20",
+              "bytes": "c7 2a 32 00",
+              "target": "0x140322ac7"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322adf",
+              "bytes": "48 8d 15 4a d1 83 00",
+              "string": {
+                "address": "0x140b5fc30",
+                "text": "Vehicle Control"
+              }
+            }
+          ]
+        },
+        "2": {
+          "name": "Mechanics",
+          "label": "Mechanics",
+          "status": "observed",
+          "entries": 74,
+          "definitions": 74,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322b03"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d24",
+              "bytes": "eb 2a 32 00",
+              "target": "0x140322aeb"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322b03",
+              "bytes": "48 8d 15 4e d1 83 00",
+              "string": {
+                "address": "0x140b5fc58",
+                "text": "Mechanics"
+              }
+            }
+          ]
+        },
+        "3": {
+          "name": "Propulsion",
+          "label": "Propulsion",
+          "status": "observed",
+          "entries": 68,
+          "definitions": 68,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322b27"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d28",
+              "bytes": "0f 2b 32 00",
+              "target": "0x140322b0f"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322b27",
+              "bytes": "48 8d 15 1a d1 83 00",
+              "string": {
+                "address": "0x140b5fc48",
+                "text": "Propulsion"
+              }
+            }
+          ]
+        },
+        "4": {
+          "name": "Specialist Equipment",
+          "label": "Specialist Equipment",
+          "status": "observed",
+          "entries": 115,
+          "definitions": 115,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322b4b"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d2c",
+              "bytes": "33 2b 32 00",
+              "target": "0x140322b33"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322b4b",
+              "bytes": "48 8d 15 26 d1 83 00",
+              "string": {
+                "address": "0x140b5fc78",
+                "text": "Specialist Equipment"
+              }
+            }
+          ]
+        },
+        "5": {
+          "name": "Logic",
+          "label": "Logic",
+          "status": "observed",
+          "entries": 38,
+          "definitions": 38,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322b6f"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d30",
+              "bytes": "57 2b 32 00",
+              "target": "0x140322b57"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322b6f",
+              "bytes": "48 8d 15 96 ad 87 00",
+              "string": {
+                "address": "0x140b9d90c",
+                "text": "Logic"
+              }
+            }
+          ]
+        },
+        "6": {
+          "name": "Displays",
+          "label": "Displays",
+          "status": "observed",
+          "entries": 25,
+          "definitions": 25,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322b93"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d34",
+              "bytes": "7b 2b 32 00",
+              "target": "0x140322b7b"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322b93",
+              "bytes": "48 8d 15 16 11 7d 00",
+              "string": {
+                "address": "0x140af3cb0",
+                "text": "Displays"
+              }
+            }
+          ]
+        },
+        "7": {
+          "name": "Sensors",
+          "label": "Sensors",
+          "status": "observed",
+          "entries": 41,
+          "definitions": 41,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322bb7"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d38",
+              "bytes": "9f 2b 32 00",
+              "target": "0x140322b9f"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322bb7",
+              "bytes": "48 8d 15 62 10 7d 00",
+              "string": {
+                "address": "0x140af3c20",
+                "text": "Sensors"
+              }
+            }
+          ]
+        },
+        "8": {
+          "name": "Decorative",
+          "label": "Decorative",
+          "status": "observed",
+          "entries": 17,
+          "definitions": 17,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322bdb"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d3c",
+              "bytes": "c3 2b 32 00",
+              "target": "0x140322bc3"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322bdb",
+              "bytes": "48 8d 15 86 d0 83 00",
+              "string": {
+                "address": "0x140b5fc68",
+                "text": "Decorative"
+              }
+            }
+          ]
+        },
+        "9": {
+          "name": "Fluid",
+          "label": "Fluid",
+          "status": "observed",
+          "entries": 55,
+          "definitions": 55,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322bff"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d40",
+              "bytes": "e7 2b 32 00",
+              "target": "0x140322be7"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322bff",
+              "bytes": "48 8d 15 96 d0 83 00",
+              "string": {
+                "address": "0x140b5fc9c",
+                "text": "Fluid"
+              }
+            }
+          ]
+        },
+        "10": {
+          "name": "Electric",
+          "label": "Electric",
+          "status": "observed",
+          "entries": 11,
+          "definitions": 11,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322c23"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d44",
+              "bytes": "0b 2c 32 00",
+              "target": "0x140322c0b"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322c23",
+              "bytes": "48 8d 15 66 d0 83 00",
+              "string": {
+                "address": "0x140b5fc90",
+                "text": "Electric"
+              }
+            }
+          ]
+        },
+        "11": {
+          "name": "Jet Engines",
+          "label": "Jet Engines",
+          "status": "observed",
+          "entries": 14,
+          "definitions": 14,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322c47"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d48",
+              "bytes": "2f 2c 32 00",
+              "target": "0x140322c2f"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322c47",
+              "bytes": "48 8d 15 6a d0 83 00",
+              "string": {
+                "address": "0x140b5fcb8",
+                "text": "Jet Engines"
+              }
+            }
+          ]
+        },
+        "12": {
+          "name": "Weapons",
+          "label": "Weapons",
+          "status": "observed",
+          "entries": 79,
+          "definitions": 79,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322c6b"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d4c",
+              "bytes": "53 2c 32 00",
+              "target": "0x140322c53"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322c6b",
+              "bytes": "48 8d 15 36 4f 7d 00",
+              "string": {
+                "address": "0x140af7ba8",
+                "text": "Weapons"
+              }
+            }
+          ]
+        },
+        "13": {
+          "name": "Modular Engines",
+          "label": "Modular Engines",
+          "status": "observed",
+          "entries": 30,
+          "definitions": 30,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322c8f"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d50",
+              "bytes": "77 2c 32 00",
+              "target": "0x140322c77"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322c8f",
+              "bytes": "48 8d 15 52 4c 7d 00",
+              "string": {
+                "address": "0x140af78e8",
+                "text": "Modular Engines"
+              }
+            }
+          ]
+        },
+        "14": {
+          "name": "Industry",
+          "label": "Industry",
+          "status": "observed",
+          "entries": 35,
+          "definitions": 35,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322cb0"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d54",
+              "bytes": "98 2c 32 00",
+              "target": "0x140322c98"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322cb0",
+              "bytes": "48 8d 15 f1 cf 83 00",
+              "string": {
+                "address": "0x140b5fca8",
+                "text": "Industry"
+              }
+            }
+          ]
+        },
+        "15": {
+          "name": "Windows",
+          "label": "Windows",
+          "status": "observed",
+          "entries": 41,
+          "definitions": 41,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322cd1"
+          },
+          "evidence": [
+            {
+              "kind": "jump-table",
+              "address": "0x140322d58",
+              "bytes": "b9 2c 32 00",
+              "target": "0x140322cb9"
+            },
+            {
+              "kind": "label-load",
+              "address": "0x140322cd1",
+              "bytes": "48 8d 15 f0 9e 7b 00",
+              "string": {
+                "address": "0x140adcbc8",
+                "text": "Windows"
+              }
+            }
+          ]
+        }
+      },
+      "outOfRange": {
+        "name": "Uncategorised",
+        "label": "Uncategorised",
+        "status": "observed",
+        "source": {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140322cf2"
+        }
+      }
+    },
+    "logic_mode": {
+      "title": "Logic node mode",
+      "element": "logic_node",
+      "attribute": "mode",
+      "field": "logic node +0x30",
+      "default": 0,
+      "note": "Logic connection role. It does not give the physical direction of fluid or mechanical power.",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140874b0f"
+      },
+      "absent": {
+        "entries": 258,
+        "definitions": 119
+      },
+      "anchors": [
+        {
+          "address": "0x1402e22ed",
+          "bytes": "4c 8d 4e 30",
+          "meaning": "The logic node reader passes node +0x30 to the mode reader."
+        },
+        {
+          "address": "0x1402e22f1",
+          "bytes": "44 89 7c 24 20",
+          "meaning": "The mode reader receives a zero default."
+        },
+        {
+          "address": "0x1402e22fc",
+          "bytes": "e8 2f 9b 65 00",
+          "meaning": "Call to the integer attribute reader for mode."
+        }
+      ],
+      "values": {
+        "0": {
+          "name": "output",
+          "label": "Output",
+          "status": "observed",
+          "entries": 536,
+          "definitions": 261,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874b7e"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874b7e",
+              "bytes": "48 8d 15 2b a2 26 00",
+              "string": {
+                "address": "0x140adedb0",
+                "text": "output"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874b95",
+              "bytes": "33 d2",
+              "value": 0
+            }
+          ]
+        },
+        "1": {
+          "name": "input",
+          "label": "Input",
+          "status": "observed",
+          "entries": 1113,
+          "definitions": 474,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874b4f"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874b4f",
+              "bytes": "48 8d 15 4a a2 26 00",
+              "string": {
+                "address": "0x140adeda0",
+                "text": "input"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874b66",
+              "bytes": "ba 01 00 00 00",
+              "value": 1
+            }
+          ]
+        }
+      }
+    },
+    "logic_type": {
+      "title": "Logic node type",
+      "element": "logic_node",
+      "attribute": "type",
+      "field": "logic node +0x34",
+      "default": 0,
+      "note": "Editor label \"variable type\". Type 3 (native label water) is used for every fluid, not only water.",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140874bea"
+      },
+      "absent": {
+        "entries": 162,
+        "definitions": 98
+      },
+      "anchors": [
+        {
+          "address": "0x1402e2301",
+          "bytes": "4c 8d 4e 34",
+          "meaning": "The logic node reader passes node +0x34 to the type reader."
+        },
+        {
+          "address": "0x1402e2305",
+          "bytes": "44 89 7c 24 20",
+          "meaning": "The type reader receives a zero default."
+        },
+        {
+          "address": "0x14087f4d5",
+          "bytes": "41 8b 4c 00 34",
+          "meaning": "The editor selector getter reads node +0x34."
+        },
+        {
+          "address": "0x14087f505",
+          "bytes": "45 89 4c 00 34",
+          "meaning": "The editor selector setter writes node +0x34."
+        }
+      ],
+      "values": {
+        "0": {
+          "name": "bool",
+          "label": "On/off",
+          "status": "observed",
+          "entries": 353,
+          "definitions": 185,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874bea"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874bea",
+              "bytes": "48 8d 15 bf c6 29 00",
+              "string": {
+                "address": "0x140b112b0",
+                "text": "bool"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874c01",
+              "bytes": "33 d2",
+              "value": 0
+            }
+          ]
+        },
+        "1": {
+          "name": "float",
+          "label": "Number",
+          "status": "observed",
+          "entries": 548,
+          "definitions": 295,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874c16"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874c16",
+              "bytes": "48 8d 15 b3 a4 26 00",
+              "string": {
+                "address": "0x140adf0d0",
+                "text": "float"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874c2d",
+              "bytes": "ba 01 00 00 00",
+              "value": 1
+            }
+          ]
+        },
+        "2": {
+          "name": "torque",
+          "label": "Mechanical power",
+          "status": "observed",
+          "entries": 111,
+          "definitions": 96,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874c45"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874c45",
+              "bytes": "48 8d 15 0c df 2e 00",
+              "string": {
+                "address": "0x140b62b58",
+                "text": "torque"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874c5c",
+              "bytes": "ba 02 00 00 00",
+              "value": 2
+            }
+          ]
+        },
+        "3": {
+          "name": "water",
+          "label": "Fluid",
+          "status": "observed",
+          "entries": 247,
+          "definitions": 126,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874c74"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874c74",
+              "bytes": "48 8d 15 11 87 2f 00",
+              "string": {
+                "address": "0x140b6d38c",
+                "text": "water"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874c8b",
+              "bytes": "ba 03 00 00 00",
+              "value": 3
+            }
+          ]
+        },
+        "4": {
+          "name": "electric",
+          "label": "Electric",
+          "status": "observed",
+          "entries": 254,
+          "definitions": 251,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874ca3"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874ca3",
+              "bytes": "48 8d 15 96 75 27 00",
+              "string": {
+                "address": "0x140aec240",
+                "text": "electric"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874cba",
+              "bytes": "ba 04 00 00 00",
+              "value": 4
+            }
+          ]
+        },
+        "5": {
+          "name": "composite",
+          "label": "Composite",
+          "status": "observed",
+          "entries": 111,
+          "definitions": 78,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874cd2"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874cd2",
+              "bytes": "48 8d 15 0f 77 27 00",
+              "string": {
+                "address": "0x140aec3e8",
+                "text": "composite"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874ce9",
+              "bytes": "ba 05 00 00 00",
+              "value": 5
+            }
+          ]
+        },
+        "6": {
+          "name": "video",
+          "label": "Video",
+          "status": "observed",
+          "entries": 55,
+          "definitions": 40,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874d01"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874d01",
+              "bytes": "48 8d 15 14 c1 27 00",
+              "string": {
+                "address": "0x140af0e1c",
+                "text": "video"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874d18",
+              "bytes": "ba 06 00 00 00",
+              "value": 6
+            }
+          ]
+        },
+        "7": {
+          "name": "audio",
+          "label": "Audio",
+          "status": "observed",
+          "entries": 40,
+          "definitions": 22,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874d30"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874d30",
+              "bytes": "48 8d 15 1d c1 27 00",
+              "string": {
+                "address": "0x140af0e54",
+                "text": "audio"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874d47",
+              "bytes": "ba 07 00 00 00",
+              "value": 7
+            }
+          ]
+        },
+        "8": {
+          "name": "rope",
+          "label": "Rope",
+          "status": "observed",
+          "entries": 26,
+          "definitions": 20,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874d5f"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874d5f",
+              "bytes": "48 8d 15 0a c1 27 00",
+              "string": {
+                "address": "0x140af0e70",
+                "text": "rope"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874d76",
+              "bytes": "ba 08 00 00 00",
+              "value": 8
+            }
+          ]
+        }
+      }
+    },
+    "logic_orientation": {
+      "title": "Logic node orientation",
+      "element": "logic_node",
+      "attribute": "orientation",
+      "field": "logic node +0x2c",
+      "default": 0,
+      "note": "Local axis of the component, not a compass bearing.",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140874d8e"
+      },
+      "absent": {
+        "entries": 939,
+        "definitions": 333
+      },
+      "anchors": [
+        {
+          "address": "0x14087f535",
+          "bytes": "41 8b 4c 00 2c",
+          "meaning": "The orientation selector getter reads node +0x2c."
+        },
+        {
+          "address": "0x14087f565",
+          "bytes": "45 89 4c 00 2c",
+          "meaning": "The orientation selector setter writes node +0x2c."
+        }
+      ],
+      "values": {
+        "0": {
+          "name": "x+",
+          "label": "x+",
+          "status": "observed",
+          "entries": 621,
+          "definitions": 209,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874dd1"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874dd1",
+              "bytes": "48 8d 15 ec a3 2f 00",
+              "string": {
+                "address": "0x140b6f1c4",
+                "text": "x+"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874de8",
+              "bytes": "33 d2",
+              "value": 0
+            }
+          ]
+        },
+        "1": {
+          "name": "x-",
+          "label": "x-",
+          "status": "observed",
+          "entries": 25,
+          "definitions": 13,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874e00"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e00",
+              "bytes": "48 8d 15 b9 a3 2f 00",
+              "string": {
+                "address": "0x140b6f1c0",
+                "text": "x-"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874e17",
+              "bytes": "ba 01 00 00 00",
+              "value": 1
+            }
+          ]
+        },
+        "2": {
+          "name": "y+",
+          "label": "y+",
+          "status": "observed",
+          "entries": 86,
+          "definitions": 63,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874e32"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e32",
+              "bytes": "48 8d 15 ab a3 2f 00",
+              "string": {
+                "address": "0x140b6f1e4",
+                "text": "y+"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874e49",
+              "bytes": "ba 02 00 00 00",
+              "value": 2
+            }
+          ]
+        },
+        "3": {
+          "name": "y-",
+          "label": "y-",
+          "status": "observed",
+          "entries": 141,
+          "definitions": 130,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874e64"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e64",
+              "bytes": "48 8d 15 75 a3 2f 00",
+              "string": {
+                "address": "0x140b6f1e0",
+                "text": "y-"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874e7b",
+              "bytes": "ba 03 00 00 00",
+              "value": 3
+            }
+          ]
+        },
+        "4": {
+          "name": "z+",
+          "label": "z+",
+          "status": "observed",
+          "entries": 68,
+          "definitions": 48,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874e93"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e93",
+              "bytes": "48 8d 15 2e a3 2f 00",
+              "string": {
+                "address": "0x140b6f1c8",
+                "text": "z+"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874eaa",
+              "bytes": "ba 04 00 00 00",
+              "value": 4
+            }
+          ]
+        },
+        "5": {
+          "name": "z-",
+          "label": "z-",
+          "status": "observed",
+          "entries": 27,
+          "definitions": 22,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874ec2"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874ec2",
+              "bytes": "48 8d 15 1f a3 2f 00",
+              "string": {
+                "address": "0x140b6f1e8",
+                "text": "z-"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x14087523e",
+              "bytes": "ba 05 00 00 00",
+              "value": 5
+            }
+          ]
+        }
+      }
+    },
+    "coupling_gender": {
+      "title": "Coupling gender",
+      "element": "coupling",
+      "attribute": "coupling_gender",
+      "field": "coupling +0x58",
+      "default": 0,
+      "note": "The labels alone do not establish which couplings fit together.",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140874fd8"
+      },
+      "absent": {
+        "entries": 31,
+        "definitions": 17
+      },
+      "anchors": [
+        {
+          "address": "0x1402f7ea4",
+          "bytes": "4c 8d 4b 58",
+          "meaning": "The coupling reader passes coupling +0x58 to the gender reader."
+        },
+        {
+          "address": "0x14093c824",
+          "bytes": "33 c0 41 89 07",
+          "meaning": "An absent coupling_gender attribute stores 0."
+        },
+        {
+          "address": "0x14087f356",
+          "bytes": "41 8b 4c 01 58",
+          "meaning": "The gender selector getter reads coupling +0x58."
+        },
+        {
+          "address": "0x14087f386",
+          "bytes": "45 89 54 01 58",
+          "meaning": "The gender selector setter writes coupling +0x58."
+        }
+      ],
+      "values": {
+        "0": {
+          "name": "any",
+          "label": "Any",
+          "status": "observed",
+          "entries": 174,
+          "definitions": 73,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140874fd8"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874fd8",
+              "bytes": "48 8d 15 2d c4 29 00",
+              "string": {
+                "address": "0x140b1140c",
+                "text": "any"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874fef",
+              "bytes": "33 d2",
+              "value": 0
+            }
+          ]
+        },
+        "1": {
+          "name": "male",
+          "label": "Male",
+          "status": "observed",
+          "entries": 14,
+          "definitions": 14,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140875004"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140875004",
+              "bytes": "48 8d 15 71 ba 28 00",
+              "string": {
+                "address": "0x140b00a7c",
+                "text": "male"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x14087501b",
+              "bytes": "ba 01 00 00 00",
+              "value": 1
+            }
+          ]
+        },
+        "2": {
+          "name": "female",
+          "label": "Female",
+          "status": "observed",
+          "entries": 65,
+          "definitions": 26,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140875033"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140875033",
+              "bytes": "48 8d 15 92 ba 28 00",
+              "string": {
+                "address": "0x140b00acc",
+                "text": "female"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x14087504a",
+              "bytes": "ba 02 00 00 00",
+              "value": 2
+            }
+          ]
+        }
+      }
+    },
+    "coupling_orientation": {
+      "title": "Coupling orientation",
+      "element": "coupling",
+      "attribute": "orientation",
+      "field": "coupling +0x0c",
+      "default": 0,
+      "note": "Six cases build the coupling basis. No selector names them directly, so the axis labels are an inference and the wiki keeps the raw code.",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402f7da7"
+      },
+      "absent": {
+        "entries": 8,
+        "definitions": 8
+      },
+      "anchors": [
+        {
+          "address": "0x1402f7da7",
+          "bytes": "4c 8d 4b 0c",
+          "meaning": "The coupling reader passes coupling +0x0c to the orientation reader."
+        },
+        {
+          "address": "0x1402f7ef6",
+          "bytes": "8b 4b 0c e8 22 00 00 00",
+          "meaning": "The orientation is passed to the basis routine at 0x1402f7f20."
+        }
+      ],
+      "values": {
+        "0": {
+          "name": null,
+          "label": null,
+          "candidate": "x+",
+          "status": "inferred",
+          "entries": 28,
+          "definitions": 22,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f7da7"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874dd1",
+              "bytes": "48 8d 15 ec a3 2f 00",
+              "string": {
+                "address": "0x140b6f1c4",
+                "text": "x+"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874de8",
+              "bytes": "33 d2",
+              "value": 0
+            }
+          ]
+        },
+        "1": {
+          "name": null,
+          "label": null,
+          "candidate": "x-",
+          "status": "inferred",
+          "entries": 46,
+          "definitions": 40,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f7da7"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e00",
+              "bytes": "48 8d 15 b9 a3 2f 00",
+              "string": {
+                "address": "0x140b6f1c0",
+                "text": "x-"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874e17",
+              "bytes": "ba 01 00 00 00",
+              "value": 1
+            }
+          ]
+        },
+        "2": {
+          "name": null,
+          "label": null,
+          "candidate": "y+",
+          "status": "inferred",
+          "entries": 42,
+          "definitions": 42,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f7da7"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e32",
+              "bytes": "48 8d 15 ab a3 2f 00",
+              "string": {
+                "address": "0x140b6f1e4",
+                "text": "y+"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874e49",
+              "bytes": "ba 02 00 00 00",
+              "value": 2
+            }
+          ]
+        },
+        "3": {
+          "name": null,
+          "label": null,
+          "candidate": "y-",
+          "status": "inferred",
+          "entries": 87,
+          "definitions": 87,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f7da7"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e64",
+              "bytes": "48 8d 15 75 a3 2f 00",
+              "string": {
+                "address": "0x140b6f1e0",
+                "text": "y-"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874e7b",
+              "bytes": "ba 03 00 00 00",
+              "value": 3
+            }
+          ]
+        },
+        "4": {
+          "name": null,
+          "label": null,
+          "candidate": "z+",
+          "status": "inferred",
+          "entries": 35,
+          "definitions": 30,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f7da7"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874e93",
+              "bytes": "48 8d 15 2e a3 2f 00",
+              "string": {
+                "address": "0x140b6f1c8",
+                "text": "z+"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x140874eaa",
+              "bytes": "ba 04 00 00 00",
+              "value": 4
+            }
+          ]
+        },
+        "5": {
+          "name": null,
+          "label": null,
+          "candidate": "z-",
+          "status": "inferred",
+          "entries": 38,
+          "definitions": 33,
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f7da7"
+          },
+          "evidence": [
+            {
+              "kind": "selector-label",
+              "address": "0x140874ec2",
+              "bytes": "48 8d 15 1f a3 2f 00",
+              "string": {
+                "address": "0x140b6f1e8",
+                "text": "z-"
+              }
+            },
+            {
+              "kind": "selector-value",
+              "address": "0x14087523e",
+              "bytes": "ba 05 00 00 00",
+              "value": 5
+            }
+          ]
+        }
+      }
+    }
+  },
+  "summary": {
+    "schemaVersion": 1,
+    "enumCount": 6,
+    "namedValues": 36,
+    "inferredValues": 6,
+    "report": "investigation/numeric-codes.md",
+    "policy": "Names come from executable control flow, not from the XML files. Raw codes stay in blocks.json. observed: the cited instruction, jump-table slot and string were re-read at their addresses in the analysed executable. inferred: the value is not named directly; the wiki shows the raw code.",
+    "readableLabels": "Logic type labels On/off, Number, Mechanical power and Fluid are readable wording for the native labels bool, float, torque and water. Other labels repeat the native string.",
+    "defaults": "Every loader stores 0 when the attribute is absent. An absent attribute is still shown as absent; the default is shown next to it.",
+    "unknownValues": "A value missing from this table is shown as its raw code and marked unknown. Category values above 15 read Uncategorised in the game.",
+    "limitations": [
+      "Addresses and names apply only to the executable with the recorded hash.",
+      "Static analysis only. No game process was run.",
+      "Input and output name the logic connection role, not the direction of fluid or mechanical power.",
+      "Coupling type is a literal string key. Neither it nor coupling gender establishes which couplings fit together."
+    ],
+    "inputs": [
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699"
+      },
+      {
+        "path": "investigation/native/numeric-codes/codes.json",
+        "sha256": "fee9f055b06c9c3444c0d2f611db5408d6d3a3f80355533f2ef1eaf5c18f9846"
+      },
+      {
+        "path": "wiki/data/blocks.json",
+        "sha256": "6e5b72afd909f33d705fedfd41241ab6a11e6d3feedfee17e984d1c26ad37d4c"
+      }
+    ]
+  }
+}

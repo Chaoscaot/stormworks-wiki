@@ -24,7 +24,8 @@ export default function PartsIndex() {
         <p>
           {d.families.length} part articles grouped by category. A part with several sizes, such as a heat exchanger or a battery, has one article
           that explains it and compares the sizes. The categories and family groupings are editorial choices by the research. They are not the
-          game's own category codes.
+          game's own editor categories, which each component page shows as "Game category" and the{' '}
+          <Link href="/components">component list</Link> can filter by.
         </p>
         {d.familiesSummary?.groupingPolicy ? <p className="muted">Grouping policy: {d.familiesSummary.groupingPolicy}</p> : null}
       </div>

@@ -28,7 +28,7 @@ BASE_FIELDS = [
      "meaning": "Count of source voxel entries. This is not a physical dimension, volume or heat-transfer area."},
 ]
 COMMON_LIMITS = [
-    "Family membership and category are editorial. They do not decode the game's numeric category enum.",
+    "Family membership and this article's category are editorial. The game's own definition category is a separate field, decoded from the executable in the numeric component codes investigation (investigation/numeric-codes.md).",
     "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
     "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
     "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
@@ -394,7 +394,7 @@ def build(root):
         "multiVariantFamilyCount": sum(len(f["variants"]) > 1 for f in families),
         "findingCount": sum(len(f["findings"]) for f in families),
         "sourceCount": len(blocks), "categories": dict(sorted(Counter(f["category"] for f in families).items())),
-        "groupingPolicy": "Explicit editorial membership and reviewed structural series, with conservative singleton fallback. Numeric game category enums are not used.",
+        "groupingPolicy": "Explicit editorial membership and reviewed structural series, with conservative singleton fallback. The game's definition category does not drive grouping; wiki/data/codes.json decodes it separately.",
         "comparisonPolicy": "Dot paths resolve against wiki/data/blocks.json by variant.id; findings retain exact original-file evidence. No duplicated comparison matrix is stored.",
         "evidencePolicy": "Observed means present in a supplied resource, not observed gameplay. resource: IDs identify local file evidence and are independent of native REA sessions.",
         "inputs": [{"path": "wiki/data/blocks.json", "sha256": digest(catalogue_bytes)}],

@@ -1,7 +1,7 @@
 // Data-layer checks against the real generated JSON in data/.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { constantsForBlock, findingsForBlock, getBlock, getData, resolveKey } from '../../lib/data.js';
+import { constantsForBlock, decode, findingsForBlock, getBlock, getData, hayForBlock, resolveKey } from '../../lib/data.js';
 
 const d = getData();
 
@@ -40,4 +40,24 @@ test('resolveKey keeps absent apart from present values', () => {
   assert.deepEqual(resolveKey(b, 'attributes.no_such_field'), { present: false });
   assert.equal(resolveKey(b, 'logic.length').value, b.logic.length);
   assert.equal(resolveKey(b, 'mass').present, true);
+});
+
+test('every component carries its decoded game category next to the raw code', () => {
+  for (const b of d.blocks) {
+    assert.equal(b.gameCategory.present, b.category !== null, b.id);
+    if (b.category !== null) {
+      assert.equal(b.gameCategory.raw, b.category, b.id);
+      assert.ok(b.gameCategory.decoded, b.id);
+    }
+  }
+  const absent = d.blocks.filter((b) => b.category === null);
+  assert.equal(absent.length, d.codes.get('category').absent.entries);
+  assert.ok(absent.every((b) => b.gameCategory.default?.label === 'Blocks'));
+});
+
+test('game category is searchable and separate from the editorial family category', () => {
+  const b = d.blocks.find((x) => x.gameCategory.label === 'Modular Engines');
+  assert.ok(b);
+  assert.ok(hayForBlock(b).includes('modular engines (13)'));
+  assert.equal(decode('logic_mode', '0').label, 'Output');
 });

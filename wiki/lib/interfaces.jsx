@@ -1,15 +1,24 @@
 // Row builders for interface tables. Plain functions, so the page decides citation order.
 import Link from 'next/link';
 import { Cite, RawValue, Stamp } from '@/components/wiki.jsx';
-import { findingsForBlock, getBlock, incomingRefs, REF_KEYS } from '@/lib/data.js';
+import { codeTable, decode, findingsForBlock, getBlock, incomingRefs, REF_KEYS } from '@/lib/data.js';
+import { codeText, nameWithCode } from '@/lib/codes.js';
 import { humanKey, plain } from '@/lib/format.js';
 import { groupLogicNodes } from '@/lib/logic-groups.js';
 
 const PORT_SHOWN = new Set(['label', 'name', 'description', 'type', 'mode', 'tag', 'attributes', 'children']);
 const COUPLING_SHOWN = new Set(['coupling_name', 'coupling_type', 'coupling_gender', 'tag', 'attributes', 'children']);
 
-const code = (p, key, absent) =>
-  p[key] === undefined || p[key] === null || p[key] === '' ? <span className="muted">{absent}</span> : <code>{`${key} ${p[key]}`}</code>;
+/* A numeric code with its decoded name: "Fluid (water, 3)". An absent attribute stays absent, with the game's default beside it. */
+export function CodeValue({ d }) {
+  if (!d.present) {
+    return <span className="muted">Not in file{d.default ? `, read as ${nameWithCode(d.default.label, d.default.name, d.default.raw)}` : ''}</span>;
+  }
+  if (d.decoded) return <>{codeText(d)}</>;
+  return <><code>{d.raw}</code> <span className="muted">{d.status === 'inferred' ? 'raw code, not named' : 'unknown code'}</span></>;
+}
+
+const codeLine = (label, d) => <>{label}: <CodeValue d={d} /></>;
 
 const variantName = (v) => v.sizeLabel || v.block.name;
 
@@ -41,14 +50,18 @@ export function logicRows(variants, cite) {
     const p = g.node;
     const vlist = [...new Set(g.entries.map((e) => e.variant))];
     const which = whichVariants(vlist, variants);
-    const meta = variants.length === 1 ? Object.entries(p).filter(([k, val]) => !PORT_SHOWN.has(k) && val !== undefined && val !== '') : [];
+    const meta = variants.length === 1
+      ? Object.entries(p)
+        .filter(([k, val]) => !PORT_SHOWN.has(k) && val !== undefined && val !== '')
+        .map(([k, val]) => (k === 'orientation' ? [k, codeText(decode('logic_orientation', val))] : [k, val]))
+      : [];
     const row = [
       <>
         <span className="pin pin-logic" aria-hidden="true" />
         {norm(p.label) || <span className="muted">No label</span>}
         {g.multiplicity > 1 ? <span className="meta">Node {g.occurrence} of {g.multiplicity} with this label</span> : null}
       </>,
-      <>{code(p, 'mode', 'no mode attribute')}<br />{code(p, 'type', 'no type attribute')}</>,
+      <>{codeLine('Mode', decode('logic_mode', p.mode))}<br />{codeLine('Type', decode('logic_type', p.type))}</>,
       <>{norm(p.description) || <span className="muted">No description in file</span>}<Meta entries={meta} /></>,
     ];
     if (variants.length > 1) row.push(which);
@@ -64,7 +77,7 @@ export function couplingRows(variants, cite) {
       const extra = Object.entries(c).filter(([k, val]) => !COUPLING_SHOWN.has(k) && val !== undefined && val !== '');
       const row = [
         <><span className="pin pin-coupling" aria-hidden="true" />{c.coupling_name ? <>Endpoint <code>{c.coupling_name}</code></> : `Coupling ${i + 1}`}</>,
-        <>{code(c, 'coupling_type', 'no type')}<br />{code(c, 'coupling_gender', 'no gender attribute')}</>,
+        <>Type: {c.coupling_type ? <code>{c.coupling_type}</code> : <span className="muted">Not in file</span>}<br />{codeLine('Gender', decode('coupling_gender', c.coupling_gender))}</>,
         <Meta entries={extra} />,
       ];
       if (variants.length > 1) row.push(variantName(v));
@@ -105,18 +118,33 @@ export function referenceRows(variants, cite) {
   return rows;
 }
 
+export const LOGIC_KIND = 'Mode and type';
+export const COUPLING_KIND = 'Type and gender';
+
 export const interfaceCols = (variants, kindCol) => [
   'Connection', kindCol, 'Details', ...(variants.length > 1 ? ['Variants'] : []), 'Source',
 ];
 
-export function InterfaceCaveat() {
+/* Citation numbers for the code tables used on a page. Call before the row builders so references stay in reading order. */
+export function codeCitations(keys, cite) {
+  return keys
+    .map((k) => codeTable(k))
+    .filter((t) => t?.source)
+    .map((t) => [t.title, cite(t.source, { status: 'observed', note: `${t.title} names, read from the executable` })]);
+}
+
+export function InterfaceCaveat({ cites = [] }) {
   return (
     <p className="hint">
-      Mode, type, gender and orientation are raw codes copied from the files. The extractor does not decode them, and neither does
-      this wiki. Mode is not a dependable flow direction. The{' '}
+      Mode, type and gender names come from the game executable{cites.map(([title, n]) => <Cite key={title} n={n} />)}. The number in
+      brackets is the code stored in the file. Four logic types have readable names with the game's label after them, so
+      Fluid (water, 3) is the game's <code>water</code> type, which carries every fluid. Logic orientation names a local axis of the
+      component. Coupling orientation stays a raw code, because the game does not name it directly.{' '}
+      <Link href="/provenance#numeric-codes">All decoded codes</Link>.
+      Mode is the logic connection role, not a dependable flow direction. The{' '}
       <Link href="/components/air_exchanger">Air-Liquid Heat Exchanger 1x2</Link>, for example, gives its in and out ports the same
-      mode 1, so read the description. A coupling endpoint name belongs to its own component and is not another component's ID.
-      None of these tables say which parts fit together.
+      mode, Input (1), so read the description. A coupling endpoint name belongs to its own component and is not another component's ID.
+      Coupling type is a literal key. None of these tables say which parts fit together.
     </p>
   );
 }

@@ -2,6 +2,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { first, fold, isObj, isEmpty, num, textOf } from './format.js';
+import { codeText, decodeCode, normaliseCodes } from './codes.js';
 import { hasBehavior, normaliseBehavior, normaliseImages } from './enrichment.js';
 
 // Paths stay statically scoped to data/ so output tracing copies only that folder.
@@ -126,7 +127,8 @@ function normaliseFamilies(raw, blocks, byId) {
     families.push({
       id,
       title: b.name,
-      category: b.category === null ? 'No category code' : `Category code ${b.category}`,
+      // Without families.json there is no editorial grouping, so fall back to the game's own category.
+      category: b.category === null ? 'No game category in file' : `Game category ${codeText(b.gameCategory)}`,
       summary: '',
       body: '',
       sections: [],
@@ -155,11 +157,15 @@ function load() {
   // Optional enrichment. A missing file gives empty maps, so pages render without it.
   const imagesRaw = readJson('images.json');
   const behaviorRaw = readJson('behavior.json');
+  const codesRaw = readJson('codes.json');
+  const codes = normaliseCodes(codesRaw);
   const images = normaliseImages(imagesRaw, publicFileExists);
   const behavior = normaliseBehavior(behaviorRaw);
   const blocks = (Array.isArray(blocksRaw?.blocks) ? blocksRaw.blocks : Array.isArray(blocksRaw) ? blocksRaw : [])
     .filter(isObj)
     .map(normaliseBlock);
+  // The game's own category, decoded next to the raw code. Separate from the editorial family category.
+  blocks.forEach((b) => { b.gameCategory = decodeCode(codes, 'category', b.category); });
   const byId = new Map(blocks.map((b) => [b.id, b]));
   // native.json shares the mechanics schema. Its records keep origin 'native' so pages can tell
   // executable code observations apart from shipped-file readings.
@@ -210,6 +216,8 @@ function load() {
     imagesFromFile: !!imagesRaw,
     behavior,
     behaviorFromFile: !!behaviorRaw,
+    codes,
+    codesSummary: isObj(codesRaw?.summary) ? codesRaw.summary : null,
   };
   return cache;
 }
@@ -239,6 +247,10 @@ export const behaviorForCategory = (category) => {
   const b = load().behavior.categories.get(category);
   return hasBehavior(b) ? b : null;
 };
+
+/* Decoded name for one numeric code, for example decode('logic_type', '3'). See lib/codes.js. */
+export const decode = (key, value) => decodeCode(load().codes, key, value);
+export const codeTable = (key) => load().codes.get(key) ?? null;
 
 export const getArticle = (id) => load().articles.find((a) => a.id === id) ?? null;
 
@@ -277,7 +289,7 @@ export function resolveKey(block, key) {
 
 export function hayForBlock(b) {
   return fold(
-    [b.name, b.id, b.short, b.long, b.category, b.tags.join(' '), b.logic.map((p) => `${p.label} ${p.description || ''}`).join(' '),
+    [b.name, b.id, b.short, b.long, b.category, codeText(b.gameCategory), b.tags.join(' '), b.logic.map((p) => `${p.label} ${p.description || ''}`).join(' '),
       b.couplings.map((c) => c.coupling_type).join(' '), b.source?.path].join(' '),
   );
 }

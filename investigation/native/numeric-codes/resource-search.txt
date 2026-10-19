@@ -1,0 +1,35 @@
+Search boundary: sdk/**/*.xml, sdk/**/*.txt, sdk/**/*.md, sdk/**/*.lua and rom/**/*.lua. Definitions scanned separately by scan.py. No files modified.
+sdk: 1 files in search boundary
+rom: 26 files in search boundary
+
+Wiki raw-code declarations
+wiki/README.md:34: A finding or constant links to a component only when its `source.path` and `source.sha256` both match that component's definition. Raw codes (category, logic mode, logic type, coupling gender) are shown undecoded. Absent attributes read "Not in file", which is different from empty or zero. No units are shown unless the data states one.
+wiki/lib/interfaces.jsx:115: Mode, type, gender and orientation are raw codes copied from the files. The extractor does not decode them, and neither does
+wiki/lib/interfaces.jsx:116: this wiki. Mode is not a dependable flow direction. The{' '}
+wiki/app/components/[id]/page.jsx:62: ['Category code', <RawField present={has('category')} value={r.category} />, 'Raw category code, not decoded'],
+wiki/app/components/[id]/page.jsx:99: c ? { text: c.raw.description || '' } : { text: 'Not decoded', muted: true },
+wiki/app/components/[id]/page.jsx:194: <WikiTable hideCaption id="logic-t" caption="Logic nodes" cols={interfaceCols(vs, 'Raw codes')} rows={logic} cards />
+wiki/app/components/[id]/page.jsx:199: <WikiTable hideCaption id="coupling-t" caption="Physical couplings" cols={interfaceCols(vs, 'Raw codes')} rows={couplings} cards />
+wiki/app/parts/[familyId]/page.jsx:316: <WikiTable hideCaption id="logic-t" caption="Logic nodes" cols={interfaceCols(vs, 'Raw codes')} rows={logic} cards />
+wiki/app/parts/[familyId]/page.jsx:321: <WikiTable hideCaption id="coupling-t" caption="Physical couplings" cols={interfaceCols(vs, 'Raw codes')} rows={couplings} cards />
+wiki/app/parts/[familyId]/page.jsx:398: <li>Raw codes such as category, logic mode and logic type are shown undecoded.</li>
+
+Resource examples. Original file digests are in definition-manifest.json.
+rom/data/definitions/air_exchanger.xml:69: <logic_node orientation="5" label="Air In" mode="1" type="3" description="Input air port.">
+rom/data/definitions/air_exchanger.xml:72: <logic_node orientation="4" label="Air Out" mode="1" type="3" description="Output air port.">
+rom/data/definitions/air_exchanger.xml:75: <logic_node orientation="2" label="Fluid In" mode="1" type="3" description="Input fluid port.">
+rom/data/definitions/air_exchanger.xml:78: <logic_node orientation="2" label="Fluid Out" mode="1" type="3" description="Output fluid port.">
+rom/data/definitions/air_exchanger.xml:81: <logic_node label="Temp A" type="1" description="Compartment air temperature.">
+rom/data/definitions/air_exchanger.xml:84: <logic_node label="Temp B" type="1" description="Compartment water temperature.">
+rom/data/definitions/engine_diesel.xml:423: <logic_node label="Throttle" mode="1" type="1" description="Standard value between 0 and 1 that controls the throttle of the engine.">
+rom/data/definitions/engine_diesel.xml:426: <logic_node label="Starter" mode="1" description="Increases the engine RPS using electrical power to start up the engine.">
+rom/data/definitions/engine_diesel.xml:429: <logic_node orientation="5" label="RPS" type="2" description="The power supplied by the engine for inputting to other components.">
+rom/data/definitions/engine_diesel.xml:432: <logic_node orientation="4" label="Fuel" mode="1" type="3" description="The fuel supply for the engine." flags="2">
+rom/data/definitions/engine_diesel.xml:435: <logic_node orientation="4" label="Air" mode="1" type="3" description="The air supply for the engine." flags="2">
+rom/data/definitions/engine_diesel.xml:438: <logic_node orientation="4" label="In Coolant" mode="1" type="3" description="The return flow (cold) for the coolant system." flags="2">
+rom/data/definitions/engine_diesel.xml:441: <logic_node orientation="4" label="Out Coolant" type="3" description="The output flow (hot) for the coolant system." flags="2">
+rom/data/definitions/engine_diesel.xml:444: <logic_node orientation="4" label="Exhaust" type="3" description="Out flow for combusted fumes from the engine." flags="2">
+rom/data/definitions/engine_diesel.xml:447: <logic_node orientation="4" label="Exhaust" type="3" description="Out flow for combusted fumes from the engine." flags="2">
+rom/data/definitions/engine_diesel.xml:450: <logic_node label="RPS" type="1" description="Output value giving data info on engine speed." flags="2">
+rom/data/definitions/engine_diesel.xml:453: <logic_node label="Temperature" type="1" description="Output value giving data info on engine temperature." flags="2">
+rom/data/definitions/engine_diesel.xml:456: <logic_node label="Electric" mode="1" type="4" description="Electrical power connection.">

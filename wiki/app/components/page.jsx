@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { ArticleHeader, Pager } from '@/components/wiki.jsx';
 import { Thumb } from '@/components/media.jsx';
-import { familyForBlock, getData, hayForBlock, imageFor } from '@/lib/data.js';
+import { codeTable, familyForBlock, getData, hayForBlock, imageFor } from '@/lib/data.js';
+import { codeText, nameWithCode } from '@/lib/codes.js';
 import { fmtNum, matchesAll, terms } from '@/lib/format.js';
 import { hrefWith, param } from '@/lib/query.js';
 
@@ -20,18 +21,28 @@ export default async function ComponentsIndex({ searchParams }) {
   const d = getData();
   const q = param(sp, 'q');
   const cat = param(sp, 'cat');
+  // Game category code, or "none" for definitions without the attribute.
+  const gcat = param(sp, 'gcat');
   const logic = param(sp, 'logic') === '1';
   const sort = SORTS[param(sp, 'sort')] ? param(sp, 'sort') : 'name';
   const t = terms(q);
   const rows = d.blocks
     .map((b) => ({ b, f: familyForBlock(b.id) }))
-    .filter(({ b, f }) => (!cat || f?.category === cat) && (!logic || b.logic.length) && matchesAll(hayForBlock(b), t))
+    .filter(({ b, f }) => (!cat || f?.category === cat) && (!gcat || (gcat === 'none' ? b.category === null : b.gameCategory.present && b.gameCategory.raw === gcat))
+      && (!logic || b.logic.length) && matchesAll(hayForBlock(b), t))
     .sort((x, y) => SORTS[sort][1](x.b, y.b));
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const page = Math.min(pages, Math.max(1, parseInt(param(sp, 'page', '1'), 10) || 1));
   const shown = rows.slice((page - 1) * PAGE, page * PAGE);
   const cats = [...new Set(d.families.map((f) => f.category))].sort();
-  const state = { q, cat, logic: logic ? '1' : '', sort: sort === 'name' ? '' : sort };
+  const gameCats = [...(codeTable('category')?.values ?? new Map())]
+    .map(([raw, v]) => [raw, v.label ? nameWithCode(v.label, v.name, raw) : `Code ${raw}`])
+    .sort((a, b) => Number(a[0]) - Number(b[0]));
+  // Explicit codes the table does not name still get an option, so no definition becomes unreachable.
+  d.blocks.forEach(({ gameCategory: g }) => {
+    if (g.present && !gameCats.some(([raw]) => raw === g.raw)) gameCats.push([g.raw, codeText(g)]);
+  });
+  const state = { q, cat, gcat, logic: logic ? '1' : '', sort: sort === 'name' ? '' : sort };
 
   return (
     <article className="wiki-article">
@@ -49,11 +60,21 @@ export default async function ComponentsIndex({ searchParams }) {
           <span id="f-q-hint" className="hint">Matches names, tooltips, logic node labels, coupling types and file paths.</span>
         </div>
         <div className="field">
-          <label htmlFor="f-cat">Part category</label>
-          <select id="f-cat" name="cat" defaultValue={cat}>
-            <option value="">All categories</option>
+          <label htmlFor="f-cat">Wiki grouping</label>
+          <select id="f-cat" name="cat" defaultValue={cat} aria-describedby="f-cat-hint">
+            <option value="">All groupings</option>
             {cats.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+          <span id="f-cat-hint" className="hint">The research's part article groups.</span>
+        </div>
+        <div className="field">
+          <label htmlFor="f-gcat">Game category</label>
+          <select id="f-gcat" name="gcat" defaultValue={gcat} aria-describedby="f-gcat-hint">
+            <option value="">All game categories</option>
+            {gameCats.map(([raw, label]) => <option key={raw} value={raw}>{label}</option>)}
+            <option value="none">Not in file</option>
+          </select>
+          <span id="f-gcat-hint" className="hint">The editor category stored in each file, named from the executable.</span>
         </div>
         <div className="field">
           <label htmlFor="f-sort">Sort</label>
@@ -67,7 +88,7 @@ export default async function ComponentsIndex({ searchParams }) {
         </div>
         <div className="field actions">
           <button type="submit">Apply</button>
-          {q || cat || logic || sort !== 'name' ? <Link href="/components">Clear</Link> : null}
+          {q || cat || gcat || logic || sort !== 'name' ? <Link href="/components">Clear</Link> : null}
         </div>
       </form>
       <p className="result-count" role="status">
@@ -78,7 +99,7 @@ export default async function ComponentsIndex({ searchParams }) {
           <table className="wikitable cards list-table">
             <caption id="list-cap">Components, sorted by {SORTS[sort][0].toLowerCase()}</caption>
             <thead>
-              <tr><th scope="col">Component</th><th scope="col">Part article</th><th scope="col">Mass</th><th scope="col">Value</th><th scope="col">Logic nodes</th></tr>
+              <tr><th scope="col">Component</th><th scope="col">Part article</th><th scope="col">Game category</th><th scope="col">Mass</th><th scope="col">Value</th><th scope="col">Logic nodes</th></tr>
             </thead>
             <tbody>
               {shown.map(({ b, f }) => (
@@ -93,6 +114,7 @@ export default async function ComponentsIndex({ searchParams }) {
                     </span>
                   </th>
                   <td data-label="Part article">{f ? <Link href={`/parts/${encodeURIComponent(f.id)}`}>{f.title}</Link> : null}</td>
+                  <td data-label="Game category">{b.gameCategory.present ? codeText(b.gameCategory) : <span className="muted">Not in file</span>}</td>
                   <td data-label="Mass" className="n">{b.mass ?? <span className="muted">Not in file</span>}</td>
                   <td data-label="Value" className="n">{b.value ?? <span className="muted">Not in file</span>}</td>
                   <td data-label="Logic nodes" className="n">{b.logic.length}</td>

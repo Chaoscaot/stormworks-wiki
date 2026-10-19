@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArticleHeader, EvidenceLegend, RawValue, Section, SourcePath, Toc, WikiTable } from '@/components/wiki.jsx';
+import { ArticleHeader, EvidenceLegend, RawValue, Section, SourcePath, Stamp, Toc, WikiTable } from '@/components/wiki.jsx';
 import { getData } from '@/lib/data.js';
 import { fmtNum, humanKey, statusLabel } from '@/lib/format.js';
 
@@ -43,6 +43,7 @@ export default function Provenance() {
     ['Component extraction', d.blocksSummary.limitations],
     ['Mechanics research', d.mechanicsSummary.limitations],
     ...nativeArticles.map((a) => [`Executable analysis: ${a.title}`, a.limitations]),
+    ['Numeric codes', d.codesSummary?.limitations],
   ].filter(([, l]) => Array.isArray(l) && l.length);
 
   return (
@@ -58,6 +59,7 @@ export default function Provenance() {
       <Toc items={[
         { id: 'build', title: 'Game build' },
         { id: 'datasets', title: 'Data sets' },
+        d.codes.size && { id: 'numeric-codes', title: 'Numeric codes' },
         { id: 'labels', title: 'Evidence labels' },
         { id: 'coverage', title: 'Coverage' },
         d.imagesFromFile && { id: 'images', title: 'Component images' },
@@ -89,6 +91,7 @@ export default function Provenance() {
           ...(ns ? [['native.json', 'Code observations from static analysis of the game executable', `${nativeArticles.length} articles, ${d.constants.filter((c) => c.origin === 'native').length} constants`]] : []),
           ['images.json', 'Component images and where each came from', d.imagesFromFile ? `${fmtNum(d.images.size)} images with a file in public/` : 'Not present, so pages show no images'],
           ['behavior.json', 'Behaviour write-ups per category and per family, with sources and limitations', d.behaviorFromFile ? `${d.behavior.categories.size} categories, ${d.behavior.families.size} families` : 'Not present'],
+          ['codes.json', 'Names for the numeric category, logic and coupling codes, read from the game executable', d.codes.size ? `${d.codes.size} code tables` : 'Not present, so codes show as raw numbers'],
           ['build.json', 'Game build identity', build ? '1 record' : 'missing'],
         ]} />
         {ns ? (
@@ -118,6 +121,48 @@ export default function Provenance() {
           </>
         ) : null}
       </Section>
+
+      {d.codes.size ? (
+        <Section id="numeric-codes" title="Numeric codes">
+          <p>
+            Component files store the game category, logic mode, logic type, orientation and coupling gender as numbers. The wiki names them
+            from the game executable. Each name below is the string the game's own code loads for that number, and{' '}
+            <code>scripts/extract_codes.py</code> re-reads every cited instruction and string byte for byte. Pages show the number next to the
+            name. When a file omits the attribute, pages say "Not in file" and give the value the game reads instead. The method and evidence
+            are in the numeric component codes investigation, <code>investigation/numeric-codes.md</code>.
+          </p>
+          <p>
+            The game category is the editor and inventory category stored in each file. The part groups on <Link href="/parts">Parts</Link> are
+            the research's own and are labelled "Wiki grouping".
+          </p>
+          {[...d.codes.values()].map((t) => (
+            <div key={t.key}>
+              <h3>{t.title}</h3>
+              <p className="hint">
+                {t.note} Values are read at <SourcePath source={t.source} />.
+                {t.absent?.entries ? ` ${fmtNum(t.absent.entries)} entries in ${fmtNum(t.absent.definitions)} definitions omit the attribute. The game reads them as code ${t.default}.` : ''}
+              </p>
+              <WikiTable
+                id={`codes-${t.key}`}
+                caption={`${t.title} codes`}
+                cols={['Code', 'Name on this wiki', 'Game label', 'Entries', 'Evidence']}
+                rows={[...t.values].map(([raw, v]) => [
+                  <code>{raw}</code>,
+                  v.label ?? <span className="muted">Not named. Inferred axis {v.candidate}</span>,
+                  v.name ? <code>{v.name}</code> : <span className="muted">none</span>,
+                  `${fmtNum(v.entries)} in ${fmtNum(v.definitions)} definitions`,
+                  <span className="ev"><Stamp status={v.status} /> <SourcePath source={v.source} /></span>,
+                ]).concat(t.outOfRange ? [[
+                  <span className="muted">Any other</span>, t.outOfRange.label, <code>{t.outOfRange.name}</code>, 'none in the files',
+                  <span className="ev"><Stamp status={t.outOfRange.status} /> <SourcePath source={t.outOfRange.source} /></span>,
+                ]] : [])}
+                cards
+              />
+            </div>
+          ))}
+          {d.codesSummary?.policy ? <p><strong>Policy.</strong> {d.codesSummary.policy}</p> : null}
+        </Section>
+      ) : null}
 
       <Section id="labels" title="Evidence labels">
         <EvidenceLegend />

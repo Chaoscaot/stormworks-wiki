@@ -17,6 +17,7 @@ From the game installation directory:
 python3 wiki/scripts/extract_blocks.py
 python3 wiki/scripts/extract_mechanics.py
 python3 wiki/scripts/extract_families.py
+python3 wiki/scripts/extract_codes.py
 python3 wiki/scripts/extract_native.py --check
 python3 wiki/scripts/extract_behavior.py --check
 python3 wiki/scripts/extract_images.py
