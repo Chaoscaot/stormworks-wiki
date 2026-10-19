@@ -621,15 +621,19 @@
     },
     {
       "category": "Electricity",
-      "summary": "Battery capacity is electric_charge_capacity (1 : 8 : 160 across sizes). electric_magnitude is a per-component multiplier on charge: a motor pays electric_magnitude × force_emitter_max_force × 0.1 per unit of speed step, and a generator earns the same product per unit of speed it removes.",
+      "summary": "Battery capacity is electric_charge_capacity (1 : 8 : 160 across sizes), and every full source lends at most 10 internal charge per update to the shared pool that consumers draw from. electric_magnitude is a per-component multiplier on charge: a motor pays electric_magnitude × force_emitter_max_force × 0.1 per RPS of speed step, and a generator earns the same product per RPS it removes.",
       "sections": [
         {
           "title": "Storage",
-          "body": "The electric-node initialiser copies electric_charge_capacity straight into the node: 1600, 12800 and 256000 for the small, medium and large battery. A large battery stores 160 times a small one. Batteries also have a Charge Level property from 0 to 100 that sets the stored charge when the vehicle spawns."
+          "body": "The electric-node initialiser copies electric_charge_capacity straight into the node: 1600, 12800 and 256000 for the small, medium and large battery. A large battery stores 160 times a small one. Batteries also have a Charge Level property from 0 to 100 that sets the stored charge when the vehicle spawns.\n\nEach update the game builds a temporary pool for every connected electric group, joining groups bridged by relays and breakers. Every battery, generator buffer, solar cell and charger lends a packet of min(C, 10) × b, where C is its capacity and b its stored fraction from 0 to 1. The pool's charge fraction q = E ÷ P is the lent charge E over the summed packet sizes P. Consumers then draw from E and generators add to it. At the end the remaining E goes back to each source in proportion to its packet, clamped to full, and the pool is discarded.\n\nSo every full battery lends the same 10 per update whatever its size, at most 600 per simulated second before generation. More batteries raise the charge available per update; a bigger battery only lasts longer. It follows that batteries on one network move toward the same fraction, small ones faster. Generation that would overfill the storage is lost."
         },
         {
           "title": "What electric_magnitude does",
-          "body": "The field is read at definition+0x1420 by six instructions in this build, and the formula differs per component. In the electric component update, a motor (electric_type 0) asks the network for |Δ| × electric_magnitude × force_emitter_max_force × 0.1, where Δ is the speed step it wants this update. A generator (electric_type 1) deposits electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25). In both cases the speed change itself does not involve electric_magnitude. The field only sets how much charge a given speed change costs or earns, so for motors it works like an inverse efficiency (1.2, 1.1, 1.05) and for generators like an efficiency (0.6, 0.75, 0.85).\n\nGenerators get an internal buffer of 0.1 per listed voxel; solar cells and chargers get 0.01. No direct electric_magnitude read was found for batteries, breakers, relays, solar cells or chargers in this update; reads through differently computed pointers were not covered."
+          "body": "The field is read at definition+0x1420 by six instructions in this build, and the formula differs per component. In the electric component update, a motor (electric_type 0) asks the network for |Δ| × electric_magnitude × force_emitter_max_force × 0.1, where Δ is the speed step in RPS it wants this update. A generator (electric_type 1) deposits electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25), where ω is the shaft speed in RPS. In both cases the speed change itself does not involve electric_magnitude. The field only sets how much charge a given speed change costs or earns, so for motors it works like an inverse efficiency (1.2, 1.1, 1.05) and for generators like an efficiency (0.6, 0.75, 0.85).\n\nGenerators get an internal buffer of 0.1 per listed voxel; solar cells and chargers get 0.01. No direct electric_magnitude read was found for batteries, breakers, relays, solar cells or chargers in this update; reads through differently computed pointers were not covered."
+        },
+        {
+          "title": "Shaft speed",
+          "body": "The motor and generator speed state is RPS: the save field is named rotations_per_second, the parts exchange it with the shaft unchanged, and a torque meter copies the same group speed to its RPS output. Each update a part submits its speed and its force_emitter_max_force as weight F to its shaft group. The group's new speed is (previous group speed + Σ F × submitted speed) ÷ (1 + Σ F), so the shaft itself carries weight 1, and each part takes that speed back.\n\nExample: from rest, a part of weight 2 at 20 RPS and a part of weight 1 at 0 give (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."
         },
         {
           "title": "Other components that reuse the field",
@@ -637,17 +641,18 @@
         },
         {
           "title": "Supply and settings",
-          "body": "Motors and both starters draw through the same helper. It removes min(a × request, network charge) and returns the supplied fraction, where a = max(0, (300 − n) ÷ 300) × q comes from two node fields whose meaning was not recovered. A motor's step is scaled by that fraction, so starving it slows acceleration without changing the cost per unit of step. With infinite_batteries on, the helper returns 1 and takes nothing. Generators deposit regardless of that setting."
+          "body": "Motors and both starters draw through the same helper. With infinite_batteries on it returns 1 and removes nothing. A part with no electric network gets 0. Otherwise, for a request R it removes T = min(a × R, E) from the pool and returns T ÷ R, where a = max(0, (300 − n) ÷ 300) × q. Here n is the part's EMP countdown and q the pool charge fraction. A motor's step is scaled by the returned fraction, so starving it slows acceleration without changing the cost per unit of step. Generators deposit regardless of infinite_batteries.\n\nLow charge, an exhausted pool or consumers that drew first each cut supply on their own. q is fixed when the pool is built, so generation later in the same update raises E but not q until the next update. Which consumer draws first depends on the vehicle's component order.\n\nAn EMP pulse adds to n, and n counts down by 1 every update whether or not the part has power. At n = 300 or more the part gets nothing. Below 300 supply recovers linearly and is full again when n reaches 0, 300 updates (5 simulated seconds) later. A pulse also switches circuit breakers off. Inspecting an electric port shows max(0, 1 − n ÷ 300) × q as a bare number, or 1 with infinite electricity."
         },
         {
-          "title": "Measurement questions",
-          "body": "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. The speed unit of ω and the shaft-link model were not recovered, so charge cannot yet be turned into charge per unit of work. The shipped realtime file sets electric_consumption_scale to 0.01, but the release binary does not contain that name."
+          "title": "Rates and units",
+          "body": "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. Generator Output already includes that factor. The shaft solver weights speed changes by force_emitter_max_force and has no torque or inertia in SI units, so it gives no charge-per-joule figure for mechanical work. The shipped realtime file sets electric_consumption_scale to 0.01, but the executable contains that name neither as ASCII nor as UTF-16LE text, and its effect was not recovered."
         }
       ],
       "limitations": [
-        "Electric units are internal; no conversion to joules or watts was recovered.",
-        "ω is the component's internal speed state; how it maps to the RPS port and how the shaft link exchanges speed were not decoded.",
-        "Static analysis only."
+        "Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. A conversion of internal charge to joules or watts was not recovered.",
+        "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. How arbitrary gearbox and clutch networks, conflicting ratio loops and connector rebuilds combine groups was not decoded, and the model gives no SI torque or inertia.",
+        "Static analysis only.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
@@ -760,12 +765,62 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eecec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed06"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed4a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032a91d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032abf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032ac3f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034d39d"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140352ff7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1ec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1f5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fff7b"
         },
         {
           "path": "stormworks64.exe",
@@ -790,12 +845,47 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a58"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a60"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a68"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400d05"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140400d31"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400d96"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140400db8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14040158f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404015b7"
         },
         {
           "path": "stormworks64.exe",
@@ -806,6 +896,71 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14044a5a2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140499726"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9c1d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9d07"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca113"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca171"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca1c3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca5a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca92a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca94e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca972"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caca0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cacf6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405496bd"
         },
         {
           "path": "stormworks64.exe",
@@ -840,7 +995,27 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14077e085"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140ade268"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b597a4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b61ec0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6e078"
         },
         {
           "path": "stormworks64.exe",
@@ -5429,19 +5604,19 @@
     },
     {
       "id": "electric-battery",
-      "summary": "Capacity is exactly electric_charge_capacity (1600, 12800, 256000), and a Charge Level property sets the spawn charge.",
+      "summary": "Capacity is electric_charge_capacity (1600, 12800, 256000). Each update a battery lends at most 10 × its charge fraction to the network pool, so more batteries supply more per update while a bigger battery lasts longer.",
       "sections": [
         {
           "title": "Variant tradeoffs",
-          "body": "The medium battery stores 8 times and the large 160 times the small battery's charge."
+          "body": "The medium battery stores 8 times and the large 160 times the small battery's charge. All three lend the same packet of at most 10 per update, 600 per simulated second when full."
+        },
+        {
+          "title": "Charge and discharge",
+          "body": "A lone battery with nothing else on the network can give at most 10 × b per update, where b is its fraction, so a load that takes everything leaves b × (1 − 10 ÷ C) after each update. After one simulated second of that the small, medium and large battery keep 0.686, 0.954 and 0.998 of their charge. With N equally charged batteries, no generation and no other load, a request R gets q × min(1, 10 × N ÷ R) of what it asks.\n\nCharging has no cap of its own. A deposit Q into a lone battery's pool raises its fraction by Q ÷ C up to full, and the surplus is lost. An idle lone battery loses nothing, because the loan and the return cancel. Batteries sharing a network move toward the pool fraction q by 10 × (q − b) ÷ C per update, so a small battery evens out faster than a large one."
         },
         {
           "title": "Setup and interactions",
-          "body": "Set Charge Level (0 to 100) in the properties to spawn partially charged. Charge outputs the stored fraction from 0 to 1."
-        },
-        {
-          "title": "Open measurement questions",
-          "body": "How fast a battery can charge or discharge was not recovered."
+          "body": "Set Charge Level (0 to 100) in the properties to spawn partially charged. Charge outputs the stored fraction from 0 to 1. The game computes it as clamp(b ÷ ((C − 10) ÷ C), 0, 1) from the fraction left after the pool loan, which for a lone battery is the fraction before the update. While a battery is damaged the update sets its stored fraction, capacity and Charge to 0, so its charge is lost."
         }
       ],
       "findings": [
@@ -5547,6 +5722,283 @@
           }
         },
         {
+          "label": "Pool packet cap",
+          "value": "min(C, 10)",
+          "detail": "For each storage node with the source flag (node+0x38, tested at 0x1404ca91f) the network build caps its capacity C (node+0x44) at 10 (binary32 at 0x140bb064c) to get its packet weight c, then multiplies c by the stored fraction b (node+0x40) at 0x1404ca931. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f5dc6 at 0x1404ca92a. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca92a"
+          }
+        },
+        {
+          "label": "Pool charge",
+          "value": "P = Σ c, E = Σ c × b",
+          "detail": "Adds c to the pool capacity P (pool+0, 0x1404ca93e) and c × b to the pool charge E (pool+4). Batteries, generator buffers, solar cells and chargers carry the source flag. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114004 at 0x1404ca94e. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca94e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca94e"
+          }
+        },
+        {
+          "label": "Pool withdrawal",
+          "value": "b - c × b ÷ C",
+          "detail": "Removes the lent packet from the node's stored fraction. This is a loan to the pool, not a loss. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114240 at 0x1404ca972. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca972",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca972"
+          }
+        },
+        {
+          "label": "Pool charge fraction",
+          "value": "q = E ÷ P",
+          "detail": "Publication divides E by P (0x1404c9cd8, 0 when P is 0) and writes q to node+0x3c of every node in the group. q is a snapshot; E changes live as components draw and deposit. Report: investigation/electricity.md. Function 0x1404c9c98-0x1404c9d20; instruction bytes f30f11413c at 0x1404c9d07. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L109-L121; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9c98@0x1404c9d07",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9d07"
+          }
+        },
+        {
+          "label": "Pool return",
+          "value": "b + (E ÷ P) × c ÷ C",
+          "detail": "Finalization returns the remaining pool charge to each source node in proportion to its packet, then clamps b to 0 to 1 at 0x1404cacc6. Surplus above full is discarded. Report: investigation/electricity.md. Function 0x1404cac09-0x1404cad10; instruction bytes f30f115240 at 0x1404caca0. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-restore.asm:L55-L81; ../electricity/pseudocode/0x1404cabb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404caca0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404caca0"
+          }
+        },
+        {
+          "label": "Pool cleared",
+          "value": "group+0x20 = null",
+          "detail": "The group's pool pointer is cleared after the return, so the pool is rebuilt every cycle. Report: investigation/electricity.md. Function 0x1404cac09-0x1404cad10; instruction bytes 48896820 at 0x1404cacf6. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-restore.asm:L55-L81; ../electricity/pseudocode/0x1404cabb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404cacf6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cacf6"
+          }
+        },
+        {
+          "label": "Pool build per component pass",
+          "value": "call 0x1404bd940",
+          "detail": "The vehicle/component dispatcher calls the network phase that builds (0x1404bda4c) and publishes (0x1404bda54) the pools before its component update loop at 0x1405498d6. Report: investigation/electricity.md. Function 0x140549240-0x140549ef6; instruction bytes e87e42f7ff at 0x1405496bd. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-phase.asm:L1-L7; ../electricity/pseudocode/0x1404bd940.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405496bd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405496bd"
+          }
+        },
+        {
+          "label": "Largest pool packet per source",
+          "value": "10 per update, 600 per simulated second",
+          "detail": "A full source lends at most min(C, 10) = 10 to the pool per update; batteries all have C above 10. Generation in the same cycle adds to the pool on top. Report: investigation/electricity.md. At 60 updates per simulated second. Inputs: derived:7d3ff454a23f.",
+          "evidenceId": "derived:45fbe0b39452",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Damaged battery",
+          "value": "charge and capacity 0",
+          "detail": "electric_type 2 with the damage word set zeroes the node's stored fraction and capacity (component+0x250 and +0x254) and the Charge output. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes 33c048898350020000 at 0x140400de0. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L278-L284; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400de0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400de0"
+          }
+        },
+        {
+          "label": "Battery Charge output offset",
+          "value": "10",
+          "detail": "The undamaged battery reads its definition capacity C (0x140400df4) and forms (C - this) ÷ C. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f5c0d3df87a00 at 0x140400e07 address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L285-L302; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400e07",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400e07"
+          }
+        },
+        {
+          "label": "Battery Charge output",
+          "value": "clamp(b ÷ ((C - 10) ÷ C), 0, 1)",
+          "detail": "Divides the stored fraction b, read after the pool loan, by (C - 10) ÷ C and clamps to 0 to 1 before storing Charge (0x140400e2a, 0x140400e47). For a lone battery this undoes the loan, so Charge shows the fraction before the update. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f5ed1 at 0x140400e1e. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L285-L302; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400e1e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400e1e"
+          }
+        },
+        {
+          "label": "Small battery charge after one simulated second of maximum discharge",
+          "value": "0.686 left after 1 s; time constant 2.66 s",
+          "detail": "(1 - 0.00625)^60 = 0.686481 of a gap remains after one simulated second when the coefficient and target stay fixed and nothing else acts; time constant -1 ÷ (60 × ln(1 - 0.00625)) = 2.658325 s. 60 × 0.00625 is not the fraction removed per second. Inputs: derived:7d3ff454a23f, resource:rom/data/definitions/battery_small.xml:09cca376b41b:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca972, native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404caca0.",
+          "evidenceId": "derived:bcac72445aac",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Medium battery charge after one simulated second of maximum discharge",
+          "value": "0.954 left after 1 s; time constant 21.3 s",
+          "detail": "(1 - 0.00078125)^60 = 0.954189 of a gap remains after one simulated second when the coefficient and target stay fixed and nothing else acts; time constant -1 ÷ (60 × ln(1 - 0.00078125)) = 21.324999 s. 60 × 0.00078125 is not the fraction removed per second. Inputs: derived:7d3ff454a23f, resource:rom/data/definitions/battery_medium.xml:d8badf1f3138:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca972, native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404caca0.",
+          "evidenceId": "derived:3eef8c42cbca",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Large battery charge after one simulated second of maximum discharge",
+          "value": "0.998 left after 1 s; time constant 427 s",
+          "detail": "(1 - 3.90625e-05)^60 = 0.997659 of a gap remains after one simulated second when the coefficient and target stay fixed and nothing else acts; time constant -1 ÷ (60 × ln(1 - 3.90625e-05)) = 426.658333 s. 60 × 3.90625e-05 is not the fraction removed per second. Inputs: derived:7d3ff454a23f, resource:rom/data/definitions/battery_large.xml:3ca4eb7777b7:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca972, native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404caca0.",
+          "evidenceId": "derived:946ddd10b980",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Battery fraction change per update",
+          "value": "b + 10 × (q - b) ÷ C",
+          "detail": "For batteries (C above 10) the loan removes 10 × b ÷ C of the fraction and the return adds 10 × q ÷ C, with q = E ÷ P after draws and deposits. A lone idle battery has q = b and does not change. A load that empties the pool leaves b × (1 - 10 ÷ C). A deposit Q into a lone battery's pool raises b by Q ÷ C up to the clamp at 1. Batteries sharing a pool move toward q, a small battery faster than a large one. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca972, native:stormworks64.exe:f9206d85c82f:0x1404c9c98@0x1404c9d07, native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404caca0.",
+          "evidenceId": "derived:5b68b12f2f09",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca92a"
+          }
+        },
+        {
+          "label": "Full batteries that cover a full-step motor request (small, medium, large)",
+          "value": "1, 2, 6",
+          "detail": "With no generation and no other load, N full batteries lend 10 × N per update, so a request R is met in full when N ≥ R ÷ 10: requests 0.48, 13.2, 52.5 need 1, 2, 6. One full battery gives a large motor at most 10 ÷ 52.5 = 0.1905 of its request. With N equally charged batteries at fraction q the supplied share is q × min(1, 10 × N ÷ R). Inputs: derived:9bea3071b3ee, derived:45fbe0b39452, native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed29, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a.",
+          "evidenceId": "derived:39defcd20921",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/motor_small.xml",
+            "sha256": "77b2b5ef91f22d2548a42e7d976ade4f48f30d26d9ebb233cc1da22e706fe56f",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
+        },
+        {
           "label": "Electric Battery Small · tooltip",
           "value": "A small battery for storing electrical charge.",
           "detail": "battery_small: developer-authored short description; intended behaviour, not a measurement.",
@@ -5613,7 +6065,9 @@
         }
       ],
       "limitations": [
-        "Charge/discharge limits and losses were not recovered."
+        "Voltage and the conversion of internal charge to joules, watt-hours or amp-hours were not recovered.",
+        "Static analysis only; the rates assume the network's only storage is batteries.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
@@ -5671,9 +6125,95 @@
           "lineEnd": 69
         },
         {
+          "path": "rom/data/definitions/motor_small.xml",
+          "sha256": "77b2b5ef91f22d2548a42e7d976ade4f48f30d26d9ebb233cc1da22e706fe56f",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140400578"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400de0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400e07"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400e1e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9d07"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca92a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca94e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca972"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caca0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cacf6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405496bd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
         },
         {
           "path": "stormworks64.exe",
@@ -5764,7 +6304,7 @@
         {
           "label": "Electric pump pressure factor",
           "value": "bias × pump_pressure",
-          "detail": "The electric pump update multiplies the bias in xmm2 by definition+0xec8, the field the definition loader binds to pump_pressure. Before this xmm2 holds the electrical supply factor: max(0, (300 - electrical age) ÷ 300) × availability, or 1 with unlimited electricity. Report: investigation/fluid-transport.md. Function 0x1403fcea0-0x1403fd12b; instruction bytes f30f5990c80e0000 at 0x1403fd09c. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/electric-pump.asm:L485-L497; ../fluid-transport/pseudocode/0x1403fcea0.c:L94-L100. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The electric pump update multiplies the bias in xmm2 by definition+0xec8, the field the definition loader binds to pump_pressure. Before this xmm2 holds the electrical supply factor: max(0, (300 - EMP countdown) ÷ 300) × pool charge fraction, or 1 with unlimited electricity (investigation/electricity.md). Report: investigation/fluid-transport.md. Function 0x1403fcea0-0x1403fd12b; instruction bytes f30f5990c80e0000 at 0x1403fd09c. Interpretation rests on retained output investigation/native/behavior/../fluid-transport/asm/electric-pump.asm:L485-L497; ../fluid-transport/pseudocode/0x1403fcea0.c:L94-L100. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fcea0@0x1403fd09c",
           "status": "observed",
           "source": {
@@ -6640,23 +7180,27 @@
     },
     {
       "id": "electric-motor",
-      "summary": "Each update the motor takes a speed step of at most 2 × |Throttle| and requests |step| × electric_magnitude × force_emitter_max_force × 0.1 in charge: 0.24, 6.6 and 26.25 per unit of step for the small, medium and large motor.",
+      "summary": "Each update the motor takes a speed step of at most 2 × |Throttle| RPS and requests |step| × electric_magnitude × force_emitter_max_force × 0.1 in charge: 0.24, 6.6 and 26.25 per RPS of step for the small, medium and large motor.",
       "sections": [
         {
           "title": "How the update works",
-          "body": "With s = Throttle clamped to −1…1, the step is Δ = (20 × sign(s) − speed) × |s|, clamped to −2|s| … 2|s|. Δ is dropped when its sign differs from the throttle's, so a motor running faster than 20 in the throttle direction is not held back, while reversing the throttle drives it toward −20. At zero throttle it only coasts. The motor requests |Δ| × electric_magnitude × force_emitter_max_force × 0.1, multiplies Δ by the fraction supplied, adds it, and then keeps 0.995 of its speed. With a shaft link it writes that speed and force_emitter_max_force into the link and takes the link's speed back. A damaged motor targets 0; the same step sign gate still applies."
+          "body": "With s = Throttle clamped to −1…1, the step is Δ = (20 × sign(s) − speed) × |s|, clamped to −2|s| … 2|s|. Δ is dropped when its sign differs from the throttle's, so a motor running faster than 20 RPS in the throttle direction is not held back, while reversing the throttle drives it toward −20. At zero throttle it only coasts. The motor requests |Δ| × electric_magnitude × force_emitter_max_force × 0.1, multiplies Δ by the fraction supplied, adds it, and then keeps 0.995 of its speed. With a shaft link it submits that speed and force_emitter_max_force to its shaft group and takes the group's published speed back. A damaged motor targets 0; the same step sign gate still applies."
         },
         {
           "title": "Variant tradeoffs",
-          "body": "At the full-throttle step of 2, the small, medium and large motor request 0.48, 13.2 and 52.5 per update. While the step stays at that bound, that is 28.8, 792 and 3150 per simulated second; supply limits the actual draw. Per unit of force_emitter_max_force the cost is 0.12, 0.11 and 0.105, so if the shaft link weights speed by that force (the generator comparison makes the same assumption), the small motor pays 1.1429 times and the medium 1.0476 times what the large one pays for the same force-weighted speed change."
+          "body": "At the full-throttle step of 2, the small, medium and large motor request 0.48, 13.2 and 52.5 per update. While the step stays at that bound, that is 28.8, 792 and 3150 per simulated second; supply limits the actual draw. Per unit of force_emitter_max_force the cost is 0.12, 0.11 and 0.105. The shaft group weights each part's speed by that force, so the small motor pays 1.1429 times and the medium 1.0476 times what the large one pays for the same force-weighted speed change."
+        },
+        {
+          "title": "Battery supply",
+          "body": "Each full battery lends at most 10 per update to the pool. Without generation or other loads, the full-step requests need 1, 2 and 6 full batteries for the small, medium and large motor; a large motor on one full battery gets at most 0.1905 of its full-step request. A small step near the 20 RPS target asks for much less."
         },
         {
           "title": "What the cost tracks",
-          "body": "Charge scales with the speed step, not with speed × step. A given speed change costs the same at low and high shaft speed, so equal charge buys equal force-weighted speed change rather than equal mechanical work. Turning it into work needs the shaft-link model, which was not decoded."
+          "body": "Charge scales with the speed step, not with speed × step. A given RPS change costs the same at low and high shaft speed, so equal charge buys equal force-weighted speed change rather than equal mechanical work. The shaft solver is a weighted average with no torque or inertia in SI units, so it gives no charge-per-joule figure."
         },
         {
           "title": "Setup and interactions",
-          "body": "Throttle limits the step, not the target speed: the target is always 20 in the motor's internal speed units. Without a shaft link the update settles at 19.9 at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge."
+          "body": "Throttle limits the step, not the target speed: the target is always 20 RPS. Without a shaft link the update settles at 19.9 RPS at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge. An EMP pulse cuts the motor's supply while its countdown is 300 or more; supply then returns linearly over the next 300 updates, 5 simulated seconds."
         }
       ],
       "findings": [
@@ -6813,7 +7357,7 @@
         {
           "label": "Draw helper infinite_batteries test",
           "value": "cmp byte [rax+0x33],0",
-          "detail": "With infinite_batteries (settings offset 0x33) set the helper returns 1 and removes nothing. Otherwise it returns 0 without a network, else removes min(a × request, network charge) and returns that amount ÷ request, where a = max(0, (300 − n) ÷ 300) × q from node fields n (offset 0x28) and q (offset 0x3c) whose meaning was not recovered. Function 0x1402eeca0-0x1402eed53; instruction bytes 80783300 at 0x1402eecb6. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With infinite_batteries (settings offset 0x33) set the helper returns 1 and removes nothing. Otherwise it returns 0 without a network, else removes min(a × request, network charge) and returns that amount ÷ request, where a = max(0, (300 − n) ÷ 300) × q. n (node offset 0x28) is the EMP countdown, serialized as emp; q (node offset 0x3c) is the charge fraction E ÷ P published from the shared pool (investigation/electricity.md). Function 0x1402eeca0-0x1402eed53; instruction bytes 80783300 at 0x1402eecb6. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eecb6",
           "status": "observed",
           "source": {
@@ -6913,8 +7457,8 @@
         {
           "label": "Motor-to-generator charge return at equal force-weighted speed change (small→small, medium→medium, large→large)",
           "value": "0.5, 0.6818, 0.8095",
-          "detail": "Generator electric_magnitude ÷ motor electric_magnitude, valid only if both shaft links weight speed by force_emitter_max_force (not decoded); 0.85 ÷ 1.05 = 0.8095. Inputs: resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, resource:rom/data/definitions/generator_medium.xml:6100f8b6ac93:L2-L2, resource:rom/data/definitions/generator_large.xml:a7af79af76b2:L2-L2, resource:rom/data/definitions/motor_small.xml:77b2b5ef91f2:L2-L2, resource:rom/data/definitions/motor_medium.xml:45c0ef710323:L2-L2, resource:rom/data/definitions/motor_large.xml:9e4e7a53ba4b:L2-L2.",
-          "evidenceId": "derived:35f6b744188c",
+          "detail": "Generator electric_magnitude ÷ motor electric_magnitude for parts on one shaft group, which weights each member's submitted speed by its force_emitter_max_force; 0.85 ÷ 1.05 = 0.8095. Inputs: resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, resource:rom/data/definitions/generator_medium.xml:6100f8b6ac93:L2-L2, resource:rom/data/definitions/generator_large.xml:a7af79af76b2:L2-L2, resource:rom/data/definitions/motor_small.xml:77b2b5ef91f2:L2-L2, resource:rom/data/definitions/motor_medium.xml:45c0ef710323:L2-L2, resource:rom/data/definitions/motor_large.xml:9e4e7a53ba4b:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca171, native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a68, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400d05.",
+          "evidenceId": "derived:b75b230e7760",
           "status": "derived",
           "source": {
             "path": "rom/data/definitions/generator_small.xml",
@@ -6945,6 +7489,19 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Full batteries that cover a full-step motor request (small, medium, large)",
+          "value": "1, 2, 6",
+          "detail": "With no generation and no other load, N full batteries lend 10 × N per update, so a request R is met in full when N ≥ R ÷ 10: requests 0.48, 13.2, 52.5 need 1, 2, 6. One full battery gives a large motor at most 10 ÷ 52.5 = 0.1905 of its request. With N equally charged batteries at fraction q the supplied share is q × min(1, 10 × N ÷ R). Inputs: derived:9bea3071b3ee, derived:45fbe0b39452, native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed29, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a.",
+          "evidenceId": "derived:39defcd20921",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/motor_small.xml",
+            "sha256": "77b2b5ef91f22d2548a42e7d976ade4f48f30d26d9ebb233cc1da22e706fe56f",
+            "lineStart": 2,
+            "lineEnd": 2
           }
         },
         {
@@ -7097,6 +7654,330 @@
           }
         },
         {
+          "label": "Motor/generator speed field name",
+          "value": "rotations_per_second",
+          "detail": "The electric component serializer binds component+0x2a4, the speed state the motor and generator update, to the name rotations_per_second (lea at 0x140401853). Report: investigation/electricity.md. Function 0x140401719-0x1404018ae; it references the string 'rotations_per_second' at 0x140b6e078. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-save.asm:L167; ../electricity/pseudocode/0x1404015c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140401719@0x140b6e078",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6e078"
+          }
+        },
+        {
+          "label": "Motor speed submission",
+          "value": "component+0x1ec",
+          "detail": "The motor stores its local speed to its mechanical node's submitted-speed field (node+0x2c of the node at component+0x1c0) with no multiplier, radians or tick conversion. Report: investigation/electricity.md. Function 0x140400965-0x140400bc0; instruction bytes f30f11b3ec010000 at 0x140400a58. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L91-L96; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a58",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400a58"
+          }
+        },
+        {
+          "label": "Motor group speed read",
+          "value": "component+0x1f0",
+          "detail": "Then reads the published group speed (node+0x30) and stores it as its own speed at component+0x2a4 (0x140400a72). Report: investigation/electricity.md. Function 0x140400965-0x140400bc0; instruction bytes f30f10b3f0010000 at 0x140400a60. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L91-L96; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a60",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400a60"
+          }
+        },
+        {
+          "label": "Motor shaft weight submission",
+          "value": "force_emitter_max_force",
+          "detail": "Stores force_emitter_max_force (definition+0x848, loaded at 0x140400a52) as its submitted weight F (node+0x28). Report: investigation/electricity.md. Function 0x140400965-0x140400bc0; instruction bytes 8983e8010000 at 0x140400a68. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L91-L96; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a68",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400a68"
+          }
+        },
+        {
+          "label": "Generator shaft exchange",
+          "value": "submit speed, read group speed, submit F",
+          "detail": "The generator submits its previous local speed here, reads the published group speed at 0x140400d0d and submits force_emitter_max_force as F at 0x140400d15, then applies its drag to the received speed. No unit conversion occurs. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f119bec010000 at 0x140400d05. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L241-L243; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400d05",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400d05"
+          }
+        },
+        {
+          "label": "Torque meter RPS output",
+          "value": "group speed, factor 1",
+          "detail": "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987a0010000 at 0x1403fb1ec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1ec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1ec"
+          }
+        },
+        {
+          "label": "Torque meter Torque output",
+          "value": "effective group weight",
+          "detail": "The Torque output receives group+8, the group's effective weight in this solver, not a torque in newton-metres. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987d8010000 at 0x1403fb1f5. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1f5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1f5"
+          }
+        },
+        {
+          "label": "Shaft group base weight",
+          "value": "1",
+          "detail": "The shaft solve starts each group's weight at 1, which carries the group's previous speed. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes c742040000803f at 0x1404ca113. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L237-L277; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca113",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca113"
+          }
+        },
+        {
+          "label": "Shaft member weighting",
+          "value": "F × submitted speed",
+          "detail": "Each member's submitted weight F (member+0x28, 0x1404ca169) multiplies its submitted speed (member+0x2c); the weights are summed into the group weight at 0x1404ca185. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f59422c at 0x1404ca171. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L237-L277; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca171",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca171"
+          }
+        },
+        {
+          "label": "Shaft group speed",
+          "value": "(v_prev + Σ F × v) ÷ (1 + Σ F)",
+          "detail": "Divides the accumulated numerator, previous group speed plus Σ F × submitted speed, by the group weight 1 + Σ F. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f5e5904 at 0x1404ca1c3. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L237-L277; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca1c3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca1c3"
+          }
+        },
+        {
+          "label": "Bridged shaft contribution",
+          "value": "weight ÷ |ratio|",
+          "detail": "Traversing gearbox and clutch links, the solve adds sign(r) × v_s × I_s × h to a target group's numerator (0x1404ca592) and I_s × h ÷ |r| to its weight (0x1404ca5ad), with h the traversed fraction (× 0.95 and the link engagement per edge, stopping below 0.001) and r the cumulative ratio. Revisits with a ratio outside about 0.9 to 1.1 of the recorded one take a braking conflict path. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f5ec8 at 0x1404ca5a3. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L517-L523; ../electricity/tools/tables.txt:L30-L32; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca5a3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca5a3"
+          }
+        },
+        {
+          "label": "Published group speed",
+          "value": "(I × v + N) ÷ (I + D)",
+          "detail": "Publication writes V = (I × v + N) ÷ (I + D) to every member's node+0x30, where N and D are the bridge contributions (both 0 without a gearbox or clutch bridge); the effective weight I + D goes to node+0x34 at 0x1404c9c41. Report: investigation/electricity.md. Function 0x1404c9b21-0x1404c9c83; instruction bytes 41894030 at 0x1404c9c1d. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L67-L75; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9b21@0x1404c9c1d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9c1d"
+          }
+        },
+        {
+          "label": "Shaft group example",
+          "value": "10 RPS",
+          "detail": "Previous group speed 0, a member of weight 2 submitting 20 RPS and a member of weight 1 submitting 0: (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. Without the group's own weight 1 it would be 13.333 RPS. Report: investigation/electricity.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca113, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca171, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca1c3.",
+          "evidenceId": "derived:818879675f6f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca113"
+          }
+        },
+        {
+          "label": "Draw helper EMP read",
+          "value": "node+0x28",
+          "detail": "Reads the node's EMP countdown n, converts it to float and forms max(0, (300 - n) ÷ 300). Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes 8b4328 at 0x1402eecec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eecec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eecec"
+          }
+        },
+        {
+          "label": "Draw helper charge fraction",
+          "value": "a = max(0, (300 - n) ÷ 300) × q",
+          "detail": "Multiplies by the published pool charge fraction q (node+0x3c). Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes f30f595b3c at 0x1402eed06. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed06",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eed06"
+          }
+        },
+        {
+          "label": "Draw amount",
+          "value": "T = min(a × R, E)",
+          "detail": "Takes the smaller of a × request and the pool charge E (node→group→pool+4), subtracts it from E (store at 0x1402eed35) and returns T ÷ R. Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes f30f5dc3 at 0x1402eed29. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eed29"
+          }
+        },
+        {
+          "label": "Draw without a network",
+          "value": "0",
+          "detail": "A node with no electrical group (node+0x20 null, tested at 0x1402eeccf) returns 0. Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes 0f57c0 at 0x1402eed4a. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed4a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eed4a"
+          }
+        },
+        {
+          "label": "Electric node field +0x28",
+          "value": "emp",
+          "detail": "The electric node serializer binds node+0x28 (lea r9,[rdi+0x28] at 0x1402eeb3a) to the name emp, default 0. Report: investigation/electricity.md. Function 0x1402eeaa0-0x1402eec75; it references the string 'emp' at 0x140b597a4. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-node-save.asm:L47-L48; ../electricity/pseudocode/0x1402eeaa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeaa0@0x140b597a4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b597a4"
+          }
+        },
+        {
+          "label": "EMP countdown",
+          "value": "n - 1 while n > 0",
+          "detail": "Electric vtable slot +0x3e8 (0x140b814b8) decrements every nonzero node+0x28 by 1. It does not test charge or supply. Report: investigation/electricity.md. Function 0x14032abc0-0x14032acc0; instruction bytes ffc8894228 at 0x14032abf3. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-counter.asm:L1-L19; ../electricity/pseudocode/0x14032abc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14032abc0@0x14032abf3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14032abf3"
+          }
+        },
+        {
+          "label": "EMP countdown call",
+          "value": "once per component pass",
+          "detail": "The vehicle component pass calls slot +0x3e8 for each component. Report: investigation/electricity.md. Function 0x1404995e7-0x140499801; instruction bytes ff90e8030000 at 0x140499726. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-tick-caller.asm; ../electricity/pseudocode/0x1404995b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404995e7@0x140499726",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140499726"
+          }
+        },
+        {
+          "label": "EMP apply",
+          "value": "n + pulse",
+          "detail": "The generic apply adds its integer argument to each node's countdown rather than setting it. Report: investigation/electricity.md. Function 0x14032ac10-0x14032ad10; instruction bytes 44015228 at 0x14032ac3f. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-counter.asm:L31-L46; ../electricity/pseudocode/0x14032ac10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14032ac10@0x14032ac3f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14032ac3f"
+          }
+        },
+        {
+          "label": "Electric EMP apply",
+          "value": "n + pulse",
+          "detail": "The electric override (slot +0x3f0, 0x140b814c0) adds the same way. Report: investigation/electricity.md. Function 0x140401560-0x1404015c0; instruction bytes 44015228 at 0x14040158f. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-counter.asm:L50-L73; ../electricity/pseudocode/0x140401560.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140401560@0x14040158f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14040158f"
+          }
+        },
+        {
+          "label": "EMP trips circuit breakers",
+          "value": "on state cleared",
+          "detail": "With a nonzero pulse and electric_type 3 (circuit breaker), the override clears the breaker's on state. Report: investigation/electricity.md. Function 0x140401560-0x1404015c0; instruction bytes c6818001000000 at 0x1404015b7. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-counter.asm:L50-L73; ../electricity/pseudocode/0x140401560.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140401560@0x1404015b7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404015b7"
+          }
+        },
+        {
+          "label": "EMP pulse application",
+          "value": "slot +0x3f0 per component",
+          "detail": "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Its event discriminator was not traced; the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading. Report: investigation/electricity.md. Function 0x14077dd80-0x14077e224; instruction bytes ff90f0030000 at 0x14077e085. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-pulse.asm:L156-L170; ../electricity/asm/emp-event-call.asm; ../electricity/pseudocode/0x14077dd80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14077dd80@0x14077e085",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14077e085"
+          }
+        },
+        {
+          "label": "EMP countdown at construction",
+          "value": "0",
+          "detail": "The motor/generator constructor stores 0 (edx) to the electric node's countdown at component+0x238. Report: investigation/electricity.md. Function 0x1403ffe60-0x14040000c; instruction bytes 899338020000 at 0x1403fff7b. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-construct.asm:L50. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ffe60@0x1403fff7b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fff7b"
+          }
+        },
+        {
+          "label": "EMP recovery",
+          "value": "300 updates, 5 simulated seconds",
+          "detail": "With a countdown of 300 the draw factor starts at 0 and rises by 1 ÷ 300 per update, reaching full supply after 300 updates, 300 ÷ 60 = 5 simulated seconds. A count above 300 blocks draw until it falls below 300. Infinite electricity bypasses the factor. Report: investigation/electricity.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eecec, native:stormworks64.exe:f9206d85c82f:0x14032abc0@0x14032abf3, native:stormworks64.exe:f9206d85c82f:0x1404995e7@0x140499726, derived:7d3ff454a23f.",
+          "evidenceId": "derived:065de5be6b4b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eecec"
+          }
+        },
+        {
+          "label": "Largest pool packet per source",
+          "value": "10 per update, 600 per simulated second",
+          "detail": "A full source lends at most min(C, 10) = 10 to the pool per update; batteries all have C above 10. Generation in the same cycle adds to the pool on top. Report: investigation/electricity.md. At 60 updates per simulated second. Inputs: derived:7d3ff454a23f.",
+          "evidenceId": "derived:45fbe0b39452",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
           "label": "Small Electric Motor · tooltip",
           "value": "Converts electrical energy into mechanical force.",
           "detail": "motor_small: developer-authored description; intended behaviour, not a measurement.",
@@ -7228,9 +8109,9 @@
         }
       ],
       "limitations": [
-        "Static analysis only; charge is in the internal unit.",
-        "Reading component offset 0x160 as the Throttle input and offset 0x2a4 as the speed linked to RPS is an inference from how the update uses them.",
-        "The shaft-link exchange and the unit of speed were not decoded.",
+        "Static analysis only; charge is in the internal unit. A conversion of internal charge to joules or watts was not recovered.",
+        "Reading component offset 0x160 as the Throttle input is an inference from how the update uses it.",
+        "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -7332,6 +8213,51 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eecec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed06"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed4a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032abf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032ac3f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1ec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1f5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fff7b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404008e4"
         },
         {
@@ -7343,6 +8269,66 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140400a20"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a58"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a60"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a68"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400d05"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14040158f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404015b7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140499726"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9c1d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca113"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca171"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca1c3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca5a3"
         },
         {
           "path": "stormworks64.exe",
@@ -7373,6 +8359,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14077e085"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b597a4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6e078"
         },
         {
           "path": "stormworks64.exe",
@@ -8712,23 +9713,23 @@
     },
     {
       "id": "generator",
-      "summary": "Charge per update is electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25). The speed the generator removes does not depend on electric_magnitude, so 0.6, 0.75 and 0.85 act as conversion factors.",
+      "summary": "Charge per update is electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25), with ω the shaft speed in RPS. Output shows 60 times that, the internal charge per simulated second.",
       "sections": [
         {
           "title": "How the update works",
-          "body": "The generator writes its speed and force_emitter_max_force into its shaft link and takes the link's speed ω back. With k = min(|ω| ÷ 560, 0.25), it deposits Q = electric_magnitude × force_emitter_max_force × 0.1 × |ω| × k into the electric network and keeps (1 − k) of its speed; that loss is the load it puts on the shaft. Charge grows with the square of speed below |ω| = 140 and linearly above it. The update also writes 60 × Q to the slot where the battery keeps its Charge output, so Output most likely reads 60 × Q. Component updates run 60 times per simulated second, so 60 × Q is the charge the generator deposits per simulated second while ω holds steady."
+          "body": "The generator submits its previous speed and force_emitter_max_force to its shaft group and takes the group's speed ω back, in RPS. With k = min(|ω| ÷ 560, 0.25), it deposits Q = electric_magnitude × force_emitter_max_force × 0.1 × |ω| × k into the network pool and keeps (1 − k) of its speed; that loss is the load it puts on the shaft. Charge grows with the square of speed below 140 RPS and linearly above it. Output is 60 × Q. Component updates run 60 times per simulated second, so Output is the charge deposited per simulated second while RPS holds steady. Example: a small generator at 50 RPS deposits 0.2679 per update and shows Output 16.07."
         },
         {
           "title": "Variant tradeoffs",
-          "body": "Per unit of speed removed, the small, medium and large generator deposit 0.06, 2.25 and 10.625. Divided by force_emitter_max_force that is 0.06, 0.075 and 0.085, so for the same force-weighted speed removal the large generator yields 1.4167 times and the medium 1.25 times what the small one does. That comparison assumes the shaft link weights each part's speed by force_emitter_max_force, which matches how the parts write into it but was not decoded."
+          "body": "Per RPS removed, the small, medium and large generator deposit 0.06, 2.25 and 10.625. Divided by force_emitter_max_force that is 0.06, 0.075 and 0.085. The shaft group weights each part's speed by its force_emitter_max_force, so for the same force-weighted speed removal the large generator yields 1.4167 times and the medium 1.25 times what the small one does."
         },
         {
           "title": "Compared with motors and the alternator",
-          "body": "A motor driving a generator of the same size returns 0.5 (small), 0.6818 (medium) or 0.8095 (large) of the motor's charge for an equal force-weighted speed change, under the same assumption. At equal |ω| × k the modular alternator's coefficient is 0.05 against the small generator's 0.06."
+          "body": "A motor driving a generator of the same size on one shaft group returns 0.5 (small), 0.6818 (medium) or 0.8095 (large) of the motor's charge for an equal force-weighted speed change. At equal |ω| × k the modular alternator's coefficient is 0.05 against the small generator's 0.06."
         },
         {
-          "title": "Open measurement questions",
-          "body": "Output is not labelled with a unit, and the charge unit itself has no recovered conversion to joules. Measure Output against shaft RPS per size to fix the unit of ω."
+          "title": "Units",
+          "body": "Output has no unit label. It reads internal charge per simulated second, the unit battery capacity is counted in. The generator's own buffer of 0.1 per listed voxel is a source in the pool like a battery, so it takes its share of each deposit until it is full."
         }
       ],
       "findings": [
@@ -8885,7 +9886,7 @@
         {
           "label": "Generator Output scale",
           "value": "60",
-          "detail": "Component offset 0x1a0 = Q × this. Offset 0x1a0 is also where the battery case stores its 0…1 charge fraction, so it is read here as the number output; the generator's only number output is Output. Function 0x140400bc0-0x140401512; it reads binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../electrical-magnitude/pseudocode/0x1404008a0.c:L193-L218; ../electrical-magnitude/asm/electric-update.asm:L237-L275. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Component offset 0x1a0, the number output, = Q × this. The generator's only number output is Output, so Output is internal charge per simulated second at 60 updates per second. Function 0x140400bc0-0x140401512; it reads binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../electrical-magnitude/pseudocode/0x1404008a0.c:L193-L218; ../electrical-magnitude/asm/electric-update.asm:L237-L275. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140bb0760",
           "status": "observed",
           "source": {
@@ -8972,8 +9973,8 @@
         {
           "label": "Motor-to-generator charge return at equal force-weighted speed change (small→small, medium→medium, large→large)",
           "value": "0.5, 0.6818, 0.8095",
-          "detail": "Generator electric_magnitude ÷ motor electric_magnitude, valid only if both shaft links weight speed by force_emitter_max_force (not decoded); 0.85 ÷ 1.05 = 0.8095. Inputs: resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, resource:rom/data/definitions/generator_medium.xml:6100f8b6ac93:L2-L2, resource:rom/data/definitions/generator_large.xml:a7af79af76b2:L2-L2, resource:rom/data/definitions/motor_small.xml:77b2b5ef91f2:L2-L2, resource:rom/data/definitions/motor_medium.xml:45c0ef710323:L2-L2, resource:rom/data/definitions/motor_large.xml:9e4e7a53ba4b:L2-L2.",
-          "evidenceId": "derived:35f6b744188c",
+          "detail": "Generator electric_magnitude ÷ motor electric_magnitude for parts on one shaft group, which weights each member's submitted speed by its force_emitter_max_force; 0.85 ÷ 1.05 = 0.8095. Inputs: resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, resource:rom/data/definitions/generator_medium.xml:6100f8b6ac93:L2-L2, resource:rom/data/definitions/generator_large.xml:a7af79af76b2:L2-L2, resource:rom/data/definitions/motor_small.xml:77b2b5ef91f2:L2-L2, resource:rom/data/definitions/motor_medium.xml:45c0ef710323:L2-L2, resource:rom/data/definitions/motor_large.xml:9e4e7a53ba4b:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca171, native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a68, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400d05.",
+          "evidenceId": "derived:b75b230e7760",
           "status": "derived",
           "source": {
             "path": "rom/data/definitions/generator_small.xml",
@@ -9016,6 +10017,19 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Small generator at 50 RPS",
+          "value": "Q 0.2679 per update, Output 16.07",
+          "detail": "0.6 × 1 × 0.1 × 50 × min(50 ÷ 560, 0.25) = 0.2679 internal charge per update; Output = 60 × Q = 16.07 per simulated second. Inputs: resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400d31, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140bb083c, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140bafbbc, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400d96, derived:7d3ff454a23f.",
+          "evidenceId": "derived:eb27f2cecde7",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/generator_small.xml",
+            "sha256": "5528f1689692986c4be4404565a7e0cd7b8d259ef12bc5340f7c4800fafaaa1e",
+            "lineStart": 2,
+            "lineEnd": 2
           }
         },
         {
@@ -9168,6 +10182,270 @@
           }
         },
         {
+          "label": "Motor/generator speed field name",
+          "value": "rotations_per_second",
+          "detail": "The electric component serializer binds component+0x2a4, the speed state the motor and generator update, to the name rotations_per_second (lea at 0x140401853). Report: investigation/electricity.md. Function 0x140401719-0x1404018ae; it references the string 'rotations_per_second' at 0x140b6e078. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-save.asm:L167; ../electricity/pseudocode/0x1404015c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140401719@0x140b6e078",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6e078"
+          }
+        },
+        {
+          "label": "Motor speed submission",
+          "value": "component+0x1ec",
+          "detail": "The motor stores its local speed to its mechanical node's submitted-speed field (node+0x2c of the node at component+0x1c0) with no multiplier, radians or tick conversion. Report: investigation/electricity.md. Function 0x140400965-0x140400bc0; instruction bytes f30f11b3ec010000 at 0x140400a58. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L91-L96; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a58",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400a58"
+          }
+        },
+        {
+          "label": "Motor group speed read",
+          "value": "component+0x1f0",
+          "detail": "Then reads the published group speed (node+0x30) and stores it as its own speed at component+0x2a4 (0x140400a72). Report: investigation/electricity.md. Function 0x140400965-0x140400bc0; instruction bytes f30f10b3f0010000 at 0x140400a60. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L91-L96; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a60",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400a60"
+          }
+        },
+        {
+          "label": "Motor shaft weight submission",
+          "value": "force_emitter_max_force",
+          "detail": "Stores force_emitter_max_force (definition+0x848, loaded at 0x140400a52) as its submitted weight F (node+0x28). Report: investigation/electricity.md. Function 0x140400965-0x140400bc0; instruction bytes 8983e8010000 at 0x140400a68. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L91-L96; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400965@0x140400a68",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400a68"
+          }
+        },
+        {
+          "label": "Generator shaft exchange",
+          "value": "submit speed, read group speed, submit F",
+          "detail": "The generator submits its previous local speed here, reads the published group speed at 0x140400d0d and submits force_emitter_max_force as F at 0x140400d15, then applies its drag to the received speed. No unit conversion occurs. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f119bec010000 at 0x140400d05. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L241-L243; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400d05",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400d05"
+          }
+        },
+        {
+          "label": "Torque meter RPS output",
+          "value": "group speed, factor 1",
+          "detail": "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987a0010000 at 0x1403fb1ec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1ec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1ec"
+          }
+        },
+        {
+          "label": "Torque meter Torque output",
+          "value": "effective group weight",
+          "detail": "The Torque output receives group+8, the group's effective weight in this solver, not a torque in newton-metres. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987d8010000 at 0x1403fb1f5. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1f5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1f5"
+          }
+        },
+        {
+          "label": "Shaft group base weight",
+          "value": "1",
+          "detail": "The shaft solve starts each group's weight at 1, which carries the group's previous speed. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes c742040000803f at 0x1404ca113. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L237-L277; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca113",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca113"
+          }
+        },
+        {
+          "label": "Shaft member weighting",
+          "value": "F × submitted speed",
+          "detail": "Each member's submitted weight F (member+0x28, 0x1404ca169) multiplies its submitted speed (member+0x2c); the weights are summed into the group weight at 0x1404ca185. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f59422c at 0x1404ca171. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L237-L277; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca171",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca171"
+          }
+        },
+        {
+          "label": "Shaft group speed",
+          "value": "(v_prev + Σ F × v) ÷ (1 + Σ F)",
+          "detail": "Divides the accumulated numerator, previous group speed plus Σ F × submitted speed, by the group weight 1 + Σ F. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f5e5904 at 0x1404ca1c3. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L237-L277; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca1c3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca1c3"
+          }
+        },
+        {
+          "label": "Bridged shaft contribution",
+          "value": "weight ÷ |ratio|",
+          "detail": "Traversing gearbox and clutch links, the solve adds sign(r) × v_s × I_s × h to a target group's numerator (0x1404ca592) and I_s × h ÷ |r| to its weight (0x1404ca5ad), with h the traversed fraction (× 0.95 and the link engagement per edge, stopping below 0.001) and r the cumulative ratio. Revisits with a ratio outside about 0.9 to 1.1 of the recorded one take a braking conflict path. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f5ec8 at 0x1404ca5a3. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L517-L523; ../electricity/tools/tables.txt:L30-L32; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca5a3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca5a3"
+          }
+        },
+        {
+          "label": "Published group speed",
+          "value": "(I × v + N) ÷ (I + D)",
+          "detail": "Publication writes V = (I × v + N) ÷ (I + D) to every member's node+0x30, where N and D are the bridge contributions (both 0 without a gearbox or clutch bridge); the effective weight I + D goes to node+0x34 at 0x1404c9c41. Report: investigation/electricity.md. Function 0x1404c9b21-0x1404c9c83; instruction bytes 41894030 at 0x1404c9c1d. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L67-L75; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9b21@0x1404c9c1d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9c1d"
+          }
+        },
+        {
+          "label": "Shaft group example",
+          "value": "10 RPS",
+          "detail": "Previous group speed 0, a member of weight 2 submitting 20 RPS and a member of weight 1 submitting 0: (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. Without the group's own weight 1 it would be 13.333 RPS. Report: investigation/electricity.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca113, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca171, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca1c3.",
+          "evidenceId": "derived:818879675f6f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca113"
+          }
+        },
+        {
+          "label": "Pool packet cap",
+          "value": "min(C, 10)",
+          "detail": "For each storage node with the source flag (node+0x38, tested at 0x1404ca91f) the network build caps its capacity C (node+0x44) at 10 (binary32 at 0x140bb064c) to get its packet weight c, then multiplies c by the stored fraction b (node+0x40) at 0x1404ca931. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f5dc6 at 0x1404ca92a. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca92a"
+          }
+        },
+        {
+          "label": "Pool charge",
+          "value": "P = Σ c, E = Σ c × b",
+          "detail": "Adds c to the pool capacity P (pool+0, 0x1404ca93e) and c × b to the pool charge E (pool+4). Batteries, generator buffers, solar cells and chargers carry the source flag. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114004 at 0x1404ca94e. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca94e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca94e"
+          }
+        },
+        {
+          "label": "Pool withdrawal",
+          "value": "b - c × b ÷ C",
+          "detail": "Removes the lent packet from the node's stored fraction. This is a loan to the pool, not a loss. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114240 at 0x1404ca972. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca972",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca972"
+          }
+        },
+        {
+          "label": "Pool charge fraction",
+          "value": "q = E ÷ P",
+          "detail": "Publication divides E by P (0x1404c9cd8, 0 when P is 0) and writes q to node+0x3c of every node in the group. q is a snapshot; E changes live as components draw and deposit. Report: investigation/electricity.md. Function 0x1404c9c98-0x1404c9d20; instruction bytes f30f11413c at 0x1404c9d07. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L109-L121; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9c98@0x1404c9d07",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9d07"
+          }
+        },
+        {
+          "label": "Pool return",
+          "value": "b + (E ÷ P) × c ÷ C",
+          "detail": "Finalization returns the remaining pool charge to each source node in proportion to its packet, then clamps b to 0 to 1 at 0x1404cacc6. Surplus above full is discarded. Report: investigation/electricity.md. Function 0x1404cac09-0x1404cad10; instruction bytes f30f115240 at 0x1404caca0. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-restore.asm:L55-L81; ../electricity/pseudocode/0x1404cabb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404caca0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404caca0"
+          }
+        },
+        {
+          "label": "Pool cleared",
+          "value": "group+0x20 = null",
+          "detail": "The group's pool pointer is cleared after the return, so the pool is rebuilt every cycle. Report: investigation/electricity.md. Function 0x1404cac09-0x1404cad10; instruction bytes 48896820 at 0x1404cacf6. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-restore.asm:L55-L81; ../electricity/pseudocode/0x1404cabb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404cacf6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cacf6"
+          }
+        },
+        {
+          "label": "Pool build per component pass",
+          "value": "call 0x1404bd940",
+          "detail": "The vehicle/component dispatcher calls the network phase that builds (0x1404bda4c) and publishes (0x1404bda54) the pools before its component update loop at 0x1405498d6. Report: investigation/electricity.md. Function 0x140549240-0x140549ef6; instruction bytes e87e42f7ff at 0x1405496bd. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-phase.asm:L1-L7; ../electricity/pseudocode/0x1404bd940.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405496bd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405496bd"
+          }
+        },
+        {
+          "label": "Largest pool packet per source",
+          "value": "10 per update, 600 per simulated second",
+          "detail": "A full source lends at most min(C, 10) = 10 to the pool per update; batteries all have C above 10. Generation in the same cycle adds to the pool on top. Report: investigation/electricity.md. At 60 updates per simulated second. Inputs: derived:7d3ff454a23f.",
+          "evidenceId": "derived:45fbe0b39452",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Generator Output",
+          "value": "60 × Q",
+          "detail": "Stores 60 × Q (multiplied at 0x140400d8e) to the number output at component+0x1a0. With 60 updates per simulated second this is the internal charge deposited per simulated second. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f1183a0010000 at 0x140400d96. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L266-L267; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140400d96",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140400d96"
+          }
+        },
+        {
           "label": "Small Generator · tooltip",
           "value": "A small generator unit for converting mechanical power to electricity.",
           "detail": "generator_small: developer-authored short description; intended behaviour, not a measurement.",
@@ -9260,8 +10538,8 @@
         }
       ],
       "limitations": [
-        "Static analysis only; Q is in the internal charge unit.",
-        "The shaft-link exchange and the unit of ω were not decoded; the force-weighted comparisons depend on that link.",
+        "Static analysis only; Q is in the internal charge unit. A conversion of internal charge to joules or watts was not recovered.",
+        "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -9358,6 +10636,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1ec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1f5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140400578"
         },
         {
@@ -9368,7 +10656,32 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a58"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a60"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400a68"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400d05"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140400d31"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140400d96"
         },
         {
           "path": "stormworks64.exe",
@@ -9379,6 +10692,66 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14044a388"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9c1d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9d07"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca113"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca171"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca1c3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca5a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca92a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca94e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca972"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caca0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cacf6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405496bd"
         },
         {
           "path": "stormworks64.exe",
@@ -9409,6 +10782,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6e078"
         },
         {
           "path": "stormworks64.exe",
@@ -17214,11 +18592,19 @@
     },
     {
       "id": "part-electric-diode",
-      "summary": "One-way charger that moves charge only across a significant charge difference.",
+      "summary": "Moves at most 0.01 internal charge per update from its input network to its output network and never back. It checks no minimum charge difference.",
       "sections": [
         {
+          "title": "How the transfer works",
+          "body": "Each update the charger requests R = min(0.01, q_in, 1 − q_out), where q_in and q_out are the charge fractions of its two networks. It takes min(max(0, 1 − n ÷ 300) × q_in × R, E_in) from the input pool, n being its input node's EMP countdown and E_in the input pool's charge, and adds that to the output pool. Nothing moves once the output network is full or the input is empty. With infinite electricity it adds R without removing anything."
+        },
+        {
+          "title": "Rates",
+          "body": "The cap is 0.01 per update, 0.6 per simulated second. Transfer runs even when the output is fuller than the input: at q_in = 0.5 and q_out = 0.9 it moves 0.005 per update, 0.3 per simulated second. Filling a small battery's 1600 from empty at the cap takes at least 2667 simulated seconds, so a charger suits trickle charging, not powering loads."
+        },
+        {
           "title": "Setup and interactions",
-          "body": "Use it to charge a battery from a generator bus without the battery back-feeding. Its electric node buffer is 0.01 (electric_type 6)."
+          "body": "Use it to charge a battery from a generator bus without the battery back-feeding. Its electric node buffer is 0.01 (electric_type 6). The tooltip's significant discrepancy has no threshold in the code; the headroom and supply limits above take its place."
         }
       ],
       "findings": [
@@ -17238,7 +18624,7 @@
         {
           "label": "Electric Charger · electric_type",
           "value": "6",
-          "detail": "electric_diode: definition attribute electric_type. Value 6 gives a 0.01 buffer in the electric initialiser.",
+          "detail": "electric_diode: definition attribute electric_type. Value 6 gives a 0.01 buffer in the electric initialiser and selects the charger case of the electric update.",
           "evidenceId": "resource:rom/data/definitions/electric_diode.xml:4c2dce56aeaf:L2-L2",
           "status": "observed",
           "source": {
@@ -17259,10 +18645,326 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x140400578"
           }
+        },
+        {
+          "label": "Electric Charger · port Electric In",
+          "value": "Input node for electric.",
+          "detail": "electric_diode: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/electric_diode.xml:4c2dce56aeaf:L68-L68",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/electric_diode.xml",
+            "sha256": "4c2dce56aeaf720a5c9807776626d5b974bb0c4563d8f5b1eae92ebdfc37f56e",
+            "lineStart": 68,
+            "lineEnd": 68
+          }
+        },
+        {
+          "label": "Electric Charger · port Electric Out",
+          "value": "Output node for electric.",
+          "detail": "electric_diode: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/electric_diode.xml:4c2dce56aeaf:L71-L71",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/electric_diode.xml",
+            "sha256": "4c2dce56aeaf720a5c9807776626d5b974bb0c4563d8f5b1eae92ebdfc37f56e",
+            "lineStart": 71,
+            "lineEnd": 71
+          }
+        },
+        {
+          "label": "Charger output headroom",
+          "value": "1 - q_out",
+          "detail": "electric_type 6 (charger), entered at 0x1404013d8 when undamaged with both groups present, forms 1 minus the output node's charge fraction (component+0x294). Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f5c8394020000 at 0x140401411. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L609-L660; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140401411",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140401411"
+          }
+        },
+        {
+          "label": "Charger request",
+          "value": "R = min(0.01, q_in, 1 - q_out)",
+          "detail": "Takes the minimum with the input node's charge fraction (component+0x24c, 0x140401419) and the 0.01 cap. No comparison of q_in with q_out occurs on this path. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f5df8 at 0x140401421. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L609-L660; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140401421",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140401421"
+          }
+        },
+        {
+          "label": "Charger input removal",
+          "value": "E_in - T",
+          "detail": "Removes T = min(max(0, 1 - n_in ÷ 300) × q_in × R, E_in) from the input pool. With infinite electricity nothing is removed and T = R. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f114904 at 0x14040149f. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L609-L660; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x14040149f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14040149f"
+          }
+        },
+        {
+          "label": "Charger output deposit",
+          "value": "E_out + T",
+          "detail": "Adds T to the output pool when T > 0. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; instruction bytes f30f117004 at 0x1404014c8. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-update.asm:L609-L660; ../electricity/pseudocode/0x1404008a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x1404014c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404014c8"
+          }
+        },
+        {
+          "label": "Charger transfer cap",
+          "value": "0.01",
+          "detail": "The 0.01 cap on the charger request R per update. Report: investigation/electricity.md. Function 0x140400bc0-0x140401512; it reads binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../electrical-magnitude/pseudocode/0x1404008a0.c:L193-L218; ../electrical-magnitude/asm/electric-update.asm:L237-L275. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140baf958",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140baf958"
+          }
+        },
+        {
+          "label": "Charger transfer rates",
+          "value": "at most 0.01 per update, 0.6 per simulated second; 0.005 per update at q_in 0.5, q_out 0.9",
+          "detail": "R ≤ 0.01, so T ≤ 0.01 per update, 0.6 per simulated second at 60 updates per second. Example: q_in = 0.5, q_out = 0.9, no EMP and enough input charge: R = min(0.01, 0.5, 0.1) = 0.01 and T = 0.5 × 0.01 = 0.005 per update, 0.3 per simulated second, even though the output is fuller than the input. Filling a small battery's 1600 from empty at the cap takes at least 1600 ÷ 0.6 = 2667 simulated seconds. Report: investigation/electricity.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140401411, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140401421, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x14040149f, native:stormworks64.exe:f9206d85c82f:0x140400bc0@0x140baf958, derived:7d3ff454a23f.",
+          "evidenceId": "derived:e1c31686eba7",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140401411"
+          }
+        },
+        {
+          "label": "Electric node field +0x28",
+          "value": "emp",
+          "detail": "The electric node serializer binds node+0x28 (lea r9,[rdi+0x28] at 0x1402eeb3a) to the name emp, default 0. Report: investigation/electricity.md. Function 0x1402eeaa0-0x1402eec75; it references the string 'emp' at 0x140b597a4. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-node-save.asm:L47-L48; ../electricity/pseudocode/0x1402eeaa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeaa0@0x140b597a4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b597a4"
+          }
+        },
+        {
+          "label": "EMP countdown",
+          "value": "n - 1 while n > 0",
+          "detail": "Electric vtable slot +0x3e8 (0x140b814b8) decrements every nonzero node+0x28 by 1. It does not test charge or supply. Report: investigation/electricity.md. Function 0x14032abc0-0x14032acc0; instruction bytes ffc8894228 at 0x14032abf3. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-counter.asm:L1-L19; ../electricity/pseudocode/0x14032abc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14032abc0@0x14032abf3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14032abf3"
+          }
+        },
+        {
+          "label": "EMP countdown call",
+          "value": "once per component pass",
+          "detail": "The vehicle component pass calls slot +0x3e8 for each component. Report: investigation/electricity.md. Function 0x1404995e7-0x140499801; instruction bytes ff90e8030000 at 0x140499726. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-tick-caller.asm; ../electricity/pseudocode/0x1404995b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404995e7@0x140499726",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140499726"
+          }
+        },
+        {
+          "label": "Pool packet cap",
+          "value": "min(C, 10)",
+          "detail": "For each storage node with the source flag (node+0x38, tested at 0x1404ca91f) the network build caps its capacity C (node+0x44) at 10 (binary32 at 0x140bb064c) to get its packet weight c, then multiplies c by the stored fraction b (node+0x40) at 0x1404ca931. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f5dc6 at 0x1404ca92a. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca92a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca92a"
+          }
+        },
+        {
+          "label": "Pool charge",
+          "value": "P = Σ c, E = Σ c × b",
+          "detail": "Adds c to the pool capacity P (pool+0, 0x1404ca93e) and c × b to the pool charge E (pool+4). Batteries, generator buffers, solar cells and chargers carry the source flag. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114004 at 0x1404ca94e. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca94e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca94e"
+          }
+        },
+        {
+          "label": "Pool withdrawal",
+          "value": "b - c × b ÷ C",
+          "detail": "Removes the lent packet from the node's stored fraction. This is a loan to the pool, not a loss. Report: investigation/electricity.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114240 at 0x1404ca972. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-collect.asm:L732-L754; ../electricity/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca972",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca972"
+          }
+        },
+        {
+          "label": "Pool charge fraction",
+          "value": "q = E ÷ P",
+          "detail": "Publication divides E by P (0x1404c9cd8, 0 when P is 0) and writes q to node+0x3c of every node in the group. q is a snapshot; E changes live as components draw and deposit. Report: investigation/electricity.md. Function 0x1404c9c98-0x1404c9d20; instruction bytes f30f11413c at 0x1404c9d07. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L109-L121; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9c98@0x1404c9d07",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9d07"
+          }
+        },
+        {
+          "label": "Pool return",
+          "value": "b + (E ÷ P) × c ÷ C",
+          "detail": "Finalization returns the remaining pool charge to each source node in proportion to its packet, then clamps b to 0 to 1 at 0x1404cacc6. Surplus above full is discarded. Report: investigation/electricity.md. Function 0x1404cac09-0x1404cad10; instruction bytes f30f115240 at 0x1404caca0. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-restore.asm:L55-L81; ../electricity/pseudocode/0x1404cabb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404caca0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404caca0"
+          }
+        },
+        {
+          "label": "Pool cleared",
+          "value": "group+0x20 = null",
+          "detail": "The group's pool pointer is cleared after the return, so the pool is rebuilt every cycle. Report: investigation/electricity.md. Function 0x1404cac09-0x1404cad10; instruction bytes 48896820 at 0x1404cacf6. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-restore.asm:L55-L81; ../electricity/pseudocode/0x1404cabb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cac09@0x1404cacf6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cacf6"
+          }
+        },
+        {
+          "label": "Pool build per component pass",
+          "value": "call 0x1404bd940",
+          "detail": "The vehicle/component dispatcher calls the network phase that builds (0x1404bda4c) and publishes (0x1404bda54) the pools before its component update loop at 0x1405498d6. Report: investigation/electricity.md. Function 0x140549240-0x140549ef6; instruction bytes e87e42f7ff at 0x1405496bd. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-phase.asm:L1-L7; ../electricity/pseudocode/0x1404bd940.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405496bd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405496bd"
+          }
+        },
+        {
+          "label": "Largest pool packet per source",
+          "value": "10 per update, 600 per simulated second",
+          "detail": "A full source lends at most min(C, 10) = 10 to the pool per update; batteries all have C above 10. Generation in the same cycle adds to the pool on top. Report: investigation/electricity.md. At 60 updates per simulated second. Inputs: derived:7d3ff454a23f.",
+          "evidenceId": "derived:45fbe0b39452",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
         }
       ],
       "limitations": [
-        "The 'significant discrepancy' threshold was not recovered."
+        "Treating the node whose fraction sits at component+0x24c as Electric In is an inference from the definition's port order.",
+        "Static analysis only.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
@@ -17274,13 +18976,130 @@
         {
           "path": "rom/data/definitions/electric_diode.xml",
           "sha256": "4c2dce56aeaf720a5c9807776626d5b974bb0c4563d8f5b1eae92ebdfc37f56e",
+          "lineStart": 68,
+          "lineEnd": 68
+        },
+        {
+          "path": "rom/data/definitions/electric_diode.xml",
+          "sha256": "4c2dce56aeaf720a5c9807776626d5b974bb0c4563d8f5b1eae92ebdfc37f56e",
+          "lineStart": 71,
+          "lineEnd": 71
+        },
+        {
+          "path": "rom/data/definitions/electric_diode.xml",
+          "sha256": "4c2dce56aeaf720a5c9807776626d5b974bb0c4563d8f5b1eae92ebdfc37f56e",
           "lineStart": 115,
           "lineEnd": 115
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032abf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140400578"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140401411"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140401421"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14040149f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404014c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140499726"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9d07"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca92a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca94e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca972"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caca0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cacf6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405496bd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b597a4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140baf958"
         }
       ]
     },
@@ -31109,12 +32928,12 @@
       "weapon-xxl-barrel",
       "wheel-with-suspension"
     ],
-    "findingCount": 1469,
+    "findingCount": 1569,
     "findingsByStatus": {
-      "derived": 120,
-      "observed": 1349
+      "derived": 137,
+      "observed": 1432
     },
-    "nativeFindingCount": 586,
+    "nativeFindingCount": 681,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -31157,7 +32976,7 @@
       },
       {
         "path": "wiki/data/families.json",
-        "sha256": "7cdb6318a8fb833de6aea8abd37268804c34f25a331d4ceeb113743827b61cfc"
+        "sha256": "04156ecde67e186725e80a2b8654bd72bbede31fc18a69b6f936b6f098751d7d"
       },
       {
         "path": "stormworks64.exe",
@@ -31165,9 +32984,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 87,
-      "native": 245,
-      "resource": 938
+      "derived": 97,
+      "native": 287,
+      "resource": 940
     }
   }
 }

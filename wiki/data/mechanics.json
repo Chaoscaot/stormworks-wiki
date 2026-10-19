@@ -872,7 +872,7 @@
       "title": "Batteries and generators",
       "category": "Electricity",
       "summary": "Battery capacities and charge output ranges are explicit in component definitions.",
-      "body": "The small, medium and large battery definitions assign charge capacities 1600, 12800 and 256000. Battery Charge outputs run from 0 to 1. Generators take mechanical input and expose electrical output plus a generation data output. Their electric_magnitude values are internal configuration fields. This resource-only article does not establish their equations or watt ratings; the Generator and Electric Motor part articles include the later native-code findings. The realtime electric consumption scale is 0.01.",
+      "body": "The small, medium and large battery definitions assign charge capacities 1600, 12800 and 256000. Battery Charge outputs run from 0 to 1. Generators take mechanical input and expose electrical output plus a generation data output. Their electric_magnitude values are internal configuration fields. The storage, draw and generation equations come from native code and are in the Electric Battery, Generator and Electric Motor part articles. The realtime electric consumption scale is 0.01.",
       "findings": [
         {
           "label": "Electric Battery Small: electric_charge_capacity",
@@ -1046,7 +1046,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Capacity units, voltage, loss, per-device consumption and conversion to joules or watts remain unknown."
+        "Capacity units, voltage and conversion to joules or watts remain unknown. Consumption of components outside the traced native updates and the effect of electric_consumption_scale were not recovered."
       ]
     },
     {

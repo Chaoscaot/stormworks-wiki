@@ -35,6 +35,7 @@ COMMON_LIMITS = [
 ]
 THERMAL_LIMIT = "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve."
 POWER_LIMIT = "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules."
+ELECTRIC_POWER_LIMIT = "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research."
 
 
 def field(key, label, meaning):
@@ -83,16 +84,16 @@ def curated_specs(blocks):
         "An electric fluid heat radiator cools the fluid inside it. Supplying electricity for the fan increases the rate of heat exchange. Both the 3x3 and 5x5 variants have Fluid A, Fluid B, Electric, Fan On/Off and Temperature connections.", limits=[THERMAL_LIMIT, "Electric, Fan On/Off and Temperature have labels but no descriptions. Signal ranges and temperature units are unspecified."])
     add("electric-battery", "Electric Battery", "Electricity", "battery_small battery_medium battery_large",
         "Stores electrical charge and reports a normalized charge value.",
-        "An electric battery stores charge for the electrical system through its Electric Store connection. Charge reports the battery's charge from 0 to 1. Small, medium and large batteries have electric_charge_capacity values of 1600, 12800 and 256000, respectively.", fields=[CAPACITY], limits=["Voltage, capacity units, charge/discharge limits and storage losses are unknown. Internal capacity values are not established as joules, watt-hours or amp-hours."])
+        "An electric battery stores charge for the electrical system through its Electric Store connection. Charge reports the battery's charge from 0 to 1. Small, medium and large batteries have electric_charge_capacity values of 1600, 12800 and 256000, respectively.", fields=[CAPACITY], limits=["Voltage and capacity units are unknown. Internal capacity values are not established as joules, watt-hours or amp-hours. The definition sets no charge or discharge rate; the native charge-pool equations in the practical behaviour research give those rates."])
     add("generator", "Generator", "Electricity", "generator_small generator_medium generator_large",
         "Converts mechanical input into electrical energy.",
-        "A generator converts mechanical power into electrical energy. RPS accepts the mechanical input, Electric connects the electrical output, and Output reports electrical generation. Small, medium and large variants share these connection roles.", fields=[MAGNITUDE], limits=[POWER_LIMIT])
+        "A generator converts mechanical power into electrical energy. RPS accepts the mechanical input, Electric connects the electrical output, and Output reports electrical generation. Small, medium and large variants share these connection roles.", fields=[MAGNITUDE], limits=[ELECTRIC_POWER_LIMIT])
     add("diesel-engine", "Diesel Engine", "Engines", "engine aircraft_engine engine_diesel",
         "Self-contained small, medium and large diesel engines with fuel, air, coolant and exhaust connections.",
         "Throttle accepts 0 to 1. Starter uses electricity to increase engine RPS during startup. Fuel and Air supply the engine; In Coolant is the cold return and Out Coolant is the hot output. Exhaust removes combustion fumes. Separate data outputs report RPS and temperature. The mechanical port is also labelled RPS, so its role must be read from its description rather than the label alone.", limits=[POWER_LIMIT])
     add("electric-motor", "Electric Motor", "Electricity", "motor_small motor_medium motor_large",
         "Converts electrical energy into mechanical force under throttle control.",
-        "An electric motor converts electrical energy into mechanical force. Electric supplies energy and RPS connects the mechanical output. Throttle controls how much electrical energy is converted to force. The family has small, medium and large variants.", fields=[MAGNITUDE], limits=[POWER_LIMIT, "The throttle input range is unspecified."])
+        "An electric motor converts electrical energy into mechanical force. Electric supplies energy and RPS connects the mechanical output. Throttle controls how much electrical energy is converted to force. The family has small, medium and large variants.", fields=[MAGNITUDE], limits=[ELECTRIC_POWER_LIMIT, "The definition does not state a throttle range. The native motor update clamps the input it reads as Throttle to -1 to 1 (practical behaviour research)."])
     add("electric-fluid-pump", "Electric Fluid Pump", "Fluids", "water_pump water_pump_large",
         "Moves fluid between an inlet and outlet under on/off control.",
         "An electric fluid pump moves fluid through a vehicle's fluid system. Fluid In takes fluid into the pump and Fluid Out releases it. Electric supplies power, On/Off controls pumping, and Flow Rate reports flow in L/s. The small and large variants have pump_pressure configuration values of 10 and 100.", fields=[PUMP], limits=["Maximum flow, pressure units, network resistance and power consumption are unknown."])

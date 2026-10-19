@@ -20,25 +20,19 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/3/limitations/0",
-        "text": "Electric units are internal; no conversion to joules or watts was recovered.",
+        "text": "Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. A conversion of internal charge to joules or watts was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/3/limitations/1",
-        "text": "ω is the component's internal speed state; how it maps to the RPS port and how the shaft link exchanges speed were not decoded.",
+        "text": "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. How arbitrary gearbox and clutch networks, conflicting ratio loops and connector rebuilds combine groups was not decoded, and the model gives no SI torque or inertia.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/3/sections/3/body",
-        "text": "Motors and both starters draw through the same helper. It removes min(a × request, network charge) and returns the supplied fraction, where a = max(0, (300 − n) ÷ 300) × q comes from two node fields whose meaning was not recovered. A motor's step is scaled by that fraction, so starving it slows acceleration without changing the cost per unit of step. With infinite_batteries on, the helper returns 1 and takes nothing. Generators deposit regardless of that setting.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/3/sections/4/body",
-        "text": "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. The speed unit of ω and the shaft-link model were not recovered, so charge cannot yet be turned into charge per unit of work. The shipped realtime file sets electric_consumption_scale to 0.01, but the release binary does not contain that name.",
+        "pointer": "/categories/3/sections/5/body",
+        "text": "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. Generator Output already includes that factor. The shaft solver weights speed changes by force_emitter_max_force and has no torque or inertia in SI units, so it gives no charge-per-joule figure for mechanical work. The shipped realtime file sets electric_consumption_scale to 0.01, but the executable contains that name neither as ASCII nor as UTF-16LE text, and its effect was not recovered.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -473,19 +467,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/8/limitations/0",
-        "text": "Charge/discharge limits and losses were not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/8/sections/2/body",
-        "text": "How fast a battery can charge or discharge was not recovered.",
+        "text": "Voltage and the conversion of internal charge to joules, watt-hours or amp-hours were not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/97/limitations/4",
-        "text": "Voltage, capacity units, charge/discharge limits and storage losses are unknown. Internal capacity values are not established as joules, watt-hours or amp-hours.",
+        "text": "Voltage and capacity units are unknown. Internal capacity values are not established as joules, watt-hours or amp-hours. The definition sets no charge or discharge rate; the native charge-pool equations in the practical behaviour research give those rates.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -559,38 +547,26 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
+        "pointer": "/families/11/limitations/0",
+        "text": "Static analysis only; charge is in the internal unit. A conversion of internal charge to joules or watts was not recovered.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
         "pointer": "/families/11/limitations/2",
-        "text": "The shaft-link exchange and the unit of speed were not decoded.",
+        "text": "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/11/sections/2/body",
-        "text": "Charge scales with the speed step, not with speed × step. A given speed change costs the same at low and high shaft speed, so equal charge buys equal force-weighted speed change rather than equal mechanical work. Turning it into work needs the shaft-link model, which was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/11/findings/12/detail",
-        "text": "With infinite_batteries (settings offset 0x33) set the helper returns 1 and removes nothing. Otherwise it returns 0 without a network, else removes min(a × request, network charge) and returns that amount ÷ request, where a = max(0, (300 − n) ÷ 300) × q from node fields n (offset 0x28) and q (offset 0x3c) whose meaning was not recovered. Function 0x1402eeca0-0x1402eed53; instruction bytes 80783300 at 0x1402eecb6. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/11/findings/20/detail",
-        "text": "Generator electric_magnitude ÷ motor electric_magnitude, valid only if both shaft links weight speed by force_emitter_max_force (not decoded); 0.85 ÷ 1.05 = 0.8095. Inputs: resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, resource:rom/data/definitions/generator_medium.xml:6100f8b6ac93:L2-L2, resource:rom/data/definitions/generator_large.xml:a7af79af76b2:L2-L2, resource:rom/data/definitions/motor_small.xml:77b2b5ef91f2:L2-L2, resource:rom/data/definitions/motor_medium.xml:45c0ef710323:L2-L2, resource:rom/data/definitions/motor_large.xml:9e4e7a53ba4b:L2-L2.",
+        "pointer": "/families/11/findings/59/detail",
+        "text": "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Its event discriminator was not traced; the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading. Report: investigation/electricity.md. Function 0x14077dd80-0x14077e224; instruction bytes ff90f0030000 at 0x14077e085. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-pulse.asm:L156-L170; ../electricity/asm/emp-event-call.asm; ../electricity/pseudocode/0x14077dd80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/106/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/106/limitations/5",
-        "text": "The throttle input range is unspecified.",
+        "text": "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research.",
         "scope": "Definition-only extraction"
       },
       {
@@ -690,32 +666,20 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
+        "pointer": "/families/16/limitations/0",
+        "text": "Static analysis only; Q is in the internal charge unit. A conversion of internal charge to joules or watts was not recovered.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
         "pointer": "/families/16/limitations/1",
-        "text": "The shaft-link exchange and the unit of ω were not decoded; the force-weighted comparisons depend on that link.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/16/sections/1/body",
-        "text": "Per unit of speed removed, the small, medium and large generator deposit 0.06, 2.25 and 10.625. Divided by force_emitter_max_force that is 0.06, 0.075 and 0.085, so for the same force-weighted speed removal the large generator yields 1.4167 times and the medium 1.25 times what the small one does. That comparison assumes the shaft link weights each part's speed by force_emitter_max_force, which matches how the parts write into it but was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/16/sections/3/body",
-        "text": "Output is not labelled with a unit, and the charge unit itself has no recovered conversion to joules. Measure Output against shaft RPS per size to fix the unit of ω.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/16/findings/19/detail",
-        "text": "Generator electric_magnitude ÷ motor electric_magnitude, valid only if both shaft links weight speed by force_emitter_max_force (not decoded); 0.85 ÷ 1.05 = 0.8095. Inputs: resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2, resource:rom/data/definitions/generator_medium.xml:6100f8b6ac93:L2-L2, resource:rom/data/definitions/generator_large.xml:a7af79af76b2:L2-L2, resource:rom/data/definitions/motor_small.xml:77b2b5ef91f2:L2-L2, resource:rom/data/definitions/motor_medium.xml:45c0ef710323:L2-L2, resource:rom/data/definitions/motor_large.xml:9e4e7a53ba4b:L2-L2.",
+        "text": "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/192/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+        "text": "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research.",
         "scope": "Definition-only extraction"
       },
       {
@@ -1269,19 +1233,6 @@
         "file": "wiki/data/behavior.json",
         "pointer": "/families/43/sections/2/body",
         "text": "Electric unit cost of the 0.001 request and the capacity terms q per litre of each liquid.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-electric-diode",
-    "title": "Electric Charger: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-electric-diode",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/46/limitations/0",
-        "text": "The 'significant discrepancy' threshold was not recovered.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -2629,14 +2580,8 @@
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/6/body",
-        "text": "The small, medium and large battery definitions assign charge capacities 1600, 12800 and 256000. Battery Charge outputs run from 0 to 1. Generators take mechanical input and expose electrical output plus a generation data output. Their electric_magnitude values are internal configuration fields. This resource-only article does not establish their equations or watt ratings; the Generator and Electric Motor part articles include the later native-code findings. The realtime electric consumption scale is 0.01.",
-        "scope": "Shipped-resource mechanics article"
-      },
-      {
-        "file": "wiki/data/mechanics.json",
         "pointer": "/articles/6/limitations/2",
-        "text": "Capacity units, voltage, loss, per-device consumption and conversion to joules or watts remain unknown.",
+        "text": "Capacity units, voltage and conversion to joules or watts remain unknown. Consumption of components outside the traced native updates and the effect of electric_consumption_scale were not recovered.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

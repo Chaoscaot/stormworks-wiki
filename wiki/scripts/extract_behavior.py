@@ -568,7 +568,7 @@ def fluid_transport(E):
         raise ValueError("Fluid initializer case 9 does not select 0x1403ef72d")
     rep = " Report: %s." % FT_REPORT
     pressure = code(F_PUMP, 0x1403FD09C, "f30f5990c80e0000", "Electric pump pressure factor", "bias × pump_pressure",
-                    "The electric pump update multiplies the bias in xmm2 by definition+0xec8, the field the definition loader binds to pump_pressure. Before this xmm2 holds the electrical supply factor: max(0, (300 - electrical age) ÷ 300) × availability, or 1 with unlimited electricity." + rep)
+                    "The electric pump update multiplies the bias in xmm2 by definition+0xec8, the field the definition loader binds to pump_pressure. Before this xmm2 holds the electrical supply factor: max(0, (300 - EMP countdown) ÷ 300) × pool charge fraction, or 1 with unlimited electricity (investigation/electricity.md)." + rep)
     power = code(F_PUMP, 0x1403FD0BB, "f30f59935c020000", "Electric pump Max Power factor", "bias × Max Power",
                  "Then multiplies by component+0x25c, the Max Power property (editor range 0 to 100 shown, stored 0 to 1). Pump bias b = supply × pump_pressure × Max Power." + rep)
     call = code(F_PUMP, 0x1403FD0C3, "e80808efff", "Electric pump solver call", "one-way, factor 1",
@@ -743,6 +743,72 @@ WHERE.update({
     (0x1401F3C80, 0x1401FE3BB): DSP + "embedded-docs.txt:L4-L5",
     (0x1401F3C80, 0x1401FE6DB): DSP + "embedded-docs.txt:L7-L22",
     (0x14063D870, 0x14063EF0D): DSP + "embedded-docs.txt:L24-L50",
+})
+
+
+# electricity pass; files under investigation/native/electricity/, report investigation/electricity.md.
+ELC = "../electricity/"
+ELC_REPORT = "investigation/electricity.md"
+F_ELEC_SAVE = 0x140401719     # chunk of the electric component serializer 0x1404015c0
+F_NODE_SAVE = 0x1402EEAA0     # electric node serializer
+F_EMP_TICK = 0x14032ABC0      # electric vtable slot +0x3e8: count each node's EMP down by 1
+F_EMP_ADD = 0x14032AC10       # generic EMP apply: add a count to each node
+F_EMP_ELECTRIC = 0x140401560  # electric override of the EMP apply, slot +0x3f0
+F_EMP_PASS = 0x1404995E7      # chunk of the vehicle component pass that calls slot +0x3e8
+F_EMP_PULSE = 0x14077DD80     # spatial EMP pulse: distance falloff, then slot +0x3f0 per component
+F_ELEC_CTOR = 0x1403FFE60     # motor/generator constructor
+F_PUBLISH = 0x1404C9B21       # chunk of network publication 0x1404c9b00: shaft speed per member
+F_PUBLISH_Q = 0x1404C9C98     # chunk of 0x1404c9b00: electric pool charge fraction per node
+F_RESTORE = 0x1404CAC09       # chunk of electric pool finalization 0x1404cabb0
+# Electric component vtable: slot +0x3e8 EMP countdown, +0x3f0 EMP apply, +0x420 generic inspection.
+ELECTRIC_SLOTS = ((0x140B814B8, F_EMP_TICK), (0x140B814C0, F_EMP_ELECTRIC), (0x140B814F0, F_TOOLTIP))
+_EU, _NC = ELC + "asm/electric-update.asm", ELC + "asm/network-collect.asm"
+_EC, _EP = ELC + "asm/emp-counter.asm", ELC + "pseudocode/0x1404008a0.c"
+WHERE.update({
+    (0x140329FB0, 0x14032A91D): ELC + "asm/port-inspection.asm:L598-L612; " + ELC + "pseudocode/0x140329fb0.c",
+    (0x140329FB0, 0x14032A93B): ELC + "asm/port-inspection.asm:L598-L612; " + ELC + "pseudocode/0x140329fb0.c",
+    (0x140329FB0, 0x140ADE268): ELC + "asm/port-inspection.asm:L598-L612; " + ELC + "tools/tables.txt:L2",
+    (0x140400BC0, 0x140400D96): _EU + ":L266-L267; " + _EP,
+    (0x140400BC0, 0x140400DE0): _EU + ":L278-L284; " + _EP,
+    (0x140400BC0, 0x140400E07): _EU + ":L285-L302; " + _EP,
+    (0x140400BC0, 0x140400E1E): _EU + ":L285-L302; " + _EP,
+    (0x140400BC0, 0x140400D05): _EU + ":L241-L243; " + _EP,
+    (0x140400BC0, 0x140401411): _EU + ":L609-L660; " + _EP,
+    (0x140400BC0, 0x140401421): _EU + ":L609-L660; " + _EP,
+    (0x140400BC0, 0x14040149F): _EU + ":L609-L660; " + _EP,
+    (0x140400BC0, 0x1404014C8): _EU + ":L609-L660; " + _EP,
+    (0x140400965, 0x140400A58): _EU + ":L91-L96; " + _EP,
+    (0x140400965, 0x140400A60): _EU + ":L91-L96; " + _EP,
+    (0x140400965, 0x140400A68): _EU + ":L91-L96; " + _EP,
+    (0x140401719, 0x140B6E078): ELC + "asm/electric-save.asm:L167; " + ELC + "pseudocode/0x1404015c0.c",
+    (0x1403FAE40, 0x1403FB1EC): ELC + "asm/torque-update.asm:L186-L192; " + ELC + "pseudocode/0x1403fae40.c",
+    (0x1403FAE40, 0x1403FB1F5): ELC + "asm/torque-update.asm:L186-L192; " + ELC + "pseudocode/0x1403fae40.c",
+    (0x1404C9D20, 0x1404CA113): _NC + ":L237-L277; " + ELC + "pseudocode/0x1404c9d20.c",
+    (0x1404C9D20, 0x1404CA171): _NC + ":L237-L277; " + ELC + "pseudocode/0x1404c9d20.c",
+    (0x1404C9D20, 0x1404CA1C3): _NC + ":L237-L277; " + ELC + "pseudocode/0x1404c9d20.c",
+    (0x1404C9D20, 0x1404CA5A3): _NC + ":L517-L523; " + ELC + "tools/tables.txt:L30-L32; " + ELC + "pseudocode/0x1404c9d20.c",
+    (0x1404C9D20, 0x1404CA92A): _NC + ":L732-L754; " + ELC + "pseudocode/0x1404c9d20.c",
+    (0x1404C9D20, 0x1404CA94E): _NC + ":L732-L754; " + ELC + "pseudocode/0x1404c9d20.c",
+    (0x1404C9D20, 0x1404CA972): _NC + ":L732-L754; " + ELC + "pseudocode/0x1404c9d20.c",
+    (0x1404C9B21, 0x1404C9C1D): ELC + "asm/network-publish.asm:L67-L75; " + ELC + "pseudocode/0x1404c9b00.c",
+    (0x1404C9B21, 0x1404C9C41): ELC + "asm/network-publish.asm:L67-L75; " + ELC + "pseudocode/0x1404c9b00.c",
+    (0x1404C9C98, 0x1404C9CD8): ELC + "asm/network-publish.asm:L109-L121; " + ELC + "pseudocode/0x1404c9b00.c",
+    (0x1404C9C98, 0x1404C9D07): ELC + "asm/network-publish.asm:L109-L121; " + ELC + "pseudocode/0x1404c9b00.c",
+    (0x1404CAC09, 0x1404CACA0): ELC + "asm/network-restore.asm:L55-L81; " + ELC + "pseudocode/0x1404cabb0.c",
+    (0x1404CAC09, 0x1404CACF6): ELC + "asm/network-restore.asm:L55-L81; " + ELC + "pseudocode/0x1404cabb0.c",
+    (0x140549240, 0x1405496BD): ELC + "asm/network-phase.asm:L1-L7; " + ELC + "pseudocode/0x1404bd940.c",
+    (0x1402EEAA0, 0x140B597A4): ELC + "asm/electric-node-save.asm:L47-L48; " + ELC + "pseudocode/0x1402eeaa0.c",
+    (0x14032ABC0, 0x14032ABF3): _EC + ":L1-L19; " + ELC + "pseudocode/0x14032abc0.c",
+    (0x14032AC10, 0x14032AC3F): _EC + ":L31-L46; " + ELC + "pseudocode/0x14032ac10.c",
+    (0x140401560, 0x14040158F): _EC + ":L50-L73; " + ELC + "pseudocode/0x140401560.c",
+    (0x140401560, 0x1404015B7): _EC + ":L50-L73; " + ELC + "pseudocode/0x140401560.c",
+    (0x1404995E7, 0x140499726): ELC + "asm/emp-tick-caller.asm; " + ELC + "pseudocode/0x1404995b0.c",
+    (0x14077DD80, 0x14077E085): ELC + "asm/emp-pulse.asm:L156-L170; " + ELC + "asm/emp-event-call.asm; " + ELC + "pseudocode/0x14077dd80.c",
+    (0x1403FFE60, 0x1403FFF7B): ELC + "asm/electric-construct.asm:L50",
+    (0x1402EECA0, 0x1402EECEC): ELC + "asm/electric-draw.asm:L1-L46; " + ELC + "pseudocode/0x1402eeca0.c",
+    (0x1402EECA0, 0x1402EED06): ELC + "asm/electric-draw.asm:L1-L46; " + ELC + "pseudocode/0x1402eeca0.c",
+    (0x1402EECA0, 0x1402EED29): ELC + "asm/electric-draw.asm:L1-L46; " + ELC + "pseudocode/0x1402eeca0.c",
+    (0x1402EECA0, 0x1402EED4A): ELC + "asm/electric-draw.asm:L1-L46; " + ELC + "pseudocode/0x1402eeca0.c",
 })
 
 
@@ -1349,7 +1415,139 @@ def mechanical(B, E):
                  ["Rotation speed range and torque were not recovered."])
 
 
+def electricity_native(E):
+    """Speed unit, shaft mixing, EMP countdown, charge pool, draw, battery output and charger, verified once and shared."""
+    if hasattr(E, "elec"):
+        return E.elec
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / ELC_REPORT).is_file():
+        raise ValueError("Electricity report missing: " + ELC_REPORT)
+    for slot, target in ELECTRIC_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Electric vtable slot %#x does not point to %#x" % (slot, target))
+    name = b"electric_consumption_scale"
+    if name in n.data or name.decode().encode("utf-16-le") in n.data:
+        raise ValueError("electric_consumption_scale now occurs in the executable")
+    rep = " Report: %s." % ELC_REPORT
+    f = {}
+    # Speed unit and shaft exchange.
+    f["rps_save"] = E.string(F_ELEC_SAVE, 0x140B6E078, "rotations_per_second", "Motor/generator speed field name",
+                             "The electric component serializer binds component+0x2a4, the speed state the motor and generator update, to the name rotations_per_second (lea at 0x140401853)." + rep)
+    f["m_submit"] = code(F_MOTOR, 0x140400A58, "f30f11b3ec010000", "Motor speed submission", "component+0x1ec",
+                         "The motor stores its local speed to its mechanical node's submitted-speed field (node+0x2c of the node at component+0x1c0) with no multiplier, radians or tick conversion." + rep)
+    f["m_receive"] = code(F_MOTOR, 0x140400A60, "f30f10b3f0010000", "Motor group speed read", "component+0x1f0",
+                          "Then reads the published group speed (node+0x30) and stores it as its own speed at component+0x2a4 (0x140400a72)." + rep)
+    f["m_weight"] = code(F_MOTOR, 0x140400A68, "8983e8010000", "Motor shaft weight submission", "force_emitter_max_force",
+                         "Stores force_emitter_max_force (definition+0x848, loaded at 0x140400a52) as its submitted weight F (node+0x28)." + rep)
+    f["g_exchange"] = code(F_GENERATOR, 0x140400D05, "f30f119bec010000", "Generator shaft exchange", "submit speed, read group speed, submit F",
+                           "The generator submits its previous local speed here, reads the published group speed at 0x140400d0d and submits force_emitter_max_force as F at 0x140400d15, then applies its drag to the received speed. No unit conversion occurs." + rep)
+    f["meter_rps"] = code(F_TORQUE, 0x1403FB1EC, "8987a0010000", "Torque meter RPS output", "group speed, factor 1",
+                          "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second." + rep)
+    f["meter_torque"] = code(F_TORQUE, 0x1403FB1F5, "8987d8010000", "Torque meter Torque output", "effective group weight",
+                             "The Torque output receives group+8, the group's effective weight in this solver, not a torque in newton-metres." + rep)
+    f["shaft_one"] = code(F_NET_ALLOC, 0x1404CA113, "c742040000803f", "Shaft group base weight", "1",
+                          "The shaft solve starts each group's weight at 1, which carries the group's previous speed." + rep)
+    f["shaft_mul"] = code(F_NET_ALLOC, 0x1404CA171, "f30f59422c", "Shaft member weighting", "F × submitted speed",
+                          "Each member's submitted weight F (member+0x28, 0x1404ca169) multiplies its submitted speed (member+0x2c); the weights are summed into the group weight at 0x1404ca185." + rep)
+    f["shaft_div"] = code(F_NET_ALLOC, 0x1404CA1C3, "f3440f5e5904", "Shaft group speed", "(v_prev + Σ F × v) ÷ (1 + Σ F)",
+                          "Divides the accumulated numerator, previous group speed plus Σ F × submitted speed, by the group weight 1 + Σ F." + rep)
+    f["shaft_bridge"] = code(F_NET_ALLOC, 0x1404CA5A3, "f30f5ec8", "Bridged shaft contribution", "weight ÷ |ratio|",
+                             "Traversing gearbox and clutch links, the solve adds sign(r) × v_s × I_s × h to a target group's numerator (0x1404ca592) and I_s × h ÷ |r| to its weight (0x1404ca5ad), with h the traversed fraction (× 0.95 and the link engagement per edge, stopping below 0.001) and r the cumulative ratio. Revisits with a ratio outside about 0.9 to 1.1 of the recorded one take a braking conflict path." + rep)
+    f["shaft_pub"] = code(F_PUBLISH, 0x1404C9C1D, "41894030", "Published group speed", "(I × v + N) ÷ (I + D)",
+                          "Publication writes V = (I × v + N) ÷ (I + D) to every member's node+0x30, where N and D are the bridge contributions (both 0 without a gearbox or clutch bridge); the effective weight I + D goes to node+0x34 at 0x1404c9c41." + rep)
+    # EMP countdown.
+    f["emp_name"] = E.string(F_NODE_SAVE, 0x140B597A4, "emp", "Electric node field +0x28",
+                             "The electric node serializer binds node+0x28 (lea r9,[rdi+0x28] at 0x1402eeb3a) to the name emp, default 0." + rep)
+    f["emp_tick"] = code(F_EMP_TICK, 0x14032ABF3, "ffc8894228", "EMP countdown", "n - 1 while n > 0",
+                         "Electric vtable slot +0x3e8 (0x140b814b8) decrements every nonzero node+0x28 by 1. It does not test charge or supply." + rep)
+    f["emp_pass"] = code(F_EMP_PASS, 0x140499726, "ff90e8030000", "EMP countdown call", "once per component pass",
+                         "The vehicle component pass calls slot +0x3e8 for each component." + rep)
+    f["emp_add"] = code(F_EMP_ADD, 0x14032AC3F, "44015228", "EMP apply", "n + pulse",
+                        "The generic apply adds its integer argument to each node's countdown rather than setting it." + rep)
+    f["emp_electric"] = code(F_EMP_ELECTRIC, 0x14040158F, "44015228", "Electric EMP apply", "n + pulse",
+                             "The electric override (slot +0x3f0, 0x140b814c0) adds the same way." + rep)
+    f["emp_breaker"] = code(F_EMP_ELECTRIC, 0x1404015B7, "c6818001000000", "EMP trips circuit breakers", "on state cleared",
+                            "With a nonzero pulse and electric_type 3 (circuit breaker), the override clears the breaker's on state." + rep)
+    f["emp_pulse"] = code(F_EMP_PULSE, 0x14077E085, "ff90f0030000", "EMP pulse application", "slot +0x3f0 per component",
+                          "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Its event discriminator was not traced; the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading." + rep)
+    f["emp_zero"] = code(F_ELEC_CTOR, 0x1403FFF7B, "899338020000", "EMP countdown at construction", "0",
+                         "The motor/generator constructor stores 0 (edx) to the electric node's countdown at component+0x238." + rep)
+    # Charge pool.
+    f["pool_cap"] = code(F_NET_ALLOC, 0x1404CA92A, "f30f5dc6", "Pool packet cap", "min(C, 10)",
+                         "For each storage node with the source flag (node+0x38, tested at 0x1404ca91f) the network build caps its capacity C (node+0x44) at 10 (binary32 at 0x140bb064c) to get its packet weight c, then multiplies c by the stored fraction b (node+0x40) at 0x1404ca931." + rep)
+    f["pool_sum"] = code(F_NET_ALLOC, 0x1404CA94E, "f30f114004", "Pool charge", "P = Σ c, E = Σ c × b",
+                         "Adds c to the pool capacity P (pool+0, 0x1404ca93e) and c × b to the pool charge E (pool+4). Batteries, generator buffers, solar cells and chargers carry the source flag." + rep)
+    f["pool_take"] = code(F_NET_ALLOC, 0x1404CA972, "f30f114240", "Pool withdrawal", "b - c × b ÷ C",
+                          "Removes the lent packet from the node's stored fraction. This is a loan to the pool, not a loss." + rep)
+    f["pool_q"] = code(F_PUBLISH_Q, 0x1404C9D07, "f30f11413c", "Pool charge fraction", "q = E ÷ P",
+                       "Publication divides E by P (0x1404c9cd8, 0 when P is 0) and writes q to node+0x3c of every node in the group. q is a snapshot; E changes live as components draw and deposit." + rep)
+    f["pool_back"] = code(F_RESTORE, 0x1404CACA0, "f30f115240", "Pool return", "b + (E ÷ P) × c ÷ C",
+                          "Finalization returns the remaining pool charge to each source node in proportion to its packet, then clamps b to 0 to 1 at 0x1404cacc6. Surplus above full is discarded." + rep)
+    f["pool_clear"] = code(F_RESTORE, 0x1404CACF6, "48896820", "Pool cleared", "group+0x20 = null",
+                           "The group's pool pointer is cleared after the return, so the pool is rebuilt every cycle." + rep)
+    f["pool_pass"] = code(F_DISPATCH, 0x1405496BD, "e87e42f7ff", "Pool build per component pass", "call 0x1404bd940",
+                          "The vehicle/component dispatcher calls the network phase that builds (0x1404bda4c) and publishes (0x1404bda54) the pools before its component update loop at 0x1405498d6." + rep)
+    # Draw helper.
+    f["draw_emp"] = code(F_REQUEST, 0x1402EECEC, "8b4328", "Draw helper EMP read", "node+0x28",
+                         "Reads the node's EMP countdown n, converts it to float and forms max(0, (300 - n) ÷ 300)." + rep)
+    f["draw_q"] = code(F_REQUEST, 0x1402EED06, "f30f595b3c", "Draw helper charge fraction", "a = max(0, (300 - n) ÷ 300) × q",
+                       "Multiplies by the published pool charge fraction q (node+0x3c)." + rep)
+    f["draw_min"] = code(F_REQUEST, 0x1402EED29, "f30f5dc3", "Draw amount", "T = min(a × R, E)",
+                         "Takes the smaller of a × request and the pool charge E (node→group→pool+4), subtracts it from E (store at 0x1402eed35) and returns T ÷ R." + rep)
+    f["draw_none"] = code(F_REQUEST, 0x1402EED4A, "0f57c0", "Draw without a network", "0",
+                          "A node with no electrical group (node+0x20 null, tested at 0x1402eeccf) returns 0." + rep)
+    # Display.
+    f["insp_emp"] = code(F_TOOLTIP, 0x14032A91D, "418b4628", "Electric port inspection", "max(0, 1 - n ÷ 300) × q",
+                         "The generic port inspector's electric loop reads the EMP countdown and computes the same supply factor as the draw helper (q multiply at 0x14032a93b), or 1 with infinite electricity." + rep)
+    f["insp_fmt"] = E.string(F_TOOLTIP, 0x140ADE268, "%f", "Electric port inspection format",
+                             "The electric value is formatted with this string at 0x14032a946, with no unit; the mechanical loop uses the same format for the shaft speed. Electric-specific inspection 0x140401cd0 adds only relay and breaker state." + rep)
+    # Generator Output and battery Charge output.
+    f["g_store"] = code(F_GENERATOR, 0x140400D96, "f30f1183a0010000", "Generator Output", "60 × Q",
+                        "Stores 60 × Q (multiplied at 0x140400d8e) to the number output at component+0x1a0. With 60 updates per simulated second this is the internal charge deposited per simulated second." + rep)
+    f["b_dead"] = code(F_GENERATOR, 0x140400DE0, "33c048898350020000", "Damaged battery", "charge and capacity 0",
+                       "electric_type 2 with the damage word set zeroes the node's stored fraction and capacity (component+0x250 and +0x254) and the Charge output." + rep)
+    f["b_offset"] = op(F_GENERATOR, 0x140400E07, "f30f5c0d3df87a00", 0x140BB064C, "Battery Charge output offset",
+                       "The undamaged battery reads its definition capacity C (0x140400df4) and forms (C - this) ÷ C." + rep)
+    f["b_out"] = code(F_GENERATOR, 0x140400E1E, "f30f5ed1", "Battery Charge output", "clamp(b ÷ ((C - 10) ÷ C), 0, 1)",
+                      "Divides the stored fraction b, read after the pool loan, by (C - 10) ÷ C and clamps to 0 to 1 before storing Charge (0x140400e2a, 0x140400e47). For a lone battery this undoes the loan, so Charge shows the fraction before the update." + rep)
+    # Charger.
+    f["c_room"] = code(F_GENERATOR, 0x140401411, "f30f5c8394020000", "Charger output headroom", "1 - q_out",
+                       "electric_type 6 (charger), entered at 0x1404013d8 when undamaged with both groups present, forms 1 minus the output node's charge fraction (component+0x294)." + rep)
+    f["c_cap"] = code(F_GENERATOR, 0x140401421, "f30f5df8", "Charger request", "R = min(0.01, q_in, 1 - q_out)",
+                      "Takes the minimum with the input node's charge fraction (component+0x24c, 0x140401419) and the 0.01 cap. No comparison of q_in with q_out occurs on this path." + rep)
+    f["c_take"] = code(F_GENERATOR, 0x14040149F, "f30f114904", "Charger input removal", "E_in - T",
+                       "Removes T = min(max(0, 1 - n_in ÷ 300) × q_in × R, E_in) from the input pool. With infinite electricity nothing is removed and T = R." + rep)
+    f["c_give"] = code(F_GENERATOR, 0x1404014C8, "f30f117004", "Charger output deposit", "E_out + T",
+                       "Adds T to the output pool when T > 0." + rep)
+    f["c_lim"] = E.const(F_GENERATOR, 0x140BAF958, "Charger transfer cap", "The 0.01 cap on the charger request R per update." + rep)
+    R = update_rate(E)
+    ups = R["ups"]
+    rate = R["findings"][:1]
+    emp_s = E.derived("EMP recovery", "300 updates, 5 simulated seconds",
+                      "With a countdown of 300 the draw factor starts at 0 and rises by 1 ÷ 300 per update, reaching full supply after 300 updates, %d ÷ %d = 5 simulated seconds. A count above 300 blocks draw until it falls below 300. Infinite electricity bypasses the factor." % (300, ups) + rep,
+                      [f["draw_emp"], f["emp_tick"], f["emp_pass"]] + rate)
+    shaft_ex = E.derived("Shaft group example", "10 RPS",
+                         "Previous group speed 0, a member of weight 2 submitting 20 RPS and a member of weight 1 submitting 0: (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. Without the group's own weight 1 it would be 13.333 RPS." + rep,
+                         [f["shaft_one"], f["shaft_mul"], f["shaft_div"]])
+    packet_s = per_second(E, "Largest pool packet per source", "10 per update, 600 per simulated second",
+                          "A full source lends at most min(C, 10) = 10 to the pool per update; batteries all have C above 10. Generation in the same cycle adds to the pool on top." + rep)
+    charger_s = E.derived("Charger transfer rates", "at most 0.01 per update, 0.6 per simulated second; 0.005 per update at q_in 0.5, q_out 0.9",
+                          "R ≤ 0.01, so T ≤ 0.01 per update, %s per simulated second at %d updates per second. Example: q_in = 0.5, q_out = 0.9, no EMP and enough input charge: R = min(0.01, 0.5, 0.1) = 0.01 and T = 0.5 × 0.01 = 0.005 per update, 0.3 per simulated second, even though the output is fuller than the input. Filling a small battery's 1600 from empty at the cap takes at least 1600 ÷ 0.6 = 2667 simulated seconds." % ("%g" % (0.01 * ups), ups) + rep,
+                          [f["c_room"], f["c_cap"], f["c_take"], f["c_lim"]] + rate)
+    E.elec = {"f": f, "emp_s": emp_s, "shaft_ex": shaft_ex, "packet_s": packet_s, "charger_s": charger_s,
+              "shaft": [f[k] for k in ("rps_save", "m_submit", "m_receive", "m_weight", "g_exchange", "meter_rps", "meter_torque",
+                                       "shaft_one", "shaft_mul", "shaft_div", "shaft_bridge", "shaft_pub")] + [shaft_ex],
+              "emp": [f[k] for k in ("emp_name", "emp_tick", "emp_pass", "emp_add", "emp_electric", "emp_breaker", "emp_pulse", "emp_zero")] + [emp_s],
+              "pool": [f[k] for k in ("pool_cap", "pool_sum", "pool_take", "pool_q", "pool_back", "pool_clear", "pool_pass")] + [packet_s],
+              "draw": [f[k] for k in ("draw_emp", "draw_q", "draw_min", "draw_none")],
+              "display": [f[k] for k in ("insp_emp", "insp_fmt", "g_store")],
+              "battery": [f[k] for k in ("b_dead", "b_offset", "b_out")],
+              "charger": [f[k] for k in ("c_room", "c_cap", "c_take", "c_give", "c_lim")] + [charger_s]}
+    return E.elec
+
+
 def electricity(B, E):
+    N = electricity_native(E)
     cap = [E.attr(b, "electric_charge_capacity", "Copied into the electric node capacity at initialisation for electric_type 2.") for b in
            ("battery_small", "battery_medium", "battery_large")]
     init = E.code(F_ELEC_INIT, 0x140400578, "8b871814000083f802", "electric_type read", "definition+0x1418",
@@ -1367,7 +1565,7 @@ def electricity(B, E):
     mf = [E.attr("motor_" + z, "force_emitter_max_force",
                  "Multiplier in the motor draw expression and the weight the motor writes into its shaft link.") for z in sizes]
     ratio = E.derived("Battery capacity ratio", "1 : 8 : 160", "12800 ÷ 1600 = 8; 256000 ÷ 1600 = 160.", cap)
-    consumption = E.realtime("electric_consumption_scale", "Name suggests a global consumption multiplier.")
+    consumption = E.realtime("electric_consumption_scale", "The extractor confirms the name occurs in the executable neither as ASCII nor as UTF-16LE text, so its use by this build was not recovered; the native 0.01 charger cap is a separate constant.")
     # electric_magnitude (definition+0x1420): electric component update and the draw helper.
     cases = [0x14040093C, 0x140400CED, 0x140400DC7, 0x140400E54, 0x140400FAB, 0x140400FF6, 0x1404013D8]
     dispatch = E.case_table(F_ELEC_UPDATE, 0x1404008E4, "48638218140000", 0x140401538, cases, "electric_type dispatch",
@@ -1385,11 +1583,11 @@ def electricity(B, E):
     g_norm = E.const(F_GENERATOR, 0x140BB083C, "Generator speed normaliser", "k = min(|ω| ÷ this, 0.25); the generator keeps (1 − k) × ω. That speed loss does not involve electric_magnitude.")
     g_cap = E.const(F_GENERATOR, 0x140BAFBBC, "Generator load cap", "The 0.25 cap on k in the generator update.")
     g_tenth = E.const(F_GENERATOR, 0x140BAFAD0, "Generator charge scale", "The 0.1 factor in the generator charge expression.")
-    g_out = E.const(F_GENERATOR, 0x140BB0760, "Generator Output scale", "Component offset 0x1a0 = Q × this. Offset 0x1a0 is also where the battery case stores its 0…1 charge fraction, so it is read here as the number output; the generator's only number output is Output.")
+    g_out = E.const(F_GENERATOR, 0x140BB0760, "Generator Output scale", "Component offset 0x1a0, the number output, = Q × this. The generator's only number output is Output, so Output is internal charge per simulated second at 60 updates per second.")
     g_add = E.code(F_GENERATOR, 0x140400DB8, "f30f585004", "Generator deposit", "addss xmm2,[rax+0x4]",
                    "When Q > 0 and the electric link (offset 0x230) exists, Q is added to the network charge at link→0x20→+0x4, the same field the draw helper takes charge from.")
     r_inf = E.code(F_REQUEST, 0x1402EECB6, "80783300", "Draw helper infinite_batteries test", "cmp byte [rax+0x33],0",
-                   "With infinite_batteries (settings offset 0x33) set the helper returns 1 and removes nothing. Otherwise it returns 0 without a network, else removes min(a × request, network charge) and returns that amount ÷ request, where a = max(0, (300 − n) ÷ 300) × q from node fields n (offset 0x28) and q (offset 0x3c) whose meaning was not recovered.")
+                   "With infinite_batteries (settings offset 0x33) set the helper returns 1 and removes nothing. Otherwise it returns 0 without a network, else removes min(a × request, network charge) and returns that amount ÷ request, where a = max(0, (300 − n) ÷ 300) × q. n (node offset 0x28) is the EMP countdown, serialized as emp; q (node offset 0x3c) is the charge fraction E ÷ P published from the shared pool (investigation/electricity.md).")
     r_300 = E.const(F_REQUEST, 0x140BB07F8, "Draw helper availability scale", "The 300 in a = max(0, (300 − n) ÷ 300) × q.")
     o_classic = E.code(F_ENGINE_CLASSIC, 0x14034D39D, "f30f598020140000", "Classic engine starter electric_magnitude read", "mulss xmm0,[rax+0x1420]",
                        "While the starter flag (offset 0x40d) is set the request is max(5 − speed, 0) × engine_max_force × (component offset 0x3f8) ÷ 2000 × electric_magnitude × 0.1, and the supplied fraction scales the speed added. Reading this routine as the classic engine update rests on engine_max_force and the starter flag; the only definitions with this pattern and a non-zero field are the three classic engines (1.2).")
@@ -1432,7 +1630,7 @@ def electricity(B, E):
                       "0.85 ÷ 0.6 and 0.75 ÷ 0.6, rounded to 4 decimals (1.4167 and 1.25).", gm)
     g_sat = E.derived("Generator saturation speed", 140, "560 × 0.25: above this |ω| the factor k stays 0.25 and charge grows linearly.", [g_norm, g_cap])
     trip = E.derived("Motor-to-generator charge return at equal force-weighted speed change (small→small, medium→medium, large→large)",
-                     ", ".join(num(g / m) for g, m in zip(gv, mv)), "Generator electric_magnitude ÷ motor electric_magnitude, valid only if both shaft links weight speed by force_emitter_max_force (not decoded); 0.85 ÷ 1.05 = 0.8095.", gm + mm)
+                     ", ".join(num(g / m) for g, m in zip(gv, mv)), "Generator electric_magnitude ÷ motor electric_magnitude for parts on one shaft group, which weights each member's submitted speed by its force_emitter_max_force; 0.85 ÷ 1.05 = 0.8095.", gm + mm + [N["f"]["shaft_mul"], N["f"]["m_weight"], N["f"]["g_exchange"]])
     alt_cmp = E.derived("Alternator and small generator charge coefficients at equal |ω| × k", "0.05, 0.06",
                         "Alternator 0.05 × 100 × 0.1 × 0.1 = 0.05; small generator 0.6 × 1 × 0.1 = 0.06.", [o_alt, gm[0], gf[0]])
     native_em = [dispatch, m_read, m_call, g_read, g_add, r_inf]
@@ -1443,65 +1641,114 @@ def electricity(B, E):
     m_coast = relaxation(E, "Unlinked coasting motor speed after one simulated second", round(1 - float(m_keep["value"]), 9), [m_keep])
     g_out_s = per_second(E, "Generator charge per simulated second", "60 × Q",
                          "Q is the charge deposited per update; the update writes the same 60 × Q to its Output slot (component offset 0x1a0).")
+    m_req = [2 * m * f * 0.1 for m, f in zip(mv, mfv)]
+    batteries = E.derived("Full batteries that cover a full-step motor request (small, medium, large)", ", ".join(str(math.ceil(r / 10)) for r in m_req),
+                          "With no generation and no other load, N full batteries lend 10 × N per update, so a request R is met in full when N ≥ R ÷ 10: requests %s need %s. "
+                          "One full battery gives a large motor at most 10 ÷ %s = %s of its request. With N equally charged batteries at fraction q the supplied share is q × min(1, 10 × N ÷ R)." % (
+                              ", ".join(num(r) for r in m_req), ", ".join(str(math.ceil(r / 10)) for r in m_req), num(m_req[2]), num(10 / m_req[2])),
+                          [m_full, N["packet_s"], N["f"]["draw_min"], N["f"]["pool_cap"]])
+    drain = [relaxation(E, "%s battery charge after one simulated second of maximum discharge" % z.capitalize(), 10 / float(c["value"]),
+                        [c, N["f"]["pool_cap"], N["f"]["pool_take"], N["f"]["pool_back"]]) for z, c in zip(sizes, cap)]
+    share = E.derived("Battery fraction change per update", "b + 10 × (q - b) ÷ C",
+                      "For batteries (C above 10) the loan removes 10 × b ÷ C of the fraction and the return adds 10 × q ÷ C, with q = E ÷ P after draws and deposits. "
+                      "A lone idle battery has q = b and does not change. A load that empties the pool leaves b × (1 - 10 ÷ C). A deposit Q into a lone battery's pool raises b by Q ÷ C up to the clamp at 1. "
+                      "Batteries sharing a pool move toward q, a small battery faster than a large one.",
+                      [N["f"]["pool_cap"], N["f"]["pool_take"], N["f"]["pool_q"], N["f"]["pool_back"]])
+    g50 = gv[0] * gfv[0] * 0.1 * 50 * min(50 / 560, 0.25)
+    g_ex = E.derived("Small generator at 50 RPS", "Q %s per update, Output %s" % (num(g50), "%.2f" % (g50 * ups)),
+                     "%s × %s × 0.1 × 50 × min(50 ÷ 560, 0.25) = %s internal charge per update; Output = %d × Q = %.2f per simulated second." % (
+                         num(gv[0]), num(gfv[0]), num(g50), ups, g50 * ups),
+                     [gm[0], gf[0], g_read, g_norm, g_cap, N["f"]["g_store"]] + R[:1])
+    F = N["f"]
+    shared = N["shaft"] + N["emp"] + N["pool"] + N["draw"] + N["display"]
+    si = "A conversion of internal charge to joules or watts was not recovered."
+    bridges = ("The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds "
+               "combine groups in arbitrary networks was not decoded.")
     B.category("Electricity",
-               "Battery capacity is electric_charge_capacity (1 : 8 : 160 across sizes). electric_magnitude is a per-component multiplier on charge: a motor pays electric_magnitude × force_emitter_max_force × 0.1 per unit of speed step, and a generator earns the same product per unit of speed it removes.",
+               "Battery capacity is electric_charge_capacity (1 : 8 : 160 across sizes), and every full source lends at most 10 internal charge per update to the shared pool that consumers draw from. "
+               "electric_magnitude is a per-component multiplier on charge: a motor pays electric_magnitude × force_emitter_max_force × 0.1 per RPS of speed step, and a generator earns the same product per RPS it removes.",
                [section("Storage",
-                        "The electric-node initialiser copies electric_charge_capacity straight into the node: 1600, 12800 and 256000 for the small, medium and large battery. A large battery stores 160 times a small one. Batteries also have a Charge Level property from 0 to 100 that sets the stored charge when the vehicle spawns."),
+                        "The electric-node initialiser copies electric_charge_capacity straight into the node: 1600, 12800 and 256000 for the small, medium and large battery. A large battery stores 160 times a small one. Batteries also have a Charge Level property from 0 to 100 that sets the stored charge when the vehicle spawns.",
+                        "Each update the game builds a temporary pool for every connected electric group, joining groups bridged by relays and breakers. Every battery, generator buffer, solar cell and charger lends a packet of min(C, 10) × b, where C is its capacity and b its stored fraction from 0 to 1. "
+                        "The pool's charge fraction q = E ÷ P is the lent charge E over the summed packet sizes P. Consumers then draw from E and generators add to it. At the end the remaining E goes back to each source in proportion to its packet, clamped to full, and the pool is discarded.",
+                        "So every full battery lends the same 10 per update whatever its size, at most 600 per simulated second before generation. More batteries raise the charge available per update; a bigger battery only lasts longer. "
+                        "It follows that batteries on one network move toward the same fraction, small ones faster. Generation that would overfill the storage is lost."),
                 section("What electric_magnitude does",
-                        "The field is read at definition+0x1420 by six instructions in this build, and the formula differs per component. In the electric component update, a motor (electric_type 0) asks the network for |Δ| × electric_magnitude × force_emitter_max_force × 0.1, where Δ is the speed step it wants this update. A generator (electric_type 1) deposits electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25). In both cases the speed change itself does not involve electric_magnitude. The field only sets how much charge a given speed change costs or earns, so for motors it works like an inverse efficiency (1.2, 1.1, 1.05) and for generators like an efficiency (0.6, 0.75, 0.85).",
+                        "The field is read at definition+0x1420 by six instructions in this build, and the formula differs per component. In the electric component update, a motor (electric_type 0) asks the network for |Δ| × electric_magnitude × force_emitter_max_force × 0.1, where Δ is the speed step in RPS it wants this update. A generator (electric_type 1) deposits electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25), where ω is the shaft speed in RPS. In both cases the speed change itself does not involve electric_magnitude. The field only sets how much charge a given speed change costs or earns, so for motors it works like an inverse efficiency (1.2, 1.1, 1.05) and for generators like an efficiency (0.6, 0.75, 0.85).",
                         "Generators get an internal buffer of 0.1 per listed voxel; solar cells and chargers get 0.01. No direct electric_magnitude read was found for batteries, breakers, relays, solar cells or chargers in this update; reads through differently computed pointers were not covered."),
+                section("Shaft speed",
+                        "The motor and generator speed state is RPS: the save field is named rotations_per_second, the parts exchange it with the shaft unchanged, and a torque meter copies the same group speed to its RPS output. "
+                        "Each update a part submits its speed and its force_emitter_max_force as weight F to its shaft group. The group's new speed is (previous group speed + Σ F × submitted speed) ÷ (1 + Σ F), so the shaft itself carries weight 1, and each part takes that speed back.",
+                        "Example: from rest, a part of weight 2 at 20 RPS and a part of weight 1 at 0 give (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. "
+                        "A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."),
                 section("Other components that reuse the field",
                         "The field is not a global efficiency. A routine inferred to update classic engines (field value 1.2) uses it as a starter cost factor: max(5 − speed, 0) × engine_max_force × (an unidentified component value) ÷ 2000 × electric_magnitude × 0.1. The modular starter (0.2) requests max(5 − crank speed, 0) × electric_magnitude × engine_max_force × 0.1. The modular alternator (0.05) uses the generator formula with an extra 0.1. A branch inferred to handle jet turbines (field value 0.025) deposits |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) when that is positive, with no force term. The modular clutch, drive belt and temperature sensor carry values (1, 1, 0.05) that none of the six reads uses; the scan covers only direct +0x1420 operands."),
                 section("Supply and settings",
-                        "Motors and both starters draw through the same helper. It removes min(a × request, network charge) and returns the supplied fraction, where a = max(0, (300 − n) ÷ 300) × q comes from two node fields whose meaning was not recovered. A motor's step is scaled by that fraction, so starving it slows acceleration without changing the cost per unit of step. With infinite_batteries on, the helper returns 1 and takes nothing. Generators deposit regardless of that setting."),
-                section("Measurement questions",
-                        "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. The speed unit of ω and the shaft-link model were not recovered, so charge cannot yet be turned into charge per unit of work. The shipped realtime file sets electric_consumption_scale to 0.01, but the release binary does not contain that name.")],
+                        "Motors and both starters draw through the same helper. With infinite_batteries on it returns 1 and removes nothing. A part with no electric network gets 0. Otherwise, for a request R it removes T = min(a × R, E) from the pool and returns T ÷ R, where a = max(0, (300 − n) ÷ 300) × q. "
+                        "Here n is the part's EMP countdown and q the pool charge fraction. A motor's step is scaled by the returned fraction, so starving it slows acceleration without changing the cost per unit of step. Generators deposit regardless of infinite_batteries.",
+                        "Low charge, an exhausted pool or consumers that drew first each cut supply on their own. q is fixed when the pool is built, so generation later in the same update raises E but not q until the next update. Which consumer draws first depends on the vehicle's component order.",
+                        "An EMP pulse adds to n, and n counts down by 1 every update whether or not the part has power. At n = 300 or more the part gets nothing. Below 300 supply recovers linearly and is full again when n reaches 0, 300 updates (5 simulated seconds) later. A pulse also switches circuit breakers off. "
+                        "Inspecting an electric port shows max(0, 1 − n ÷ 300) × q as a bare number, or 1 with infinite electricity."),
+                section("Rates and units",
+                        "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. Generator Output already includes that factor. "
+                        "The shaft solver weights speed changes by force_emitter_max_force and has no torque or inertia in SI units, so it gives no charge-per-joule figure for mechanical work. "
+                        "The shipped realtime file sets electric_consumption_scale to 0.01, but the executable contains that name neither as ASCII nor as UTF-16LE text, and its effect was not recovered.")],
                cap + [init, tenth, ratio, consumption] + level + gm + mm + gf + mf + native_em +
-               [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse + R,
-               ["Electric units are internal; no conversion to joules or watts was recovered.",
-                "ω is the component's internal speed state; how it maps to the RPS port and how the shaft link exchanges speed were not decoded.",
-                "Static analysis only."])
+               [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse + R + shared + [share],
+               ["Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. " + si,
+                "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. How arbitrary gearbox and clutch networks, conflicting ratio loops and connector rebuilds combine groups was not decoded, and the model gives no SI torque or inertia.",
+                "Static analysis only.", TICK])
     B.family("electric-battery",
-             "Capacity is exactly electric_charge_capacity (1600, 12800, 256000), and a Charge Level property sets the spawn charge.",
+             "Capacity is electric_charge_capacity (1600, 12800, 256000). Each update a battery lends at most 10 × its charge fraction to the network pool, so more batteries supply more per update while a bigger battery lasts longer.",
              [section("Variant tradeoffs",
-                      "The medium battery stores 8 times and the large 160 times the small battery's charge."),
+                      "The medium battery stores 8 times and the large 160 times the small battery's charge. All three lend the same packet of at most 10 per update, 600 per simulated second when full."),
+              section("Charge and discharge",
+                      "A lone battery with nothing else on the network can give at most 10 × b per update, where b is its fraction, so a load that takes everything leaves b × (1 − 10 ÷ C) after each update. "
+                      "After one simulated second of that the small, medium and large battery keep %s, %s and %s of their charge. "
+                      "With N equally charged batteries, no generation and no other load, a request R gets q × min(1, 10 × N ÷ R) of what it asks." % tuple(d["value"].split(" ")[0] for d in drain),
+                      "Charging has no cap of its own. A deposit Q into a lone battery's pool raises its fraction by Q ÷ C up to full, and the surplus is lost. An idle lone battery loses nothing, because the loan and the return cancel. "
+                      "Batteries sharing a network move toward the pool fraction q by 10 × (q − b) ÷ C per update, so a small battery evens out faster than a large one."),
               section("Setup and interactions",
-                      "Set Charge Level (0 to 100) in the properties to spawn partially charged. Charge outputs the stored fraction from 0 to 1."),
-              section("Open measurement questions",
-                      "How fast a battery can charge or discharge was not recovered.")],
-             cap + [init, ratio, E.port("battery_small", "Charge")] + level,
-             ["Charge/discharge limits and losses were not recovered."])
+                      "Set Charge Level (0 to 100) in the properties to spawn partially charged. Charge outputs the stored fraction from 0 to 1. The game computes it as clamp(b ÷ ((C − 10) ÷ C), 0, 1) from the fraction left after the pool loan, which for a lone battery is the fraction before the update. "
+                      "While a battery is damaged the update sets its stored fraction, capacity and Charge to 0, so its charge is lost.")],
+             cap + [init, ratio, E.port("battery_small", "Charge")] + level + N["pool"] + N["battery"] + drain + [share, batteries] + R,
+             ["Voltage and the conversion of internal charge to joules, watt-hours or amp-hours were not recovered.",
+              "Static analysis only; the rates assume the network's only storage is batteries.", TICK])
     B.family("generator",
-             "Charge per update is electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25). The speed the generator removes does not depend on electric_magnitude, so 0.6, 0.75 and 0.85 act as conversion factors.",
+             "Charge per update is electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25), with ω the shaft speed in RPS. Output shows 60 times that, the internal charge per simulated second.",
              [section("How the update works",
-                      "The generator writes its speed and force_emitter_max_force into its shaft link and takes the link's speed ω back. With k = min(|ω| ÷ 560, 0.25), it deposits Q = electric_magnitude × force_emitter_max_force × 0.1 × |ω| × k into the electric network and keeps (1 − k) of its speed; that loss is the load it puts on the shaft. Charge grows with the square of speed below |ω| = 140 and linearly above it. The update also writes 60 × Q to the slot where the battery keeps its Charge output, so Output most likely reads 60 × Q. Component updates run 60 times per simulated second, so 60 × Q is the charge the generator deposits per simulated second while ω holds steady."),
+                      "The generator submits its previous speed and force_emitter_max_force to its shaft group and takes the group's speed ω back, in RPS. With k = min(|ω| ÷ 560, 0.25), it deposits Q = electric_magnitude × force_emitter_max_force × 0.1 × |ω| × k into the network pool and keeps (1 − k) of its speed; that loss is the load it puts on the shaft. Charge grows with the square of speed below 140 RPS and linearly above it. "
+                      "Output is 60 × Q. Component updates run 60 times per simulated second, so Output is the charge deposited per simulated second while RPS holds steady. "
+                      "Example: a small generator at 50 RPS deposits %s per update and shows Output %s." % (num(g50), "%.2f" % (g50 * ups))),
               section("Variant tradeoffs",
-                      "Per unit of speed removed, the small, medium and large generator deposit 0.06, 2.25 and 10.625. Divided by force_emitter_max_force that is 0.06, 0.075 and 0.085, so for the same force-weighted speed removal the large generator yields 1.4167 times and the medium 1.25 times what the small one does. That comparison assumes the shaft link weights each part's speed by force_emitter_max_force, which matches how the parts write into it but was not decoded."),
+                      "Per RPS removed, the small, medium and large generator deposit 0.06, 2.25 and 10.625. Divided by force_emitter_max_force that is 0.06, 0.075 and 0.085. The shaft group weights each part's speed by its force_emitter_max_force, so for the same force-weighted speed removal the large generator yields 1.4167 times and the medium 1.25 times what the small one does."),
               section("Compared with motors and the alternator",
-                      "A motor driving a generator of the same size returns 0.5 (small), 0.6818 (medium) or 0.8095 (large) of the motor's charge for an equal force-weighted speed change, under the same assumption. At equal |ω| × k the modular alternator's coefficient is 0.05 against the small generator's 0.06."),
-              section("Open measurement questions",
-                      "Output is not labelled with a unit, and the charge unit itself has no recovered conversion to joules. Measure Output against shaft RPS per size to fix the unit of ω.")],
-             gm + gf + [init, tenth, g_read, g_norm, g_cap, g_tenth, g_out, g_add, dispatch, g_cost, g_per_f, g_rel, g_sat, trip, alt_cmp, o_alt, g_out_s] + R + [
-                        E.port("generator_small", "Output"), E.port("generator_small", "RPS")] + mm,
-             ["Static analysis only; Q is in the internal charge unit.",
-              "The shaft-link exchange and the unit of ω were not decoded; the force-weighted comparisons depend on that link.",
-              TICK])
+                      "A motor driving a generator of the same size on one shaft group returns 0.5 (small), 0.6818 (medium) or 0.8095 (large) of the motor's charge for an equal force-weighted speed change. At equal |ω| × k the modular alternator's coefficient is 0.05 against the small generator's 0.06."),
+              section("Units",
+                      "Output has no unit label. It reads internal charge per simulated second, the unit battery capacity is counted in. The generator's own buffer of 0.1 per listed voxel is a source in the pool like a battery, so it takes its share of each deposit until it is full.")],
+             gm + gf + [init, tenth, g_read, g_norm, g_cap, g_tenth, g_out, g_add, dispatch, g_cost, g_per_f, g_rel, g_sat, trip, alt_cmp, o_alt, g_out_s, g_ex] + R + [
+                        E.port("generator_small", "Output"), E.port("generator_small", "RPS")] + mm + N["shaft"] + N["pool"] + [F["g_store"]],
+             ["Static analysis only; Q is in the internal charge unit. " + si, bridges, TICK])
     B.family("electric-motor",
-             "Each update the motor takes a speed step of at most 2 × |Throttle| and requests |step| × electric_magnitude × force_emitter_max_force × 0.1 in charge: 0.24, 6.6 and 26.25 per unit of step for the small, medium and large motor.",
+             "Each update the motor takes a speed step of at most 2 × |Throttle| RPS and requests |step| × electric_magnitude × force_emitter_max_force × 0.1 in charge: 0.24, 6.6 and 26.25 per RPS of step for the small, medium and large motor.",
              [section("How the update works",
-                      "With s = Throttle clamped to −1…1, the step is Δ = (20 × sign(s) − speed) × |s|, clamped to −2|s| … 2|s|. Δ is dropped when its sign differs from the throttle's, so a motor running faster than 20 in the throttle direction is not held back, while reversing the throttle drives it toward −20. At zero throttle it only coasts. The motor requests |Δ| × electric_magnitude × force_emitter_max_force × 0.1, multiplies Δ by the fraction supplied, adds it, and then keeps 0.995 of its speed. With a shaft link it writes that speed and force_emitter_max_force into the link and takes the link's speed back. A damaged motor targets 0; the same step sign gate still applies."),
+                      "With s = Throttle clamped to −1…1, the step is Δ = (20 × sign(s) − speed) × |s|, clamped to −2|s| … 2|s|. Δ is dropped when its sign differs from the throttle's, so a motor running faster than 20 RPS in the throttle direction is not held back, while reversing the throttle drives it toward −20. At zero throttle it only coasts. The motor requests |Δ| × electric_magnitude × force_emitter_max_force × 0.1, multiplies Δ by the fraction supplied, adds it, and then keeps 0.995 of its speed. "
+                      "With a shaft link it submits that speed and force_emitter_max_force to its shaft group and takes the group's published speed back. A damaged motor targets 0; the same step sign gate still applies."),
               section("Variant tradeoffs",
-                      "At the full-throttle step of 2, the small, medium and large motor request 0.48, 13.2 and 52.5 per update. While the step stays at that bound, that is 28.8, 792 and 3150 per simulated second; supply limits the actual draw. Per unit of force_emitter_max_force the cost is 0.12, 0.11 and 0.105, so if the shaft link weights speed by that force (the generator comparison makes the same assumption), the small motor pays 1.1429 times and the medium 1.0476 times what the large one pays for the same force-weighted speed change."),
+                      "At the full-throttle step of 2, the small, medium and large motor request 0.48, 13.2 and 52.5 per update. While the step stays at that bound, that is 28.8, 792 and 3150 per simulated second; supply limits the actual draw. Per unit of force_emitter_max_force the cost is 0.12, 0.11 and 0.105. The shaft group weights each part's speed by that force, so the small motor pays 1.1429 times and the medium 1.0476 times what the large one pays for the same force-weighted speed change."),
+              section("Battery supply",
+                      "Each full battery lends at most 10 per update to the pool. Without generation or other loads, the full-step requests need %s full batteries for the small, medium and large motor; a large motor on one full battery gets at most %s of its full-step request. "
+                      "A small step near the 20 RPS target asks for much less." % ("%s, %s and %s" % tuple(str(math.ceil(r / 10)) for r in m_req), num(10 / m_req[2]))),
               section("What the cost tracks",
-                      "Charge scales with the speed step, not with speed × step. A given speed change costs the same at low and high shaft speed, so equal charge buys equal force-weighted speed change rather than equal mechanical work. Turning it into work needs the shaft-link model, which was not decoded."),
+                      "Charge scales with the speed step, not with speed × step. A given RPS change costs the same at low and high shaft speed, so equal charge buys equal force-weighted speed change rather than equal mechanical work. The shaft solver is a weighted average with no torque or inertia in SI units, so it gives no charge-per-joule figure."),
               section("Setup and interactions",
-                      "Throttle limits the step, not the target speed: the target is always 20 in the motor's internal speed units. Without a shaft link the update settles at 19.9 at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge.")],
-             mm + mf + [m_read, m_call, m_target, m_bound, m_tenth, m_keep, r_inf, r_300, dispatch, m_cost, m_full, m_per_f, m_rel, m_free, trip, m_full_s, m_coast] + R + [
-                        E.port("motor_small", "Throttle"), E.port("motor_small", "RPS")] + gm,
-             ["Static analysis only; charge is in the internal unit.",
-              "Reading component offset 0x160 as the Throttle input and offset 0x2a4 as the speed linked to RPS is an inference from how the update uses them.",
-              "The shaft-link exchange and the unit of speed were not decoded.",
-              TICK])
+                      "Throttle limits the step, not the target speed: the target is always 20 RPS. Without a shaft link the update settles at 19.9 RPS at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge. "
+                      "An EMP pulse cuts the motor's supply while its countdown is 300 or more; supply then returns linearly over the next 300 updates, 5 simulated seconds.")],
+             mm + mf + [m_read, m_call, m_target, m_bound, m_tenth, m_keep, r_inf, r_300, dispatch, m_cost, m_full, m_per_f, m_rel, m_free, trip, m_full_s, m_coast, batteries] + R + [
+                        E.port("motor_small", "Throttle"), E.port("motor_small", "RPS")] + gm + N["shaft"] + N["draw"] + N["emp"] + [N["packet_s"]],
+             ["Static analysis only; charge is in the internal unit. " + si,
+              "Reading component offset 0x160 as the Throttle input is an inference from how the update uses it.",
+              bridges, TICK])
 
 
 def fluids(B, E):
@@ -2013,11 +2260,23 @@ def more_families(B, E):
            [("Setup and interactions", "Drive robotic joints, throttles or rudders directly from its output.")], [T("gate_up_down")], [])
 
     # Electricity helpers.
-    simple("part-electric-diode", "One-way charger that moves charge only across a significant charge difference.",
-           [("Setup and interactions", "Use it to charge a battery from a generator bus without the battery back-feeding. Its electric node buffer is 0.01 (electric_type 6).")],
-           [T("electric_diode"), A("electric_diode", "electric_type", "Value 6 gives a 0.01 buffer in the electric initialiser."),
-            E.code(F_ELEC_INIT, 0x140400578, "8b871814000083f802", "electric_type switch", "definition+0x1418", "The initialiser switches on electric_type; type 6 sets capacity 0x3c23d70a (0.01).")],
-           ["The 'significant discrepancy' threshold was not recovered."])
+    N = electricity_native(E)
+    simple("part-electric-diode", "Moves at most 0.01 internal charge per update from its input network to its output network and never back. It checks no minimum charge difference.",
+           [("How the transfer works",
+             "Each update the charger requests R = min(0.01, q_in, 1 − q_out), where q_in and q_out are the charge fractions of its two networks. "
+             "It takes min(max(0, 1 − n ÷ 300) × q_in × R, E_in) from the input pool, n being its input node's EMP countdown and E_in the input pool's charge, and adds that to the output pool. "
+             "Nothing moves once the output network is full or the input is empty. With infinite electricity it adds R without removing anything."),
+            ("Rates",
+             "The cap is 0.01 per update, 0.6 per simulated second. Transfer runs even when the output is fuller than the input: at q_in = 0.5 and q_out = 0.9 it moves 0.005 per update, 0.3 per simulated second. "
+             "Filling a small battery's 1600 from empty at the cap takes at least 2667 simulated seconds, so a charger suits trickle charging, not powering loads."),
+            ("Setup and interactions",
+             "Use it to charge a battery from a generator bus without the battery back-feeding. Its electric node buffer is 0.01 (electric_type 6). "
+             "The tooltip's significant discrepancy has no threshold in the code; the headroom and supply limits above take its place.")],
+           [T("electric_diode"), A("electric_diode", "electric_type", "Value 6 gives a 0.01 buffer in the electric initialiser and selects the charger case of the electric update."),
+            E.code(F_ELEC_INIT, 0x140400578, "8b871814000083f802", "electric_type switch", "definition+0x1418", "The initialiser switches on electric_type; type 6 sets capacity 0x3c23d70a (0.01)."),
+            P("electric_diode", "Electric In"), P("electric_diode", "Electric Out")] + N["charger"] + [N["f"][k] for k in ("emp_name", "emp_tick", "emp_pass")] + N["pool"] + update_rate(E)["findings"],
+           ["Treating the node whose fraction sits at component+0x24c as Electric In is an inference from the definition's port order.",
+            "Static analysis only.", TICK])
     simple("part-electric-relay", "Connects terminals A and B while Relay State is on; its default state is a property.",
            [("Setup and interactions", "Set Default State (Off/On) in the properties for the state before any signal arrives.")],
            [T("electric_relay"), E.text_id(0x1401FD709, 0x62C, "Default State")], [])
