@@ -8,7 +8,9 @@ Evidence is under `native/cooling/`: assembly excerpts in `asm/`, decompiled eng
 
 You can build a numeric heat balance that gives a radiator count from cylinder size, cylinder count, RPS and fuel throttle, but only as a **steady-state lower bound**. Every term in the balance below is recovered: heat input, engine heat capacity, coolant-manifold volume, the engine-to-coolant coupling, radiator volume and the radiator rejection rate. The tick rate cancels, because every term is a per-update quantity.
 
-The bound can't account for pump flow. It assumes the radiator water is as hot as the coolant-manifold water, which needs effectively unlimited flow. The port-flow solver `FUN_1402ec710` was not traced, so an exact count for a real pump layout can't be computed honestly. Present the number as "at least N radiators, given ideal flow".
+The bound can't account for pump flow. It assumes the radiator water is as hot as the coolant-manifold water, which needs effectively unlimited flow. Present the number as "at least N radiators, given ideal flow".
+
+Update: `investigation/fluid-transport.md` later recovered the pump branches, the port solvers (`0x1402ec710`, `0x1402ed8d0`), network allocation and temperature transport, and corrected the capacity initializer to 1. The calculator's finite-flow mode uses them; see `cooling-calculator.md`. The sections below keep the original ideal-flow derivation, with the capacity corrected.
 
 ## Units
 
@@ -33,7 +35,7 @@ H_cyl     = 6000 · ok · x · fuel_cyl
 
 ### 2. Engine heat capacity `C` (group `+0xf0`, `0x1404b4330`)
 
-Group registration switches on `engine_module_type`. Types 1, 2, 22 and 27 do `group+0xf0 += 40 · voxels` (constant `0x140bb072c` = 40). No other type adds capacity (`tables.txt`, `asm/0x1404b4330-group-register.asm`).
+Group registration switches on `engine_module_type`. Types 1, 2, 22 and 27 do `group+0xf0 += 40 · voxels` (constant `0x140bb072c` = 40). No other type adds capacity (`tables.txt`, `asm/0x1404b4330-group-register.asm`). The group constructor stores 1 at `+0xf0` first (`0x1404b3c44`, bytes `c7 80 f0 00 00 00 00 00 80 3f`, `investigation/fluid-transport.md`), so `C = 1 + 40 · Σ voxels`: 1081 and coolant volume 11.81 for one 3x3 cylinder with one coolant manifold.
 
 | Part | engine_module_type | voxels | C contribution |
 |---|---|---|---|
@@ -115,14 +117,14 @@ Round up. Real layouts need more, because radiator water runs cooler than manifo
 
 ## What cannot be computed honestly
 
-- The pump/flow coupling: how much fluid moves through ports per update (`FUN_1402ec710`), and so the temperature drop between manifold and radiators. Without it, radiator counts are lower bounds.
-- Time-to-overheat curves. The update rate is now recovered: active vehicles run 60 component updates per simulated second (`investigation/update-rate.md`), so per-update heat flows × 60 give flows per simulated second and relaxation fractions compound as `(1-k)^60` per second. The rate cancels in the steady-state counts. A warm-up curve still needs the pump/flow coupling above.
+- The pump/flow coupling: how much fluid moves through ports per update, and so the temperature drop between manifold and radiators. Now recovered in `investigation/fluid-transport.md`, but only for a declared layout, fill and update order; a pump name alone does not fix the flow.
+- Time-to-overheat curves. The update rate is recovered: active vehicles run 60 component updates per simulated second (`investigation/update-rate.md`). With the flow equations above, the finite-flow mode steps a warm-up curve for its preset loop.
 - In-game validation. None of these figures has been measured.
 - Combustion details the bound hides: when the mixture leaves the window or the exhaust is blocked, `H` falls and so does torque. The calculator must not report cooling demand for a state that doesn't burn fuel.
 
 ## Corrections to earlier notes
 
-- `behavior.md` said "Heating gain is 6000/heat capacity" without a capacity. The capacity is now recovered: `C = 40 · Σ cylinder voxels`, built in `0x1404b4330`. Its initial value comes from the group's construction and was not read; the registration only adds to it, and it is assumed to start at zero.
+- `behavior.md` said "Heating gain is 6000/heat capacity" without a capacity. The capacity is now recovered: `C = 1 + 40 · Σ cylinder voxels`. Registration in `0x1404b4330` adds 40 per voxel to a starting value of 1 stored by the group constructor at `0x1404b3c44`. An earlier version of this note assumed a start of zero.
 - `0x1402eb5e0` is not a radiator volume or capacity helper. It sums the liquid fluid amounts in a compartment. Radiator volume is `voxels`, set in the fluid initializer `0x1403ef450`.
 - The coolant manifold does not hold coolant in its own voxels. It sets the volume of the group's shared compartment to `0.01·C + N`.
 - `behavior.md` treats the "q" in the exchanger and radiator weighting as an unknown capacity. The compartment amounts at `+0x40` (or the water amounts) are the likely q, but this was not checked at the exchanger call site.
@@ -130,4 +132,4 @@ Round up. Real layouts need more, because radiator water runs cooler than manifo
 
 ## Calculator integration note
 
-The calculator treats the recovered terms as a steady heat-balance approximation and labels its result an ideal-flow estimate. It subtracts engine-to-ambient heat from H before both the coupling temperature drop and radiator demand, rather than using H in one path and H minus ambient loss in the other. The exact order of per-update steps, startup state, fluid-flow temperature transfer and pump limits are not simulated. It assumes the untraced initial group capacity is zero. Counts are minima within these stated assumptions, not a guaranteed lower bound or sufficient count for an in-game layout.
+The calculator treats the recovered terms as a steady heat-balance approximation and labels its result an ideal-flow estimate. It subtracts engine-to-ambient heat from H before both the coupling temperature drop and radiator demand, rather than using H in one path and H minus ambient loss in the other. The exact order of per-update steps, startup state, fluid-flow temperature transfer and pump limits are not simulated in this mode; the separate finite-flow mode simulates them. It uses the corrected capacity `C = 1 + 40 · Σ voxels`. Counts are minima within these stated assumptions, not a guaranteed lower bound or sufficient count for an in-game layout.

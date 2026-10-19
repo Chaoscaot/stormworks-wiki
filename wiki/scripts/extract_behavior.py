@@ -508,6 +508,133 @@ WHERE.update({
 })
 
 
+# fluid-transport pass; files under investigation/native/fluid-transport/, report investigation/fluid-transport.md.
+FT = "../fluid-transport/"
+FT_REPORT = "investigation/fluid-transport.md"
+F_PUMP = 0x1403FCEA0         # electric pump update (component type 25), vtable 0x140b5c290 slot +0x358
+F_PUMP_CTOR = 0x1403FC8E0    # electric pump constructor
+F_PUMP_DEMAND = 0x1402ED922  # chunk of two-port pump solver 0x1402ed8d0: pressures, demand, step clamp
+F_PUMP_MIX = 0x1402EE56C     # chunk of 0x1402ed8d0: low-flow exchange call for two-way pumps
+F_PORT_MIX = 0x1402ED308     # chunk of port exchange 0x1402ec710: low-flow exchange call
+F_FLUID_INIT = 0x1403EF450   # fluid-component initializer: compartment volumes by water_component_type
+F_NET_BUILD = 0x1404A0F50    # ordinary pipe-network builder
+WHERE.update({
+    (0x1403FCEA0, 0x1403FD09C): FT + "asm/electric-pump.asm:L485-L497; " + FT + "pseudocode/0x1403fcea0.c:L94-L100",
+    (0x1403FCEA0, 0x1403FD0BB): FT + "asm/electric-pump.asm:L491-L497; " + FT + "pseudocode/0x1403fcea0.c:L94-L100",
+    (0x1403FCEA0, 0x1403FD0C3): FT + "asm/electric-pump.asm:L485-L511; " + FT + "asm/pump-helper.asm:L1-L30",
+    (0x1403FCEA0, 0x140BAF8F8): FT + "asm/electric-pump.asm:L498-L501; " + FT + "asm/electric-draw.asm",
+    (0x1403FC8E0, 0x1403FCA0B): FT + "asm/electric-pump.asm:L7,L54; " + FT + "pseudocode/0x1403fd290.c",
+    (0x1402ED922, 0x1402EDA58): FT + "asm/pump-helper.asm:L27-L162; " + FT + "pseudocode/0x1402ed8d0.c",
+    (0x1402ED922, 0x1402EDBB2): FT + "asm/pump-helper.asm:L170-L211; " + FT + "pseudocode/0x1402ed8d0.c",
+    (0x1402EE56C, 0x1402EE576): FT + "asm/pump-helper.asm:L759-L775; " + FT + "asm/thermal-helper.asm:L74-L83,L281-L298; " + FT + "pseudocode/0x1402ed390.c",
+    (0x1402ED308, 0x1402ED316): FT + "asm/port-exchange.asm:L716-L732; " + FT + "asm/thermal-helper.asm:L74-L83,L281-L298; " + FT + "pseudocode/0x1402ed390.c",
+    (0x1402ED308, 0x1402ED334): FT + "asm/port-exchange.asm:L716-L732; " + FT + "asm/thermal-helper.asm:L74-L83,L281-L298; " + FT + "pseudocode/0x1402ed390.c",
+    (0x1402ECA04, 0x1402ECE2B): FT + "asm/port-exchange.asm:L431-L442; " + FT + "pseudocode/0x1402ec710.c",
+    (0x1403EF860, 0x1403F48EE): FT + "asm/fluid-update.asm:L4279,L4305-L4323; " + FT + "asm/absolute-value.asm; " + FT + "asm/shaft-request.asm",
+    (0x1403EF860, 0x1403F48FA): FT + "asm/fluid-update.asm:L4305-L4323",
+    (0x1403EF860, 0x1403F4935): FT + "asm/fluid-update.asm:L4305-L4323; " + FT + "asm/pump-helper.asm:L759-L775",
+    (0x1403EF860, 0x1403F3B83): FT + "asm/fluid-update.asm:L3617,L3633,L3656",
+    (0x140449670, 0x14044A4FC): FT + "asm/modular-update.asm:L705,L750-L760; " + FT + "pseudocode/0x140449670.c",
+    (0x1403EF450, 0x1403EF72D): FT + "asm/fluid-init.asm:L135-L143,L170-L175; " + FT + "pseudocode/0x1403ef450.c:L45-L52",
+    (0x1404A0F50, 0x1404A177D): FT + "asm/network-build.asm:L546,L570; " + FT + "asm/network-register.asm; " + FT + "pseudocode/0x1404a0f50.c",
+})
+
+
+def fluid_transport(E):
+    """Pump branches, pipe-network volume, port solvers and temperature transport, verified once and shared."""
+    if hasattr(E, "transport"):
+        return E.transport
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / FT_REPORT).is_file():
+        raise ValueError("Fluid-transport report missing: " + FT_REPORT)
+    if struct.unpack("<Q", n.raw(0x140B5C5E8, 8))[0] != F_PUMP:
+        raise ValueError("Electric pump vtable slot 0x140b5c5e8 does not point to %#x" % F_PUMP)
+    # The initializer switch indexes a byte table at 0x1403ef82c with water_component_type - 8.
+    case = lambda t: n.base + struct.unpack("<I", n.raw(0x1403EF810 + 4 * n.raw(0x1403EF82C + t - 8, 1)[0], 4))[0]
+    if case(9) != 0x1403EF72D:
+        raise ValueError("Fluid initializer case 9 does not select 0x1403ef72d")
+    rep = " Report: %s." % FT_REPORT
+    pressure = code(F_PUMP, 0x1403FD09C, "f30f5990c80e0000", "Electric pump pressure factor", "bias × pump_pressure",
+                    "The electric pump update multiplies the bias in xmm2 by definition+0xec8, the field the definition loader binds to pump_pressure. Before this xmm2 holds the electrical supply factor: max(0, (300 - electrical age) ÷ 300) × availability, or 1 with unlimited electricity." + rep)
+    power = code(F_PUMP, 0x1403FD0BB, "f30f59935c020000", "Electric pump Max Power factor", "bias × Max Power",
+                 "Then multiplies by component+0x25c, the Max Power property (editor range 0 to 100 shown, stored 0 to 1). Pump bias b = supply × pump_pressure × Max Power." + rep)
+    call = code(F_PUMP, 0x1403FD0C3, "e80808efff", "Electric pump solver call", "one-way, factor 1",
+                "Calls the two-port solver 0x1402ed8d0 with the ports at component+0x168 and +0x1a0, which connect straight to their pipe networks, the bias in xmm2, factor 1 and the one-way flag 1. With On/Off false or a damaged pump the call at 0x1403fd111 passes bias 0 and factor 0, so nothing moves. The pump itself holds no fluid." + rep)
+    default = code(F_PUMP_CTOR, 0x1403FCA0B, "c7835c0200000000803f", "Electric pump Max Power default", "1",
+                   "The constructor stores 1.0 at component+0x25c, so a new pump runs at 100 % Max Power." + rep)
+    draw = op(F_PUMP, 0x1403FD0D7, "f30f590d19287b00", 0x140BAF8F8, "Electric pump power request",
+              "Max Power × this is requested from the electricity helper 0x1402eeca0 each update. Both sizes request the same amount at the same setting; the returned share is not used as a second flow factor." + rep)
+    band = op(F_PUMP_DEMAND, 0x1402EDA58, "f30f5c1d682c8c00", 0x140BB06C8, "Pump target pressure band",
+              "The two-port solver forms z = P_A - P_B + bias, held at 0 or more for one-way pumps, and a target pressure from the window-weighted mean minus the bias, kept within this of the source pressure and within 0 to 60. Demand = (1 - target ÷ P_source) × source window amount, limited by the free window on the other side." + rep)
+    step = op(F_PUMP_DEMAND, 0x1402EDBB2, "f30f590d02218c00", 0x140BAFCBC, "Pump step fraction",
+              "The move is the smaller of the two ports' previous network allocations, clamped to this × factor × |demand|. A one-way pump rejects moves of 0 or less." + rep)
+    mixing = code(F_PORT_MOVE, 0x1402ECE2B, "f3410f105b40", "Recipient amount in temperature mixing", "post-transfer amount",
+                  "After a port move the recipient's total (+0x40) is read after it has grown by the packet q, then q is added again for the divisor: T = (A' × T + q × T_donor) ÷ (A' + q), with A' the amount after the move. The two-port solver does the same at 0x1402ee017 and 0x1402ee4b8. This weighting differs from ordinary mixing: 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not 46.7 °C." + rep)
+    low_q = op(F_PORT_MIX, 0x1402ED316, "f30f5e053a268c00", 0x140BAF958, "Low-flow exchange flow scale",
+               "After a radiator or manifold port move, e = 0.1 × max(0, 1 - |q| ÷ this) is passed to 0x1402ed390, limited by both sides' amounts. Both amounts must exceed 0.0001." + rep)
+    low_e = op(F_PORT_MIX, 0x1402ED334, "f30f590d94278c00", 0x140BAFAD0, "Low-flow exchange rate",
+               "The helper moves the component's temperature by e ÷ its volume toward the pipe network's, then the network's by e ÷ its volume toward the new component temperature. For pure water amounts stay unchanged, so heat crosses a port even with no net flow." + rep)
+    low_p = op(F_PUMP_MIX, 0x1402EE576, "f30f5e05da138c00", 0x140BAF958, "Two-way pump low-flow exchange",
+               "The two-port solver calls the same exchange between its two networks only when its one-way flag is 0, as for impeller pumps." + rep)
+    net = code(F_NET_BUILD, 0x1404A177D, "c7400800008040", "Pipe network volume", "4",
+               "The ordinary pipe-network builder allocates one compartment per connected network, clears its amounts, sets 20 °C and writes volume 4 (40 L). Traversing further pipe blocks adds no volume. The separate connection path 0x1404a2130 also writes 4. For clean water the network pressure is 60 × amount ÷ 4 = 15 × amount, 60 when full." + rep)
+    rad_v = code(F_FLUID_INIT, 0x1403EF72D, "8b87b80000000f57c0f3480f2ac0f30f1183a0050000", "Radiator compartment volume", "listed voxels",
+                 "The fluid initializer's jump table sends water_component_type 9 (radiators and the fluid heat sink) to this block, which stores the listed voxel count (definition+0xb8) as the compartment volume at +0x5a0. Volume is capacity, not proof that the radiator holds that much water." + rep)
+    rad_ports = code(F_FLUID, 0x1403F3B83, "e8888befff", "Radiator port exchanges", "two calls to 0x1402ec710",
+                     "Case 9 exchanges its compartment with the Fluid A network here and with the Fluid B network at 0x1403f3bd6, bias 0 and factor 1, then applies the cooling step at 0x1403f3c4f. The first exchange changes amount and temperature before the second runs." + rep)
+    imp_gain = op(F_FLUID, 0x1403F48EE, "f30f590592bb7b00", 0x140BB0488, "Impeller speed gain",
+                  "The impeller branch (water_component_type 14, jump-table entry 0x1403f5138) takes the absolute value of the shaft speed cached at its mechanical port (0x140174090) and multiplies it by this. The shaft port also records a load request of 0.1 × pump_pressure at 0x1402ee720." + rep)
+    imp_p = code(F_FLUID, 0x1403F48FA, "f30f5980c80e0000", "Impeller pump_pressure factor", "bias × pump_pressure",
+                 "Then multiplies by pump_pressure: bias = 4 × |RPS| × pump_pressure." + rep)
+    imp_call = code(F_FLUID, 0x1403F4935, "e8968fefff", "Impeller solver call", "two-way, factor 1",
+                    "Calls 0x1402ed8d0 with ports component+0x148 and +0x180, factor 1 and a zero one-way flag, so backpressure can reverse the flow and the low-flow exchange runs between the two networks. Reversing the shaft does not reverse the bias." + rep)
+    mod_b = code(F_ENGINE, 0x14044A4FC, "0f28d6", "Modular pump bias", "local pump speed",
+                 "After the belt coupling, the fluid-pump case passes its own updated speed (component+0x640) as the bias to 0x1402ed8d0 at 0x14044a4ff, with factor 1 and the one-way flag 1; definition pump_pressure 0.01 is not read. Without a belt group, or when damaged, it calls with bias 0 and factor 1 at 0x14044a54d, so a favorable pressure difference can still push fluid through." + rep)
+    R = update_rate(E)
+    ups = R["ups"]
+    ten = op(F_READOUT, 0x1402EC242, "f30f590502448c00", 0x140BB064C, "Readout factor", "All fluids.")
+    tipmul = code(F_TOOLTIP, 0x14032A563, "f30f107734f30f59f7", "Inspection flow value", "port+0x34 × 60",
+                  "For a connected port (port+0x20 set) the inspection text reads port+0x34 and multiplies it by xmm7 before formatting. Report: %s." % SCOOP2_REPORT)
+    litres = 10 * ups
+    lp = E.derived("Liquid flow per amount moved each update", "%d L/s" % litres,
+                   "The port counter stores 10 × the liquid amount moved in one update and the inspection text multiplies it by %d for L/s, so 1 amount per update shows as %d L/s and 1 amount is 10 L." % (ups, litres) + rep,
+                   [ten, tipmul] + R["findings"][:1])
+    env = lambda b: min(max(b, 0), 20) / 30
+    envelope = E.derived("Equal-pressure pump flow bound", "min(max(b, 0), 20) ÷ 30 per update; small 200 L/s, large 400 L/s; 400 L/s absolute",
+                         "With pipe networks of volume 4 on both ports at equal pressure and away from empty or full states, demand = (P_A - P_B + 2 × b) ÷ 30 and the move is at most half of it, so q ≤ min(max(b, 0), 20) ÷ 30 amount per update. The ±20 target band caps every listed pump at 2 ÷ 3 amount per update, %d L/s. Small electric pump at full power, b = 10: 1 ÷ 3 per update, 20 amount per second, %d L/s. Large, b = 100: 2 ÷ 3, 40 amount per second, %d L/s. A small pump can exceed %d L/s when upstream pressure helps it. These are bounds, not the flow a loop delivers; fill, backpressure and competing ports reduce it." % (
+                             round(2 / 3 * litres), round(env(10) * litres), round(env(100) * litres), round(env(10) * litres)) + rep,
+                         [band, step, net, lp, pressure, power])
+    imp_env = E.derived("Impeller flow bound", "small 20 × min(4 × |RPS|, 20) L/s, reached at 5 RPS; large 20 × min(36 × |RPS|, 20) L/s, reached at 0.556 RPS",
+                        "Equal-pressure bound with b = 4 × |RPS| × pump_pressure (1 small, 9 large): q ≤ min(b, 20) ÷ 30 amount per update, %d × that in L/s. The 400 L/s ceiling is reached at 20 ÷ 4 = 5 RPS for the small pump and 20 ÷ 36 = 0.556 RPS for the large one. Backpressure can make actual flow much lower or reverse it." % litres + rep,
+                        [imp_gain, imp_p, imp_call, envelope])
+    mod_env = E.derived("Modular pump flow bound", "20 × min(max(RPS, 0), 20) L/s, 400 L/s from 20 RPS",
+                        "Equal-pressure bound with b = local pump RPS: q ≤ min(max(RPS, 0), 20) ÷ 30 amount per update, 20 L/s per RPS up to 400 L/s at 20 RPS. The local speed lags the belt: each update it moves toward the belt-group speed by clutch × the inertia share and is then multiplied by 0.99, so crank RPS × clutch is not its speed." + rep,
+                        [mod_b, envelope])
+    k, A, q, tin, tamb = 0.009, 9.0, 1 / 3, 100.0, 20.0
+    a = q / (A + 2 * q)
+    out = tamb + q / (k * A + (1 + k) * q) * (tin - tamb)
+    stored = tamb + (1 - k) * q / (k * A + (1 + k) * q) * (tin - tamb)
+    closed = E.derived("Radiator outlet at fixed flow", "T_out - T_amb = q ÷ (k × A + (1 + k) × q) × (T_in - T_amb)",
+                       "One radiator receiving q per update from an inlet at fixed temperature, discharging q, then cooling with k = 0.003 × (1 + fan), with water amount A after discharge and q ≥ 0.01: mixing weight q ÷ (A + 2q) = %.6f for the example below. Stored radiator temperature after the cooling step = (1 - k) × the same fraction. Example: A = 9, q = 1 ÷ 3 (200 L/s), fan 2, k = 0.009, inlet 100 °C, ambient 20 °C: outlet %.2f °C, stored %.2f °C, a drop of %.2f °C across the radiator." % (a, out, stored, tin - out) + rep,
+                       [mixing, rad_ports, rad_v, low_q])
+    loop = E.derived("Reference loop result", "small pump 42.6 L/s, coolant 107.2 °C, radiator 69.1 °C; large pump 165.5 L/s, coolant 101.4 °C, radiator 85.1 °C",
+                     "Output of the report's 60 Hz fresh-water model, not a game measurement: pump, one 3x3 radiator (volume 9, fan 2), coolant manifold of a 3x3 cylinder group (volume 11.81), one pipe network of volume 4 between each pair, engine held at 115 °C, ambient 20 °C, pipes empty and radiator and manifold full at the start. After 600 simulated seconds the small pump moves 0.0711 amount per update and the radiator holds 5.89 of 9; the large pump 0.276 per update with 6.79 in the radiator. With every compartment full at the start the pump moves nothing: a full network has no room, but the low-flow exchange still carries heat." + rep,
+                     [envelope, net, rad_v, rad_ports, mixing, low_e, alloc_finding(E)])
+    E.transport = {
+        "electric": [pressure, power, call, default, draw, envelope, loop],
+        "impeller": [imp_gain, imp_p, imp_call, imp_env, envelope, low_p],
+        "modular": [mod_b, mod_env, envelope],
+        "solver": [band, step, mixing, low_q, low_e, net, lp, envelope, loop, alloc_finding(E)],
+        "radiator": [rad_v, rad_ports, mixing, low_q, low_e, closed, lp, loop],
+    }
+    return E.transport
+
+
+def alloc_finding(E):
+    return E.code(F_NET_ALLOC, 0x1404CA050, "f30f114a2cf30f114a3044897a28", "Network allocation", "port+0x2c = f·|f| ÷ Σ × room",
+                  "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update.")
+
+
 def section(title, *paragraphs):
     return {"title": title, "body": "\n\n".join(paragraphs)}
 
@@ -710,7 +837,12 @@ def heat_exchange(B, E):
              ["The gas capacity weighting was not recovered.", TICK])
     fan_draw = per_second(E, "Electric radiator fan draw per simulated second", "%s × %d = %.3g" % (floor["value"], ups, float(floor["value"]) * ups),
                           "Request of %s electricity units per powered update." % floor["value"])
-    elec = [rad, air, fan, rad_s, rad3_s, fan_draw, E.tooltip("fluid_radiator_electric"), E.port("fluid_radiator_electric", "Fan On/Off")] + R
+    T = fluid_transport(E)
+    vox = [E.voxels(b, "Copied as the radiator compartment volume by the fluid initializer.") for b in ("fluid_radiator_electric", "fluid_radiator_electric_5", "fluid_radiator")]
+    through = section("Flow through the radiator",
+                      "Each update the radiator exchanges with its Fluid A network, then its Fluid B network, then cools. Arriving water is mixed by the radiator's amount after the move, and below 0.01 amount per update a direct exchange also moves temperature through the ports. Its volume is capacity: in a pumped loop it need not stay full, and its water settles cooler than the coolant manifold.",
+                      "For one radiator fed at a fixed inlet temperature with flow q and stored water A, the outlet sits q ÷ (k × A + (1 + k) × q) of the way from ambient to the inlet, with k = 0.003 × (1 + fan). With 9 units of water, 200 L/s and a full fan that is 83.90 °C out for 100 °C in at 20 °C ambient, a 16.10 °C drop. The cooling capacity calculator's finite-flow mode steps whole loops.")
+    elec = [rad, air, fan, rad_s, rad3_s, fan_draw, E.tooltip("fluid_radiator_electric"), E.port("fluid_radiator_electric", "Fan On/Off")] + vox[:2] + T["radiator"] + R
     B.family("electric-fluid-radiator",
              "Cools its fluid toward the surrounding temperature at 0.003 × (1 + fan) per update; the electric fan can triple the passive rate.",
              [section("Operating conditions",
@@ -718,7 +850,8 @@ def heat_exchange(B, E):
               section("Performance drivers",
                       "Cooling multiplier = 1 + fan, with fan clamped to 0…2, so a fully powered fan gives three times the passive rate. Mounted outside an enclosed compartment, relative airflow counts as fan as speed ÷ 40, so a fast vehicle reaches full cooling without power. The term alone leaves 0.835 of the gap to ambient after one simulated second at multiplier 1 and 0.581 at multiplier 3."),
               section("Variant tradeoffs",
-                      "Both sizes run the same rule and fraction; whether the larger radiator removes more heat depends on its internal fluid volume, which was not recovered."),
+                      "Both sizes run the same rule and fraction. The compartment volume equals the listed voxels: 9 for the 3x3 and 25 for the 5x5, at 10 L per unit. The larger radiator therefore cools more stored water per update, if the pump keeps it filled."),
+              through,
               section("Open measurement questions",
                       "Measure Temperature against fan state and airspeed to confirm the units of the airflow term and the surrounding-temperature reference.")],
              elec + [floor],
@@ -730,8 +863,10 @@ def heat_exchange(B, E):
               section("Setup and interactions",
                       "Connect both fluid ports; with either port unconnected the cooling step is skipped. Place it on the exterior of a moving vehicle to use the airflow term."),
               section("Per-second rate",
-                      "At 60 updates per simulated second the passive term leaves 0.835 of the gap to ambient after one second (time constant 5.55 s). At the airflow cap the multiplier is 3, which leaves 0.581 (1.84 s).")],
-             [rad, air, fan, rad_s, rad3_s, E.tooltip("fluid_radiator"), E.port("fluid_radiator", "Fluid A")] + R,
+                      "At 60 updates per simulated second the passive term leaves 0.835 of the gap to ambient after one second (time constant 5.55 s). At the airflow cap the multiplier is 3, which leaves 0.581 (1.84 s)."),
+              section("Volume", "The compartment volume equals the listed voxels, 9 units of 10 L."),
+              through],
+             [rad, air, fan, rad_s, rad3_s, E.tooltip("fluid_radiator"), E.port("fluid_radiator", "Fluid A"), vox[2]] + T["radiator"] + R,
              [TICK])
 
 
@@ -891,9 +1026,11 @@ def modular_engines(B, E):
     B.family("part-modular-engine-fluid-pump",
              "Belt-driven pump coupled to the crank by clutch pressure; its own speed decays by the factor 0.99 every update.",
              [section("Operating conditions",
-                      "The fluid-pump case couples the pump speed to the crank weighted by its engine_max_force (0.5) against the crank inertia, scaled by Clutch Pressure clamped between zero and one, then pumps and multiplies its speed by 0.99. Uncoupled, it keeps 0.547 of its speed after one simulated second (time constant 1.66 s).")],
-             [pump_decay, decay_s, E.attr("modular_engine_fluid_pump", "engine_max_force", "Inertia weight in the belt coupling."), E.tooltip("modular_engine_fluid_pump")] + R,
-             ["Pump flow per unit speed was not recovered.", TICK])
+                      "The fluid-pump case couples the pump speed to the crank weighted by its engine_max_force (0.5) against the crank inertia, scaled by Clutch Pressure clamped between zero and one, then pumps and multiplies its speed by 0.99. Uncoupled, it keeps 0.547 of its speed after one simulated second (time constant 1.66 s)."),
+              section("Flow",
+                      "The pump pushes with a bias equal to its own shaft speed in RPS and is one-way. At equal pressure it moves at most 20 L/s per RPS, reaching the 400 L/s bound at 20 RPS. Its speed is not crank RPS × clutch: it moves toward the belt speed by the clutch and inertia share each update and is then multiplied by 0.99. Without a belt group, or when damaged, it passes fluid only where pressure already pushes it. Its pump_pressure field is not read.")],
+             [pump_decay, decay_s, E.attr("modular_engine_fluid_pump", "engine_max_force", "Inertia weight in the belt coupling."), E.tooltip("modular_engine_fluid_pump")] + fluid_transport(E)["modular"] + R,
+             ["Flow per RPS is an equal-pressure bound from static analysis; backpressure, fill and other ports lower the real flow.", TICK])
     B.family("part-modular-engine-coolant-manifold",
              "Shows litres, coolant temperature and a coolant-scaling percentage when inspected; it exchanges fluid with the manifold group.",
              [section("Setup and interactions",
@@ -1159,8 +1296,13 @@ def electricity(B, E):
 
 
 def fluids(B, E):
-    p = [E.attr(b, "pump_pressure", "Pump configuration value; units not established.") for b in
-         ("water_pump", "water_pump_large", "water_pump_manual", "turbocharger_small", "turbocharger")]
+    p = [E.attr(b, "pump_pressure", meaning) for b, meaning in (
+        ("water_pump", "Pump bias factor: the electric pump adds supply × this × Max Power to the pressure difference."),
+        ("water_pump_large", "Pump bias factor: the electric pump adds supply × this × Max Power to the pressure difference."),
+        ("water_pump_manual", "Pump configuration value; the manual pump branch was not traced."),
+        ("turbocharger_small", "Pump bias factor: the impeller adds 4 × |RPS| × this to the pressure difference."),
+        ("turbocharger", "Pump bias factor: the impeller adds 4 × |RPS| × this to the pressure difference."))]
+    T = fluid_transport(E)
     spawn = E.tooltip("water_spawner")
     tank_leak = E.const(F_FLUID, 0x140BAF8F8, "Tank temperature drift",
                         "Water component cases 8 and 0x14 (fluid and gas tanks) move the stored contents toward the surrounding temperature by this fraction per update.")
@@ -1169,31 +1311,44 @@ def fluids(B, E):
     tank_s = relaxation(E, "Tank temperature gap after one simulated second", 0.001, [tank_leak])
     R = update_rate(E)["findings"]
     B.category("Fluids",
-               "Pumps differ mainly in their pump_pressure field (10 small, 100 large electric; 1 and 9 for impeller pumps; 3 manual); tanks drift toward ambient temperature; fluid meters use one channel per fluid type.",
+               "Each connected pipe network is one 40 L compartment; pumps add a pressure bias, which caps equal-pressure flow at 200 L/s for the small electric pump and 400 L/s for the large one; tanks drift toward ambient temperature; fluid meters use one channel per fluid type.",
                [section("Moving fluid",
-                        "Electric pumps carry pump_pressure 10 and 100, the small and standard impeller pumps 1 and 9, and the manual pump 3. The fields are per-definition configuration with no recovered unit, but they are the only values that distinguish the variants' pumping strength in the definitions. Every pump and valve reports flow in L/s, which is the practical way to compare them in game."),
+                        "Every connected run of ordinary pipe is one network compartment of volume 4, 40 L, however many pipe blocks it spans. For clean water its pressure is 15 × the stored amount, 60 when full. Each update the network shares its fluid and free room among the demands its ports set on the previous update, and each port then moves at most half its demand.",
+                        "A pump adds its bias to the pressure difference. Electric pumps use electrical supply × pump_pressure × Max Power, impeller pumps 4 × |RPS| × pump_pressure, and the modular engine fluid pump its own shaft speed. At equal pressure the move is at most min(bias, 20) ÷ 30 amount per update: 200 L/s for the small electric pump (pump_pressure 10), 400 L/s for the large one (100), and no pump exceeds 400 L/s. The flow readout shows 1 amount per update as 600 L/s, 10 L per amount. The manual pump (pump_pressure 3) was not traced."),
+                section("Temperature carried with fluid",
+                        "Fluid arriving in a compartment is mixed by the compartment's amount after the move: T = (A' × T + q × T_donor) ÷ (A' + q). So 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not the 46.7 °C of ordinary mixing. Below 0.01 amount per update, radiator, manifold and two-way pump ports also exchange temperature directly at a rate of up to 0.1 ÷ volume per update, so heat crosses a port even with no net flow."),
                 section("Storage and temperature",
                         "Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s. The fluid spawner fills custom tanks; gases are spawned compressed at 60 atm."),
                 section("Identifying fluids",
                         "The liquid and gas meters share one composite layout: 1 water, 2 diesel, 3 jet fuel, 4 air, 5 CO2, 6 oil, 7 seawater, 8 steam, 9 slurry, 10 saturated slurry, 11 oxygen, 12 nitrogen, 13 hydrogen. Air is reported as the sum of oxygen, carbon dioxide and nitrogen."),
                 section("Measurement questions",
-                        "Flow rate against pump_pressure and pipe length, and whether the realtime damping values (0.99 gas, 0.9999 liquid) are used by this build.")],
-               p + [spawn, tank_leak, tank_s] + meters + damping + R,
-               ["pump_pressure units and the network solver were not recovered.", TICK])
+                        "Whether the realtime damping values (0.99 gas, 0.9999 liquid) are used by this build. Compare Flow Rate in game with the recovered bounds; pipe length should not change it, because a network's volume does not grow with its length.")],
+               p + [spawn, tank_leak, tank_s] + meters + damping + T["solver"] + T["electric"][:2] + T["impeller"][:2] + T["modular"][:1] + R,
+               ["The network builder was traced for ordinary pipes only; hoses, tanks, open compartments, special connectors and the manual pump were not. Multiphase fluids, filters and sea water are outside the recovered clean-water model.", TICK])
     B.family("electric-fluid-pump",
-             "The large pump's pump_pressure is 10 times the small pump's (100 versus 10).",
-             [section("Variant tradeoffs",
-                      "Both pumps need power and the On/Off signal; Flow Rate reports L/s. The large pump's configured pressure is 100 against 10."),
+             "Pushes fluid with a bias of electrical supply × pump_pressure × Max Power; at equal pressure the small pump moves at most 200 L/s and the large one 400 L/s.",
+             [section("Operating conditions",
+                      "The pump needs power and the On/Off signal. Each update it calls the two-port solver with bias = electrical supply × pump_pressure × Max Power. Supply is the share of its electricity request it receives, 1 with unlimited electricity, and Max Power defaults to 100 %. The pump is one-way: it never pushes fluid backward. It holds no fluid itself; its ports connect straight to the pipe networks. Off or damaged, it passes nothing. It requests 0.001 × Max Power electricity per update, the same for both sizes."),
+              section("Flow",
+                      "At equal pressure on both sides the move is at most min(bias, 20) ÷ 30 amount per update. That is 200 L/s for the small pump and 400 L/s for the large one at full power. The large pump's bias reaches 20 at 20 % Max Power, so it keeps the 400 L/s bound down to that setting. The small pump reaches 200 L/s only at full power, though pressure from upstream can push more through it.",
+                      "These are bounds. Real flow falls with fill, backpressure and other ports on the same network. In the report's reference loop with one 3x3 radiator, the small pump settled at 42.6 L/s and the large one at 165.5 L/s. The cooling capacity calculator's finite-flow mode steps such loops."),
+              section("Variant tradeoffs",
+                      "pump_pressure 100 against 10 gives the large pump a tenfold bias, but the solver caps any bias above 20, so at full power its bound is twice the small pump's, not ten times."),
               section("Open measurement questions",
-                      "Measure Flow Rate against head and pipe run for each to translate the factor of 10 into real flow.")],
-             p[:2] + [E.port("water_pump", "Flow Rate"), E.derived("Large/small pump_pressure ratio", 10, "100 ÷ 10.", p[:2])],
-             ["pump_pressure is configuration, not measured pressure."])
+                      "Compare Flow Rate in game with the bounds above and with the finite-flow estimate for the same loop.")],
+             p[:2] + [E.port("water_pump", "Flow Rate"), E.derived("Large/small pump_pressure ratio", 10, "100 ÷ 10.", p[:2])] + T["electric"] + T["solver"],
+             ["Static analysis of one build; the flow figures are model bounds and model results, not game measurements. The bounds assume pipe networks on both ports and no competing ports.",
+              "pump_pressure is added to the pressure difference in the solver's own units, where a full compartment reads 60. The inspection text labels that scale Atm."])
     B.family("impeller-pump",
-             "Torque-driven pumps with pump_pressure 1 (small) and 9 (standard).",
-             [section("Setup and interactions",
-                      "They pump only while torque is supplied; compare variants with the Flow Rate output in L/s.")],
-             p[3:] + [E.tooltip("turbocharger_small"), E.port("turbocharger_small", "Flow Rate")],
-             ["Flow per RPS was not recovered."])
+             "Shaft-driven pumps with bias 4 × |RPS| × pump_pressure (1 small, 9 standard); at equal pressure the small pump reaches the 400 L/s bound at 5 RPS and the standard one at 0.556 RPS.",
+             [section("Operating conditions",
+                      "The impeller reads the speed of the shaft on its RPS port and pushes with bias 4 × |RPS| × pump_pressure. Spinning the shaft backward pushes the same way. Unlike the electric pumps it is two-way: backpressure can push fluid back through it, and at low flow it exchanges temperature between its two networks. The shaft port records a load request of 0.1 × pump_pressure; its torque unit was not established."),
+              section("Flow",
+                      "At equal pressure the move is at most min(bias, 20) ÷ 30 amount per update, 20 L/s per unit of bias up to 400 L/s. The small pump (pump_pressure 1) reaches that ceiling at 5 RPS and the standard one (9) at 0.556 RPS. These are bounds; backpressure, fill and other ports lower the real flow."),
+              section("Setup and interactions",
+                      "They pump only while the shaft turns; compare variants with the Flow Rate output in L/s.")],
+             p[3:] + [E.tooltip("turbocharger_small"), E.port("turbocharger_small", "Flow Rate")] + T["impeller"] + T["solver"],
+             ["Static analysis of one build; the flow figures are equal-pressure bounds, not measured flow. The shaft load unit was not established."])
     B.family("fluid-tank",
              "Spawns full of the selected fluid; contents drift toward ambient temperature by 0.001 per update, a time constant of 16.7 simulated seconds.",
              [section("Operating conditions",

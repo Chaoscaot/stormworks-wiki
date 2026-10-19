@@ -1,12 +1,14 @@
 'use client';
-// Cooling calculators for /tools/cooling: an ideal-flow estimate from the recovered modular engine code (default)
-// and a measurement-based calibration for any engine. The server renders the example state, so the
+// Cooling calculators for /tools/cooling: an ideal-flow estimate from the recovered modular engine code (default),
+// a finite-flow estimate that steps the recovered pump and port equations, and a measurement-based calibration
+// for any engine. The server renders the example state, so the
 // result, chart and table are present before hydration. Inputs are kept as the strings the user typed:
 // lib/cooling.js validates them, and while any field is invalid the last valid estimate stays on screen,
 // marked as out of date, so no NaN ever reaches the chart.
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  DEFAULT_COOLING_INPUTS, DEFAULT_NATIVE_COOLING_INPUTS, NATIVE_RADIATORS, estimateCooling, estimateNativeCooling,
+  DEFAULT_COOLING_INPUTS, DEFAULT_FLOW_COOLING_INPUTS, DEFAULT_NATIVE_COOLING_INPUTS, FLOW_MAX_RADIATORS, FLOW_PUMPS,
+  NATIVE_RADIATORS, estimateCooling, estimateFlowCooling, estimateNativeCooling,
 } from '@/lib/cooling.js';
 import { UPDATES_PER_SECOND, gapLeftAfter } from '@/lib/formulas.js';
 
@@ -123,7 +125,10 @@ function CoolingChart({ uid, width, result, input, title, desc }) {
   const h = height - m.t - m.b;
   const samples = result.samples.filter((s) => [s.minutes, s.temperature, s.designTemperature].every(Number.isFinite));
   const temps = samples.flatMap((s) => [s.temperature, s.designTemperature]);
-  const y = niceTicks(Math.min(...temps, input.targetTemp, input.referenceTemp), Math.max(...temps, input.targetTemp, input.referenceTemp));
+  // The finite-flow chart has no calibration line.
+  const hasRef = Number.isFinite(input.referenceTemp);
+  const marks = hasRef ? [input.targetTemp, input.referenceTemp] : [input.targetTemp];
+  const y = niceTicks(Math.min(...temps, ...marks), Math.max(...temps, ...marks));
   const x = niceTicks(0, input.durationMinutes, w < 380 ? 4 : 6);
   const xMax = input.durationMinutes;
   const xTicks = x.ticks.filter((t) => t <= xMax + 1e-9);
@@ -131,9 +136,9 @@ function CoolingChart({ uid, width, result, input, title, desc }) {
   const sy = (v) => m.t + h - ((v - y.min) / (y.max - y.min)) * h;
   const path = (key) => samples.map((s, i) => `${i ? 'L' : 'M'}${sx(s.minutes).toFixed(1)},${sy(s[key]).toFixed(1)}`).join('');
   const target = sy(input.targetTemp);
-  const ref = sy(input.referenceTemp);
+  const ref = hasRef ? sy(input.referenceTemp) : null;
   // Keep the two reference labels apart when the lines are close.
-  const close = Math.abs(target - ref) < 16;
+  const close = hasRef && Math.abs(target - ref) < 16;
   return (
     <svg className="graph-svg cool-svg" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-labelledby={`${uid}-title ${uid}-desc`}>
       <title id={`${uid}-title`}>{title}</title>
@@ -154,10 +159,12 @@ function CoolingChart({ uid, width, result, input, title, desc }) {
         <text x={m.l + w / 2} y={height - 6} textAnchor="middle" className="graph-axis-label">Minutes</text>
         <text x={m.l - 7} y={m.t - 9} textAnchor="end" className="graph-axis-label">°C</text>
       </g>
-      <g className="cool-ref">
-        <line x1={m.l} x2={m.l + w} y1={ref} y2={ref} />
-        <text x={m.l + 6} y={close && ref < target ? ref - 5 : close ? ref + 14 : ref - 5}>Calibration {fixed(input.referenceTemp, 0)} °C</text>
-      </g>
+      {hasRef ? (
+        <g className="cool-ref">
+          <line x1={m.l} x2={m.l + w} y1={ref} y2={ref} />
+          <text x={m.l + 6} y={close && ref < target ? ref - 5 : close ? ref + 14 : ref - 5}>Calibration {fixed(input.referenceTemp, 0)} °C</text>
+        </g>
+      ) : null}
       <g className="cool-target">
         <line x1={m.l} x2={m.l + w} y1={target} y2={target} />
         <text x={m.l + w - 4} y={close && target > ref ? target + 14 : target - 5} textAnchor="end">Target {fixed(input.targetTemp, 0)} °C</text>
@@ -168,12 +175,12 @@ function CoolingChart({ uid, width, result, input, title, desc }) {
   );
 }
 
-function Legend({ reserve }) {
+function Legend({ reserve, first = 'Measured load', calibration = true }) {
   const items = [
-    ['graph-line-a', 'Measured load'],
+    ['graph-line-a', first],
     ['graph-line-b', `With ${reserve}% heat reserve`],
     ['cool-legend-target', 'Target'],
-    ['cool-legend-ref', 'Calibration temperature'],
+    ...(calibration ? [['cool-legend-ref', 'Calibration temperature']] : []),
   ];
   return (
     <ul className="graph-legend">
@@ -205,7 +212,7 @@ function MeasuredCalculator() {
   // Inputs from a shared link are read after hydration, so the server and first client render match.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    if (p.get('mode') === 'ideal' || !KEYS.some((k) => p.has(k))) return;
+    if (p.get('mode') === 'ideal' || p.get('mode') === 'flow' || !KEYS.some((k) => p.has(k))) return;
     setRaw((r) => ({ ...r, ...Object.fromEntries(KEYS.filter((k) => p.has(k)).map((k) => [k, p.get(k)])) }));
     setMeasured(p.get('measured') === '1');
   }, []);
@@ -418,6 +425,33 @@ function ChartBlock({ uid, chartRef, width, result, input, desc, label }) {
   );
 }
 
+/* A number field, select or checkbox, chosen by the field definition. */
+function Control({ uid, field: f, value, error, onChange }) {
+  const id = `${uid}-${f.key}`;
+  if (f.checkbox) {
+    return (
+      <div className="cool-check cool-check-inline">
+        <input id={id} type="checkbox" checked={value} onChange={(e) => onChange(f.key, e.target.checked)} aria-describedby={`${id}-hint`} />
+        <label htmlFor={id}>{f.label}</label>
+        <span id={`${id}-hint`} className="cool-hint">{f.hint}</span>
+      </div>
+    );
+  }
+  if (f.options) {
+    return (
+      <div className={`cool-field${error ? ' is-invalid' : ''}`}>
+        <label htmlFor={id}>{f.label}</label>
+        <select id={id} value={value} onChange={(e) => onChange(f.key, e.target.value)} aria-describedby={`${id}-hint${error ? ` ${id}-err` : ''}`}>
+          {f.options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}
+        </select>
+        <span id={`${id}-hint`} className="cool-hint">{f.hint}</span>
+        {error ? <span id={`${id}-err`} className="cool-error">{error}</span> : null}
+      </div>
+    );
+  }
+  return <NumberField uid={uid} field={f} value={value} error={error} onChange={onChange} />;
+}
+
 /* ---------- ideal-flow estimate from the recovered modular engine code ---------- */
 
 const NATIVE_FIELDS = [
@@ -434,7 +468,7 @@ const NATIVE_FIELDS = [
   { key: 'enclosed', group: 'radiator', label: 'Radiators inside an enclosed compartment', checkbox: true, hint: 'Airflow does not count when enclosed.' },
   { key: 'ambient', group: 'design', label: 'Ambient temperature', unit: '°C', hint: 'The air the radiators cool toward.' },
   { key: 'targetTemp', group: 'design', label: 'Target engine temperature', unit: '°C', hint: 'Manifold temperature to hold. Overheat damage starts above 115 °C.' },
-  { key: 'reservePercent', group: 'design', label: 'Heat reserve', unit: '%', hint: 'Extra heat on top of the computed input. Flow losses are not modelled, so leave room.' },
+  { key: 'reservePercent', group: 'design', label: 'Heat reserve', unit: '%', hint: 'Extra heat on top of the computed input. This mode ignores flow limits, so leave room.' },
   { key: 'plannedRadiators', group: 'design', label: 'Planned radiators', unit: 'pcs', integer: true, hint: 'How many of the selected radiator you intend to fit.' },
 ];
 const NATIVE_GROUPS = [['engine', 'Modular engine'], ['radiator', 'Radiators'], ['design', 'Target']];
@@ -546,8 +580,9 @@ function NativeCooling() {
           <p className={`cool-verdict cool-verdict-${r.verdict}`}><strong>{verdictHead}</strong> {verdict}</p>
           {settle ? <p className="cool-plate-sub">{settle}</p> : null}
           <p className="cool-plate-warn">
-            Assumes ideal pump flow: every radiator full of clean fresh water as hot as the coolant manifold. Pump throughput was not recovered,
-            so this is an idealized sizing estimate. Verify coolant flow and engine temperature in the finished build.
+            This mode still assumes full radiators at coolant-manifold temperature. Native pump and port equations are now recovered, but this
+            mode does not simulate their flow, fill or temperature transport. Use the finite-flow estimate for that, and verify engine
+            temperature in the finished build.
           </p>
         </div>
         <dl className="cool-readout">
@@ -614,32 +649,7 @@ function NativeCooling() {
   }
   const status = useSettled(stale ? `${errorCount} ${errorCount === 1 ? 'input needs' : 'inputs need'} fixing. The estimate shows the last valid inputs.` : summary);
 
-  const control = (f) => {
-    const id = `${uid}-${f.key}`;
-    const err = errorFor(f.key);
-    if (f.checkbox) {
-      return (
-        <div key={f.key} className="cool-check cool-check-inline">
-          <input id={id} type="checkbox" checked={raw[f.key]} onChange={(e) => set(f.key, e.target.checked)} aria-describedby={`${id}-hint`} />
-          <label htmlFor={id}>{f.label}</label>
-          <span id={`${id}-hint`} className="cool-hint">{f.hint}</span>
-        </div>
-      );
-    }
-    if (f.options) {
-      return (
-        <div key={f.key} className={`cool-field${err ? ' is-invalid' : ''}`}>
-          <label htmlFor={id}>{f.label}</label>
-          <select id={id} value={raw[f.key]} onChange={(e) => set(f.key, e.target.value)} aria-describedby={`${id}-hint${err ? ` ${id}-err` : ''}`}>
-            {f.options.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-          </select>
-          <span id={`${id}-hint`} className="cool-hint">{f.hint}</span>
-          {err ? <span id={`${id}-err`} className="cool-error">{err}</span> : null}
-        </div>
-      );
-    }
-    return <NumberField key={f.key} uid={uid} field={f} value={raw[f.key]} error={err} onChange={set} />;
-  };
+  const control = (f) => <Control key={f.key} uid={uid} field={f} value={raw[f.key]} error={errorFor(f.key)} onChange={set} />;
 
   return (
     <div className={`cool${stale ? ' is-stale' : ''}`}>
@@ -674,10 +684,295 @@ function NativeCooling() {
   );
 }
 
+/* ---------- finite-flow estimate from the recovered pump, port and temperature equations ---------- */
+
+const ENGINE_FIELD_KEYS = ['cylinderSize', 'cylinderCount', 'rps', 'fuelThrottle', 'afr', 'exhaustFraction'];
+const FLOW_FIELDS = [
+  ...NATIVE_FIELDS.filter((f) => ENGINE_FIELD_KEYS.includes(f.key)),
+  { key: 'coolantManifolds', group: 'engine', label: 'Coolant manifolds', unit: 'pcs', integer: true, hint: 'Each adds 1 unit (10 L) to the shared coolant. One manifold carries this loop; the others only add volume.' },
+  { key: 'pumpType', group: 'pump', label: 'Pump', options: FLOW_PUMPS.map((x) => [x.type, x.title]), hint: 'One pump drives the whole loop.' },
+  { key: 'maxPower', group: 'pump', drive: 'electric', label: 'Max Power', unit: '%', hint: 'The pump property, 0 to 100. Bias = supply × pump pressure (10 or 100) × Max Power.' },
+  { key: 'supply', group: 'pump', drive: 'electric', label: 'Electrical supply', unit: '0–1', hint: 'Share of the requested electricity the pump gets. 1 with enough power or unlimited electricity.' },
+  { key: 'pumpRps', group: 'pump', drive: 'shaft', label: 'Pump shaft speed', unit: 'RPS', hint: 'Held constant. For the modular pump this is its own speed after belt slip and decay, not crank RPS.' },
+  ...NATIVE_FIELDS.filter((f) => f.group === 'radiator'),
+  { key: 'pipeFill', group: 'loop', label: 'Pipe networks start', unit: '% full', hint: 'Each pipe network holds 40 L however long it is. A completely full loop has no room, so the pump moves nothing.' },
+  { key: 'radiatorFill', group: 'loop', label: 'Radiators start', unit: '% full', hint: 'How the game fills radiators was not traced, so this is your declaration. The shared coolant starts full.' },
+  { key: 'ambient', group: 'design', label: 'Ambient temperature', unit: '°C', hint: 'The air the radiators cool toward. All fluid starts at this temperature.' },
+  { key: 'targetTemp', group: 'design', label: 'Target engine temperature', unit: '°C', hint: 'Engine temperature to hold. Overheat damage starts above 115 °C.' },
+  { key: 'reservePercent', group: 'design', label: 'Heat reserve', unit: '%', hint: 'Extra heat on top of the computed input.' },
+  { key: 'plannedRadiators', group: 'design', label: 'Planned radiators', unit: 'pcs', integer: true, hint: `In series on one pump, 1 to ${FLOW_MAX_RADIATORS}.` },
+  { key: 'durationMinutes', group: 'design', label: 'Warm-up chart length', unit: 'min', hint: 'Simulated minutes on the chart, up to 120.' },
+];
+const FLOW_GROUPS = [['engine', 'Modular engine'], ['pump', 'Pump'], ['radiator', 'Radiators'], ['loop', 'Starting fill'], ['design', 'Target']];
+const FLOW_KEYS = FLOW_FIELDS.map((f) => f.key);
+const flowDefaults = () => Object.fromEntries(FLOW_KEYS.map((k) => [k, typeof DEFAULT_FLOW_COOLING_INPUTS[k] === 'boolean' ? DEFAULT_FLOW_COOLING_INPUTS[k] : String(DEFAULT_FLOW_COOLING_INPUTS[k])]));
+const FLOW_LABEL = 'Finite-flow estimate';
+const STATE = { steady: 'Settled', periodic: 'Settled, pulsing flow', unsettled: 'Did not settle', blocked: 'No pump flow' };
+const lps = (q) => (Number.isFinite(q) ? (q * 600 < 10 ? fixed(q * 600, 2) : fixed(q * 600, 1)) : 'n/a');
+const pct = (x) => `${fixed(x * 100, 0)}%`;
+const span = (xs, f) => (xs.length === 1 || Math.abs(Math.max(...xs) - Math.min(...xs)) < 1e-9 ? f(xs[0]) : `${f(xs[0])} to ${f(xs.at(-1))}`);
+const radiatorsText = (n) => `${n} ${n === 1 ? 'radiator' : 'radiators'}`;
+const BIAS_NOTE = {
+  electric: 'Electrical supply × pump pressure (10 small, 100 large) × Max Power',
+  modular: 'Equals the local pump RPS',
+  impeller: '4 × |RPS| × pump pressure (1 small, 9 large)',
+};
+
+function FlowCooling() {
+  const uid = useUid();
+  const [raw, setRaw] = useState(flowDefaults);
+  const [shareMsg, setShareMsg] = useState('');
+  const [chartRef, width] = useWidth();
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('mode') !== 'flow') return;
+    setRaw((r) => ({
+      ...r,
+      ...Object.fromEntries(FLOW_KEYS.filter((k) => p.has(k)).map((k) => [k, k === 'enclosed' ? p.get(k) === '1' : p.get(k)])),
+    }));
+  }, []);
+
+  const input = useMemo(() => Object.fromEntries(FLOW_KEYS.map((k) => [k, typeof raw[k] === 'boolean' ? raw[k] : clean(raw[k])])), [raw]);
+  // Each new radiator count steps the loop for up to 600 simulated seconds, so typing stays responsive.
+  const deferred = useDeferredValue(input);
+  const current = useMemo(() => {
+    try {
+      return estimateFlowCooling(deferred);
+    } catch {
+      return { ok: false, errors: { rps: 'These values could not be evaluated. Check every field.' } };
+    }
+  }, [deferred]);
+  const ideal = useMemo(() => {
+    try {
+      const r = estimateNativeCooling(deferred);
+      return r.ok ? r : null;
+    } catch {
+      return null;
+    }
+  }, [deferred]);
+  const [shown, setShown] = useState(null);
+  if (current.ok && shown?.result !== current) {
+    setShown({ result: current, ideal, input: { ...deferred, ...Object.fromEntries(['ambient', 'targetTemp', 'reservePercent', 'plannedRadiators', 'durationMinutes', 'pipeFill', 'radiatorFill'].map((k) => [k, Number(deferred[k])])) } });
+  }
+  const stale = !current.ok;
+  const errors = current.ok ? {} : current.errors;
+  const errorCount = Object.keys(errors).length;
+  const errorFor = (k) => (errors[k] && typeof raw[k] === 'string' && raw[k].trim() === '' ? 'Enter a value.' : friendly(errors[k]));
+  const drive = FLOW_PUMPS.find((x) => x.type === raw.pumpType)?.drive;
+
+  const set = (key, value) => {
+    setRaw((r) => ({ ...r, [key]: value }));
+    setShareMsg('');
+  };
+  const reset = () => {
+    setRaw(flowDefaults());
+    setShareMsg('Default values restored.');
+    window.history.replaceState(null, '', window.location.pathname);
+  };
+  const share = async () => {
+    const p = new URLSearchParams({ mode: 'flow' });
+    FLOW_KEYS.forEach((k) => p.set(k, typeof raw[k] === 'boolean' ? (raw[k] ? '1' : '0') : raw[k].trim()));
+    const url = `${window.location.origin}${window.location.pathname}?${p}`;
+    window.history.replaceState(null, '', url);
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareMsg('Link copied. It carries every input above.');
+    } catch {
+      setShareMsg('Could not copy automatically. The link is now in the address bar.');
+    }
+  };
+
+  let summary = '';
+  let body = null;
+  let tables = null;
+  if (shown) {
+    const { result: r, input: v, ideal: cmp } = shown;
+    const p = r.planned;
+    const name = r.radiator.title.toLowerCase();
+    const planned = radiatorsText(v.plannedRadiators);
+    const target = fixed(v.targetTemp, 0);
+    const big = r.verdict === 'no-combustion' ? '0' : r.required === null ? `None up to ${FLOW_MAX_RADIATORS}` : String(r.required);
+    const verdictHead = {
+      adequate: 'Meets the model target.', undersized: 'Undersized.', 'not-reached': 'No count is enough.',
+      blocked: 'No pump flow.', unsettled: 'Did not settle.', 'no-combustion': 'No combustion.',
+    }[r.verdict];
+    const verdict = {
+      'no-combustion': `${r.reason} The engine burns no fuel in this state, so it adds no heat. Check the crank speed and air:fuel ratio.`,
+      'not-reached': r.best.usable
+        ? `No count from 1 to ${FLOW_MAX_RADIATORS} holds ${target} °C with this pump, fill and load. The best is ${radiatorsText(r.best.count)}, settling at ${fixed(r.best.design.engine)} °C with the reserve. Try more pump bias, another fill or radiator type, or less load. Parallel loops are not modelled.`
+        : `No count from 1 to ${FLOW_MAX_RADIATORS} reaches a settled loop that holds ${target} °C with this pump and fill.`,
+      blocked: `With ${planned} the pump moves no fluid. Heat crosses only through the low-flow port exchange. ${r.required === null ? '' : `${radiatorsText(r.required)} would hold the target.`}`,
+      unsettled: `With ${planned} the loop did not settle within ${fixed(p.seconds, 0)} simulated seconds, so this count is not accepted.${r.required === null ? '' : ` ${radiatorsText(r.required)} would hold the target.`}`,
+      adequate: `${planned} planned. With the reserve the engine settles at ${fixed(p.design.engine)} °C, below the ${target} °C target.`,
+      undersized: `${planned} planned. With the reserve the engine settles at ${fixed(p.design.engine)} °C, above the target. ${r.required < v.plannedRadiators ? `Fewer work better here: ${radiatorsText(r.required)} hold it, because each radiator in series slows the pump.` : `${radiatorsText(r.required)} hold it.`}`,
+    }[r.verdict];
+    const settle = r.verdict === 'no-combustion' || !p.usable ? null
+      : `With ${planned} the pump moves ${lps(p.flow)} L/s and the engine settles at ${fixed(p.normal.engine)} °C, or ${fixed(p.design.engine)} °C with the reserve.${p.design.engine > 115 ? ' Above 115 °C, damage is not simulated.' : ''}`;
+    summary = `${FLOW_LABEL}: ${r.required === null ? 'no radiator count is enough' : `at least ${r.required} ${name}${r.required === 1 ? '' : 's'}`} to hold ${target} °C with ${fixed(v.reservePercent, 0)}% reserve. ${verdictHead} ${settle ?? ''}`;
+    const driveKey = r.pump.drive === 'electric' ? 'electric' : r.pump.oneWay ? 'modular' : 'impeller';
+    const rows = [
+      ['Heat input', `${heat(r.heatRate)} per update, ${heat(r.heatRate * UPDATES_PER_SECOND)} per simulated second`, 'Internal heat units (amount × °C)'],
+      ['Design heat with reserve', `${heat(r.designHeat)} per update`, `+${fixed(v.reservePercent, 0)}%`],
+      ['Engine heat capacity', fixed(r.capacity, 0), '1 + 40 × cylinder voxels'],
+      ['Shared coolant volume', `${heat(r.coolantVolume)} (${fixed(r.coolantVolume * 10, 1)} L)`, '0.01 × capacity + coolant manifolds'],
+      ['Pump bias', sig(r.bias), BIAS_NOTE[driveKey]],
+      ['Pump limit at equal pressure', `${fixed(r.envelope * 600, 0)} L/s`, 'min(bias, 20) ÷ 30 per update. A bound, not the flow you get'],
+      ['Pump flow', p.usable || p.state === 'blocked' ? `${lps(p.flow)} L/s` : 'Not settled',
+        p.state === 'periodic' ? `${planned}. Pulses from ${lps(Math.max(0, p.flowRange[0]))} to ${lps(p.flowRange[1])} L/s between updates; mean over 10 simulated seconds` : `${planned}, mean over 10 simulated seconds`],
+      ['Loop state', STATE[p.state], `Stepped ${fixed(p.seconds, 0)} simulated seconds`],
+      ['Fill once settled', `coolant ${pct(p.coolantFill)}, radiators ${span(p.radiatorFill, pct)}`, `Pipe networks ${span(p.networkFill.map((x) => Math.round(x * 100) / 100), pct)}`],
+      ['Coolant manifold at equilibrium', p.usable ? `${fixed(p.normal.coolant)} °C` : 'n/a', 'Computed load'],
+      ['Radiators at equilibrium', p.usable ? `${span(p.normal.radiators, (t) => `${fixed(t)} °C`)}` : 'n/a', 'First to last, computed load'],
+      ['Heat taken per °C of engine excess', p.usable ? sig(p.conductance) : 'n/a', 'Per update, from the settled loop'],
+      ['Ideal-flow count for comparison', cmp ? (cmp.couplingLimited ? 'Coupling limit' : String(cmp.requiredRadiators)) : 'n/a', 'Full radiators at coolant temperature'],
+    ];
+    body = (
+      <>
+        <div className="cool-plate">
+          <p className="cool-plate-status">
+            <span className="stamp stamp-inferred">{FLOW_LABEL}</span>
+            {stale ? <span className="cool-stale-note">Last valid inputs</span> : null}
+          </p>
+          <p className="cool-plate-label">Radiators needed in this model</p>
+          <p className={`cool-plate-number num${r.required === null && r.verdict !== 'no-combustion' ? ' cool-plate-text' : ''}`}>{big}</p>
+          <p className="cool-plate-sub">
+            {r.radiator.title} in series on one {r.pump.title.toLowerCase()}, to hold the engine at {target} °C with a {fixed(v.reservePercent, 0)}% heat reserve
+          </p>
+          <p className={`cool-verdict cool-verdict-${r.verdict}`}><strong>{verdictHead}</strong> {verdict}</p>
+          {settle ? <p className="cool-plate-sub">{settle}</p> : null}
+          <p className="cool-plate-warn">
+            Uses recovered pump, port-allocation and temperature recurrences for the selected clean-water layout and fill preset. Radiator water
+            may be cooler than manifold water and may not stay full. Results are static-model estimates, not in-game validation.
+          </p>
+        </div>
+        <dl className="cool-readout">
+          {rows.map(([k, val, note]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd><span className="num">{val}</span><span className="cool-readout-note">{note}</span></dd>
+            </div>
+          ))}
+        </dl>
+        <h4 className="cool-layout-h">Modelled loop</h4>
+        <ul className="cool-layout">
+          <li><strong>Layout:</strong> pump, then radiators 1 to {v.plannedRadiators} in series, then the coolant manifold and back to the pump. Each link is one pipe network of 40 L, whatever its length.</li>
+          <li><strong>Starting fluid:</strong> fresh water at {fixed(v.ambient, 0)} °C. Pipe networks {fixed(v.pipeFill, 0)}% full, radiators {fixed(v.radiatorFill, 0)}% full, shared coolant full.</li>
+          <li><strong>Update order:</strong> network allocation, pump, each radiator's inlet port, outlet port and cooling step, the manifold's two ports, then the engine coupling. 60 updates per simulated second.</li>
+          <li><strong>Reported phase:</strong> stored compartment temperatures at the end of an update. Each count is stepped with the engine held, up to 600 simulated seconds, until two 10-second windows agree.</li>
+        </ul>
+      </>
+    );
+    const rows10 = r.samples.filter((_, i) => i % 10 === 0);
+    const desc = `Engine temperature over ${minutes(v.durationMinutes)} simulated minutes from a cold start at ${fixed(v.ambient, 0)} °C with ${planned}. Computed load ends at ${fixed(r.samples.at(-1).temperature)} °C, with reserve at ${fixed(r.samples.at(-1).designTemperature)} °C. Target ${target} °C.`;
+    tables = (
+      <section className="cool-chart" aria-labelledby={`${uid}-chart-h`}>
+        <h3 id={`${uid}-chart-h`}>Warm-up with {planned}</h3>
+        <p className="hint">
+          {FLOW_LABEL}. The whole loop is stepped at 60 updates per simulated second from a cold start, with the engine's heat input held
+          constant. The dashed curve adds the {fixed(v.reservePercent, 0)}% heat reserve.
+        </p>
+        <div className="graph-plot" ref={chartRef}>
+          <CoolingChart uid={`${uid}-svg`} width={width} result={r} input={v} title={`Estimated engine temperature over ${minutes(v.durationMinutes)} minutes`} desc={desc} />
+          <Legend reserve={fixed(v.reservePercent, 0)} first="Computed load" calibration={false} />
+        </div>
+        <details className="evidence-group graph-data">
+          <summary>Show the warm-up data as a table</summary>
+          <div className="table-wrap" role="region" aria-labelledby={`${uid}-tcap`} tabIndex={0}>
+            <table className="wikitable graph-table">
+              <caption id={`${uid}-tcap`}>{FLOW_LABEL}: temperatures with {planned}, °C</caption>
+              <thead>
+                <tr><th scope="col">Minutes</th><th scope="col">Engine (°C)</th><th scope="col">With {fixed(v.reservePercent, 0)}% reserve (°C)</th><th scope="col">Coolant manifold (°C)</th></tr>
+              </thead>
+              <tbody>
+                {rows10.map((s) => (
+                  <tr key={s.minutes}>
+                    <th scope="row" className="num">{minutes(s.minutes)}</th>
+                    <td className="num">{fixed(s.temperature)}</td>
+                    <td className="num">{fixed(s.designTemperature)}</td>
+                    <td className="num">{fixed(s.coolant)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+        <h3 id={`${uid}-cnt-h`}>Radiator counts compared</h3>
+        <p className="hint">
+          Every count shares the one pump, so each added radiator lowers its flow. The count that holds the target is the smallest one that also
+          settles. More is not always better.
+        </p>
+        <div className="table-wrap" role="region" aria-labelledby={`${uid}-cnt-cap`} tabIndex={0}>
+          <table className="wikitable cards graph-table cool-compare">
+            <caption id={`${uid}-cnt-cap`} className="sr-only">{r.radiator.title}: radiator counts compared</caption>
+            <thead>
+              <tr>
+                <th scope="col">Radiators</th><th scope="col">Loop state</th><th scope="col">Pump flow</th><th scope="col">Radiator fill</th>
+                <th scope="col">Equilibrium</th><th scope="col">With reserve</th><th scope="col">Holds target</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.counts.map((c) => (
+                <tr key={c.count} className={c.count === v.plannedRadiators ? 'is-selected' : undefined}>
+                  <th scope="row">{c.count}{c.count === v.plannedRadiators ? <span className="cool-selected"> (planned)</span> : null}</th>
+                  <td data-label="Loop state">{STATE[c.state]}</td>
+                  <td data-label="Pump flow" className="num">{c.usable || c.state === 'blocked' ? `${lps(c.flow)} L/s` : 'n/a'}</td>
+                  <td data-label="Radiator fill" className="num">{span(c.radiatorFill, pct)}</td>
+                  <td data-label="Equilibrium" className="num">{r.verdict === 'no-combustion' ? 'No heat' : c.usable ? overheat(c.normal.engine) : 'n/a'}</td>
+                  <td data-label="With reserve" className="num">{r.verdict === 'no-combustion' ? 'No heat' : c.usable ? overheat(c.design.engine) : 'n/a'}</td>
+                  <td data-label="Holds target">{c.sufficient ? 'Yes' : 'No'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    );
+  }
+  const status = useSettled(stale ? `${errorCount} ${errorCount === 1 ? 'input needs' : 'inputs need'} fixing. The estimate shows the last valid inputs.` : summary);
+
+  return (
+    <div className={`cool${stale ? ' is-stale' : ''}`}>
+      <section className="cool-result" aria-labelledby={`${uid}-res`}>
+        <h3 id={`${uid}-res`} className="sr-only">Result</h3>
+        {stale ? (
+          <p className="cool-alert">
+            {errorCount === 1 ? 'One input needs' : `${errorCount} inputs need`} fixing. The result below still shows the last valid inputs.
+          </p>
+        ) : null}
+        {body ?? <p className="cool-alert">Enter valid values to see an estimate.</p>}
+      </section>
+
+      <form className="cool-inputs" onSubmit={(e) => e.preventDefault()} noValidate aria-labelledby={`${uid}-in`}>
+        <h3 id={`${uid}-in`}>Inputs</h3>
+        {FLOW_GROUPS.map(([group, legend]) => (
+          <fieldset key={group} className={`cool-set cool-set-${group}`}>
+            <legend>{legend}</legend>
+            <div className="cool-grid">
+              {FLOW_FIELDS.filter((f) => f.group === group && (!f.drive || f.drive === drive)).map((f) => (
+                <Control key={f.key} uid={uid} field={f} value={raw[f.key]} error={errorFor(f.key)} onChange={set} />
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        <div className="cool-actions">
+          <button type="button" className="cool-button" onClick={share}>Copy link to these inputs</button>
+          <button type="button" className="cool-button cool-button-quiet" onClick={reset}>Restore default values</button>
+          <p className="cool-share-msg" role="status">{shareMsg}</p>
+        </div>
+      </form>
+
+      {tables}
+      <p className="sr-only" role="status" aria-atomic="true">{status}</p>
+    </div>
+  );
+}
+
 /* ---------- method switch ---------- */
 
 const MODES = [
   ['ideal', 'Ideal-flow estimate', 'Modular engines. Uses the heat, coolant and radiator terms recovered from the game code. No measuring needed, but it is a lower bound.'],
+  ['flow', 'Finite-flow estimate', 'Modular engines. Steps the recovered pump, port and temperature equations for one pump with radiators in series. Includes pump flow and fill.'],
   ['measured', 'Measured calibration', 'Any engine, including the fixed diesel engines. Uses two temperature readings you take on your own build.'],
 ];
 
@@ -687,7 +982,8 @@ export default function CoolingTool() {
   // A shared link names its mode. Older links without one carry only measured inputs.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    if (p.get('mode') === 'measured' || (!p.has('mode') && KEYS.some((k) => p.has(k)))) setMode('measured');
+    if (p.get('mode') === 'flow') setMode('flow');
+    else if (p.get('mode') === 'measured' || (!p.has('mode') && KEYS.some((k) => p.has(k)))) setMode('measured');
   }, []);
   return (
     <div className="cool-tool">
@@ -703,8 +999,9 @@ export default function CoolingTool() {
           ))}
         </div>
       </fieldset>
-      {/* Both stay mounted so switching keeps what was typed. `hidden` also removes the inactive one from the accessibility tree. */}
+      {/* All stay mounted so switching keeps what was typed. `hidden` also removes the inactive ones from the accessibility tree. */}
       <div hidden={mode !== 'ideal'}><NativeCooling /></div>
+      <div hidden={mode !== 'flow'}><FlowCooling /></div>
       <div hidden={mode !== 'measured'}><MeasuredCalculator /></div>
     </div>
   );

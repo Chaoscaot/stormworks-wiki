@@ -100,14 +100,14 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/5/limitations/0",
-        "text": "pump_pressure units and the network solver were not recovered.",
+        "pointer": "/categories/5/sections/0/body",
+        "text": "Every connected run of ordinary pipe is one network compartment of volume 4, 40 L, however many pipe blocks it spans. For clean water its pressure is 15 × the stored amount, 60 when full. Each update the network shares its fluid and free room among the demands its ports set on the previous update, and each port then moves at most half its demand.\n\nA pump adds its bias to the pressure difference. Electric pumps use electrical supply × pump_pressure × Max Power, impeller pumps 4 × |RPS| × pump_pressure, and the modular engine fluid pump its own shaft speed. At equal pressure the move is at most min(bias, 20) ÷ 30 amount per update: 200 L/s for the small electric pump (pump_pressure 10), 400 L/s for the large one (100), and no pump exceeds 400 L/s. The flow readout shows 1 amount per update as 600 L/s, 10 L per amount. The manual pump (pump_pressure 3) was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/5/sections/3/body",
-        "text": "Flow rate against pump_pressure and pipe length, and whether the realtime damping values (0.99 gas, 0.9999 liquid) are used by this build.",
+        "pointer": "/categories/5/sections/4/body",
+        "text": "Whether the realtime damping values (0.99 gas, 0.9999 liquid) are used by this build. Compare Flow Rate in game with the recovered bounds; pipe length should not change it, because a network's volume does not grow with its length.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -516,26 +516,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/9/limitations/0",
-        "text": "pump_pressure is configuration, not measured pressure.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/9/sections/1/body",
-        "text": "Measure Flow Rate against head and pipe run for each to translate the factor of 10 into real flow.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/9/findings/0/detail",
-        "text": "water_pump: definition attribute pump_pressure. Pump configuration value; units not established.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/9/findings/1/detail",
-        "text": "water_pump_large: definition attribute pump_pressure. Pump configuration value; units not established.",
+        "pointer": "/families/9/sections/3/body",
+        "text": "Compare Flow Rate in game with the bounds above and with the finite-flow estimate for the same loop.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -571,13 +553,7 @@
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/sections/2/body",
-        "text": "Both sizes run the same rule and fraction; whether the larger radiator removes more heat depends on its internal fluid volume, which was not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/sections/3/body",
+        "pointer": "/families/10/sections/4/body",
         "text": "Measure Temperature against fan state and airspeed to confirm the units of the airflow term and the surrounding-temperature reference.",
         "scope": "Practical behavior guidance"
       },
@@ -881,19 +857,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/19/limitations/0",
-        "text": "Flow per RPS was not recovered.",
+        "text": "Static analysis of one build; the flow figures are equal-pressure bounds, not measured flow. The shaft load unit was not established.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/19/findings/0/detail",
-        "text": "turbocharger_small: definition attribute pump_pressure. Pump configuration value; units not established.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/19/findings/1/detail",
-        "text": "turbocharger: definition attribute pump_pressure. Pump configuration value; units not established.",
+        "pointer": "/families/19/sections/0/body",
+        "text": "The impeller reads the speed of the shaft on its RPS port and pushes with bias 4 × |RPS| × pump_pressure. Spinning the shaft backward pushes the same way. Unlike the electric pumps it is two-way: backpressure can push fluid back through it, and at low flow it exchanges temperature between its two networks. The shaft port records a load request of 0.1 × pump_pressure; its torque unit was not established.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -1519,19 +1489,6 @@
         "file": "wiki/data/behavior.json",
         "pointer": "/families/78/limitations/0",
         "text": "The coolant heat-transfer coefficient was not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-modular-engine-fluid-pump",
-    "title": "Modular Engine Fluid Pump: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-modular-engine-fluid-pump",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/79/limitations/0",
-        "text": "Pump flow per unit speed was not recovered.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -2964,31 +2921,6 @@
         "pointer": "/articles/0/limitations/2",
         "text": "No integration timestep, collision solver or friction equation was recovered.",
         "scope": "Shipped-resource mechanics article"
-      }
-    ]
-  },
-  {
-    "key": "tool:cooling-flow",
-    "title": "Cooling calculator: recover real pump throughput and fluid transport",
-    "wiki": "https://sw-wiki.maxsp.de/tools/cooling",
-    "locations": [
-      {
-        "file": "wiki/app/tools/cooling/page.jsx",
-        "pointer": "line:194",
-        "text": "How fast fluid moves between ports was not recovered. Real flow restrictions can raise the required count.",
-        "scope": "Application text"
-      },
-      {
-        "file": "wiki/app/tools/cooling/page.jsx",
-        "pointer": "line:204",
-        "text": "<li>There is no temperature-over-time curve in this mode. It solves the steady state only. A warm-up curve would depend on how fast the pump moves coolant between the manifold and the radiators, which was not recovered.</li>",
-        "scope": "Application text"
-      },
-      {
-        "file": "wiki/components/CoolingCalculator.jsx",
-        "pointer": "line:549",
-        "text": "Assumes ideal pump flow: every radiator full of clean fresh water as hot as the coolant manifold. Pump throughput was not recovered,",
-        "scope": "Application text"
       }
     ]
   }

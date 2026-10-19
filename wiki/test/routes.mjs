@@ -52,6 +52,8 @@ check(/<input[^>]*type="checkbox"(?![^>]*checked)[^>]*>/.test(cooling) && coolin
 check(/Ideal-flow estimate/.test(cooling) && (cooling.match(/<table[^>]*cool-compare[\s\S]*?<tbody>([\s\S]*?)<\/tbody>/)?.[1].match(/<tr/g) || []).length === 4, '/tools/cooling: ideal-flow estimate is the default and compares 4 radiator types');
 check([...cooling.matchAll(/<input[^>]*type="radio"[^>]*>/g)].some(([t]) => /value="ideal"/.test(t) && /\schecked/.test(t)), '/tools/cooling: ideal-flow method selected by default');
 check(/0x1404cbc60/.test(cooling) && /0x1404b4330/.test(cooling), '/tools/cooling: ideal-flow references cite executable addresses');
+check([...cooling.matchAll(/<input[^>]*type="radio"[^>]*>/g)].some(([t]) => /value="flow"/.test(t)) && cooling.includes('Finite-flow estimate') && cooling.includes('Radiator counts compared') && cooling.includes('Modelled loop'), '/tools/cooling: finite-flow mode, count table and loop description render on the server');
+check(/0x1402ed8d0/.test(cooling) && /0x1404a177d/.test(cooling) && /0x1404b3c44/.test(cooling) && !cooling.includes('Pump throughput was not recovered'), '/tools/cooling: finite-flow references cite the pump solver, network volume and capacity start');
 const home = await (await fetch(`${base}/`)).text();
 const cyl = await (await fetch(`${base}/parts/modular-engine-cylinder`)).text();
 const rad = await (await fetch(`${base}/parts/passive-fluid-radiator`)).text();

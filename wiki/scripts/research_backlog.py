@@ -82,12 +82,6 @@ def inventory():
                     add(key,title,url,file,root_pointer+'/'+pointer,text,scope)
     # UI-only gaps are not all represented in the generated research JSON.
     extras = [
-      ('tool:cooling-flow','Cooling calculator: recover real pump throughput and fluid transport','/tools/cooling',
-       'wiki/app/tools/cooling/page.jsx','How fast fluid moves between ports was not recovered.'),
-      ('tool:cooling-flow','Cooling calculator: recover real pump throughput and fluid transport','/tools/cooling',
-       'wiki/app/tools/cooling/page.jsx','A warm-up curve would depend on how fast the pump moves coolant'),
-      ('tool:cooling-flow','Cooling calculator: recover real pump throughput and fluid transport','/tools/cooling',
-       'wiki/components/CoolingCalculator.jsx','Pump throughput was not recovered'),
       ('family:part-jet-engine-exhaust-basic','Jet exhaust: recover the complete thrust formula','/parts/part-jet-engine-exhaust-basic',
        'wiki/README.md','There is no jet thrust graph because the full thrust formula is not verified.'),
     ]
