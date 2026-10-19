@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -117,4 +117,61 @@ test('scoop graph constants and display format remain tied to verified native fi
   assert.equal(Number(value('Gas readout factor')) * Number(value('Readout factor')), SCOOP_COUNTER_PER_AMOUNT);
   assert.equal(Number(value('Inspection flow scale')), SCOOP_TOOLTIP_SCALE);
   assert.equal(value('Inspection flow format'), '%.2fL/s');
+});
+test('control-surface force matches the worked example and reference points of tools/model.py', () => {
+  const rel = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected)), `${actual} != ${expected}`);
+  const f = (airspeed, angle, area, mass, altitude = 0, wing = false) => surfaceForce({ airspeed, angle, area, mass, altitude, wing });
+  const ex = f(30, 10, 8, 1000, 0, true);
+  assert.equal(ex.normal.toFixed(4), '594.1561');
+  assert.equal(ex.lift.toFixed(4), '585.1295');
+  assert.equal(ex.drag.toFixed(4), '103.1741');
+  rel(ex.normal, 594.1561052859007);
+  rel(f(100, 20, 70, 10000, 3000).normal, 672648.5897583775);
+  rel(f(50, -5, 40, 2000, 0, true).normal, -2851.4986829560353); // the wing term does not outweigh a negative angle here
+  rel(f(50, -5, 40, 2000, 0, true).drag, 248.5244856570023);
+  rel(f(150, 45, 120, 8000, 12000, true).lift, 1093347.585602761);
+  rel(surfacePressure(3000), 0.6886179541992411);
+});
+test('control-surface force has the recovered threshold, wing term, area linearity, immersion and altitude cutoff', () => {
+  const f = (o) => surfaceForce({ airspeed: 30, angle: 10, area: 8, mass: 1000, ...o }).normal;
+  assert.equal(f({ airspeed: 15, wing: true }), 0);
+  assert.equal(f({ airspeed: 100, angle: 0 }), 0);
+  assert.ok(f({ airspeed: 100, angle: 0, wing: true }) > 0);
+  assert.equal(f({ area: 16, wing: true }), 2 * f({ wing: true }));
+  assert.equal(f({ immersion: 1 }), 0);
+  assert.equal(f({ altitude: 40001 }), 0);
+  assert.equal(f({ mass: 6666.67 * 2 }), f({ mass: 10000 })); // mass factor capped at 0.2
+  assert.equal(surfaceForce({ airspeed: 40, angle: 0, area: 8, mass: 1000, wing: true }).wingRamp, 1);
+  assert.equal(surfaceForce({ airspeed: 100, angle: 120, area: 8, mass: 1000, wing: true }).wingTerm, 0); // travel against the forward axis
+  assert.throws(() => f({ airspeed: -1 }), RangeError);
+  assert.throws(() => f({ immersion: 2 }), RangeError);
+  for (const id of ['wing-section', 'control-surface', 'control-fin']) assert.deepEqual(graphKindsForFamily(id), ['surface']);
+  assert.deepEqual(graphKindsForFamily('reaction-wheel'), []);
+});
+test('control-surface graph constants and variant areas remain tied to verified findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  for (const fid of ['wing-section', 'control-surface', 'control-fin']) {
+    const fam = data.families.find(f => f.id === fid);
+    const value = (label) => {
+      const x = fam.findings.find(y => y.label === label);
+      assert.ok(x?.source?.address, `${fid} ${label}: native address is required`);
+      return Number(x.value);
+    };
+    assert.equal(value('Surface area coefficient'), SURFACE.coefficient);
+    assert.equal(value('Surface airspeed threshold'), SURFACE.threshold);
+    assert.equal(Math.fround(value('Surface mass factor')), SURFACE.massFactor);
+    assert.equal(Math.fround(value('Surface mass factor cap')), SURFACE.massCap);
+    assert.equal(Math.fround(value('Surface pressure lapse')), SURFACE.lapse);
+    assert.equal(Math.fround(value('Surface pressure exponent')), SURFACE.pressureExponent);
+    assert.equal(value('Surface pressure ceiling'), SURFACE.ceiling);
+    if (fid === 'wing-section') {
+      assert.equal(value('Wing speed ramp span'), SURFACE.rampSpan);
+      assert.equal(value('Wing term multiplier'), SURFACE.wingMultiplier);
+      assert.equal(value('Wing direction exponent'), SURFACE.wingExponent);
+    }
+    for (const v of SURFACE_VARIANTS.filter(x => x.family === fid)) {
+      const area = fam.findings.find(x => x.source.path === `rom/data/definitions/${v.id}.xml` && x.label.endsWith('rudder_surface_area'));
+      assert.equal(Number(area?.value), v.area, v.id);
+    }
+  }
 });

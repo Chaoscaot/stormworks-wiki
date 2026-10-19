@@ -3,7 +3,7 @@
 // so the chart, readout and data table are present before hydration. Sliders drive every value; the chart
 // can also be clicked or dragged, but nothing depends on pointer input.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { UPDATES_PER_SECOND, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate, scoopInflow } from '@/lib/formulas.js';
+import { SURFACE_VARIANTS, UPDATES_PER_SECOND, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate, scoopInflow, surfaceForce } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fixed = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
@@ -510,9 +510,133 @@ function ScoopGraph() {
   );
 }
 
-const GRAPHS = { engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph };
+/* ---------- control surfaces ---------- */
 
-export default function FormulaGraph({ kind }) {
+// Internal force units span from single digits to millions, so axis ticks use k and M.
+const short = (v) => {
+  const a = Math.abs(v);
+  if (a >= 1e6) return `${+(v / 1e6).toFixed(2)}M`;
+  if (a >= 1e3) return `${+(v / 1e3).toFixed(1)}k`;
+  return `${+v.toFixed(1)}`;
+};
+const grouped = (v) => (Number.isFinite(v) ? v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : 'n/a');
+
+/* Zero-including domain with 1, 2 or 5 × 10^k steps. */
+function forceDomain(values) {
+  const lo = Math.min(0, ...values);
+  const hi = Math.max(0, ...values);
+  const span = hi - lo || 1;
+  const raw = span / 4;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((k) => k * mag).find((k) => k >= raw);
+  const min = Math.floor(lo / step) * step;
+  const max = Math.ceil(hi / step) * step || step;
+  return { min, max, ticks: steps(min, max, step) };
+}
+
+function SurfaceGraph({ family, variant }) {
+  const uid = useUid();
+  const start = SURFACE_VARIANTS.find((v) => v.id === variant) ?? SURFACE_VARIANTS.find((v) => v.family === family) ?? SURFACE_VARIANTS[0];
+  const [part, setPart] = useState(start.id);
+  const [wing, setWing] = useState(start.wing);
+  const [angle, setAngle] = useState(10);
+  const [altitude, setAltitude] = useState(0);
+  const [mass, setMass] = useState(1000);
+  const [airspeed, setAirspeed] = useState(30);
+  const { area } = SURFACE_VARIANTS.find((v) => v.id === part);
+  const input = { angle, area, mass, altitude, wing };
+  const samples = useMemo(
+    () => steps(0, 150, 1).map((v) => ({ v, ...surfaceForce({ airspeed: v, angle, area, mass, altitude, wing }) })),
+    [angle, area, mass, altitude, wing],
+  );
+  const at = surfaceForce({ airspeed, ...input });
+  const y = forceDomain(samples.flatMap((s) => [s.normal, s.lift, s.drag]));
+  const choose = (id) => {
+    setPart(id);
+    setWing(SURFACE_VARIANTS.find((v) => v.id === id).wing);
+  };
+  const summary = `At ${fixed(airspeed, 0)} m/s and ${fixed(angle, 1)}°: normal force ${grouped(at.normal)}, lift ${grouped(at.lift)}, drag ${grouped(at.drag)} internal force units.`;
+  const status = useSettled(summary);
+  const end = samples.at(-1);
+  const desc = `Area ${area}, ${wing ? 'wing term on' : 'no wing term'}, body mass ${mass}, altitude ${altitude} m. No force up to 15 m/s. At 150 m/s the normal force is ${grouped(end.normal)}, lift ${grouped(end.lift)} and drag ${grouped(end.drag)}. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Normal force', className: 'graph-line-a' },
+        { label: 'Lift (normal × cos α)', className: 'graph-line-b' },
+        { label: 'Drag (normal × sin α)', className: 'graph-line-c' },
+        { label: 'No air force at 15 m/s or less', band: true },
+      ]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Part</label>
+            <select id={`${uid}-part`} value={part} onChange={(e) => choose(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {SURFACE_VARIANTS.map((v) => <option key={v.id} value={v.id}>{`${v.name}, area ${v.area}`}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`rudder_surface_area ${area}. Choosing a part also sets the wing term to match it.`}</span>
+          </div>
+          <Check id={`${uid}-wing`} label="Wing term (rudder_type 1)" checked={wing} onChange={setWing} hint="On for wing sections, off for control surfaces and fins." />
+          <Range id={`${uid}-a`} label="Angle of attack" value={angle} min={-45} max={45} step={0.5} onChange={setAngle} valueText={`${fixed(angle, 1)}°`} hint="Between the airflow and the forward axis, toward the normal." />
+          <Range id={`${uid}-y`} label="Altitude" value={altitude} min={0} max={45000} step={500} onChange={setAltitude} valueText={`${fixed(altitude, 0)} m`} hint="No air force above 40000 m." />
+          <Range id={`${uid}-m`} label="Body mass" value={mass} min={100} max={10000} step={100} onChange={setMass} valueText={fixed(mass, 0)} hint="Game mass units. Above 6666.67 the mass factor stays at 0.2." />
+          <Range id={`${uid}-x`} label="Selected airspeed" value={airspeed} min={0} max={150} step={1} onChange={setAirspeed} valueText={`${fixed(airspeed, 0)} m/s`} hint="Relative to the wind." />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Surface force, lift and drag against airspeed"
+          desc={desc}
+          x={{ min: 0, max: 150, ticks: steps(0, 150, 25), format: (v) => fixed(v, 0), label: 'Airspeed relative to the wind (m/s)' }}
+          y={{ ...y, format: short }}
+          bands={[{ from: 0, to: 15 }]}
+          series={[
+            { key: 'normal', className: 'graph-line-a', points: samples.map((s) => [s.v, s.normal]) },
+            { key: 'lift', className: 'graph-line-b', points: samples.map((s) => [s.v, s.lift]) },
+            { key: 'drag', className: 'graph-line-c', points: samples.map((s) => [s.v, s.drag]) },
+          ]}
+          selected={{
+            x: airspeed,
+            points: [
+              { key: 'normal', y: at.normal, className: 'graph-dot-a' },
+              { key: 'lift', y: at.lift, className: 'graph-dot-b' },
+              { key: 'drag', y: at.drag, className: 'graph-dot-c' },
+            ],
+          }}
+          onSelect={(v) => setAirspeed(snap(v, 0, 150, 1))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At ${fixed(airspeed, 0)} m/s, internal force units`}
+          rows={[
+            ['Pressure ratio P', fixed(at.pressure, 4)],
+            ['Mass factor B', fixed(at.massFactor, 4)],
+            ['Speed excess (airspeed - 15)', `${fixed(at.speedExcess, 0)} m/s`],
+            ['Plane term (airspeed × sin α)', fixed(at.planeTerm, 3)],
+            ['Wing term (3 × cos^5 α × g)', wing ? fixed(at.wingTerm, 3) : 'Off'],
+            ['Normal force', grouped(at.normal)],
+            ['Lift', grouped(at.lift)],
+            ['Drag', grouped(at.drag)],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Force in internal units, area ${area}, ${wing ? 'wing term on' : 'no wing term'}, ${fixed(angle, 1)}°, body mass ${mass}, altitude ${altitude} m`,
+        cols: ['Airspeed (m/s)', 'Normal force', 'Lift', 'Drag'],
+        rows: samples.filter((s) => s.v % 10 === 0).map((s) => [fixed(s.v, 0), grouped(s.normal), grouped(s.lift), grouped(s.drag)]),
+      }}
+    />
+  );
+}
+
+const GRAPHS = { engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph };
+
+export default function FormulaGraph({ kind, family = null, variant = null }) {
   const G = GRAPHS[kind];
-  return G ? <G /> : null;
+  return G ? <G family={family} variant={variant} /> : null;
 }

@@ -75,7 +75,7 @@
       "title": "Air drag and lift tuning",
       "category": "Physics",
       "summary": "Pressure, suction, lift and speed thresholds have separate configuration fields.",
-      "body": "The SDK describes linear and quadratic speed factors for pressure and suction drag. The realtime file independently contains matching named values. The SDK labels 15 m/s as the aerodynamic-force threshold and 50 m/s as the high-speed scaling threshold. A scale of 8 is described as additive. The files do not expose the complete drag or lift equation.",
+      "body": "The SDK describes linear and quadratic speed factors for pressure and suction drag. The realtime file independently contains matching named values. The SDK labels 15 m/s as the aerodynamic-force threshold and 50 m/s as the high-speed scaling threshold. A scale of 8 is described as additive. The files do not expose the complete drag or lift equation. A separate native decode of the wing, control-surface and fin air routine (investigation/control-surfaces.md, shown on the Control surfaces parts page) found that it multiplies by its own constant 24 and never reads lift_force, so the SDK description of lift_force as surface lift scaling does not hold for those parts. That routine applies an altitude pressure ratio without checking calculate_air_density.",
       "findings": [
         {
           "label": "air_drag_factor_linear_pressure",

@@ -1,0 +1,32 @@
+[
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/0/limitations/0",
+    "issue": 1,
+    "quoted": "Area fields are configuration; force equations were not decoded.",
+    "disposition": "answered for native force producer and normal application path",
+    "replacement": "The native air equation is recovered. Area multiplies a normal force using normal air velocity, max(airspeed-15 m/s,0), a body-mass factor and the altitude pressure ratio. Wing sections add a directional term. Applied response is capped; mesh-facing signs and the cap's group-scale policy remain explicit limits."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/0/sections/3/body",
+    "issue": 1,
+    "quoted": "Lift or force against area and speed; the shipped lift_force (0.25) may not be applied by this build.",
+    "disposition": "answered",
+    "replacement": "The native coefficient is 24 times rudder_surface_area and the altitude pressure ratio, with air response above 15 m/s and a wing-only speed ramp reaching its full factor at 40 m/s. This producer does not multiply by shipped lift_force 0.25. Bullet accumulates the result as force and integrates it with the solver timestep; do not multiply force by 60."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/0/limitations/1",
+    "issue": 1,
+    "disposition": "additional adjacent limitation answered",
+    "replacement": "Native sine/cosine consume radians. Full deflection is about +/-45 degrees for control surfaces and +/-14.324 degrees for fins. Full electrical availability permits the target in one component update; supply limits can slow or prevent movement. Visible mesh-facing signs remain unverified."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/157/sections/0/body",
+    "issue": 136,
+    "disposition": "answered before application cap",
+    "replacement": "At fixed body mass, airflow, altitude and orientation, computed wing force scales linearly with rudder_surface_area: 8, 20, 40, 70 and 120. The application cap can limit actual gains. Listed voxel count is not a multiplier in this equation."
+  }
+]

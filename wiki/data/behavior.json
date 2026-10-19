@@ -2,28 +2,38 @@
   "categories": [
     {
       "category": "Control surfaces",
-      "summary": "Wings, control surfaces and fins differ chiefly by a rudder_surface_area field (wings 8 to 120, control surfaces 10 to 70, fins 2 to 12); control surfaces deflect further (0.785398) than fins (0.25).",
+      "summary": "Wings, control surfaces and fins push along their surface normal once airspeed passes 15 m/s, with force proportional to rudder_surface_area (wings 8 to 120, control surfaces 10 to 70, fins 2 to 12). Control surfaces deflect about 45° each way, fins about 14.3°.",
       "sections": [
         {
           "title": "Sizing",
-          "body": "rudder_surface_area: wings 8, 20, 40, 70, 120; control surfaces 10, 28, 70; control fins 2, 8, 12. This area field is the main numeric difference between sizes in the definitions."
+          "body": "rudder_surface_area: wings 8, 20, 40, 70, 120; control surfaces 10, 28, 70; control fins 2, 8, 12. The air force is proportional to this field, so at the same airflow, body mass and altitude the large control surface pushes 7 times as hard as the small one. The listed voxel count does not enter the equation."
         },
         {
           "title": "Deflection",
-          "body": "Control surfaces store dynamic_max_rotation 0.785398 and fins 0.25; if both are radians that is 45° against about 14°, so a fin is the finer, smaller-authority choice."
+          "body": "The game turns the input into an angle in radians. Control surfaces store 0.785398, about 45° each way, and fins 0.25, about 14.3°, so a fin is the finer, smaller-authority choice. Each update the surface moves toward the requested position. With full electrical supply it gets there in one update; a weak supply slows it, and no supply holds it."
         },
         {
           "title": "Stabilisers",
           "body": "Reaction wheels carry force fields 10, 100 and 1000, a factor of ten per size; wire them to an aligned angular speed sensor."
         },
         {
-          "title": "Measurement questions",
-          "body": "Lift or force against area and speed; the shipped lift_force (0.25) may not be applied by this build."
+          "title": "Air force",
+          "body": "Wings, control surfaces and fins share one air routine. It pushes along the surface normal with force 24 × rudder_surface_area × P × B × (1 - immersion) × (airspeed - 15) × (normal airspeed + wing term). Airspeed is the surface's speed relative to the wind in m/s, and at 15 m/s or less there is no air force. P = (1 - 2.2413793e-05 × height)^5.3595023 is the altitude pressure ratio, 1 at sea level and 0 above 40000 m. B = min(0.00003 × body mass, 0.2), so the coefficient stops growing at a body mass of 6666.67.\n\nWing sections (rudder_type 1) add a wing term 3 × c^5 × g. c is the cosine between the direction of travel through the air and the wing's forward axis, the reverse of its dynamic_rotation_axes vector, and g rises from 0 at 15 m/s to 1 at 40 m/s. Travelling along that axis, the term lifts a wing even at zero angle of attack; travelling the other way removes it. Matching that axis to a visible mesh edge is an inference. Control surfaces and fins (rudder_type 0) have no wing term, so they push only when the air meets them at an angle.\n\nThe routine multiplies by its own constant 24 and does not read the shipped lift_force setting (0.25), so changing lift_force does not change this force."
+        },
+        {
+          "title": "Lift and drag",
+          "body": "The force is a single push along the normal. With angle of attack α between the airflow and the surface, lift is that force × cos α and drag is force × sin α. Plane resistance grows with airspeed × (airspeed - 15); the wing term grows with (airspeed - 15) × g. There is no stall angle, Reynolds-number term or separate skin drag in this routine.\n\nExample: a small wing section (area 8) on a body of mass 1000 at 30 m/s and 10° angle of attack gets a normal force of 594.2, of which 585.1 is lift and 103.2 is drag."
+        },
+        {
+          "title": "Force units and limit",
+          "body": "The result is in the game's internal force units. Body mass is not calibrated to kilograms, so do not read it as newtons. The game queues the force once per update and the physics solver integrates it, so it is not multiplied by 60. Before it is applied its size is limited to 5 × S, where S is a per-vehicle scale passed in by the component dispatcher; area scaling is linear only below that limit.\n\nPartly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over."
         }
       ],
       "limitations": [
-        "Area fields are configuration; force equations were not decoded.",
-        "The radian reading of the deflection fields is an interpretation."
+        "The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
+        "Which visible edge and editor arrow match positive deflection and the sign of the force was not checked in game.",
+        "Internal mass and force units are not calibrated to kilograms and newtons.",
+        "Reaction wheels are outside the air-force decode; their force fields are configuration only."
       ],
       "sources": [
         {
@@ -115,6 +125,137 @@
           "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
           "lineStart": 21,
           "lineEnd": 21
+        },
+        {
+          "path": "sdk/data/game_constants.xml",
+          "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+          "lineStart": 83,
+          "lineEnd": 83
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140128734"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019a3a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7b62"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7c03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403dfe03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403dfef9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0175"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d38"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d49"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d97"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0db2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0dcc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0e3c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0f6b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0ff1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1051"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10d8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10eb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10f8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1118"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1120"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e11db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b53ad0"
         }
       ]
     },
@@ -3254,18 +3395,22 @@
     },
     {
       "id": "control-fin",
-      "summary": "rudder_surface_area 2, 8 and 12; deflection field 0.25.",
+      "summary": "rudder_surface_area 2, 8 and 12; deflects up to 0.25 rad, about 14.3°, each way.",
       "sections": [
         {
           "title": "Variant tradeoffs",
-          "body": "Fins have smaller area and deflection than control surfaces, suiting fine trim."
+          "body": "Force scales linearly with rudder_surface_area, so medium and large fins make 4 and 6 times the force of the small one under the same conditions. Fins have smaller area and deflection than control surfaces, suiting fine trim."
+        },
+        {
+          "title": "Air force",
+          "body": "Fins use the same routine as control surfaces, with rudder_type 0 and no wing term: force = 24 × area × P × B × (1 - immersion) × (airspeed - 15) × normal airspeed, above 15 m/s."
         }
       ],
       "findings": [
         {
           "label": "Control Fin Small · rudder_surface_area",
           "value": "2",
-          "detail": "control_fin_small: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "control_fin_small: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/control_fin_small.xml:a509f2ae7837:L2-L2",
           "status": "observed",
           "source": {
@@ -3278,7 +3423,7 @@
         {
           "label": "Control Fin Medium · rudder_surface_area",
           "value": "8",
-          "detail": "control_fin_medium: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "control_fin_medium: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/control_fin_medium.xml:b6453433b64e:L2-L2",
           "status": "observed",
           "source": {
@@ -3291,7 +3436,7 @@
         {
           "label": "Control Fin Large · rudder_surface_area",
           "value": "12",
-          "detail": "control_fin_large: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "control_fin_large: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/control_fin_large.xml:cd025ced7844:L2-L2",
           "status": "observed",
           "source": {
@@ -3304,7 +3449,7 @@
         {
           "label": "Control Fin Small · dynamic_max_rotation",
           "value": "0.25",
-          "detail": "control_fin_small: definition attribute dynamic_max_rotation. Deflection limit configuration.",
+          "detail": "control_fin_small: definition attribute dynamic_max_rotation. Deflection limit in radians.",
           "evidenceId": "resource:rom/data/definitions/control_fin_small.xml:a509f2ae7837:L2-L2",
           "status": "observed",
           "source": {
@@ -3312,6 +3457,321 @@
             "sha256": "a509f2ae7837653d5a540c58d665ecc196e15fa6652b7c29a0a8683cef307188",
             "lineStart": 2,
             "lineEnd": 2
+          }
+        },
+        {
+          "label": "Control fin deflection",
+          "value": "±14.3°",
+          "detail": "0.25 rad × 180/π = 14.32°. The update feeds the angle to cosine and sine, so the field is in radians. Inputs: resource:rom/data/definitions/control_fin_small.xml:a509f2ae7837:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403dfef9.",
+          "evidenceId": "derived:6171d24a3a83",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/control_fin_small.xml",
+            "sha256": "a509f2ae7837653d5a540c58d665ecc196e15fa6652b7c29a0a8683cef307188",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Control Fin Small · rudder_type",
+          "value": "0",
+          "detail": "control_fin_small: definition attribute rudder_type. Read at 0x1403e0dcc (definition+0x2cd4); 1 adds the wing term.",
+          "evidenceId": "resource:rom/data/definitions/control_fin_small.xml:a509f2ae7837:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/control_fin_small.xml",
+            "sha256": "a509f2ae7837653d5a540c58d665ecc196e15fa6652b7c29a0a8683cef307188",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Force ratio across fin sizes",
+          "value": "1, 4, 6",
+          "detail": "Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap. Inputs: resource:rom/data/definitions/control_fin_small.xml:a509f2ae7837:L2-L2, resource:rom/data/definitions/control_fin_medium.xml:b6453433b64e:L2-L2, resource:rom/data/definitions/control_fin_large.xml:cd025ced7844:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120.",
+          "evidenceId": "derived:00e81ff91830",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/control_fin_small.xml",
+            "sha256": "a509f2ae7837653d5a540c58d665ecc196e15fa6652b7c29a0a8683cef307188",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Surface air velocity",
+          "value": "v + w × r - wind",
+          "detail": "The air branch takes the point velocity of the surface (body velocity plus angular velocity × lever arm, built at 0x1403e0332-0x1403e03b8) and subtracts the vehicle's cached wind here and at 0x1403e0d3d and 0x1403e0d43. Speed is in m/s, the unit established for the air scoop, which uses the same body fields. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f5c08 at 0x1403e0d38. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d38",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d38"
+          }
+        },
+        {
+          "label": "Surface airspeed",
+          "value": "length of the air velocity",
+          "detail": "Square root of the summed squares of the wind-relative velocity. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f51c2 at 0x1403e0d97. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L860-L874. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d97",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d97"
+          }
+        },
+        {
+          "label": "Surface airspeed threshold",
+          "value": "15",
+          "detail": "Speed excess q = max(airspeed - this, 0). At or below 15 m/s the air force is 0. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f5c0de2f87c00 at 0x1403e0db2 address binary32 15 (bytes 00007041) at 0x140bb069c. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L867-L879. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0db2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0db2"
+          }
+        },
+        {
+          "label": "Surface mass factor",
+          "value": "3e-05",
+          "detail": "Multiplies the body mass stored at physics state +8, the same value passed to the Bullet rigid body, by this. No conversion from that mass to kilograms is applied or claimed. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f59054ceb7c00 at 0x1403e0d30 address binary32 3e-05 (bytes 82a8fb37) at 0x140baf884. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851; ../control-surfaces/asm/mass-state.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d30"
+          }
+        },
+        {
+          "label": "Surface mass factor cap",
+          "value": "0.2",
+          "detail": "B = min(mass × 0.00003, this), so B stops growing at a mass of 0.2 ÷ 0.00003 = 6666.67 internal units. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f101d1fee7c00 at 0x1403e0d49 address binary32 0.2 (bytes cdcc4c3e) at 0x140bafb70. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d49",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d49"
+          }
+        },
+        {
+          "label": "Surface plane term",
+          "value": "-normal × dot(v, normal)",
+          "detail": "Starts multiplying the negated surface normal (dynamic_side_axis after deflection and body rotation) by the normal component of the air velocity; the following products apply B, the air fraction 1 - immersion and the speed excess. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f59da at 0x1403e0e3c. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L902-L914. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0e3c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0e3c"
+          }
+        },
+        {
+          "label": "Surface area coefficient",
+          "value": "24",
+          "detail": "Area × this × P scales the air vector: F = -normal × 24 × area × P × B × (1 - immersion) × q × (dot(v, normal) + h). No load of the lift_force tuning value occurs in this routine. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590db4f57c00 at 0x1403e1120 address binary32 24 (bytes 0000c041) at 0x140bb06dc. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1061-L1063; ../control-surfaces/pseudocode/0x1403dfd20.c:L542; ../control-surfaces/tools/tables.txt. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1120"
+          }
+        },
+        {
+          "label": "Surface area read",
+          "value": "rudder_surface_area",
+          "detail": "Reads definition+0xec4, which the definition loader binds to rudder_surface_area at 0x140317c77. Area multiplies both the plane term and the wing term. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f1088c40e0000 at 0x1403e1118. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1061-L1063; ../control-surfaces/pseudocode/0x1403dfd20.c:L542; ../control-surfaces/asm/definition-bindings.asm:L98. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1118"
+          }
+        },
+        {
+          "label": "Surface pressure lapse",
+          "value": "2.2413793e-05",
+          "detail": "Pressure ratio P = (1 - this × y)^5.3595023, y the surface's world height in metres; the same curve as the air scoop's outside pressure. calculate_air_density is not read on this path. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590d8de77c00 at 0x1403e10eb address binary32 2.2413793e-05 (bytes 4105bc37) at 0x140baf880. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1049-L1058; ../control-surfaces/pseudocode/0x1403dfd20.c:L531-L542. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10eb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10eb"
+          }
+        },
+        {
+          "label": "Surface pressure exponent",
+          "value": "5.3595023",
+          "detail": "Second argument of the power call at 0x1403e1104. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f100d04f47c00 at 0x1403e10f8 address binary32 5.3595023 (bytes 0b81ab40) at 0x140bb0504. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1049-L1058; ../control-surfaces/asm/powf.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10f8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10f8"
+          }
+        },
+        {
+          "label": "Surface pressure ceiling",
+          "value": "40000.0",
+          "detail": "Above this world height of the surface the pressure ratio stays 0, so there is no air force. Function 0x1403dfd20-0x1403e123f; instruction bytes 660f2f05a0f47c00 at 0x1403e10d8 address binary64 40000.0 (bytes 000000000088e340) at 0x140bb0580. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047-L1060. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10d8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10d8"
+          }
+        },
+        {
+          "label": "Surface immersion fraction",
+          "value": "clamp(2 × (0.25 - (y - surface)), 0, 1)",
+          "detail": "After sampling the water surface height at the surface position (0x1402bbbb0, call at 0x1403e0158), the update forms the immersion fraction, clamped to 0 to 1 at 0x1403e017f-0x1403e01a6. The air force is multiplied by 1 minus it. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f5cf2f3450f58f6 at 0x1403e0175. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L241-L260. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0175",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0175"
+          }
+        },
+        {
+          "label": "Air force application limit",
+          "value": "5",
+          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10cb"
+          }
+        },
+        {
+          "label": "Air force submission",
+          "value": "call 0x1401a7ad0",
+          "detail": "Submits the air vector and its lever arm to the force application helper once per component update. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes e8f068dcff at 0x1403e11db. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1080-L1093; ../control-surfaces/pseudocode/0x1403dfd20.c:L554. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e11db",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e11db"
+          }
+        },
+        {
+          "label": "Force application cap",
+          "value": "|F| ≤ limit × S",
+          "detail": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes f30f59c60f2fd0 at 0x1401a7b62. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L15-L45; ../control-surfaces/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401a7b62"
+          }
+        },
+        {
+          "label": "Force event",
+          "value": "event_set_impulse@mm_physics_scene",
+          "detail": "Installs vtable 0x140b82d30 on the queued event; its handler 0x1401a16a0 widens the vector to doubles and calls 0x14019a370. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes 488d0526b19d00 at 0x1401a7c03. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L72-L94; ../control-surfaces/asm/force-event.asm; ../control-surfaces/pseudocode/0x1401a16a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7c03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401a7c03"
+          }
+        },
+        {
+          "label": "Bullet total-force accumulator",
+          "value": "body+0x460 += F",
+          "detail": "Adds the force, after the linear factors, to the rigid body's total force and r × F to its total torque. Despite the event name this is a force, not a velocity change. Report: investigation/control-surfaces.md. Function 0x14019a370-0x14019a4b7; instruction bytes f20f588160040000 at 0x14019a3a3. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/bullet-force.asm:L1-L56; ../control-surfaces/pseudocode/0x14019a370.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14019a370@0x14019a3a3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14019a3a3"
+          }
+        },
+        {
+          "label": "Solver force integration",
+          "value": "Δv = F × inverse mass × substep",
+          "detail": "Solver-body setup multiplies the total force by inverse mass and then by the solver substep at 0x14012874b. The force stays in the accumulator for every substep of the outer step and is cleared afterwards (0x140133bb0). Report: investigation/control-surfaces.md. Function 0x140128608-0x140128843; instruction bytes f2410f598060040000 at 0x140128734. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/solver-force-integration.asm:L81-L87; ../control-surfaces/asm/solver-time-call.asm; ../control-surfaces/pseudocode/0x140128560.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140128608@0x140128734",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140128734"
+          }
+        },
+        {
+          "label": "Surface force unit",
+          "value": "internal force units",
+          "detail": "The routine produces a force that Bullet accumulates and integrates with inverse mass × substep. The refresh is once per component update (60 per simulated second), so the force is not multiplied by 60. Mass is not calibrated to kilograms, so the force is not labelled in newtons. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e11db, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7c03, native:stormworks64.exe:f9206d85c82f:0x14019a370@0x14019a3a3, native:stormworks64.exe:f9206d85c82f:0x140128608@0x140128734, derived:7d3ff454a23f.",
+          "evidenceId": "derived:790cbdfdaa7b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e11db"
+          }
+        },
+        {
+          "label": "lift_force binding",
+          "value": "lift_force",
+          "detail": "The tuning binder loads lift_force into tuning object +0x90 with default 0.25 (lea at 0x140293f48 and 0x140293f55). The rudder update never reads that field. Report: investigation/control-surfaces.md. Function 0x140293a40-0x14029404e; it references the string 'lift_force' at 0x140b53ad0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/tuning-loader.asm:L249-L258; ../control-surfaces/asm/tuning-load-call.asm; ../control-surfaces/pseudocode/0x140293a40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140293a40@0x140b53ad0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b53ad0"
+          }
+        },
+        {
+          "label": "lift_force in the surface force",
+          "value": "not read",
+          "detail": "The complete rudder update has no load from tuning object +0x90 and no call to its accessor; the area coefficient is the fixed 24. lift_force 0.25 is therefore not a multiplier of this force. Other users of the field elsewhere in the executable are outside this check. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120, native:stormworks64.exe:f9206d85c82f:0x140293a40@0x140b53ad0.",
+          "evidenceId": "derived:78d2c2e97c35",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1120"
+          }
+        },
+        {
+          "label": "Deflection power demand",
+          "value": "0.099999994",
+          "detail": "Electric demand E = |requested - stored position| × this. The position moves by the change × the supplied fraction, so with full supply it reaches the request in one update and with none it holds. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f593dc1fc7c00 at 0x1403dfe03 address binary32 0.099999994 (bytes cccccc3d) at 0x140bafacc. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L52-L78; ../control-surfaces/asm/electric-draw.asm; ../control-surfaces/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403dfe03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403dfe03"
+          }
+        },
+        {
+          "label": "Deflection cosine",
+          "value": "call 0x1409d4b80",
+          "detail": "The deflection angle, interpolated between dynamic_min_rotation and dynamic_max_rotation, goes to cosine here and sine at 0x1403dff05 to build the rotation matrix about dynamic_rotation_axes. These consume radians. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes e8824c5f00 at 0x1403dfef9. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L96-L104; ../control-surfaces/asm/cosf.asm; ../control-surfaces/pseudocode/0x1409d4b80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403dfef9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403dfef9"
           }
         },
         {
@@ -3394,7 +3854,9 @@
         }
       ],
       "limitations": [
-        "Configuration values only."
+        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+        "Internal mass and force units are not calibrated to kilograms and newtons.",
+        "Which visible edge and editor arrow match positive deflection was not checked in game."
       ],
       "sources": [
         {
@@ -3432,23 +3894,136 @@
           "sha256": "a509f2ae7837653d5a540c58d665ecc196e15fa6652b7c29a0a8683cef307188",
           "lineStart": 55,
           "lineEnd": 55
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140128734"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019a3a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7b62"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7c03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403dfe03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403dfef9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0175"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d38"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d49"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d97"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0db2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0e3c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10d8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10eb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10f8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1118"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1120"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e11db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b53ad0"
         }
       ]
     },
     {
       "id": "control-surface",
-      "summary": "rudder_surface_area 10, 28 and 70; deflection field 0.785398.",
+      "summary": "rudder_surface_area 10, 28 and 70; deflects up to 0.785398 rad, about 45°, each way.",
       "sections": [
         {
           "title": "Variant tradeoffs",
-          "body": "Larger surfaces carry larger area fields; all share the same deflection limit and −1 to 1 input."
+          "body": "Force scales linearly with rudder_surface_area, so medium and large surfaces make 2.8 and 7 times the force of the small one under the same conditions. All sizes share the 45° limit and the -1 to 1 Rotation input."
+        },
+        {
+          "title": "Air force",
+          "body": "Control surfaces have rudder_type 0, so there is no wing term: force = 24 × area × P × B × (1 - immersion) × (airspeed - 15) × normal airspeed, above 15 m/s. A surface edge-on to the airflow makes no force."
+        },
+        {
+          "title": "Deflection speed",
+          "body": "Moving the surface draws electricity in proportion to the requested change. With full supply it reaches the requested angle in one update; with partial supply it moves part of the way."
         }
       ],
       "findings": [
         {
           "label": "Control Surface (Small) · rudder_surface_area",
           "value": "10",
-          "detail": "control_surface_small: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "control_surface_small: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/control_surface_small.xml:07241759448e:L2-L2",
           "status": "observed",
           "source": {
@@ -3461,7 +4036,7 @@
         {
           "label": "Control Surface (Medium) · rudder_surface_area",
           "value": "28",
-          "detail": "control_surface_medium: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "control_surface_medium: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/control_surface_medium.xml:590d199e73be:L2-L2",
           "status": "observed",
           "source": {
@@ -3474,7 +4049,7 @@
         {
           "label": "Control Surface (Large) · rudder_surface_area",
           "value": "70",
-          "detail": "control_surface_large: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "control_surface_large: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/control_surface_large.xml:571599dfbf3f:L2-L2",
           "status": "observed",
           "source": {
@@ -3487,9 +4062,48 @@
         {
           "label": "Control Surface (Small) · dynamic_max_rotation",
           "value": "0.785398",
-          "detail": "control_surface_small: definition attribute dynamic_max_rotation. Deflection limit configuration.",
+          "detail": "control_surface_small: definition attribute dynamic_max_rotation. Deflection limit in radians.",
           "evidenceId": "resource:rom/data/definitions/control_surface_small.xml:07241759448e:L2-L2",
           "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/control_surface_small.xml",
+            "sha256": "07241759448ed4f02e921930164c1acd6b65e860fe8a8a87cb00c661928583a1",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Control surface deflection",
+          "value": "±45°",
+          "detail": "0.785398 rad × 180/π = 45.0°. The update feeds the angle to cosine and sine, so the field is in radians. Inputs: resource:rom/data/definitions/control_surface_small.xml:07241759448e:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403dfef9.",
+          "evidenceId": "derived:b2c47a48cfcc",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/control_surface_small.xml",
+            "sha256": "07241759448ed4f02e921930164c1acd6b65e860fe8a8a87cb00c661928583a1",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Control Surface (Small) · rudder_type",
+          "value": "0",
+          "detail": "control_surface_small: definition attribute rudder_type. Read at 0x1403e0dcc (definition+0x2cd4); 1 adds the wing term.",
+          "evidenceId": "resource:rom/data/definitions/control_surface_small.xml:07241759448e:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/control_surface_small.xml",
+            "sha256": "07241759448ed4f02e921930164c1acd6b65e860fe8a8a87cb00c661928583a1",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Force ratio across control surface sizes",
+          "value": "1, 2.8, 7",
+          "detail": "Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap. Inputs: resource:rom/data/definitions/control_surface_small.xml:07241759448e:L2-L2, resource:rom/data/definitions/control_surface_medium.xml:590d199e73be:L2-L2, resource:rom/data/definitions/control_surface_large.xml:571599dfbf3f:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120.",
+          "evidenceId": "derived:2b22ed23efb0",
+          "status": "derived",
           "source": {
             "path": "rom/data/definitions/control_surface_small.xml",
             "sha256": "07241759448ed4f02e921930164c1acd6b65e860fe8a8a87cb00c661928583a1",
@@ -3508,6 +4122,282 @@
             "sha256": "07241759448ed4f02e921930164c1acd6b65e860fe8a8a87cb00c661928583a1",
             "lineStart": 51,
             "lineEnd": 51
+          }
+        },
+        {
+          "label": "Surface air velocity",
+          "value": "v + w × r - wind",
+          "detail": "The air branch takes the point velocity of the surface (body velocity plus angular velocity × lever arm, built at 0x1403e0332-0x1403e03b8) and subtracts the vehicle's cached wind here and at 0x1403e0d3d and 0x1403e0d43. Speed is in m/s, the unit established for the air scoop, which uses the same body fields. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f5c08 at 0x1403e0d38. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d38",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d38"
+          }
+        },
+        {
+          "label": "Surface airspeed",
+          "value": "length of the air velocity",
+          "detail": "Square root of the summed squares of the wind-relative velocity. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f51c2 at 0x1403e0d97. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L860-L874. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d97",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d97"
+          }
+        },
+        {
+          "label": "Surface airspeed threshold",
+          "value": "15",
+          "detail": "Speed excess q = max(airspeed - this, 0). At or below 15 m/s the air force is 0. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f5c0de2f87c00 at 0x1403e0db2 address binary32 15 (bytes 00007041) at 0x140bb069c. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L867-L879. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0db2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0db2"
+          }
+        },
+        {
+          "label": "Surface mass factor",
+          "value": "3e-05",
+          "detail": "Multiplies the body mass stored at physics state +8, the same value passed to the Bullet rigid body, by this. No conversion from that mass to kilograms is applied or claimed. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f59054ceb7c00 at 0x1403e0d30 address binary32 3e-05 (bytes 82a8fb37) at 0x140baf884. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851; ../control-surfaces/asm/mass-state.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d30"
+          }
+        },
+        {
+          "label": "Surface mass factor cap",
+          "value": "0.2",
+          "detail": "B = min(mass × 0.00003, this), so B stops growing at a mass of 0.2 ÷ 0.00003 = 6666.67 internal units. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f101d1fee7c00 at 0x1403e0d49 address binary32 0.2 (bytes cdcc4c3e) at 0x140bafb70. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d49",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d49"
+          }
+        },
+        {
+          "label": "Surface plane term",
+          "value": "-normal × dot(v, normal)",
+          "detail": "Starts multiplying the negated surface normal (dynamic_side_axis after deflection and body rotation) by the normal component of the air velocity; the following products apply B, the air fraction 1 - immersion and the speed excess. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f59da at 0x1403e0e3c. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L902-L914. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0e3c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0e3c"
+          }
+        },
+        {
+          "label": "Surface area coefficient",
+          "value": "24",
+          "detail": "Area × this × P scales the air vector: F = -normal × 24 × area × P × B × (1 - immersion) × q × (dot(v, normal) + h). No load of the lift_force tuning value occurs in this routine. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590db4f57c00 at 0x1403e1120 address binary32 24 (bytes 0000c041) at 0x140bb06dc. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1061-L1063; ../control-surfaces/pseudocode/0x1403dfd20.c:L542; ../control-surfaces/tools/tables.txt. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1120"
+          }
+        },
+        {
+          "label": "Surface area read",
+          "value": "rudder_surface_area",
+          "detail": "Reads definition+0xec4, which the definition loader binds to rudder_surface_area at 0x140317c77. Area multiplies both the plane term and the wing term. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f1088c40e0000 at 0x1403e1118. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1061-L1063; ../control-surfaces/pseudocode/0x1403dfd20.c:L542; ../control-surfaces/asm/definition-bindings.asm:L98. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1118"
+          }
+        },
+        {
+          "label": "Surface pressure lapse",
+          "value": "2.2413793e-05",
+          "detail": "Pressure ratio P = (1 - this × y)^5.3595023, y the surface's world height in metres; the same curve as the air scoop's outside pressure. calculate_air_density is not read on this path. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590d8de77c00 at 0x1403e10eb address binary32 2.2413793e-05 (bytes 4105bc37) at 0x140baf880. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1049-L1058; ../control-surfaces/pseudocode/0x1403dfd20.c:L531-L542. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10eb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10eb"
+          }
+        },
+        {
+          "label": "Surface pressure exponent",
+          "value": "5.3595023",
+          "detail": "Second argument of the power call at 0x1403e1104. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f100d04f47c00 at 0x1403e10f8 address binary32 5.3595023 (bytes 0b81ab40) at 0x140bb0504. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1049-L1058; ../control-surfaces/asm/powf.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10f8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10f8"
+          }
+        },
+        {
+          "label": "Surface pressure ceiling",
+          "value": "40000.0",
+          "detail": "Above this world height of the surface the pressure ratio stays 0, so there is no air force. Function 0x1403dfd20-0x1403e123f; instruction bytes 660f2f05a0f47c00 at 0x1403e10d8 address binary64 40000.0 (bytes 000000000088e340) at 0x140bb0580. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047-L1060. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10d8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10d8"
+          }
+        },
+        {
+          "label": "Surface immersion fraction",
+          "value": "clamp(2 × (0.25 - (y - surface)), 0, 1)",
+          "detail": "After sampling the water surface height at the surface position (0x1402bbbb0, call at 0x1403e0158), the update forms the immersion fraction, clamped to 0 to 1 at 0x1403e017f-0x1403e01a6. The air force is multiplied by 1 minus it. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f5cf2f3450f58f6 at 0x1403e0175. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L241-L260. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0175",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0175"
+          }
+        },
+        {
+          "label": "Air force application limit",
+          "value": "5",
+          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10cb"
+          }
+        },
+        {
+          "label": "Air force submission",
+          "value": "call 0x1401a7ad0",
+          "detail": "Submits the air vector and its lever arm to the force application helper once per component update. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes e8f068dcff at 0x1403e11db. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1080-L1093; ../control-surfaces/pseudocode/0x1403dfd20.c:L554. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e11db",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e11db"
+          }
+        },
+        {
+          "label": "Force application cap",
+          "value": "|F| ≤ limit × S",
+          "detail": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes f30f59c60f2fd0 at 0x1401a7b62. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L15-L45; ../control-surfaces/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401a7b62"
+          }
+        },
+        {
+          "label": "Force event",
+          "value": "event_set_impulse@mm_physics_scene",
+          "detail": "Installs vtable 0x140b82d30 on the queued event; its handler 0x1401a16a0 widens the vector to doubles and calls 0x14019a370. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes 488d0526b19d00 at 0x1401a7c03. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L72-L94; ../control-surfaces/asm/force-event.asm; ../control-surfaces/pseudocode/0x1401a16a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7c03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401a7c03"
+          }
+        },
+        {
+          "label": "Bullet total-force accumulator",
+          "value": "body+0x460 += F",
+          "detail": "Adds the force, after the linear factors, to the rigid body's total force and r × F to its total torque. Despite the event name this is a force, not a velocity change. Report: investigation/control-surfaces.md. Function 0x14019a370-0x14019a4b7; instruction bytes f20f588160040000 at 0x14019a3a3. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/bullet-force.asm:L1-L56; ../control-surfaces/pseudocode/0x14019a370.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14019a370@0x14019a3a3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14019a3a3"
+          }
+        },
+        {
+          "label": "Solver force integration",
+          "value": "Δv = F × inverse mass × substep",
+          "detail": "Solver-body setup multiplies the total force by inverse mass and then by the solver substep at 0x14012874b. The force stays in the accumulator for every substep of the outer step and is cleared afterwards (0x140133bb0). Report: investigation/control-surfaces.md. Function 0x140128608-0x140128843; instruction bytes f2410f598060040000 at 0x140128734. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/solver-force-integration.asm:L81-L87; ../control-surfaces/asm/solver-time-call.asm; ../control-surfaces/pseudocode/0x140128560.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140128608@0x140128734",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140128734"
+          }
+        },
+        {
+          "label": "Surface force unit",
+          "value": "internal force units",
+          "detail": "The routine produces a force that Bullet accumulates and integrates with inverse mass × substep. The refresh is once per component update (60 per simulated second), so the force is not multiplied by 60. Mass is not calibrated to kilograms, so the force is not labelled in newtons. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e11db, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7c03, native:stormworks64.exe:f9206d85c82f:0x14019a370@0x14019a3a3, native:stormworks64.exe:f9206d85c82f:0x140128608@0x140128734, derived:7d3ff454a23f.",
+          "evidenceId": "derived:790cbdfdaa7b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e11db"
+          }
+        },
+        {
+          "label": "lift_force binding",
+          "value": "lift_force",
+          "detail": "The tuning binder loads lift_force into tuning object +0x90 with default 0.25 (lea at 0x140293f48 and 0x140293f55). The rudder update never reads that field. Report: investigation/control-surfaces.md. Function 0x140293a40-0x14029404e; it references the string 'lift_force' at 0x140b53ad0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/tuning-loader.asm:L249-L258; ../control-surfaces/asm/tuning-load-call.asm; ../control-surfaces/pseudocode/0x140293a40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140293a40@0x140b53ad0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b53ad0"
+          }
+        },
+        {
+          "label": "lift_force in the surface force",
+          "value": "not read",
+          "detail": "The complete rudder update has no load from tuning object +0x90 and no call to its accessor; the area coefficient is the fixed 24. lift_force 0.25 is therefore not a multiplier of this force. Other users of the field elsewhere in the executable are outside this check. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120, native:stormworks64.exe:f9206d85c82f:0x140293a40@0x140b53ad0.",
+          "evidenceId": "derived:78d2c2e97c35",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1120"
+          }
+        },
+        {
+          "label": "Deflection power demand",
+          "value": "0.099999994",
+          "detail": "Electric demand E = |requested - stored position| × this. The position moves by the change × the supplied fraction, so with full supply it reaches the request in one update and with none it holds. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f593dc1fc7c00 at 0x1403dfe03 address binary32 0.099999994 (bytes cccccc3d) at 0x140bafacc. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L52-L78; ../control-surfaces/asm/electric-draw.asm; ../control-surfaces/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403dfe03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403dfe03"
+          }
+        },
+        {
+          "label": "Deflection cosine",
+          "value": "call 0x1409d4b80",
+          "detail": "The deflection angle, interpolated between dynamic_min_rotation and dynamic_max_rotation, goes to cosine here and sine at 0x1403dff05 to build the rotation matrix about dynamic_rotation_axes. These consume radians. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes e8824c5f00 at 0x1403dfef9. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L96-L104; ../control-surfaces/asm/cosf.asm; ../control-surfaces/pseudocode/0x1409d4b80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403dfef9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403dfef9"
           }
         },
         {
@@ -3616,7 +4506,9 @@
         }
       ],
       "limitations": [
-        "Configuration values only."
+        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+        "Internal mass and force units are not calibrated to kilograms and newtons.",
+        "Which visible edge and editor arrow match positive deflection was not checked in game."
       ],
       "sources": [
         {
@@ -3672,6 +4564,111 @@
           "sha256": "07241759448ed4f02e921930164c1acd6b65e860fe8a8a87cb00c661928583a1",
           "lineStart": 175,
           "lineEnd": 175
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140128734"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019a3a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7b62"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7c03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403dfe03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403dfef9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0175"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d38"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d49"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d97"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0db2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0e3c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10d8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10eb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10f8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1118"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1120"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e11db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b53ad0"
         }
       ]
     },
@@ -26035,18 +27032,26 @@
     },
     {
       "id": "wing-section",
-      "summary": "rudder_surface_area 8, 20, 40, 70 and 120 across the five wing sizes.",
+      "summary": "rudder_surface_area 8, 20, 40, 70 and 120 across the five wing sizes. The air force scales linearly with it, and the wing term lifts even at zero angle of attack.",
       "sections": [
         {
           "title": "Variant tradeoffs",
-          "body": "Each wing size carries a larger surface-area field; whether lift scales linearly with it was not recovered."
+          "body": "At the same body mass, airspeed, altitude and angle, the computed wing force scales linearly with rudder_surface_area: 8, 20, 40, 70 and 120, or 1, 2.5, 5, 8.75 and 15 times the small wing. The application cap can limit the gain on a light craft. The listed voxel count is not a multiplier."
+        },
+        {
+          "title": "Wing lift",
+          "body": "Wing sections have rudder_type 1. On top of the normal airspeed they get a wing term 3 × c^5 × g, where c is the cosine between the direction of travel and the wing's forward axis (the reverse of dynamic_rotation_axes) and g rises from 0 at 15 m/s to 1 at 40 m/s. That term gives lift with the wing level in the airflow. Travelling backwards along that axis removes it. Wings have no Rotation input, so their angle to the airflow comes from how they are mounted and how the craft flies."
+        },
+        {
+          "title": "Example",
+          "body": "A small wing section (area 8) on a body of mass 1000 at sea level, 30 m/s and 10° angle of attack gets a normal force of 594.2 internal units: 585.1 lift and 103.2 drag. The XXL wing makes 15 times that under the same conditions."
         }
       ],
       "findings": [
         {
           "label": "Wing Section (Small) · rudder_surface_area",
           "value": "8",
-          "detail": "wing_small: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "wing_small: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/wing_small.xml:e5faf82baa25:L2-L2",
           "status": "observed",
           "source": {
@@ -26059,7 +27064,7 @@
         {
           "label": "Wing Section (Medium) · rudder_surface_area",
           "value": "20",
-          "detail": "wing_medium: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "wing_medium: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/wing_medium.xml:cd1177566a7e:L2-L2",
           "status": "observed",
           "source": {
@@ -26072,7 +27077,7 @@
         {
           "label": "Wing Section (Large) · rudder_surface_area",
           "value": "40",
-          "detail": "wing_large: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "wing_large: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/wing_large.xml:36a47f33d6d4:L2-L2",
           "status": "observed",
           "source": {
@@ -26085,7 +27090,7 @@
         {
           "label": "Wing Section (XLarge) · rudder_surface_area",
           "value": "70",
-          "detail": "wing_xl: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "wing_xl: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/wing_xl.xml:7c416650d225:L2-L2",
           "status": "observed",
           "source": {
@@ -26098,7 +27103,7 @@
         {
           "label": "Wing Section (XXLarge) · rudder_surface_area",
           "value": "120",
-          "detail": "wing_xxl: definition attribute rudder_surface_area. Surface-area configuration read by the rudder/wing code (definition+0xec4).",
+          "detail": "wing_xxl: definition attribute rudder_surface_area. Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).",
           "evidenceId": "resource:rom/data/definitions/wing_xxl.xml:1630857c20e1:L2-L2",
           "status": "observed",
           "source": {
@@ -26106,6 +27111,356 @@
             "sha256": "1630857c20e1ea0aeadaf2c7970b98272ee67b92b964dd9e8fd57b06ff332f15",
             "lineStart": 2,
             "lineEnd": 2
+          }
+        },
+        {
+          "label": "Wing Section (Small) · rudder_type",
+          "value": "1",
+          "detail": "wing_small: definition attribute rudder_type. Read at 0x1403e0dcc (definition+0x2cd4); 1 adds the wing term.",
+          "evidenceId": "resource:rom/data/definitions/wing_small.xml:e5faf82baa25:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/wing_small.xml",
+            "sha256": "e5faf82baa25b73334b6ff3aa458bb673a3a6947a31c50d35a25cc958bcd4001",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Force ratio across wing sizes",
+          "value": "1, 2.5, 5, 8.75, 15",
+          "detail": "Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap. Inputs: resource:rom/data/definitions/wing_small.xml:e5faf82baa25:L2-L2, resource:rom/data/definitions/wing_medium.xml:cd1177566a7e:L2-L2, resource:rom/data/definitions/wing_large.xml:36a47f33d6d4:L2-L2, resource:rom/data/definitions/wing_xl.xml:7c416650d225:L2-L2, resource:rom/data/definitions/wing_xxl.xml:1630857c20e1:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120.",
+          "evidenceId": "derived:9977227bff7c",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/wing_small.xml",
+            "sha256": "e5faf82baa25b73334b6ff3aa458bb673a3a6947a31c50d35a25cc958bcd4001",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Surface air velocity",
+          "value": "v + w × r - wind",
+          "detail": "The air branch takes the point velocity of the surface (body velocity plus angular velocity × lever arm, built at 0x1403e0332-0x1403e03b8) and subtracts the vehicle's cached wind here and at 0x1403e0d3d and 0x1403e0d43. Speed is in m/s, the unit established for the air scoop, which uses the same body fields. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f5c08 at 0x1403e0d38. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d38",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d38"
+          }
+        },
+        {
+          "label": "Surface airspeed",
+          "value": "length of the air velocity",
+          "detail": "Square root of the summed squares of the wind-relative velocity. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f51c2 at 0x1403e0d97. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L860-L874. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d97",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d97"
+          }
+        },
+        {
+          "label": "Surface airspeed threshold",
+          "value": "15",
+          "detail": "Speed excess q = max(airspeed - this, 0). At or below 15 m/s the air force is 0. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f5c0de2f87c00 at 0x1403e0db2 address binary32 15 (bytes 00007041) at 0x140bb069c. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L867-L879. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0db2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0db2"
+          }
+        },
+        {
+          "label": "Surface mass factor",
+          "value": "3e-05",
+          "detail": "Multiplies the body mass stored at physics state +8, the same value passed to the Bullet rigid body, by this. No conversion from that mass to kilograms is applied or claimed. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f59054ceb7c00 at 0x1403e0d30 address binary32 3e-05 (bytes 82a8fb37) at 0x140baf884. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851; ../control-surfaces/asm/mass-state.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d30"
+          }
+        },
+        {
+          "label": "Surface mass factor cap",
+          "value": "0.2",
+          "detail": "B = min(mass × 0.00003, this), so B stops growing at a mass of 0.2 ÷ 0.00003 = 6666.67 internal units. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f101d1fee7c00 at 0x1403e0d49 address binary32 0.2 (bytes cdcc4c3e) at 0x140bafb70. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L846-L851. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d49",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0d49"
+          }
+        },
+        {
+          "label": "Surface plane term",
+          "value": "-normal × dot(v, normal)",
+          "detail": "Starts multiplying the negated surface normal (dynamic_side_axis after deflection and body rotation) by the normal component of the air velocity; the following products apply B, the air fraction 1 - immersion and the speed excess. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f59da at 0x1403e0e3c. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L902-L914. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0e3c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0e3c"
+          }
+        },
+        {
+          "label": "Surface area coefficient",
+          "value": "24",
+          "detail": "Area × this × P scales the air vector: F = -normal × 24 × area × P × B × (1 - immersion) × q × (dot(v, normal) + h). No load of the lift_force tuning value occurs in this routine. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590db4f57c00 at 0x1403e1120 address binary32 24 (bytes 0000c041) at 0x140bb06dc. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1061-L1063; ../control-surfaces/pseudocode/0x1403dfd20.c:L542; ../control-surfaces/tools/tables.txt. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1120"
+          }
+        },
+        {
+          "label": "Surface area read",
+          "value": "rudder_surface_area",
+          "detail": "Reads definition+0xec4, which the definition loader binds to rudder_surface_area at 0x140317c77. Area multiplies both the plane term and the wing term. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f1088c40e0000 at 0x1403e1118. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1061-L1063; ../control-surfaces/pseudocode/0x1403dfd20.c:L542; ../control-surfaces/asm/definition-bindings.asm:L98. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1118"
+          }
+        },
+        {
+          "label": "Surface pressure lapse",
+          "value": "2.2413793e-05",
+          "detail": "Pressure ratio P = (1 - this × y)^5.3595023, y the surface's world height in metres; the same curve as the air scoop's outside pressure. calculate_air_density is not read on this path. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590d8de77c00 at 0x1403e10eb address binary32 2.2413793e-05 (bytes 4105bc37) at 0x140baf880. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1049-L1058; ../control-surfaces/pseudocode/0x1403dfd20.c:L531-L542. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10eb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10eb"
+          }
+        },
+        {
+          "label": "Surface pressure exponent",
+          "value": "5.3595023",
+          "detail": "Second argument of the power call at 0x1403e1104. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f100d04f47c00 at 0x1403e10f8 address binary32 5.3595023 (bytes 0b81ab40) at 0x140bb0504. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1049-L1058; ../control-surfaces/asm/powf.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10f8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10f8"
+          }
+        },
+        {
+          "label": "Surface pressure ceiling",
+          "value": "40000.0",
+          "detail": "Above this world height of the surface the pressure ratio stays 0, so there is no air force. Function 0x1403dfd20-0x1403e123f; instruction bytes 660f2f05a0f47c00 at 0x1403e10d8 address binary64 40000.0 (bytes 000000000088e340) at 0x140bb0580. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047-L1060. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10d8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10d8"
+          }
+        },
+        {
+          "label": "Surface immersion fraction",
+          "value": "clamp(2 × (0.25 - (y - surface)), 0, 1)",
+          "detail": "After sampling the water surface height at the surface position (0x1402bbbb0, call at 0x1403e0158), the update forms the immersion fraction, clamped to 0 to 1 at 0x1403e017f-0x1403e01a6. The air force is multiplied by 1 minus it. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f3440f5cf2f3450f58f6 at 0x1403e0175. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L241-L260. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0175",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0175"
+          }
+        },
+        {
+          "label": "Air force application limit",
+          "value": "5",
+          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e10cb"
+          }
+        },
+        {
+          "label": "Air force submission",
+          "value": "call 0x1401a7ad0",
+          "detail": "Submits the air vector and its lever arm to the force application helper once per component update. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes e8f068dcff at 0x1403e11db. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1080-L1093; ../control-surfaces/pseudocode/0x1403dfd20.c:L554. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e11db",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e11db"
+          }
+        },
+        {
+          "label": "Force application cap",
+          "value": "|F| ≤ limit × S",
+          "detail": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes f30f59c60f2fd0 at 0x1401a7b62. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L15-L45; ../control-surfaces/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401a7b62"
+          }
+        },
+        {
+          "label": "Force event",
+          "value": "event_set_impulse@mm_physics_scene",
+          "detail": "Installs vtable 0x140b82d30 on the queued event; its handler 0x1401a16a0 widens the vector to doubles and calls 0x14019a370. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes 488d0526b19d00 at 0x1401a7c03. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L72-L94; ../control-surfaces/asm/force-event.asm; ../control-surfaces/pseudocode/0x1401a16a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7c03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401a7c03"
+          }
+        },
+        {
+          "label": "Bullet total-force accumulator",
+          "value": "body+0x460 += F",
+          "detail": "Adds the force, after the linear factors, to the rigid body's total force and r × F to its total torque. Despite the event name this is a force, not a velocity change. Report: investigation/control-surfaces.md. Function 0x14019a370-0x14019a4b7; instruction bytes f20f588160040000 at 0x14019a3a3. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/bullet-force.asm:L1-L56; ../control-surfaces/pseudocode/0x14019a370.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14019a370@0x14019a3a3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14019a3a3"
+          }
+        },
+        {
+          "label": "Solver force integration",
+          "value": "Δv = F × inverse mass × substep",
+          "detail": "Solver-body setup multiplies the total force by inverse mass and then by the solver substep at 0x14012874b. The force stays in the accumulator for every substep of the outer step and is cleared afterwards (0x140133bb0). Report: investigation/control-surfaces.md. Function 0x140128608-0x140128843; instruction bytes f2410f598060040000 at 0x140128734. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/solver-force-integration.asm:L81-L87; ../control-surfaces/asm/solver-time-call.asm; ../control-surfaces/pseudocode/0x140128560.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140128608@0x140128734",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140128734"
+          }
+        },
+        {
+          "label": "Surface force unit",
+          "value": "internal force units",
+          "detail": "The routine produces a force that Bullet accumulates and integrates with inverse mass × substep. The refresh is once per component update (60 per simulated second), so the force is not multiplied by 60. Mass is not calibrated to kilograms, so the force is not labelled in newtons. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e11db, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7c03, native:stormworks64.exe:f9206d85c82f:0x14019a370@0x14019a3a3, native:stormworks64.exe:f9206d85c82f:0x140128608@0x140128734, derived:7d3ff454a23f.",
+          "evidenceId": "derived:790cbdfdaa7b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e11db"
+          }
+        },
+        {
+          "label": "lift_force binding",
+          "value": "lift_force",
+          "detail": "The tuning binder loads lift_force into tuning object +0x90 with default 0.25 (lea at 0x140293f48 and 0x140293f55). The rudder update never reads that field. Report: investigation/control-surfaces.md. Function 0x140293a40-0x14029404e; it references the string 'lift_force' at 0x140b53ad0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/tuning-loader.asm:L249-L258; ../control-surfaces/asm/tuning-load-call.asm; ../control-surfaces/pseudocode/0x140293a40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140293a40@0x140b53ad0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b53ad0"
+          }
+        },
+        {
+          "label": "lift_force in the surface force",
+          "value": "not read",
+          "detail": "The complete rudder update has no load from tuning object +0x90 and no call to its accessor; the area coefficient is the fixed 24. lift_force 0.25 is therefore not a multiplier of this force. Other users of the field elsewhere in the executable are outside this check. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120, native:stormworks64.exe:f9206d85c82f:0x140293a40@0x140b53ad0.",
+          "evidenceId": "derived:78d2c2e97c35",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1120"
+          }
+        },
+        {
+          "label": "Wing-section test",
+          "value": "rudder_type == 1",
+          "detail": "Compares definition+0x2cd4, bound to rudder_type, with 1. Only type 1 (wing sections) adds the wing term; control surfaces and fins have type 0. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes 4183b9d42c000001 at 0x1403e0dcc. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L879; ../control-surfaces/pseudocode/0x1403dfd20.c:L490. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0dcc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0dcc"
+          }
+        },
+        {
+          "label": "Wing speed ramp span",
+          "value": "25",
+          "detail": "Wing ramp g = clamp((airspeed - 15) ÷ this, 0, 1): 0 at 15 m/s and 1 from 40 m/s. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f5e356df77c00 at 0x1403e0f6b address binary32 25 (bytes 0000c841) at 0x140bb06e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L968-L975. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0f6b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0f6b"
+          }
+        },
+        {
+          "label": "Wing direction exponent",
+          "value": "5",
+          "detail": "c = -dot(v ÷ airspeed, a), with a the rotated dynamic_rotation_axes, is raised to this power by powf 0x1409b9c10 at 0x1403e104c. The term is added only when c > 0. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103de7f47c00 at 0x1403e0ff1 address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1001-L1019; ../control-surfaces/asm/powf.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0ff1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0ff1"
+          }
+        },
+        {
+          "label": "Wing term multiplier",
+          "value": "3",
+          "detail": "Wing term h = this × c^5 × g, added to the normal air speed before the common factors. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f100d37f37c00 at 0x1403e1051 address binary32 3 (bytes 00004040) at 0x140bb0390. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1019-L1030. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1051",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1051"
+          }
+        },
+        {
+          "label": "Wing term full strength",
+          "value": "40 m/s",
+          "detail": "15 + 25 = 40 m/s, where the wing ramp reaches 1. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0db2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0f6b.",
+          "evidenceId": "derived:0ff380dd3d55",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e0db2"
+          }
+        },
+        {
+          "label": "Worked example, small wing section",
+          "value": "normal 594.2, lift 585.1, drag 103.2 internal force units",
+          "detail": "Area 8, body mass 1000, sea level, dry, airspeed 30 m/s at 10° angle of attack, wing term on: P = 1, B = 0.03, q = 15, g = 0.6. Normal force 594.1561, lift = normal × cos 10° = 585.1295, drag = normal × sin 10° = 103.1741, before the application cap. A calculation from the recovered constants, with no game measurement. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0db2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d30, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0f6b, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0ff1, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1051, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10eb, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10f8.",
+          "evidenceId": "derived:1c4b444a65a7",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403e1120"
           }
         },
         {
@@ -26240,7 +27595,8 @@
         }
       ],
       "limitations": [
-        "Configuration values only."
+        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+        "Internal mass and force units are not calibrated to kilograms and newtons."
       ],
       "sources": [
         {
@@ -26302,6 +27658,121 @@
           "sha256": "1630857c20e1ea0aeadaf2c7970b98272ee67b92b964dd9e8fd57b06ff332f15",
           "lineStart": 3,
           "lineEnd": 3
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140128734"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019a3a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7b62"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401a7c03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0175"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d38"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d49"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0d97"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0db2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0dcc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0e3c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0f6b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e0ff1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1051"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10d8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10eb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e10f8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1118"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e1120"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403e11db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b53ad0"
         }
       ]
     }
@@ -26778,12 +28249,12 @@
       "weapon-xxl-barrel",
       "wheel-with-suspension"
     ],
-    "findingCount": 1244,
+    "findingCount": 1325,
     "findingsByStatus": {
-      "derived": 97,
-      "observed": 1147
+      "derived": 110,
+      "observed": 1215
     },
-    "nativeFindingCount": 449,
+    "nativeFindingCount": 522,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -26834,9 +28305,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 70,
-      "native": 188,
-      "resource": 840
+      "derived": 77,
+      "native": 213,
+      "resource": 847
     }
   }
 }

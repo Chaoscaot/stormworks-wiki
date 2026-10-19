@@ -7,13 +7,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/0/limitations/0",
-        "text": "Area fields are configuration; force equations were not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/0/sections/3/body",
-        "text": "Lift or force against area and speed; the shipped lift_force (0.25) may not be applied by this build.",
+        "text": "The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1371,7 +1365,7 @@
       {
         "file": "wiki/README.md",
         "pointer": "line:37",
-        "text": "Modular engine cylinder, fluid radiator, heat exchanger and air scoop articles (and their component pages) have an \"Interactive graphs\" section. `components/FormulaSection.jsx` renders the formula as MathML, the assumptions and the cited executable constants on the server. `components/FormulaGraphs.jsx` is the client chart: native sliders, a select and checkboxes drive an SVG plot, a persistent selected-point readout and a data table, all server-rendered in their default state. The formulas live in `lib/formulas.js`, and `graphKindsForFamily` decides which families get a graph. There is no jet thrust graph because the full thrust formula is not verified.",
+        "text": "Modular engine cylinder, fluid radiator, heat exchanger, air scoop, wing section, control surface and control fin articles (and their component pages) have an \"Interactive graphs\" section. `components/FormulaSection.jsx` renders the formula as MathML, the assumptions and the cited executable constants on the server. `components/FormulaGraphs.jsx` is the client chart: native sliders, a select and checkboxes drive an SVG plot, a persistent selected-point readout and a data table, all server-rendered in their default state. The formulas live in `lib/formulas.js`, and `graphKindsForFamily` decides which families get a graph. There is no jet thrust graph because the full thrust formula is not verified.",
         "scope": "Application text"
       }
     ]
@@ -2528,19 +2522,6 @@
         "file": "wiki/data/behavior.json",
         "pointer": "/families/156/sections/1/body",
         "text": "Verify speed per RPS with a linear speed sensor.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:wing-section",
-    "title": "Wing Section: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/wing-section",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/157/sections/0/body",
-        "text": "Each wing size carries a larger surface-area field; whether lift scales linearly with it was not recovered.",
         "scope": "Practical behavior guidance"
       }
     ]

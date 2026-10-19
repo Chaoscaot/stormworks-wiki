@@ -630,6 +630,139 @@ def fluid_transport(E):
     return E.transport
 
 
+# control-surface pass; files under investigation/native/control-surfaces/, report investigation/control-surfaces.md.
+CS = "../control-surfaces/"
+CS_REPORT = "investigation/control-surfaces.md"
+F_RUDDER = 0x1403DFD20       # rudder component update (wings, control surfaces, fins), vtable 0x140b46518 slot +0x358
+F_APPLY = 0x1401A7AD0        # force application helper: limit, then queue event_set_impulse@mm_physics_scene
+F_BULLET_FORCE = 0x14019A370  # Bullet applyForce: adds to the total-force accumulator
+F_SOLVER_BODY = 0x140128608  # chained unwind chunk of solver-body setup 0x140128560: total force × inverse mass × substep
+F_TUNING = 0x140293A40       # game_constants tuning binder
+_RU = CS + "asm/rudder-update.asm"
+_RP = CS + "pseudocode/0x1403dfd20.c"
+WHERE.update({
+    (0x1403DFD20, 0x1403DFE03): _RU + ":L52-L78; " + CS + "asm/electric-draw.asm; " + CS + "pseudocode/0x1402eeca0.c",
+    (0x1403DFD20, 0x1403DFEF9): _RU + ":L96-L104; " + CS + "asm/cosf.asm; " + CS + "pseudocode/0x1409d4b80.c",
+    (0x1403DFD20, 0x1403DFF05): _RU + ":L96-L104; " + CS + "asm/sinf.asm; " + CS + "pseudocode/0x1409d6c20.c",
+    (0x1403DFD20, 0x1403E0175): _RU + ":L241-L260",
+    (0x1403DFD20, 0x1403E0D38): _RU + ":L846-L851",
+    (0x1403DFD20, 0x1403E0D30): _RU + ":L846-L851; " + CS + "asm/mass-state.asm",
+    (0x1403DFD20, 0x1403E0D49): _RU + ":L846-L851",
+    (0x1403DFD20, 0x1403E0D97): _RU + ":L860-L874",
+    (0x1403DFD20, 0x1403E0DB2): _RU + ":L867-L879",
+    (0x1403DFD20, 0x1403E0DCC): _RU + ":L879; " + _RP + ":L490",
+    (0x1403DFD20, 0x1403E0E3C): _RU + ":L902-L914",
+    (0x1403DFD20, 0x1403E0F6B): _RU + ":L968-L975",
+    (0x1403DFD20, 0x1403E0FF1): _RU + ":L1001-L1019; " + CS + "asm/powf.asm",
+    (0x1403DFD20, 0x1403E10CB): _RU + ":L1047,L1080-L1093; " + CS + "asm/force-queue.asm:L15-L45",
+    (0x1403DFD20, 0x1403E1051): _RU + ":L1019-L1030",
+    (0x1403DFD20, 0x1403E10D8): _RU + ":L1047-L1060",
+    (0x1403DFD20, 0x1403E10EB): _RU + ":L1049-L1058; " + _RP + ":L531-L542",
+    (0x1403DFD20, 0x1403E10F8): _RU + ":L1049-L1058; " + CS + "asm/powf.asm",
+    (0x1403DFD20, 0x1403E1118): _RU + ":L1061-L1063; " + _RP + ":L542; " + CS + "asm/definition-bindings.asm:L98",
+    (0x1403DFD20, 0x1403E1120): _RU + ":L1061-L1063; " + _RP + ":L542; " + CS + "tools/tables.txt",
+    (0x1403DFD20, 0x1403E11DB): _RU + ":L1080-L1093; " + _RP + ":L554",
+    (0x1401A7AD0, 0x1401A7B62): CS + "asm/force-queue.asm:L15-L45; " + CS + "pseudocode/0x1401a7ad0.c",
+    (0x1401A7AD0, 0x1401A7C03): CS + "asm/force-queue.asm:L72-L94; " + CS + "asm/force-event.asm; " + CS + "pseudocode/0x1401a16a0.c",
+    (0x14019A370, 0x14019A3A3): CS + "asm/bullet-force.asm:L1-L56; " + CS + "pseudocode/0x14019a370.c",
+    (0x140128608, 0x140128734): CS + "asm/solver-force-integration.asm:L81-L87; " + CS + "asm/solver-time-call.asm; " + CS + "pseudocode/0x140128560.c",
+    (0x140293A40, None): CS + "asm/tuning-loader.asm:L249-L258; " + CS + "asm/tuning-load-call.asm; " + CS + "pseudocode/0x140293a40.c",
+})
+
+
+def surface_air(E):
+    """Air force of the rudder component (wings, control surfaces, fins), verified once and shared."""
+    if hasattr(E, "surface"):
+        return E.surface
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / CS_REPORT).is_file():
+        raise ValueError("Control-surface report missing: " + CS_REPORT)
+    if struct.unpack("<Q", n.raw(0x140B46870, 8))[0] != F_RUDDER:
+        raise ValueError("Rudder vtable slot 0x140b46870 does not point to %#x" % F_RUDDER)
+    rep = " Report: %s." % CS_REPORT
+    k = lambda a: n.f32(a)
+    f = {}
+    f["wind"] = code(F_RUDDER, 0x1403E0D38, "f3440f5c08", "Surface air velocity", "v + w × r - wind",
+                     "The air branch takes the point velocity of the surface (body velocity plus angular velocity × lever arm, built at 0x1403e0332-0x1403e03b8) and subtracts the vehicle's cached wind here and at 0x1403e0d3d and 0x1403e0d43. Speed is in m/s, the unit established for the air scoop, which uses the same body fields." + rep)
+    f["speed"] = code(F_RUDDER, 0x1403E0D97, "f30f51c2", "Surface airspeed", "length of the air velocity",
+                      "Square root of the summed squares of the wind-relative velocity." + rep)
+    f["threshold"] = op(F_RUDDER, 0x1403E0DB2, "f30f5c0de2f87c00", 0x140BB069C, "Surface airspeed threshold",
+                        "Speed excess q = max(airspeed - this, 0). At or below 15 m/s the air force is 0." + rep)
+    f["mass"] = op(F_RUDDER, 0x1403E0D30, "f30f59054ceb7c00", 0x140BAF884, "Surface mass factor",
+                   "Multiplies the body mass stored at physics state +8, the same value passed to the Bullet rigid body, by this. No conversion from that mass to kilograms is applied or claimed." + rep)
+    f["mass_cap"] = op(F_RUDDER, 0x1403E0D49, "f30f101d1fee7c00", 0x140BAFB70, "Surface mass factor cap",
+                       "B = min(mass × 0.00003, this), so B stops growing at a mass of 0.2 ÷ 0.00003 = 6666.67 internal units." + rep)
+    f["wing_test"] = code(F_RUDDER, 0x1403E0DCC, "4183b9d42c000001", "Wing-section test", "rudder_type == 1",
+                          "Compares definition+0x2cd4, bound to rudder_type, with 1. Only type 1 (wing sections) adds the wing term; control surfaces and fins have type 0." + rep)
+    f["plane"] = code(F_RUDDER, 0x1403E0E3C, "f3440f59da", "Surface plane term", "-normal × dot(v, normal)",
+                      "Starts multiplying the negated surface normal (dynamic_side_axis after deflection and body rotation) by the normal component of the air velocity; the following products apply B, the air fraction 1 - immersion and the speed excess." + rep)
+    f["ramp"] = op(F_RUDDER, 0x1403E0F6B, "f30f5e356df77c00", 0x140BB06E0, "Wing speed ramp span",
+                   "Wing ramp g = clamp((airspeed - 15) ÷ this, 0, 1): 0 at 15 m/s and 1 from 40 m/s." + rep)
+    f["exponent"] = op(F_RUDDER, 0x1403E0FF1, "f30f103de7f47c00", 0x140BB04E0, "Wing direction exponent",
+                       "c = -dot(v ÷ airspeed, a), with a the rotated dynamic_rotation_axes, is raised to this power by powf 0x1409b9c10 at 0x1403e104c. The term is added only when c > 0." + rep)
+    f["wing_mul"] = op(F_RUDDER, 0x1403E1051, "f30f100d37f37c00", 0x140BB0390, "Wing term multiplier",
+                       "Wing term h = this × c^5 × g, added to the normal air speed before the common factors." + rep)
+    f["ceiling"] = op(F_RUDDER, 0x1403E10D8, "660f2f05a0f47c00", 0x140BB0580, "Surface pressure ceiling",
+                      "Above this world height of the surface the pressure ratio stays 0, so there is no air force.", kind="f64")
+    f["lapse"] = op(F_RUDDER, 0x1403E10EB, "f30f590d8de77c00", 0x140BAF880, "Surface pressure lapse",
+                    "Pressure ratio P = (1 - this × y)^5.3595023, y the surface's world height in metres; the same curve as the air scoop's outside pressure. calculate_air_density is not read on this path." + rep)
+    f["pexp"] = op(F_RUDDER, 0x1403E10F8, "f30f100d04f47c00", 0x140BB0504, "Surface pressure exponent",
+                   "Second argument of the power call at 0x1403e1104." + rep)
+    f["area"] = code(F_RUDDER, 0x1403E1118, "f30f1088c40e0000", "Surface area read", "rudder_surface_area",
+                     "Reads definition+0xec4, which the definition loader binds to rudder_surface_area at 0x140317c77. Area multiplies both the plane term and the wing term." + rep)
+    f["coef"] = op(F_RUDDER, 0x1403E1120, "f30f590db4f57c00", 0x140BB06DC, "Surface area coefficient",
+                   "Area × this × P scales the air vector: F = -normal × 24 × area × P × B × (1 - immersion) × q × (dot(v, normal) + h). No load of the lift_force tuning value occurs in this routine." + rep)
+    f["immersion"] = code(F_RUDDER, 0x1403E0175, "f3440f5cf2f3450f58f6", "Surface immersion fraction", "clamp(2 × (0.25 - (y - surface)), 0, 1)",
+                          "After sampling the water surface height at the surface position (0x1402bbbb0, call at 0x1403e0158), the update forms the immersion fraction, clamped to 0 to 1 at 0x1403e017f-0x1403e01a6. The air force is multiplied by 1 minus it." + rep)
+    f["limit"] = op(F_RUDDER, 0x1403E10CB, "f30f103d0df47c00", 0x140BB04E0, "Air force application limit",
+                    "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher." + rep)
+    f["submit"] = code(F_RUDDER, 0x1403E11DB, "e8f068dcff", "Air force submission", "call 0x1401a7ad0",
+                       "Submits the air vector and its lever arm to the force application helper once per component update." + rep)
+    f["cap"] = code(F_APPLY, 0x1401A7B62, "f30f59c60f2fd0", "Force application cap", "|F| ≤ limit × S",
+                    "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here." + rep)
+    f["event"] = code(F_APPLY, 0x1401A7C03, "488d0526b19d00", "Force event", "event_set_impulse@mm_physics_scene",
+                      "Installs vtable 0x140b82d30 on the queued event; its handler 0x1401a16a0 widens the vector to doubles and calls 0x14019a370." + rep)
+    f["accum"] = code(F_BULLET_FORCE, 0x14019A3A3, "f20f588160040000", "Bullet total-force accumulator", "body+0x460 += F",
+                      "Adds the force, after the linear factors, to the rigid body's total force and r × F to its total torque. Despite the event name this is a force, not a velocity change." + rep)
+    f["solver"] = code(F_SOLVER_BODY, 0x140128734, "f2410f598060040000", "Solver force integration", "Δv = F × inverse mass × substep",
+                       "Solver-body setup multiplies the total force by inverse mass and then by the solver substep at 0x14012874b. The force stays in the accumulator for every substep of the outer step and is cleared afterwards (0x140133bb0)." + rep)
+    f["demand"] = op(F_RUDDER, 0x1403DFE03, "f30f593dc1fc7c00", 0x140BAFACC, "Deflection power demand",
+                     "Electric demand E = |requested - stored position| × this. The position moves by the change × the supplied fraction, so with full supply it reaches the request in one update and with none it holds." + rep)
+    f["cos"] = code(F_RUDDER, 0x1403DFEF9, "e8824c5f00", "Deflection cosine", "call 0x1409d4b80",
+                    "The deflection angle, interpolated between dynamic_min_rotation and dynamic_max_rotation, goes to cosine here and sine at 0x1403dff05 to build the rotation matrix about dynamic_rotation_axes. These consume radians." + rep)
+    f["lift_name"] = E.string(F_TUNING, 0x140B53AD0, "lift_force", "lift_force binding",
+                              "The tuning binder loads lift_force into tuning object +0x90 with default 0.25 (lea at 0x140293f48 and 0x140293f55). The rudder update never reads that field." + rep)
+    # Worked example from the verified constants (report section "Lift and drag for an interactive graph").
+    F24, LO, LA, PX, MK, MC = k(0x140BB06DC), k(0x140BB069C), k(0x140BAF880), k(0x140BB0504), k(0x140BAF884), k(0x140BAFB70)
+    RS, WM, WX = k(0x140BB06E0), k(0x140BB0390), k(0x140BB04E0)
+
+    def normal(area, mass, speed, alpha, wing, height=0.0):
+        a = math.radians(alpha)
+        p = (1 - LA * height) ** PX if height <= 40000 else 0.0
+        g = min(max((speed - LO) / RS, 0), 1)
+        extra = WM * max(math.cos(a), 0) ** WX * g if wing else 0.0
+        return F24 * area * p * min(mass * MK, MC) * max(speed - LO, 0) * (speed * math.sin(a) + extra)
+    N = normal(8, 1000, 30, 10, True)
+    a10 = math.radians(10)
+    f["example"] = E.derived("Worked example, small wing section", "normal %.1f, lift %.1f, drag %.1f internal force units" % (N, N * math.cos(a10), N * math.sin(a10)),
+                             "Area 8, body mass 1000, sea level, dry, airspeed 30 m/s at 10° angle of attack, wing term on: P = 1, B = 0.03, q = 15, g = 0.6. Normal force %.4f, lift = normal × cos 10° = %.4f, drag = normal × sin 10° = %.4f, before the application cap. A calculation from the recovered constants, with no game measurement." % (
+                                 N, N * math.cos(a10), N * math.sin(a10)) + rep,
+                             [f["coef"], f["threshold"], f["mass"], f["ramp"], f["exponent"], f["wing_mul"], f["lapse"], f["pexp"]])
+    f["ramp_end"] = E.derived("Wing term full strength", "40 m/s", "15 + 25 = 40 m/s, where the wing ramp reaches 1." + rep, [f["threshold"], f["ramp"]])
+    f["no_lift_force"] = E.derived("lift_force in the surface force", "not read",
+                                   "The complete rudder update has no load from tuning object +0x90 and no call to its accessor; the area coefficient is the fixed 24. lift_force 0.25 is therefore not a multiplier of this force. Other users of the field elsewhere in the executable are outside this check." + rep,
+                                   [f["coef"], f["lift_name"]])
+    f["units"] = E.derived("Surface force unit", "internal force units",
+                           "The routine produces a force that Bullet accumulates and integrates with inverse mass × substep. The refresh is once per component update (60 per simulated second), so the force is not multiplied by 60. Mass is not calibrated to kilograms, so the force is not labelled in newtons." + rep,
+                           [f["submit"], f["cap"], f["event"], f["accum"], f["solver"]] + update_rate(E)["findings"][:1])
+    core = [f[x] for x in ("wind", "speed", "threshold", "mass", "mass_cap", "plane", "coef", "area", "lapse", "pexp", "ceiling",
+                           "immersion", "limit", "submit", "cap", "event", "accum", "solver", "units", "lift_name", "no_lift_force")]
+    wing = [f[x] for x in ("wing_test", "ramp", "exponent", "wing_mul", "ramp_end", "example")]
+    deflect = [f["demand"], f["cos"]]
+    E.surface = {"f": f, "core": core, "wing": wing, "deflect": deflect}
+    return E.surface
+
+
 def alloc_finding(E):
     return E.code(F_NET_ALLOC, 0x1404CA050, "f30f114a2cf30f114a3044897a28", "Network allocation", "port+0x2c = f·|f| ÷ Σ × room",
                   "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update.")
@@ -1428,37 +1561,81 @@ def propulsion(B, E):
 
 
 def control_surfaces(B, E):
-    area = lambda b: E.attr(b, "rudder_surface_area", "Surface-area configuration read by the rudder/wing code (definition+0xec4).")
+    area = lambda b: E.attr(b, "rudder_surface_area", "Surface-area configuration read by the rudder update at 0x1403e1118 (definition+0xec4).")
+    kind = lambda b: E.attr(b, "rudder_type", "Read at 0x1403e0dcc (definition+0x2cd4); 1 adds the wing term.")
     wings = [area(b) for b in ("wing_small", "wing_medium", "wing_large", "wing_xl", "wing_xxl")]
     cs = [area(b) for b in ("control_surface_small", "control_surface_medium", "control_surface_large")]
     fins = [area(b) for b in ("control_fin_small", "control_fin_medium", "control_fin_large")]
-    rot = [E.attr("control_surface_small", "dynamic_max_rotation", "Deflection limit configuration."),
-           E.attr("control_fin_small", "dynamic_max_rotation", "Deflection limit configuration.")]
+    rot = [E.attr("control_surface_small", "dynamic_max_rotation", "Deflection limit in radians."),
+           E.attr("control_fin_small", "dynamic_max_rotation", "Deflection limit in radians.")]
     gyro = [E.attr(b, "force_emitter_max_force", "Stabiliser force configuration.") for b in ("gyroscopic_stabilizer_small", "gyroscopic_stabilizer", "gyroscopic_stabilizer_large")]
-    lift = E.realtime("lift_force", "Global lift scale.")
-    deg = [E.derived("Control surface deflection if radians", "45°", "0.785398 rad × 180/π = 45.0°.", [rot[0]]),
-           E.derived("Control fin deflection if radians", "14°", "0.25 rad × 180/π = 14.3°.", [rot[1]])]
+    S = surface_air(E)
+    f, core, wing, deflect = S["f"], S["core"], S["wing"], S["deflect"]
+    deg = [E.derived("Control surface deflection", "±45°", "0.785398 rad × 180/π = 45.0°. The update feeds the angle to cosine and sine, so the field is in radians.", [rot[0], f["cos"]]),
+           E.derived("Control fin deflection", "±14.3°", "0.25 rad × 180/π = 14.32°. The update feeds the angle to cosine and sine, so the field is in radians.", [rot[1], f["cos"]])]
+    ratio = lambda label, xs: E.derived(label, ", ".join("%g" % (float(x["value"]) / float(xs[0]["value"])) for x in xs),
+                                        "Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap.",
+                                        xs + [f["area"], f["coef"]])
+    wing_ratio, cs_ratio, fin_ratio = ratio("Force ratio across wing sizes", wings), ratio("Force ratio across control surface sizes", cs), ratio("Force ratio across fin sizes", fins)
+    lift_sdk = E.sdk("lift_force", "Described there as lift force scaling applied to surfaces.")
+    lift_rt = E.realtime("lift_force", "Global lift scale.")
+    air = ("Wings, control surfaces and fins share one air routine. It pushes along the surface normal with force "
+           "24 × rudder_surface_area × P × B × (1 - immersion) × (airspeed - 15) × (normal airspeed + wing term). "
+           "Airspeed is the surface's speed relative to the wind in m/s, and at 15 m/s or less there is no air force. "
+           "P = (1 - 2.2413793e-05 × height)^5.3595023 is the altitude pressure ratio, 1 at sea level and 0 above 40000 m. "
+           "B = min(0.00003 × body mass, 0.2), so the coefficient stops growing at a body mass of 6666.67.")
+    wing_txt = ("Wing sections (rudder_type 1) add a wing term 3 × c^5 × g. c is the cosine between the direction of travel through the air and the wing's forward axis, "
+                "the reverse of its dynamic_rotation_axes vector, and g rises from 0 at 15 m/s to 1 at 40 m/s. Travelling along that axis, the term lifts a wing even at zero angle of attack; "
+                "travelling the other way removes it. Matching that axis to a visible mesh edge is an inference. "
+                "Control surfaces and fins (rudder_type 0) have no wing term, so they push only when the air meets them at an angle.")
+    units = ("The result is in the game's internal force units. Body mass is not calibrated to kilograms, so do not read it as newtons. "
+             "The game queues the force once per update and the physics solver integrates it, so it is not multiplied by 60. "
+             "Before it is applied its size is limited to 5 × S, where S is a per-vehicle scale passed in by the component dispatcher; area scaling is linear only below that limit.")
     B.category("Control surfaces",
-               "Wings, control surfaces and fins differ chiefly by a rudder_surface_area field (wings 8 to 120, control surfaces 10 to 70, fins 2 to 12); control surfaces deflect further (0.785398) than fins (0.25).",
+               "Wings, control surfaces and fins push along their surface normal once airspeed passes 15 m/s, with force proportional to rudder_surface_area (wings 8 to 120, control surfaces 10 to 70, fins 2 to 12). Control surfaces deflect about 45° each way, fins about 14.3°.",
                [section("Sizing",
-                        "rudder_surface_area: wings 8, 20, 40, 70, 120; control surfaces 10, 28, 70; control fins 2, 8, 12. This area field is the main numeric difference between sizes in the definitions."),
+                        "rudder_surface_area: wings 8, 20, 40, 70, 120; control surfaces 10, 28, 70; control fins 2, 8, 12. The air force is proportional to this field, so at the same airflow, body mass and altitude the large control surface pushes 7 times as hard as the small one. The listed voxel count does not enter the equation."),
                 section("Deflection",
-                        "Control surfaces store dynamic_max_rotation 0.785398 and fins 0.25; if both are radians that is 45° against about 14°, so a fin is the finer, smaller-authority choice."),
+                        "The game turns the input into an angle in radians. Control surfaces store 0.785398, about 45° each way, and fins 0.25, about 14.3°, so a fin is the finer, smaller-authority choice. "
+                        "Each update the surface moves toward the requested position. With full electrical supply it gets there in one update; a weak supply slows it, and no supply holds it."),
                 section("Stabilisers",
                         "Reaction wheels carry force fields 10, 100 and 1000, a factor of ten per size; wire them to an aligned angular speed sensor."),
-                section("Measurement questions",
-                        "Lift or force against area and speed; the shipped lift_force (0.25) may not be applied by this build.")],
-               wings + cs + fins + rot + gyro + [lift] + deg,
-               ["Area fields are configuration; force equations were not decoded.", "The radian reading of the deflection fields is an interpretation."])
-    B.family("wing-section", "rudder_surface_area 8, 20, 40, 70 and 120 across the five wing sizes.",
-             [section("Variant tradeoffs", "Each wing size carries a larger surface-area field; whether lift scales linearly with it was not recovered.")],
-             wings, ["Configuration values only."])
-    B.family("control-surface", "rudder_surface_area 10, 28 and 70; deflection field 0.785398.",
-             [section("Variant tradeoffs", "Larger surfaces carry larger area fields; all share the same deflection limit and −1 to 1 input.")],
-             cs + [rot[0], E.port("control_surface_small", "Rotation")], ["Configuration values only."])
-    B.family("control-fin", "rudder_surface_area 2, 8 and 12; deflection field 0.25.",
-             [section("Variant tradeoffs", "Fins have smaller area and deflection than control surfaces, suiting fine trim.")],
-             fins + [rot[1]], ["Configuration values only."])
+                section("Air force", air, wing_txt,
+                        "The routine multiplies by its own constant 24 and does not read the shipped lift_force setting (0.25), so changing lift_force does not change this force."),
+                section("Lift and drag",
+                        "The force is a single push along the normal. With angle of attack α between the airflow and the surface, lift is that force × cos α and drag is force × sin α. "
+                        "Plane resistance grows with airspeed × (airspeed - 15); the wing term grows with (airspeed - 15) × g. There is no stall angle, Reynolds-number term or separate skin drag in this routine.",
+                        "Example: a small wing section (area 8) on a body of mass 1000 at 30 m/s and 10° angle of attack gets a normal force of 594.2, of which 585.1 is lift and 103.2 is drag."),
+                section("Force units and limit", units,
+                        "Partly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over.")],
+               wings + cs + fins + rot + deg + gyro + [lift_sdk, lift_rt, kind("wing_small"), kind("control_surface_small"), kind("control_fin_small"),
+                                                    wing_ratio, cs_ratio, fin_ratio] + core + wing + deflect,
+               ["The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
+                "Which visible edge and editor arrow match positive deflection and the sign of the force was not checked in game.",
+                "Internal mass and force units are not calibrated to kilograms and newtons.",
+                "Reaction wheels are outside the air-force decode; their force fields are configuration only."])
+    wing_limits = ["The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+                   "Internal mass and force units are not calibrated to kilograms and newtons."]
+    surface_limits = wing_limits + ["Which visible edge and editor arrow match positive deflection was not checked in game."]
+    B.family("wing-section", "rudder_surface_area 8, 20, 40, 70 and 120 across the five wing sizes. The air force scales linearly with it, and the wing term lifts even at zero angle of attack.",
+             [section("Variant tradeoffs",
+                      "At the same body mass, airspeed, altitude and angle, the computed wing force scales linearly with rudder_surface_area: 8, 20, 40, 70 and 120, or 1, 2.5, 5, 8.75 and 15 times the small wing. "
+                      "The application cap can limit the gain on a light craft. The listed voxel count is not a multiplier."),
+              section("Wing lift",
+                      "Wing sections have rudder_type 1. On top of the normal airspeed they get a wing term 3 × c^5 × g, where c is the cosine between the direction of travel and the wing's forward axis (the reverse of dynamic_rotation_axes) and g rises from 0 at 15 m/s to 1 at 40 m/s. "
+                      "That term gives lift with the wing level in the airflow. Travelling backwards along that axis removes it. Wings have no Rotation input, so their angle to the airflow comes from how they are mounted and how the craft flies."),
+              section("Example",
+                      "A small wing section (area 8) on a body of mass 1000 at sea level, 30 m/s and 10° angle of attack gets a normal force of 594.2 internal units: 585.1 lift and 103.2 drag. The XXL wing makes 15 times that under the same conditions.")],
+             wings + [kind("wing_small"), wing_ratio] + core + wing, wing_limits)
+    B.family("control-surface", "rudder_surface_area 10, 28 and 70; deflects up to 0.785398 rad, about 45°, each way.",
+             [section("Variant tradeoffs", "Force scales linearly with rudder_surface_area, so medium and large surfaces make 2.8 and 7 times the force of the small one under the same conditions. All sizes share the 45° limit and the -1 to 1 Rotation input."),
+              section("Air force", "Control surfaces have rudder_type 0, so there is no wing term: force = 24 × area × P × B × (1 - immersion) × (airspeed - 15) × normal airspeed, above 15 m/s. A surface edge-on to the airflow makes no force."),
+              section("Deflection speed", "Moving the surface draws electricity in proportion to the requested change. With full supply it reaches the requested angle in one update; with partial supply it moves part of the way.")],
+             cs + [rot[0], deg[0], kind("control_surface_small"), cs_ratio, E.port("control_surface_small", "Rotation")] + core + deflect, surface_limits)
+    B.family("control-fin", "rudder_surface_area 2, 8 and 12; deflects up to 0.25 rad, about 14.3°, each way.",
+             [section("Variant tradeoffs", "Force scales linearly with rudder_surface_area, so medium and large fins make 4 and 6 times the force of the small one under the same conditions. Fins have smaller area and deflection than control surfaces, suiting fine trim."),
+              section("Air force", "Fins use the same routine as control surfaces, with rudder_type 0 and no wing term: force = 24 × area × P × B × (1 - immersion) × (airspeed - 15) × normal airspeed, above 15 m/s.")],
+             fins + [rot[1], deg[1], kind("control_fin_small"), fin_ratio] + core + deflect, surface_limits)
     B.family("reaction-wheel", "Stabiliser force fields 10, 100 and 1000.",
              [section("Setup and interactions", "Wire the Rotation input directly to an aligned angular speed sensor; each size step raises the force field tenfold.")],
              gyro + [E.tooltip("gyroscopic_stabilizer_small")], ["Configuration values only."])

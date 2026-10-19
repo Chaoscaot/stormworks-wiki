@@ -278,10 +278,12 @@ h2 .count { font: 0.9rem var(--sans); color: var(--ink-2); }
 .graph-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; }
 .graph-line-a { stroke: var(--teal); }
 .graph-line-b { stroke: var(--signal); stroke-dasharray: 7 4; }
+.graph-line-c { stroke: var(--navy); stroke-dasharray: 1 5; stroke-linecap: round; }
 .graph-selected line { stroke: var(--navy); stroke-width: 1.5; }
 .graph-selected .graph-selected-label { fill: var(--navy); font-weight: 700; }
 .graph-dot-a { fill: var(--teal); stroke: var(--sheet); stroke-width: 2; }
 .graph-dot-b { fill: var(--signal); stroke: var(--sheet); stroke-width: 2; }
+.graph-dot-c { fill: var(--navy); stroke: var(--sheet); stroke-width: 2; }
 .graph-legend { list-style: none; margin: 0.3rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.2rem 1.2rem; font-size: 0.85rem; }
 .graph-legend li { display: flex; align-items: center; gap: 0.4rem; }
 .graph-legend-band { display: inline-block; width: 30px; height: 12px; border: 1px solid #e2b98a; background: repeating-linear-gradient(45deg, var(--amber-wash) 0 3px, #e2b98a 3px 5px); }
@@ -312,7 +314,7 @@ h2 .count { font: 0.9rem var(--sans); color: var(--ink-2); }
 
 @media (forced-colors: active) {
   .graph-line, .graph-selected line, .graph-axis line { stroke: CanvasText; }
-  .graph-dot-a, .graph-dot-b { fill: CanvasText; }
+  .graph-dot-a, .graph-dot-b, .graph-dot-c { fill: CanvasText; }
   .graph-svg text { fill: CanvasText; }
   .graph-hatch-line { stroke: GrayText; }
 }

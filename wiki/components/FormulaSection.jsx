@@ -16,6 +16,11 @@ const FINDINGS = {
     'Scoop speed gain', 'Port window', 'Step fraction', 'Gas readout factor', 'Readout factor',
     'Inspection flow scale', 'Inspection flow format', 'Component updates per simulated second',
   ],
+  surface: [
+    'Surface area coefficient', 'Surface area read', 'Surface airspeed threshold', 'Surface mass factor', 'Surface mass factor cap',
+    'Surface pressure lapse', 'Surface pressure exponent', 'Surface pressure ceiling', 'Wing-section test', 'Wing speed ramp span',
+    'Wing direction exponent', 'Wing term multiplier', 'Air force application limit',
+  ],
 };
 
 const TITLES = {
@@ -23,13 +28,15 @@ const TITLES = {
   radiator: 'Radiator cooling rate against airspeed',
   exchanger: 'Heat exchanger temperatures over updates',
   scoop: 'Air scoop inflow against airspeed',
+  surface: 'Surface force, lift and drag against airspeed',
 };
 
 /*
  * Graph data for a family, with citation numbers taken now so they follow reading order.
  * Call it where the section sits in the page, before later tables cite their sources.
+ * A component page passes its own ID so graphs with a part selector start on that part.
  */
-export function formulaGraphs(familyId, cite) {
+export function formulaGraphs(familyId, cite, variantId = null) {
   const kinds = graphKindsForFamily(familyId);
   if (!kinds.length) return [];
   const families = getData().behavior.families;
@@ -38,6 +45,8 @@ export function formulaGraphs(familyId, cite) {
   const find = (label) => own.find((x) => x.label === label) ?? all.find((x) => x.label === label) ?? null;
   return kinds.map((kind) => ({
     kind,
+    family: familyId,
+    variant: variantId,
     anchor: `graph-${kind}`,
     title: TITLES[kind],
     evidence: FINDINGS[kind].map((label) => {
@@ -58,6 +67,7 @@ const mi = (s) => <mi>{s}</mi>;
 const mo = (s) => <mo>{s}</mo>;
 const mn = (s) => <mn>{s}</mn>;
 const sub = (base, s) => <msub><mi>{base}</mi><mtext>{s}</mtext></msub>;
+const fn = (name) => <><mi>{name}</mi><mspace width="0.17em" /></>;
 
 function Formula({ lines, text }) {
   return (
@@ -203,7 +213,43 @@ const SCOOP = {
   ],
 };
 
-const CONTENT = { engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP };
+const SURFACE = {
+  intro: (
+    <p>
+      Wings, control surfaces and fins share one air routine. Above 15 m/s it pushes along the surface normal, in proportion to
+      rudder_surface_area. Wing sections add a term that lifts even at zero angle of attack. The graph splits that one force into lift
+      and drag relative to the airflow.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="n">{mi('N')}{mo('=')}{mn('24')}{mi('A')}{mi('P')}{mi('B')}{mo('·')}{mi('max')}<mrow>{mo('(')}{mi('s')}{mo('−')}{mn('15')}{mo(',')}{mn('0')}{mo(')')}</mrow>{mo('·')}<mrow>{mo('[')}{mi('s')}{fn('sin')}{mi('α')}{mo('+')}{mi('w')}{mo('·')}{mn('3')}<msup><mrow>{mi('max')}{mo('(')}{fn('cos')}{mi('α')}{mo(',')}{mn('0')}{mo(')')}</mrow>{mn('5')}</msup>{mi('g')}{mo(']')}</mrow></mrow>,
+        <mrow key="p">{mi('P')}{mo('=')}<msup><mrow>{mo('(')}{mn('1')}{mo('−')}{mn('2.2413793')}{mo('×')}<msup>{mn('10')}<mrow>{mo('−')}{mn('5')}</mrow></msup>{mi('y')}{mo(')')}</mrow>{mn('5.3595023')}</msup><mspace width="1em" /><mtext>0 above 40000 m</mtext></mrow>,
+        <mrow key="b">{mi('B')}{mo('=')}{mi('min')}<mrow>{mo('(')}{mn('0.00003')}{mi('M')}{mo(',')}{mn('0.2')}{mo(')')}</mrow><mspace width="1em" />{mi('g')}{mo('=')}{mi('clamp')}<mrow>{mo('(')}<mfrac><mrow>{mi('s')}{mo('−')}{mn('15')}</mrow>{mn('25')}</mfrac>{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}</mrow></mrow>,
+        <mrow key="l">{mi('L')}{mo('=')}{mi('N')}{fn('cos')}{mi('α')}<mspace width="1em" />{mi('D')}{mo('=')}{mi('N')}{fn('sin')}{mi('α')}</mrow>,
+      ]}
+      text={[
+        'N = 24 * A * P * B * max(s - 15, 0) * [s * sin(a) + w * 3 * max(cos(a), 0)^5 * g]',
+        'A = rudder_surface_area, s = airspeed relative to the wind in m/s, a = angle of attack, w = 1 for wing sections, else 0',
+        'P = (1 - 2.2413793e-05 * y)^5.3595023 for height y <= 40000 m, else 0',
+        'B = min(0.00003 * M, 0.2), M = body mass in game units',
+        'g = clamp((s - 15) / 25, 0, 1)',
+        'Force vector = -normal * N; lift L = N * cos(a), drag D = N * sin(a)',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Output is in the game\'s internal force units. Body mass is not calibrated to kilograms, so these are not newtons. The game applies the force once per update and the physics solver integrates it; do not multiply it by 60.',
+    'The application cap is not modelled. The game limits the force to 5 × a per-vehicle scale, so a large surface on a light craft can get less than the curve shows.',
+    'Axis convention: forward is the reverse of dynamic_rotation_axes, and α is the angle between the airflow and that axis, toward the surface normal. Lift is the normal force × cos α and drag × sin α. Matching these axes to mesh edges and the editor arrow is an inference.',
+    'α combines mounting angle, flight attitude and deflection. Control surfaces deflect up to about 45° and fins about 14.3°. Flow is taken in the plane of the forward axis and the normal, so sideslip is not shown.',
+    'The surface is dry. Partly under water, the air force falls with the immersion fraction and a separate water force takes over.',
+    'Body mass is the mass of the physics body the surface sits on, in the game\'s mass units. Above 6666.67 it no longer changes the result.',
+  ],
+};
+
+const CONTENT = { engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE };
 
 function Evidence({ items }) {
   return (
@@ -240,7 +286,7 @@ export default function FormulaSection({ graphs }) {
             <h3 id={g.anchor}>{g.title}</h3>
             {c.intro}
             {c.formula}
-            <FormulaGraph kind={g.kind} />
+            <FormulaGraph kind={g.kind} family={g.family} variant={g.variant} />
             <div className="graph-notes">
               <div>
                 <h4>What the graph assumes</h4>

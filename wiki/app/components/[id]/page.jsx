@@ -51,7 +51,7 @@ export default async function ComponentPage({ params }) {
   const prefix = `${variant.sizeLabel || b.name} · `;
   citeBehavior(behavior, cite);
   if (catBehavior?.summary) catBehavior.sources.forEach((s) => cite(s, { status: s.status, note: 'Behaviour source' }));
-  const graphs = family ? formulaGraphs(family.id, cite) : [];
+  const graphs = family ? formulaGraphs(family.id, cite, b.id) : [];
   const ownBehavior = (behavior?.findings ?? []).filter((x) => String(x.label || '').startsWith(prefix) || String(x.label || '').startsWith(`${b.name} · `));
   // Findings without a "Variant · " prefix describe the whole family, so they apply here too.
   const familyBehavior = (behavior?.findings ?? []).filter((x) => !String(x.label || '').includes(' · '));
