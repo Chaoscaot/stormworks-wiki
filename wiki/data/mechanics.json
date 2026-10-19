@@ -578,7 +578,7 @@
       "title": "Diesel engine connections and startup",
       "category": "Engines",
       "summary": "Engine definitions describe separate air, fuel, exhaust, coolant and electrical connections.",
-      "body": "The small engine accepts throttle from 0 to 1. Its starter description says electrical power increases engine RPS for startup. Coolant has separate cold return and hot output ports. The small and large definitions set engine_max_force to 20000 and 200000 respectively, but this field does not establish measured power or torque.",
+      "body": "The small engine accepts throttle from 0 to 1. Its starter description says electrical power increases engine RPS for startup. Coolant has separate cold return and hot output ports. The small and large definitions set engine_max_force to 20000 and 200000 respectively. A separate native decode of the classic engine update (investigation/classic-engines.md, shown on the Diesel Engine parts page) found that this field sets the shaft weight, scales diesel and intake demand and multiplies the starter charge request. It is an internal solver weight, not a torque in N m.",
       "findings": [
         {
           "label": "Small Engine: engine_max_force",
@@ -766,7 +766,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Fuel consumption, thermal efficiency, overheating thresholds, starter load and torque curves are not recovered here."
+        "The diesel use, speed step, heating, 115 °C overheat threshold and starter request equations come from that native decode. Thermal efficiency in physical units and a conversion of the shaft model to SI torque were not recovered."
       ]
     },
     {
@@ -2212,7 +2212,7 @@
       "title": "Jet startup, turbines and afterburners",
       "category": "Engines",
       "summary": "Jet component descriptions separate electrical startup, combustion and exhaust controls.",
-      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction.",
+      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines.",
       "findings": [
         {
           "label": "Jet Compressor: Compressor",

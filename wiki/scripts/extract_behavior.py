@@ -812,6 +812,276 @@ WHERE.update({
 })
 
 
+# classic-engine pass; files under investigation/native/classic-engines/, report investigation/classic-engines.md.
+CE = "../classic-engines/"
+CE_REPORT = "investigation/classic-engines.md"
+F_CE_CTOR = 0x14034A7D0     # classic engine constructor: vtable, Max Power, limiter and temperature defaults
+F_CE_INIT = 0x14034B440     # classic engine initializer: ports, coolant and compartment volumes
+F_CE_EDITOR = 0x14034E3D0   # classic engine editor: Max Power and RPS Limiter sliders
+F_CE_PROPS = 0x14034E570    # classic engine property serializer: max_force_scale, rps_limit
+F_FACTORY = 0x14045DD20     # component factory, switch on definition type (+0x2ac)
+CE_SLOT = 0x140B6F808       # slot +0x358 of the classic engine vtable 0x140b6f4b0
+CE_FACTORY_CASE = (0x14045E8B8, 0x14045DEC7)  # factory jump-table entry 5 and its target
+_CU, _CP = CE + "asm/update.asm", CE + "pseudocode/0x14034ba00.c"
+WHERE.update({
+    (0x1403168D0, 0x140B5C190): CE + "asm/definition-engine.asm:L1-L6",
+    (0x14045DD20, 0x14045DED8): CE + "asm/factory.asm:L96-L100; " + CE + "asm/factory-alt.asm; " + CE + "tools/tables.txt:L8-L9",
+    (0x14034A7D0, 0x14034A7E5): CE + "asm/constructor.asm:L9; " + CE + "tools/tables.txt:L2-L7; " + CE + "asm/dispatch.asm",
+    (0x14034A7D0, 0x14034AA75): CE + "asm/constructor.asm:L113-L118; " + CE + "pseudocode/0x14034a7d0.c",
+    (0x14034A7D0, 0x14034AA7F): CE + "asm/constructor.asm:L113-L118; " + CE + "pseudocode/0x14034a7d0.c",
+    (0x14034A7D0, 0x14034AAA1): CE + "asm/constructor.asm:L113-L118; " + CE + "pseudocode/0x14034a7d0.c",
+    (0x14034B440, 0x14034B67A): CE + "asm/init.asm:L127-L129; " + CE + "pseudocode/0x14034b440.c",
+    (0x14034B440, 0x140BAF924): CE + "asm/init.asm:L119-L147; " + CE + "pseudocode/0x14034b440.c",
+    (0x14034E3D0, 0x140BB04E0): CE + "asm/editor.asm:L29-L87; " + CE + "asm/slider-helper.asm; " + CE + "pseudocode/0x14034e3d0.c",
+    (0x14034E3D0, 0x140BB0790): CE + "asm/editor.asm:L29-L87; " + CE + "asm/slider-helper.asm; " + CE + "pseudocode/0x14034e3d0.c",
+    (0x14034E570, None): CE + "asm/properties.asm:L20-L65; " + CE + "pseudocode/0x14034e570.c",
+    (0x14034BA00, 0x140BAFF60): _CU + ":L64-L76; " + _CP,
+    (0x14034BA00, 0x14034BB75): _CU + ":L64-L76; " + _CP,
+    (0x14034BA00, 0x14034BB7D): _CU + ":L77-L78; " + _CP,
+    (0x14034BA00, 0x140BAFA00): _CU + ":L79-L86; " + _CP,
+    (0x14034BA00, 0x140BAFA40): _CU + ":L79-L86; " + _CP,
+    (0x14034BA00, 0x140BAFC54): _CU + ":L79-L86; " + _CP,
+    (0x14034BA00, 0x140BB0540): _CU + ":L79-L86; " + _CP,
+    (0x14034BA00, 0x14034BCA6): _CU + ":L133-L149; " + _CP,
+    (0x14034BA00, 0x14034BE0C): _CU + ":L208-L209,L814; " + _CP,
+    (0x14034BA00, 0x14034BE22): _CU + ":L210-L223; " + _CP,
+    (0x14034BA00, 0x140BAF87C): _CU + ":L210-L223; " + _CP,
+    (0x14034BA00, 0x140BB08EC): _CU + ":L210-L223; " + _CP,
+    (0x14034BA00, 0x140BAF92C): _CU + ":L205,L210-L223; " + _CP,
+    (0x14034BA00, 0x140BB0994): _CU + ":L205,L210-L223; " + _CP,
+    (0x14034BA00, 0x140BAFB84): _CU + ":L224-L310; " + CE + "asm/pressure.asm; " + CE + "asm/fluid-sums.asm; " + _CP,
+    (0x14034BA00, 0x14034C066): _CU + ":L311-L340; " + _CP,
+    (0x14034BA00, 0x14034C616): _CU + ":L569-L574; " + _CP,
+    (0x14034BA00, 0x14034C637): _CU + ":L569-L574; " + CE + "asm/combustion-helper.asm; " + CE + "pseudocode/0x1402ebdc0.c",
+    (0x14034BA00, 0x140BAF8F8): _CU + ":L575,L960-L971; " + CE + "asm/ambient-smoothing.asm; " + _CP,
+    (0x14034BA00, 0x140BAFCBC): _CU + ":L583,L814,L880-L903; " + _CP,
+    (0x14034BA00, 0x140BAF93C): _CU + ":L820-L828; " + _CP,
+    (0x14034BA00, 0x140BB0218): _CU + ":L829-L874,L1209-L1212; " + _CP,
+    (0x14034BA00, 0x14034CE55): _CU + ":L880-L903; " + _CP,
+    (0x14034BA00, 0x140BB07A4): _CU + ":L969-L999; " + _CP,
+    (0x14034BA00, 0x14034CFA6): _CU + ":L972-L978; " + CE + "asm/overheat-setting.asm; " + CE + "asm/vehicle-damage-setting.asm",
+    (0x14034BA00, 0x14034CFB1): _CU + ":L972-L978; " + CE + "asm/overheat-setting.asm; " + CE + "asm/vehicle-damage-setting.asm",
+    (0x14034BA00, 0x14034CFC9): _CU + ":L979-L990; " + CE + "asm/damage.asm; " + CE + "pseudocode/0x14034b720.c",
+    (0x14034BA00, 0x14034CFEB): _CU + ":L991-L998; " + _CP,
+    (0x14034BA00, 0x14034D335): _CU + ":L1166-L1169; " + _CP,
+    (0x14034BA00, 0x14034D343): _CU + ":L1166-L1169; " + _CP,
+    (0x14034BA00, 0x140BB0874): _CU + ":L1171-L1174; " + _CP,
+    (0x14034BA00, 0x140BB04E0): _CU + ":L1176-L1194; " + CE + "asm/electric-draw.asm; " + _CP,
+    (0x14034BA00, 0x14034D39D): _CU + ":L1176-L1194; " + CE + "asm/electric-draw.asm; " + _CP,
+    (0x14034BA00, 0x14034D429): _CU + ":L1209-L1227; " + _CP,
+    (0x14034BA00, 0x140BAFAD0): _CU + ":L1209-L1227; " + _CP,
+    (0x14034BA00, 0x140BAFA70): _CU + ":L1209-L1227; " + _CP,
+    (0x14034BA00, 0x140BAFEAC): _CU + ":L1209-L1227; " + _CP,
+    (0x14034BA00, 0x14034D476): _CU + ":L1228-L1233; " + _CP,
+    (0x14034BA00, 0x14034D47E): _CU + ":L1228-L1233; " + _CP,
+    (0x14034BA00, 0x14034D486): _CU + ":L1228-L1233; " + _CP,
+})
+
+
+CLASSIC_SIZES = (("engine", "small"), ("aircraft_engine", "medium"), ("engine_diesel", "large"))
+
+
+def classic_engine(E):
+    """Classic engine update: throttle, shaft weight, speed step, fuel, heat, overheat and starter, verified once and shared."""
+    if hasattr(E, "classic"):
+        return E.classic
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / CE_REPORT).is_file():
+        raise ValueError("Classic-engine report missing: " + CE_REPORT)
+    if struct.unpack("<Q", n.raw(CE_SLOT, 8))[0] != F_ENGINE_CLASSIC:
+        raise ValueError("Classic engine vtable slot %#x does not point to %#x" % (CE_SLOT, F_ENGINE_CLASSIC))
+    table, target = CE_FACTORY_CASE
+    if n.base + struct.unpack("<I", n.raw(table, 4))[0] != target:
+        raise ValueError("Factory case 5 at %#x does not lead to %#x" % (table, target))
+    rep = " Report: %s." % CE_REPORT
+    F = F_ENGINE_CLASSIC
+    f = {}
+    # Identity, defaults and editor.
+    f["field"] = E.string(F_DEFSER, 0x140B5C190, "engine_max_force", "engine_max_force binding",
+                          "The definition serializer binds definition+0x874 (lea r9 at 0x1403175fc) to this name and reads it as a float (call at 0x140317616)." + rep)
+    f["factory"] = code(F_FACTORY, 0x14045DED8, "e8f3c8eeff", "Type-5 component factory case", "call 0x14034a7d0",
+                        "The component factory switches on definition type; jump-table entry 5 at 0x14045e8b8 leads to this call of the classic engine constructor. engine.xml, aircraft_engine.xml, engine_diesel.xml and turbine.xml all have type 5, so all four share one implementation." + rep)
+    f["vtable"] = code(F_CE_CTOR, 0x14034A7E5, "488d05c44c8200", "Classic engine vtable", "0x140b6f4b0",
+                       "The constructor installs vtable 0x140b6f4b0, RTTI c_scene_vehicle_component_engine. Its slot +0x358 at 0x140b6f808 holds 0x14034ba00, the update the component dispatcher calls once per component per update at 0x1405498d6; the extractor re-reads that pointer." + rep)
+    f["d_power"] = code(F_CE_CTOR, 0x14034AA75, "c787f80300000000803f", "Max Power default", "1",
+                        "Stores 1.0 to component+0x3f8, the Max Power fraction." + rep)
+    f["d_limit"] = code(F_CE_CTOR, 0x14034AA7F, "c787fc0300000000a041", "RPS limiter default", "20 RPS",
+                        "Stores 20.0 to component+0x3fc, the RPS limiter." + rep)
+    f["d_temp"] = code(F_CE_CTOR, 0x14034AAA1, "c787100400000000a041", "Engine temperature at construction", "20 °C",
+                       "Stores 20.0 to component+0x410, the engine temperature." + rep)
+    f["coolant"] = code(F_CE_INIT, 0x14034B67A, "c7875804000000002041", "Coolant at start", "10 amount of fresh water, 100 L",
+                        "The initializer stores 10 to the coolant compartment's fresh water here, its total at 0x14034b670 and its volume at 0x14034b684: 100 L at 10 L per amount, for every size. The voxel count does not size it." + rep)
+    f["volume"] = op(F_CE_INIT, 0x14034B647, "f30f1015d5428600", 0x140BAF924, "Engine compartment volume per voxel",
+                     "Intake, fuel and both exhaust compartments get volume this × listed voxel count (stores at 0x14034b69d to 0x14034b6e8)." + rep)
+    f["t_power"] = E.text_id(0x1401FD9C5, 0x648, "Max Power")
+    f["t_limit"] = E.text_id(0x1401FD9DE, 0x649, "RPS Limiter")
+    f["e_min"] = op(F_CE_EDITOR, 0x14034E516, "f30f1005c21f8600", 0x140BB04E0, "RPS Limiter minimum",
+                    "The RPS Limiter slider (text id 0x649) runs from this to 100 RPS in steps of 1." + rep)
+    f["e_max"] = op(F_CE_EDITOR, 0x14034E473, "f30f103d15238600", 0x140BB0790, "Engine editor slider maximum",
+                    "Max Power (text id 0x648) runs from 0 to 100 % in steps of 1 and stores percent × 0.01; RPS Limiter runs from 5 to this." + rep)
+    f["s_power"] = E.string(F_CE_PROPS, 0x140B62B28, "max_force_scale", "Max Power save name",
+                            "The property serializer saves the Max Power fraction under this name." + rep)
+    f["s_limit"] = E.string(F_CE_PROPS, 0x140B62B00, "rps_limit", "RPS Limiter save name",
+                            "The property serializer saves the RPS limiter under this name." + rep)
+    # Throttle gate.
+    f["limit_dmg"] = op(F, 0x14034BB52, "f30f590d06448600", 0x140BAFF60, "Damaged limiter scale",
+                        "While damage (component+8) is nonzero the limiter used for the throttle cut is multiplied by this." + rep)
+    f["throttle"] = code(F, 0x14034BB75, "f30f1187e0030000", "Effective throttle", "clamp(Throttle, 0, 1); 0 above the limiter",
+                         "Reads Throttle (component+0x160) and the limiter (+0x3fc), sets throttle to 0 when the local RPS exceeds the limiter, clamps it to 0 to 1 and stores it. Negative Throttle gives 0, so the engine never drives in reverse. The limiter is a throttle cut, not a speed clamp." + rep)
+    f["starter"] = code(F, 0x14034BB7D, "888f0d040000", "Starter flag", "Starter input this update",
+                        "Overwrites the starter flag (component+0x40d) with the current Starter input and clears the legacy 40-update timer at 0x14034bb83, so holding Starter holds the request." + rep)
+    f["emp"] = code(F, 0x14034BCA6, "448b87c0030000", "EMP throttle cut", "E > 300 or E mod (E div 20 + 1) ≥ 5",
+                    "Reads the electric node's EMP countdown E (component+0x3c0). For nonzero E the throttle is set to 0 (store at 0x14034bcd6) when E > 300 or E mod (E div 20 + 1) is 5 or more." + rep)
+    # Speed factor and demand.
+    f["g_a"] = op(F, 0x14034BB8D, "f30f59056b3e8600", 0x140BAFA00, "Engine speed factor slope",
+                  "g(r) = 1 ÷ (this × r + 0.05) + 0.4 × r - 6, with r the local RPS before starter assistance." + rep)
+    f["g_b"] = op(F, 0x14034BB95, "f30f5805a33e8600", 0x140BAFA40, "Engine speed factor offset", "The 0.05 in g(r)." + rep)
+    f["g_c"] = op(F, 0x14034BBA6, "f30f5915a6408600", 0x140BAFC54, "Engine speed factor linear term", "The 0.4 in g(r)." + rep)
+    f["g_d"] = op(F, 0x14034BBB3, "f3440f5c3584498600", 0x140BB0540, "Engine speed factor constant", "Subtracted to finish g(r)." + rep)
+    f["inf_fuel"] = code(F, 0x14034BE0C, "80783400", "infinite_fuel test", "settings+0x34",
+                         "With infinite_fuel set the update jumps to 0x14034cca4 and skips diesel, intake and exhaust consumption and their port exchange. Limiter, EMP, speed, starter, coolant, heating and overheat still run." + rep)
+    f["f_force"] = code(F, 0x14034BE22, "f30f598874080000", "Fuel demand force read", "Max Power × engine_max_force",
+                        "Multiplies the Max Power fraction (component+0x3f8, read at 0x14034be1a) by engine_max_force (definition+0x874)." + rep)
+    f["f_k"] = op(F, 0x14034BE37, "f3440f593d3c3a8600", 0x140BAF87C, "Diesel demand coefficient",
+                  "Diesel requested per update before throttle: f = this × s × r × g(r), with s = engine_max_force × Max Power ÷ 20000." + rep)
+    f["f_div"] = op(F, 0x14034BE48, "f30f5e059c4a8600", 0x140BB08EC, "Diesel demand divisor",
+                    "s = engine_max_force × Max Power ÷ this." + rep)
+    f["a_k"] = op(F, 0x14034BDF3, "f30f1015313b8600", 0x140BAF92C, "Intake demand coefficient",
+                  "Intake amount requested per update: a = this × r × g(r) × engine_max_force × Max Power ÷ 1200000 = (s ÷ 12000) × r × g(r)." + rep)
+    f["a_div"] = op(F, 0x14034BE5F, "f30f5e0d2d4b8600", 0x140BB0994, "Intake demand divisor", "The 1200000 in the intake request." + rep)
+    f["o2"] = op(F, 0x14034BFF5, "f3440f5905863b8600", 0x140BAFB84, "Oxygen share for full throttle",
+                 "Oxygen gate q = clamp(b × O ÷ (this × a), 0, 1), with O the intake's species-10 amount and b = clamp(a ÷ intake contents, 0, 1) × clamp(P_intake - 1 - P_exhaust, 0, 1). Air with 21 % oxygen, enough intake and a pressure margin of 2 or more gives q = 1; a margin of 1 or less gives 0." + rep)
+    f["gate"] = code(F, 0x14034C616, "f30f599fe0030000", "Oxygen gate on throttle", "u = u0 × q",
+                     "q multiplies the throttle u0 = min(throttle, clamp(diesel ÷ f, 0, 1)); u then multiplies the diesel request at 0x14034c626." + rep)
+    f["burn"] = code(F, 0x14034C637, "f30f1187f4040000", "Diesel consumed", "diesel - f × u",
+                     "Subtracts f × u from the diesel in the fuel compartment (+0x10). Jet fuel at +0x14 is not read; helper 0x1402ebdc0 purges up to 0.001 per update of non-diesel contents to the exhaust." + rep)
+    f["co2"] = code(F, 0x14034C066, "f30f118f4c050000", "Oxygen to exhaust", "intake species 10 to exhaust species 4",
+                    "The intake loop moves every species to the exhaust in proportion to u0 × b, except species 10 (read at 0x14034c04a), which lands in exhaust species 4. Reading 10 as oxygen and 4 as carbon dioxide is an inference from the outside-air shares." + rep)
+    # Heat, coolant and overheat.
+    f["heat"] = op(F, 0x14034CCE7, "f30f59054d2c8600", 0x140BAF93C, "Engine heating per RPS",
+                   "Before the coolant exchange the engine temperature (component+0x410) rises by this × |r| per update (store at 0x14034ccf7). No throttle, engine_max_force or damage factor applies." + rep)
+    f["bias_cap"] = op(F, 0x14034CD03, "f3440f10350c358600", 0x140BB0218, "Hot coolant bias cap and combustion threshold",
+                       "Hot coolant port bias = clamp(0.1 × |r|, 0, this), passed to the port exchange at 0x14034cd7c; the cold return at 0x14034cddf has bias 0. The same register is the threshold compared at 0x14034d420, so combustion adds speed only above 2 RPS." + rep)
+    f["k"] = op(F, 0x14034C675, "f30f10353f368600", 0x140BAFCBC, "Coolant exchange factor",
+                "k = this × clamp(2 × liquid share of the coolant contents, 0, 1); k = 0 with empty or gas-only coolant. The infinite-fuel path loads the same value at 0x14034cca4." + rep)
+    f["exchange"] = code(F, 0x14034CE55, "f30f119790040000", "Coolant exchange", "Te + k × (Tc - Te), Tc + k × (Te - Tc)",
+                         "Engine (store at 0x14034ce4d) and coolant move toward each other by k times their old difference, after the coolant ports have exchanged fluid. With liquid coolant k = 0.5, so they meet halfway each update. Liquid amount does not weight the blend." + rep)
+    f["amb"] = op(F, 0x14034C63F, "f3440f1005b0328600", 0x140BAF8F8, "Engine ambient relaxation",
+                  "After the coolant exchange the engine temperature moves toward the surrounding-temperature sample (component+0x42c, refreshed every 16 updates by the call at 0x14034ce9d) by this fraction per update (multiply at 0x14034cf87)." + rep)
+    f["hot"] = op(F, 0x14034CF98, "0f2f0d05388600", 0x140BB07A4, "Overheat threshold",
+                  "Above this engine temperature, with both overheat gates on, the update adds 1 damage (capped at 50) whenever the overheat counter is 0, then advances the counter modulo 300." + rep)
+    f["hot_set"] = code(F, 0x14034CFA6, "80783500", "engine_overheating test", "settings+0x35", "First overheat gate: the engine_overheating game setting." + rep)
+    f["hot_set2"] = code(F, 0x14034CFB1, "80784a00", "Second overheat gate", "settings+0x4a",
+                         "A second settings byte must also be nonzero. The option that sets it was not traced; vehicle_damage is bound at settings+2, so it is not this byte." + rep)
+    f["hot_cap"] = code(F, 0x14034CFC9, "b932000000", "Overheat damage cap", "50",
+                        "New damage = min(damage + 1, 50), applied through the damage setter (vtable slot +0x20, 0x14034b720) at 0x14034cfd6." + rep)
+    f["hot_period"] = code(F, 0x14034CFEB, "69c22c010000", "Overheat damage period", "300 updates",
+                           "counter = (counter + 1) mod 300 (reciprocal multiply at 0x14034cfe1). The first eligible update damages at once; time below the threshold pauses the counter without resetting it." + rep)
+    # Outputs, shaft, starter and speed step.
+    f["out_rps"] = code(F, 0x14034D335, "f30f118fa0010000", "RPS output", "local RPS entering the update",
+                        "Copies the local speed (component+0x3e4) to the first number output, before the starter and combustion steps." + rep)
+    f["out_temp"] = code(F, 0x14034D343, "8987d8010000", "Temperature output", "engine temperature after this update's heat",
+                         "Copies the engine temperature, which already includes this update's heating, coolant exchange and ambient terms, to the second number output. The classic definitions have no fuel-flow output." + rep)
+    f["w_div"] = op(F, 0x14034D361, "f30f5e3d0b358600", 0x140BB0874, "Shaft weight divisor",
+                    "W = engine_max_force (read at 0x14034d351) × Max Power (0x14034d359) ÷ this." + rep)
+    f["s_target"] = op(F, 0x14034D37F, "f30f100559318600", 0x140BB04E0, "Starter target speed",
+                       "While the starter flag is set: request = max(this - r, 0) × W × electric_magnitude × 0.1. If the request is above 0, the draw helper 0x1402eeca0 (call at 0x14034d3be) returns the supplied fraction e and the local speed gains e × max(5 - r, 0) (store at 0x14034d3cf), before combustion." + rep)
+    f["dmg20"] = code(F, 0x14034D429, "83f814", "Combustion damage limit", "damage < 20",
+                      "Combustion adds speed only when the local speed after the starter is above 2 RPS (compare at 0x14034d420) and damage is below 20. Fuel and heat are computed either way." + rep)
+    f["gain"] = op(F, 0x14034D44C, "f30f59357c268600", 0x140BAFAD0, "Combustion speed gain",
+                   "Undamaged, above 2 RPS: r_submit = 0.99 × (r + this × u × (r + 1))." + rep)
+    f["gain_d"] = op(F, 0x14034D442, "f30f593526268600", 0x140BAFA70, "Damaged combustion speed gain", "Replaces 0.1 while damage is 1 to 19." + rep)
+    f["drag"] = op(F, 0x14034D45C, "f30f5935482a8600", 0x140BAFEAC, "Engine speed retention",
+                   "The speed is multiplied by this before submission, with or without combustion." + rep)
+    f["sub_w"] = code(F, 0x14034D476, "f30f11bf20020000", "Shaft weight submission", "W",
+                      "With a shaft group (component+0x218 set) the update writes W as its submitted weight." + rep)
+    f["sub_r"] = code(F, 0x14034D47E, "f30f11b724020000", "Shaft speed submission", "r_submit",
+                      "Writes the submitted speed next to it." + rep)
+    f["receive"] = code(F, 0x14034D486, "f30f10b728020000", "Shaft group speed read", "group RPS",
+                        "Reads the group's published speed and stores it as the next local speed at 0x14034d48e. A simple group mixes (R + Σ W_i × r_i) ÷ (1 + Σ W_i), with R its previous speed (investigation/electricity.md)." + rep)
+
+    # Worked numbers from the verified constants (report sections "Results" and "Temperature and cooling"), using each
+    # binary32 constant's shortest decimal, as tools/model.py and lib/formulas.js do.
+    k = lambda a: float(fmt(n.f32(a)))
+    A, B0, C1, D6 = k(0x140BAFA00), k(0x140BAFA40), k(0x140BAFC54), k(0x140BB0540)
+    FK, FDIV, WDIV, GAIN, KEEP = k(0x140BAF87C), k(0x140BB08EC), k(0x140BB0874), k(0x140BAFAD0), k(0x140BAFEAC)
+    HEAT, AMB, KX, START = k(0x140BAF93C), k(0x140BAF8F8), k(0x140BAFCBC), k(0x140BB04E0)
+    R = update_rate(E)
+    ups = R["ups"]
+    lp = next(x for x in fluid_transport(E)["solver"] if x["label"] == "Liquid flow per amount moved each update")
+    litres = 10  # L per amount, from lp
+    if lp["value"] != "%d L/s" % (litres * ups):
+        raise ValueError("Liquid readout factor changed: " + lp["value"])
+
+    def g(r):
+        return 1 / (A * r + B0) + C1 * r - D6
+
+    def fuel(force, r, u=1.0, power=1.0):
+        return FK * force * power / FDIV * u * r * g(r) * ups * litres
+
+    def num(x, d=6):
+        return ("%.*f" % (d, x)).rstrip("0").rstrip(".")
+
+    forces = [E.attr(b, "engine_max_force",
+                     "Read by the classic engine update as F: shaft weight F × Max Power ÷ 2000, diesel and intake demand scale F × Max Power ÷ 20000, and the starter's charge request. An internal solver weight, not a torque in N m.")
+              for b, _ in CLASSIC_SIZES]
+    fv = [float(x["value"]) for x in forces]
+    mags = [E.attr(b, "electric_magnitude", "Starter charge factor in the classic engine update.") for b, _ in CLASSIC_SIZES]
+    mv = [float(x["value"]) for x in mags]
+    sizes = [s for _, s in CLASSIC_SIZES]
+    f["weights"] = E.derived("Demand scale s and shaft weight W at full Max Power (small, medium, large)",
+                             "s %s; W %s" % (", ".join(num(x / FDIV) for x in fv), ", ".join(num(x / WDIV) for x in fv)),
+                             "s = engine_max_force ÷ 20000 and W = engine_max_force ÷ 2000 = 10 × s at Max Power 100 %%: %s. Fuel demand and shaft weight scale 1 : 3 : 10; Max Power scales both together." % (
+                                 "; ".join("%s %s and %s" % (z, num(x / FDIV), num(x / WDIV)) for z, x in zip(sizes, fv))) + rep,
+                             forces + [f["f_div"], f["w_div"]])
+    f["g10"] = E.derived("Engine speed factor at 10 RPS", num(g(10)), "g(10) = 1 ÷ (0.03 × 10 + 0.05) + 0.4 × 10 - 6 = 6 ÷ 7." + rep,
+                         [f["g_a"], f["g_b"], f["g_c"], f["g_d"]])
+    table = {r: [fuel(x, r) for x in fv] for r in (5, 10, 20)}
+    f["fuel"] = E.derived("Diesel use at full throttle and Max Power (small, medium, large)",
+                          "; ".join("%d RPS: %s L/s" % (r, ", ".join(num(v) for v in table[r])) for r in (5, 10, 20)),
+                          "Diesel L/s = %d × 10 L × 0.00002 × s × u × r × g(r) = 0.012 × s × u × r × g(r), with u = 1 and enough diesel and air. Diesel use is proportional to throttle and Max Power, and the medium and large engines burn 3 and 10 times the small one at the same RPS. The curve is a property of local RPS: at 20 RPS the small engine burns %s times what it burns at 10 RPS." % (
+                              ups, num(table[20][0] / table[10][0], 4)) + rep,
+                          forces + [f["f_k"], f["f_div"], f["g10"], lp] + R["findings"][:1])
+    r10 = 10.0
+    sub10 = KEEP * (r10 + GAIN * (r10 + 1))
+    f["step"] = E.derived("Speed step at 10 RPS, full throttle",
+                          "submitted %s RPS; local step %s RPS per update; weighted step %s (small)" % (num(sub10, 4), num(sub10 - r10, 4), num(fv[0] / WDIV * (sub10 - r10), 3)),
+                          "Undamaged, u = 1, r = 10: r_submit = 0.99 × (10 + 0.1 × 11) = %s. The combustion part 0.099 × u × (r + 1) is the same for every size; weighting by W (10, 30, 100) gives %s internal units per update. Neither is a torque in N m." % (
+                              num(sub10, 4), ", ".join(num(x / WDIV * (sub10 - r10), 2) for x in fv)) + rep,
+                          [f["gain"], f["drag"], f["weights"], f["dmg20"]])
+    u_min = (1 - KEEP) / (KEEP * GAIN)
+    f["runaway"] = E.derived("Throttle above which an unloaded engine keeps speeding up", num(u_min, 4),
+                             "Above 2 RPS the step 0.99 × (r + 0.1 × u × (r + 1)) - r = 0.099 × u × (r + 1) - 0.01 × r is positive at every r when u ≥ 0.01 ÷ 0.099 = %s. With no other shaft member the group speed follows the engine's own step, so above that throttle an unloaded engine accelerates until the RPS Limiter cuts the throttle. A calculation from the recovered constants, not a game measurement." % num(u_min, 4) + rep,
+                             [f["gain"], f["drag"], f["throttle"], f["receive"]])
+    f["heat_s"] = E.derived("Engine heating before cooling", "0.45 × |RPS| °C per simulated second; 2.25, 4.5 and 9 °C/s at 5, 10 and 20 RPS",
+                            "%s × |r| per update × %d updates per simulated second. The same for every size; throttle changes it only by changing RPS, and a shaft spun by another component heats the engine at zero throttle." % (num(HEAT, 4), ups) + rep,
+                            [f["heat"]] + R["findings"][:1])
+    hot = 20 + HEAT * r10
+    wet = hot + KX * (20 - hot)
+    f["thermal"] = E.derived("Temperature example at 10 RPS", "%s °C with liquid coolant, %s °C without" % (num((1 - AMB) * wet + AMB * 20, 7), num((1 - AMB) * hot + AMB * 20, 6)),
+                             "Engine, coolant and surroundings at 20 °C, r = 10: heating gives %s; full liquid coolant (k = 0.5) moves both to %s; ambient relaxation 0.001 gives %s °C. Without liquid coolant the engine ends at %s °C. The 4.5 °C/s at 10 RPS is heat input, not the rise of a cooled engine." % (
+                                 num(hot, 4), num(wet, 5), num((1 - AMB) * wet + AMB * 20, 7), num((1 - AMB) * hot + AMB * 20, 6)) + rep,
+                             [f["heat"], f["k"], f["exchange"], f["amb"]])
+    f["hot_s"] = E.derived("Overheat damage cadence", "1 damage at once, then 1 per 300 updates, every 5 simulated seconds",
+                           "300 ÷ %d = 5. The counter advances only while the engine is above 115 °C with both gates on. Damage stops rising at 50. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06 and raises the limiter used by 1.25; from 20 combustion adds no speed." % ups + rep,
+                           [f["hot"], f["hot_cap"], f["hot_period"], f["gain_d"], f["limit_dmg"], f["dmg20"]] + R["findings"][:1])
+    req = [m * x / WDIV * 0.1 for m, x in zip(mv, fv)]
+    f["start_req"] = E.derived("Starter request (small, medium, large)",
+                               "%s per RPS below 5; %s from rest" % (", ".join(num(v, 4) for v in req), ", ".join(num(START * v, 4) for v in req)),
+                               "request = max(5 - r, 0) × W × electric_magnitude × 0.1 with W = 10, 30, 100 and electric_magnitude 1.2 at Max Power 100 %. Full supply lifts the local speed to 5 RPS in one update before the 0.99 retention and shaft mixing; a loaded shaft pulls it back. Above 5 RPS the starter asks for nothing. Internal charge units, not watts." + rep,
+                               mags + [f["s_target"], f["weights"], f["starter"]])
+    identity = [f[x] for x in ("field", "factory", "vtable", "d_power", "d_limit", "d_temp", "t_power", "t_limit", "e_min", "e_max", "s_power", "s_limit")] + R["findings"][:1]
+    speed = [f[x] for x in ("limit_dmg", "throttle", "emp", "g_a", "g_b", "g_c", "g_d", "w_div", "dmg20", "gain", "gain_d", "drag", "sub_w", "sub_r", "receive",
+                            "out_rps", "weights", "g10", "step", "runaway")]
+    supply = [f[x] for x in ("inf_fuel", "f_force", "f_k", "f_div", "a_k", "a_div", "o2", "gate", "burn", "co2", "volume", "fuel")]
+    thermal = [f[x] for x in ("coolant", "heat", "bias_cap", "k", "exchange", "amb", "hot", "hot_set", "hot_set2", "hot_cap", "hot_period", "out_temp",
+                              "heat_s", "thermal", "hot_s")]
+    start = [f[x] for x in ("starter", "s_target", "start_req")]
+    E.classic = {"f": f, "forces": forces, "mags": mags, "identity": identity, "speed": speed, "supply": supply, "thermal": thermal, "start": start,
+                 "fuel_and": {r: "%s, %s and %s" % tuple(num(v) for v in table[r]) for r in table}}
+    return E.classic
+
+
 def surface_air(E):
     """Air force of the rudder component (wings, control surfaces, fins), verified once and shared."""
     if hasattr(E, "surface"):
@@ -1590,7 +1860,7 @@ def electricity(B, E):
                    "With infinite_batteries (settings offset 0x33) set the helper returns 1 and removes nothing. Otherwise it returns 0 without a network, else removes min(a × request, network charge) and returns that amount ÷ request, where a = max(0, (300 − n) ÷ 300) × q. n (node offset 0x28) is the EMP countdown, serialized as emp; q (node offset 0x3c) is the charge fraction E ÷ P published from the shared pool (investigation/electricity.md).")
     r_300 = E.const(F_REQUEST, 0x140BB07F8, "Draw helper availability scale", "The 300 in a = max(0, (300 − n) ÷ 300) × q.")
     o_classic = E.code(F_ENGINE_CLASSIC, 0x14034D39D, "f30f598020140000", "Classic engine starter electric_magnitude read", "mulss xmm0,[rax+0x1420]",
-                       "While the starter flag (offset 0x40d) is set the request is max(5 − speed, 0) × engine_max_force × (component offset 0x3f8) ÷ 2000 × electric_magnitude × 0.1, and the supplied fraction scales the speed added. Reading this routine as the classic engine update rests on engine_max_force and the starter flag; the only definitions with this pattern and a non-zero field are the three classic engines (1.2).")
+                       "While the starter flag (offset 0x40d) is set the request is max(5 − speed, 0) × engine_max_force × Max Power (component offset 0x3f8) ÷ 2000 × electric_magnitude × 0.1, and the supplied fraction scales the speed added. The routine is slot +0x358 of the classic engine vtable 0x140b6f4b0 (investigation/classic-engines.md); the three diesel engines carry 1.2 and the legacy turbine 0.")
     o_jet = E.code(F_JET, 0x140352FF7, "f30f599020140000", "Jet turbine electric_magnitude read", "mulss xmm2,[rax+0x1420]",
                    "Branch for definition+0xed4 = 3: charge = |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) is added to the network when positive, and ω keeps (1 − that min()) of itself. The min() uses signed ω, so only positive ω charges. The only non-zero values among jet parts are the two turbines (0.025, jet_engine_component_type 3); tying +0xed4 to that attribute is an inference.")
     o_alt = E.code(F_ENGINE, 0x14044A388, "f30f109020140000", "Alternator electric_magnitude read", "movss xmm2,[rax+0x1420]",
@@ -1682,7 +1952,7 @@ def electricity(B, E):
                         "Example: from rest, a part of weight 2 at 20 RPS and a part of weight 1 at 0 give (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. "
                         "A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."),
                 section("Other components that reuse the field",
-                        "The field is not a global efficiency. A routine inferred to update classic engines (field value 1.2) uses it as a starter cost factor: max(5 − speed, 0) × engine_max_force × (an unidentified component value) ÷ 2000 × electric_magnitude × 0.1. The modular starter (0.2) requests max(5 − crank speed, 0) × electric_magnitude × engine_max_force × 0.1. The modular alternator (0.05) uses the generator formula with an extra 0.1. A branch inferred to handle jet turbines (field value 0.025) deposits |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) when that is positive, with no force term. The modular clutch, drive belt and temperature sensor carry values (1, 1, 0.05) that none of the six reads uses; the scan covers only direct +0x1420 operands."),
+                        "The field is not a global efficiency. The classic diesel engines (field value 1.2) use it as a starter cost factor: max(5 − speed, 0) × engine_max_force × Max Power ÷ 2000 × electric_magnitude × 0.1. The modular starter (0.2) requests max(5 − crank speed, 0) × electric_magnitude × engine_max_force × 0.1. The modular alternator (0.05) uses the generator formula with an extra 0.1. A branch inferred to handle jet turbines (field value 0.025) deposits |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) when that is positive, with no force term. The modular clutch, drive belt and temperature sensor carry values (1, 1, 0.05) that none of the six reads uses; the scan covers only direct +0x1420 operands."),
                 section("Supply and settings",
                         "Motors and both starters draw through the same helper. With infinite_batteries on it returns 1 and removes nothing. A part with no electric network gets 0. Otherwise, for a request R it removes T = min(a × R, E) from the pool and returns T ÷ R, where a = max(0, (300 − n) ÷ 300) × q. "
                         "Here n is the part's EMP countdown and q the pool charge fraction. A motor's step is scaled by the returned fraction, so starving it slows acceleration without changing the cost per unit of step. Generators deposit regardless of infinite_batteries.",
@@ -1820,22 +2090,75 @@ def fluids(B, E):
 
 
 def engines(B, E):
-    f = [E.attr(b, "engine_max_force", "Engine configuration value; not measured torque.") for b in ("engine", "aircraft_engine", "engine_diesel")]
-    turbine = E.attr("turbine", "engine_max_force", "Engine configuration value; not measured torque.")
-    body = [section("Operating conditions",
-                    "Throttle takes 0 to 1; the Starter input spins the engine with electricity until it runs. Fuel, air, cold and hot coolant, and exhaust each have their own connection."),
-            section("Variant tradeoffs",
-                    "engine_max_force is 20000 for the small, 60000 for the medium and 200000 for the large diesel engine; the turbine engine has 100000. These are definition values whose use in the classic engine code was not traced."),
-            section("Open measurement questions",
-                    "Torque and fuel use against throttle for each engine; temperature rise per throttle level.")]
+    C = classic_engine(E)
+    f, forces, mags = C["f"], C["forces"], C["mags"]
+    turbine = E.attr("turbine", "engine_max_force",
+                     "Read by the same classic engine update as the diesels: shaft weight 100000 × Max Power ÷ 2000 = 50 at full Max Power. An internal solver weight, not a torque in N m.")
+    t_mag = E.attr("turbine", "electric_magnitude", "Starter charge factor; 0 makes the classic starter request 0.")
+    t_ports = [E.port("turbine", label) for label in ("RPS", "Starter", "Throttle", "Electric")]
+    t_tip = E.tooltip("turbine")
+    t_weight = E.derived("Legacy turbine shaft weight", "50", "100000 × 1 ÷ 2000 at Max Power 100 %. Diesel demand at the same scale would be 5 times the small diesel's, but the shipped turbine has no fuel port." + " Report: %s." % CE_REPORT,
+                         [turbine, f["w_div"]])
+    ports = [E.port("engine", label) for label in ("Throttle", "Starter", "RPS", "Fuel", "Air", "In Coolant", "Out Coolant", "Exhaust", "Temperature")] + [E.port("engine", "RPS", 1)]
+    every = C["identity"] + C["speed"] + C["supply"] + C["thermal"] + C["start"]
+    controls = section("Operating conditions",
+                       "Throttle is clamped to 0 to 1; a negative value counts as 0, so the engine never drives backward. Above the RPS Limiter (default 20 RPS, editor range 5 to 100) the throttle is cut to 0. "
+                       "That is a fuel cut, not a speed clamp: the engine can overshoot, and another component can spin the shaft faster. A damaged engine compares against 1.25 times the limit. "
+                       "Max Power (0 to 100 %) scales diesel use, intake and shaft weight together. Holding Starter draws electricity and pushes the engine toward 5 RPS. "
+                       "Fuel, air, cold and hot coolant and exhaust each have their own connection; the RPS and Temperature outputs report the engine's speed and temperature.")
+    variants = section("Variant tradeoffs",
+                       "engine_max_force F is 20000, 60000 and 200000 for the small, medium and large diesel. The update uses it as a shaft weight W = F × Max Power ÷ 2000 (10, 30 and 100), as the diesel and intake demand scale s = F × Max Power ÷ 20000 (1, 3 and 10), and in the starter's charge request. "
+                       "At the same RPS and throttle every size gains speed and heats at the same rate. The bigger engine counts 3 or 10 times as much in the shaft's weighted average, so it holds speed better under load, and burns 3 or 10 times the diesel. "
+                       "W and the speed steps are internal solver quantities, not N m, watts or joules.")
+    curves = section("Speed, fuel and heat",
+                     "With local speed r in RPS and effective throttle u, the speed factor is g(r) = 1 ÷ (0.03 × r + 0.05) + 0.4 × r - 6. Diesel use is 0.012 × s × u × r × g(r) L/s. "
+                     "At full throttle and 10 RPS that is %s L/s for the small, medium and large engine; at 20 RPS %s L/s, so fuel use climbs steeply with speed. "
+                     "u is the throttle after the limiter and EMP cuts, reduced further when diesel, oxygen or the intake-over-exhaust pressure margin runs short. Full throttle needs air with 21 %% oxygen and an intake pressure at least 2 above the exhaust; at a margin of 1 or less the engine gets no air. With infinite_fuel on, the diesel, air and exhaust exchange is skipped." % (C["fuel_and"][10], C["fuel_and"][20]),
+                     "Each update the engine submits r_submit = 0.99 × (r + 0.1 × u × (r + 1)) to its shaft. Combustion adds speed only above 2 RPS; below that only the 0.99 retention applies, although the fuel formula still runs. At 10 RPS and full throttle the submitted speed is 10.989 RPS. "
+                     "Combustion outpaces the 1 % loss at every speed once u is about 0.101 or more, so an engine with nothing else on its shaft speeds up until the limiter cuts the throttle. The limiter, not the throttle, sets its free-running speed.",
+                     "Heating is 0.0075 × |r| °C per update, 0.45 × |r| per simulated second, before cooling: 4.5 °C/s at 10 RPS for every size. It does not depend on throttle directly, so a shaft driven by another engine heats this one at zero throttle.")
+    shaft = section("Shaft and load",
+                    "The engine writes W and r_submit to its shaft group and takes back the group speed. A simple group mixes (R + Σ W_i × r_i) ÷ (1 + Σ W_i), where R is the group's previous speed. "
+                    "Several engines on one shaft therefore pull it toward their submitted speeds in proportion to W. The RPS output shows the local speed entering the update, before this update's starter and combustion steps.")
+    cooling = section("Cooling and overheating",
+                      "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. "
+                      "The engine then moves 0.001 of the way toward the surrounding temperature. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. "
+                      "Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.",
+                      "Above 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. "
+                      "Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue.")
+    starter = section("Starter",
+                      "While Starter is held the engine requests max(5 - r, 0) × W × electric_magnitude × 0.1 charge: 1.2, 3.6 and 12 per RPS below 5 for the small, medium and large engine, 6, 18 and 60 from rest. "
+                      "It adds the supplied fraction of the deficit to its speed, so full supply lifts it to 5 RPS in one update before shaft mixing. A loaded shaft pulls it back, and above 5 RPS the starter asks for nothing.")
+    open_limits = ["The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
+                   "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
+                   "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
+                   "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.", TICK]
     B.category("Engines",
-               "Self-contained diesel engines differ by an engine_max_force field of 20000, 60000 and 200000; their runtime curves were not decoded, unlike the modular engine.",
-               body, f + [turbine, E.port("engine", "Throttle")],
-               ["The classic engine update was not decompiled; prefer the modular engine article for recovered formulas."])
+               "Classic diesel engines share one recovered update. Above 2 RPS an undamaged engine with effective throttle u at local speed r submits 0.99 × (r + 0.1 × u × (r + 1)) RPS to its shaft. "
+               "engine_max_force (20000, 60000, 200000) scales shaft weight and diesel use in the ratio 1 : 3 : 10. Heating before cooling is 0.0075 × |r| °C per update for every size.",
+               [controls, variants, curves, shaft, cooling, starter,
+                section("Legacy turbine",
+                        "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0; see its own article.")],
+               forces + mags + [turbine, t_mag, t_weight] + ports + every,
+               open_limits)
     B.family("diesel-engine",
-             "Small, medium and large diesel engines carry engine_max_force 20000, 60000 and 200000.",
-             body, f + [turbine, E.port("engine", "Throttle"), E.port("engine", "Starter")],
-             ["engine_max_force is configuration, not measured torque."])
+             "Small, medium and large diesel engines share one update: shaft weight 10, 30 and 100 and diesel use in the ratio 1 : 3 : 10 at the same RPS and throttle, with %s L/s at 10 RPS and full throttle." % C["fuel_and"][10],
+             [controls, variants, curves, shaft, cooling, starter],
+             forces + mags + ports + [turbine] + every,
+             open_limits)
+    B.family("part-turbine",
+             "A legacy classic engine: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
+             [section("How the update works",
+                      "turbine.xml has component type 5, so the game builds it with the same constructor and update as the diesel engines, not the jet update. engine_max_force 100000 gives shaft weight W = 50 at Max Power 100 %. "
+                      "Throttle is clamped to 0 to 1, although the tooltip describes -1 to 1, and the RPS Limiter, 0.99 retention, heating and overheat rules match the diesels."),
+              section("Why it does not run on its own",
+                      "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments, which start empty, so the supply gate holds the effective throttle at 0. electric_magnitude 0 makes the starter request 0, even with infinite electricity. "
+                      "Derived from the traced paths, not tested in game: a new turbine at rest does not start itself. With infinite_fuel on and its shaft spun above 2 RPS by another component, it gains speed like a diesel with W = 50."),
+              section("Shaft and load",
+                      "It still exchanges speed with its shaft group at weight 50, so on a shared shaft it adds 0.99 retention like any classic engine and heats at 0.0075 × |r| °C per update.")],
+             [turbine, t_mag, t_weight, t_tip] + t_ports + C["identity"] + C["speed"] + [f["inf_fuel"], f["f_force"], f["gate"], f["heat"], f["heat_s"], f["s_target"], f["starter"]],
+             ["Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
+              "Part availability in current game modes was not established.", TICK])
 
 
 def propulsion(B, E):

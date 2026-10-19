@@ -4,6 +4,7 @@
 // Radiator: asm/water.asm:3540-3661. Speeds and capacities retain internal units.
 // Air scoop: investigation/air-scoop.md (flow law) and investigation/air-scoop-followup.md (m/s, L/s display).
 // Control surfaces: investigation/control-surfaces.md (rudder update 0x1403dfd20).
+// Classic engines: investigation/classic-engines.md (classic engine update 0x14034ba00).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -141,6 +142,105 @@ export function surfaceForce({ airspeed, angle, area, mass, altitude = 0, wing =
   };
 }
 
+// Classic diesel engine update 0x14034ba00, investigation/classic-engines.md, ported from
+// investigation/native/classic-engines/tools/model.py. r is the engine's local RPS. Shaft weight and speed steps are internal
+// solver quantities, not N m. Fuel is diesel L/s at 60 updates per simulated second and 10 L per amount.
+export const CLASSIC = {
+  slope: 0.03, offset: 0.05, linear: 0.4, constant: 6, fuelCoefficient: 0.00002, demandDivisor: 20000, intakeDivisor: 12000,
+  weightDivisor: 2000, gain: 0.1, damagedGain: 0.06, retention: 0.99, threshold: 2, damageLimit: 20, damagedLimiterScale: 1.25,
+  heatPerRps: 0.0075, starterTarget: 5, starterScale: 0.1, oxygenShare: 0.21, coolantFactor: 0.5, ambientFraction: 0.001, litresPerAmount: 10,
+};
+// engine_max_force and electric_magnitude from rom/data/definitions/<id>.xml. The legacy turbine is left out: it ships without
+// fuel or air ports and with a starter factor of 0, so these curves do not describe it.
+export const CLASSIC_VARIANTS = [
+  { id: 'engine', name: 'Small Engine', size: 'Small', force: 20000, magnitude: 1.2 },
+  { id: 'aircraft_engine', name: 'Medium Engine', size: 'Medium', force: 60000, magnitude: 1.2 },
+  { id: 'engine_diesel', name: 'Large Engine', size: 'Large', force: 200000, magnitude: 1.2 },
+];
+// Assembly positive comparisons turn NaN into zero in the supply clamps.
+const unit = (x, lo = 0, hi = 1) => (x > lo ? Math.min(x, hi) : lo);
+
+export function classicSpeedFactor(rps) {
+  finite([rps]);
+  return 1 / (CLASSIC.slope * rps + CLASSIC.offset) + CLASSIC.linear * rps - CLASSIC.constant;
+}
+
+// Diesel and intake amounts requested per update before throttle.
+export function classicRequests({ rps, force, power = 1 }) {
+  finite([rps, force, power]);
+  const g = classicSpeedFactor(rps);
+  const s = (force * power) / CLASSIC.demandDivisor;
+  return { fuel: CLASSIC.fuelCoefficient * s * rps * g, air: (s / CLASSIC.intakeDivisor) * rps * g };
+}
+
+// One undamaged-or-damaged update at fixed local RPS with adequate supplies unless `supplied` is below 1. No starter, no EMP.
+export function classicEngine({ rps, force, throttle = 1, power = 1, limit = 20, damage = 0, supplied = 1 }) {
+  finite([rps, force, throttle, power, limit, damage, supplied]);
+  if (rps < 0) throw new RangeError('The graph model covers nonnegative RPS only; the signed native formula has a pole at -5/3 RPS.');
+  if (force < 0 || power < 0 || limit < 0 || damage < 0 || !Number.isInteger(damage)) {
+    throw new RangeError('Use nonnegative force, Max Power and limiter, and a nonnegative integer damage.');
+  }
+  const g = classicSpeedFactor(rps);
+  const s = (force * power) / CLASSIC.demandDivisor;
+  const weight = (force * power) / CLASSIC.weightDivisor;
+  const cut = rps > limit * (damage ? CLASSIC.damagedLimiterScale : 1);
+  const u = cut ? 0 : unit(throttle) * unit(supplied);
+  const combusting = rps > CLASSIC.threshold && damage < CLASSIC.damageLimit;
+  const gain = combusting ? (damage === 0 ? CLASSIC.gain : CLASSIC.damagedGain) * u * (rps + 1) : 0;
+  const submitted = CLASSIC.retention * (rps + gain);
+  const { fuel, air } = classicRequests({ rps, force, power });
+  return {
+    rps, g, s, weight, throttle: u, cut, combusting, gain, submitted,
+    step: submitted - rps,
+    weightedStep: weight * (submitted - rps),
+    weightedCombustion: weight * CLASSIC.retention * gain,
+    fuelPerUpdate: u * fuel,
+    litresPerSecond: u * fuel * UPDATES_PER_SECOND * CLASSIC.litresPerAmount,
+    airPerUpdate: u * air,
+    heatPerUpdate: CLASSIC.heatPerRps * Math.abs(rps),
+    heatPerSecond: CLASSIC.heatPerRps * Math.abs(rps) * UPDATES_PER_SECOND,
+  };
+}
+
+// Charge requested by a held Starter in one update, before the draw helper's supplied fraction.
+export function classicStarterRequest({ rps, force, magnitude, power = 1 }) {
+  finite([rps, force, magnitude, power]);
+  return Math.max(CLASSIC.starterTarget - rps, 0) * ((force * power) / CLASSIC.weightDivisor) * magnitude * CLASSIC.starterScale;
+}
+
+// Mixed-compartment pressure (pressure.asm); pure gas is 60 × amount ÷ volume.
+export function classicPressure({ volume, liquid, gas }) {
+  finite([volume, liquid, gas]);
+  if (volume <= 8) return (60 * (liquid + gas)) / volume;
+  const gasWeight = volume === liquid ? 1 : Math.min(1, 8 / (volume - liquid));
+  return 7.5 * (gas * gasWeight + Math.max((liquid * 4) / (60 * volume), liquid - volume + 8));
+}
+
+// Snapshot supply gates before the air, fuel and exhaust port exchange; r and Max Power above zero.
+export function classicSupply({ rps, throttle, force, power = 1, diesel, airAmount, oxygen, intakePressure, exhaustPressure, limit = 20, damage = 0, emp = 0 }) {
+  finite([rps, throttle, force, power, diesel, airAmount, oxygen, intakePressure, exhaustPressure, limit, damage, emp]);
+  const { fuel, air } = classicRequests({ rps, force, power });
+  let u = rps <= limit * (damage ? CLASSIC.damagedLimiterScale : 1) ? unit(throttle) : 0;
+  if (emp && (emp > 300 || emp % (Math.floor(emp / 20) + 1) > 4)) u = 0;
+  u = Math.min(u, unit(fuel ? diesel / fuel : NaN));
+  const b = unit(airAmount ? air / airAmount : air ? Infinity : NaN) * unit(intakePressure - 1 - exhaustPressure);
+  const q = unit(air ? (b * oxygen) / (CLASSIC.oxygenShare * air) : NaN);
+  return { throttle: u * q, airMoved: u * b * airAmount, fuel: u * q * fuel, oxygen: q };
+}
+
+// One update of the engine and coolant temperatures. coolant is after this update's port exchange; ambient is the sampled
+// surrounding temperature. Both changes use the pre-exchange pair; liquid amount does not weight the blend.
+export function classicThermal({ rps, engine, coolant, liquidFraction = 1, ambient = 20 }) {
+  finite([rps, engine, coolant, liquidFraction, ambient]);
+  const hot = engine + CLASSIC.heatPerRps * Math.abs(rps);
+  const k = CLASSIC.coolantFactor * unit(2 * liquidFraction);
+  const exchanged = hot + k * (coolant - hot);
+  return {
+    engine: exchanged + CLASSIC.ambientFraction * (ambient - exchanged),
+    coolant: coolant + k * (hot - coolant),
+  };
+}
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -152,5 +252,6 @@ const FAMILY_GRAPHS = {
   'wing-section': ['surface'],
   'control-surface': ['surface'],
   'control-fin': ['surface'],
+  'diesel-engine': ['classic'],
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

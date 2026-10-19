@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { CLASSIC, CLASSIC_VARIANTS, classicEngine, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -173,5 +173,92 @@ test('control-surface graph constants and variant areas remain tied to verified 
       const area = fam.findings.find(x => x.source.path === `rom/data/definitions/${v.id}.xml` && x.label.endsWith('rudder_surface_area'));
       assert.equal(Number(area?.value), v.area, v.id);
     }
+  }
+});
+test('classic engine model matches the worked examples of tools/model.py --verify', () => {
+  const rel = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 1e-12 * Math.max(1, Math.abs(expected)), `${actual} != ${expected}`);
+  const [small, medium, large] = CLASSIC_VARIANTS.map((v) => v.force);
+  const e = (rps, force = small, o = {}) => classicEngine({ rps, force, ...o });
+  const a = e(10);
+  rel(a.g, 6 / 7);
+  rel(a.litresPerSecond, 18 / 175);
+  rel(a.submitted, 10.989);
+  rel(a.weightedStep, 9.89);
+  rel(e(10, large).litresPerSecond, 36 / 35);
+  assert.equal(e(2).weightedCombustion, 0);
+  assert.ok(e(20).weightedCombustion > 0);
+  assert.equal(e(20.01).litresPerSecond, 0);
+  rel(e(10, small, { damage: 20 }).submitted, 9.9);
+  rel(classicThermal({ rps: 10, engine: 20, coolant: 20 }).engine, 20.0374625);
+  rel(classicThermal({ rps: 10, engine: 20, coolant: 20, liquidFraction: 0 }).engine, 20.074925);
+  rel(classicPressure({ volume: 100, liquid: 0, gas: 100 / 60 }), 1);
+  const gate = (o) => classicSupply({ rps: 10, throttle: 1, force: small, diesel: 1, airAmount: 1, oxygen: 0.21, intakePressure: 2, exhaustPressure: 0, ...o });
+  rel(gate({}).throttle, 1);
+  assert.equal(gate({ intakePressure: 1 }).fuel, 0);
+  rel(gate({ oxygen: 0.105 }).throttle, 0.5);
+});
+test('classic engine table values, size ratios, heating and starter requests match the classic-engine report', () => {
+  const near6 = (actual, expected) => assert.equal(actual.toFixed(6), expected);
+  const fuel = (rps) => CLASSIC_VARIANTS.map((v) => classicEngine({ rps, force: v.force }).litresPerSecond);
+  assert.deepEqual(fuel(5).map((x) => x.toFixed(6)), ['0.060000', '0.180000', '0.600000']);
+  assert.deepEqual(fuel(10).map((x) => x.toFixed(6)), ['0.102857', '0.308571', '1.028571']);
+  assert.deepEqual(fuel(20).map((x) => x.toFixed(6)), ['0.849231', '2.547692', '8.492308']);
+  assert.deepEqual(CLASSIC_VARIANTS.map((v) => classicEngine({ rps: 10, force: v.force }).weight), [10, 30, 100]);
+  for (const v of CLASSIC_VARIANTS) {
+    const x = classicEngine({ rps: 10, force: v.force });
+    near6(x.heatPerSecond, '4.500000');
+    near6(x.step, '0.989000');
+  }
+  // Max Power scales fuel and weight together; throttle scales fuel and the combustion gain, not heating.
+  const half = classicEngine({ rps: 10, force: 60000, power: 0.5 });
+  near6(half.litresPerSecond, (54 / 175 / 2).toFixed(6));
+  assert.equal(half.weight, 15);
+  const low = classicEngine({ rps: 10, force: 20000, throttle: 0.5 });
+  near6(low.litresPerSecond, (18 / 175 / 2).toFixed(6));
+  assert.equal(low.heatPerSecond, classicEngine({ rps: 10, force: 20000, throttle: 0 }).heatPerSecond);
+  assert.deepEqual(CLASSIC_VARIANTS.map((v) => +classicStarterRequest({ rps: 0, force: v.force, magnitude: v.magnitude }).toFixed(9)), [6, 18, 60]);
+  assert.equal(classicStarterRequest({ rps: 6, force: 20000, magnitude: 1.2 }), 0);
+  // Limiter is a throttle cut, raised by 1.25 when damaged; negative throttle never drives.
+  assert.equal(classicEngine({ rps: 24, force: 20000, damage: 1 }).cut, false);
+  assert.equal(classicEngine({ rps: 25.5, force: 20000, damage: 1 }).cut, true);
+  assert.equal(classicEngine({ rps: 10, force: 20000, throttle: -1 }).throttle, 0);
+  // Above u = 0.01 / 0.099 the net step stays positive at every speed above 2 RPS.
+  for (let r = 2.25; r <= 20; r += 0.25) assert.ok(classicEngine({ rps: r, force: 20000, throttle: 0.102 }).step > 0, `r ${r}`);
+  assert.ok(classicEngine({ rps: 100, force: 20000, throttle: 0.1, limit: 200 }).step < 0); // below 0.101 the fixed point is 0.099u ÷ (0.01 - 0.099u), 99 RPS here
+  assert.throws(() => classicEngine({ rps: -1, force: 20000 }), RangeError);
+  assert.throws(() => classicEngine({ rps: 1, force: 20000, damage: 0.5 }), RangeError);
+  assert.deepEqual(graphKindsForFamily('diesel-engine'), ['classic']);
+  assert.deepEqual(graphKindsForFamily('part-turbine'), []);
+});
+test('classic engine graph constants remain tied to verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const fam = data.families.find((f) => f.id === 'diesel-engine');
+  const value = (label) => {
+    const x = fam.findings.find((y) => y.label === label);
+    assert.ok(x?.source?.address, `${label}: native address is required`);
+    return Number(x.value);
+  };
+  assert.equal(value('Engine speed factor slope'), CLASSIC.slope);
+  assert.equal(value('Engine speed factor offset'), CLASSIC.offset);
+  assert.equal(value('Engine speed factor linear term'), CLASSIC.linear);
+  assert.equal(value('Engine speed factor constant'), CLASSIC.constant);
+  assert.equal(value('Diesel demand coefficient'), CLASSIC.fuelCoefficient);
+  assert.equal(value('Diesel demand divisor'), CLASSIC.demandDivisor);
+  assert.equal(value('Intake demand divisor'), CLASSIC.intakeDivisor * 100);
+  assert.equal(value('Shaft weight divisor'), CLASSIC.weightDivisor);
+  assert.equal(value('Combustion speed gain'), CLASSIC.gain);
+  assert.equal(value('Damaged combustion speed gain'), CLASSIC.damagedGain);
+  assert.equal(value('Engine speed retention'), CLASSIC.retention);
+  assert.equal(value('Hot coolant bias cap and combustion threshold'), CLASSIC.threshold);
+  assert.equal(value('Damaged limiter scale'), CLASSIC.damagedLimiterScale);
+  assert.equal(value('Engine heating per RPS'), CLASSIC.heatPerRps);
+  assert.equal(value('Starter target speed'), CLASSIC.starterTarget);
+  assert.equal(value('Oxygen share for full throttle'), CLASSIC.oxygenShare);
+  assert.equal(value('Coolant exchange factor'), CLASSIC.coolantFactor);
+  assert.equal(value('Engine ambient relaxation'), CLASSIC.ambientFraction);
+  for (const v of CLASSIC_VARIANTS) {
+    const at = (attr) => Number(fam.findings.find((x) => x.source.path === `rom/data/definitions/${v.id}.xml` && x.label.endsWith(attr))?.value);
+    assert.equal(at('engine_max_force'), v.force, v.id);
+    assert.equal(at('electric_magnitude'), v.magnitude, v.id);
   }
 });

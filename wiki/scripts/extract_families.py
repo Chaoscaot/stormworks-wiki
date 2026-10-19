@@ -36,6 +36,7 @@ COMMON_LIMITS = [
 THERMAL_LIMIT = "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve."
 POWER_LIMIT = "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules."
 ELECTRIC_POWER_LIMIT = "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research."
+DIESEL_POWER_LIMIT = "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the speed step, fuel use, heating and starter equations of the classic engine update are covered by the practical behaviour research."
 
 
 def field(key, label, meaning):
@@ -90,7 +91,7 @@ def curated_specs(blocks):
         "A generator converts mechanical power into electrical energy. RPS accepts the mechanical input, Electric connects the electrical output, and Output reports electrical generation. Small, medium and large variants share these connection roles.", fields=[MAGNITUDE], limits=[ELECTRIC_POWER_LIMIT])
     add("diesel-engine", "Diesel Engine", "Engines", "engine aircraft_engine engine_diesel",
         "Self-contained small, medium and large diesel engines with fuel, air, coolant and exhaust connections.",
-        "Throttle accepts 0 to 1. Starter uses electricity to increase engine RPS during startup. Fuel and Air supply the engine; In Coolant is the cold return and Out Coolant is the hot output. Exhaust removes combustion fumes. Separate data outputs report RPS and temperature. The mechanical port is also labelled RPS, so its role must be read from its description rather than the label alone.", limits=[POWER_LIMIT])
+        "Throttle accepts 0 to 1. Starter uses electricity to increase engine RPS during startup. Fuel and Air supply the engine; In Coolant is the cold return and Out Coolant is the hot output. Exhaust removes combustion fumes. Separate data outputs report RPS and temperature. The mechanical port is also labelled RPS, so its role must be read from its description rather than the label alone.", limits=[DIESEL_POWER_LIMIT])
     add("electric-motor", "Electric Motor", "Electricity", "motor_small motor_medium motor_large",
         "Converts electrical energy into mechanical force under throttle control.",
         "An electric motor converts electrical energy into mechanical force. Electric supplies energy and RPS connects the mechanical output. Throttle controls how much electrical energy is converted to force. The family has small, medium and large variants.", fields=[MAGNITUDE], limits=[ELECTRIC_POWER_LIMIT, "The definition does not state a throttle range. The native motor update clamps the input it reads as Throttle to -1 to 1 (practical behaviour research)."])

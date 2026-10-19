@@ -44,26 +44,26 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/4/summary",
-        "text": "Self-contained diesel engines differ by an engine_max_force field of 20000, 60000 and 200000; their runtime curves were not decoded, unlike the modular engine.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
         "pointer": "/categories/4/limitations/0",
-        "text": "The classic engine update was not decompiled; prefer the modular engine article for recovered formulas.",
+        "text": "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/4/sections/1/body",
-        "text": "engine_max_force is 20000 for the small, 60000 for the medium and 200000 for the large diesel engine; the turbine engine has 100000. These are definition values whose use in the classic engine code was not traced.",
+        "pointer": "/categories/4/limitations/1",
+        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/4/sections/2/body",
-        "text": "Torque and fuel use against throttle for each engine; temperature rise per throttle level.",
+        "pointer": "/categories/4/limitations/2",
+        "text": "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/categories/4/limitations/3",
+        "text": "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -393,49 +393,37 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/6/limitations/0",
-        "text": "engine_max_force is configuration, not measured torque.",
+        "text": "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/6/sections/1/body",
-        "text": "engine_max_force is 20000 for the small, 60000 for the medium and 200000 for the large diesel engine; the turbine engine has 100000. These are definition values whose use in the classic engine code was not traced.",
+        "pointer": "/families/6/limitations/1",
+        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/6/sections/2/body",
-        "text": "Torque and fuel use against throttle for each engine; temperature rise per throttle level.",
+        "pointer": "/families/6/limitations/2",
+        "text": "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/6/findings/0/detail",
-        "text": "engine: definition attribute engine_max_force. Engine configuration value; not measured torque.",
+        "pointer": "/families/6/limitations/3",
+        "text": "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/6/findings/1/detail",
-        "text": "aircraft_engine: definition attribute engine_max_force. Engine configuration value; not measured torque.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/6/findings/2/detail",
-        "text": "engine_diesel: definition attribute engine_max_force. Engine configuration value; not measured torque.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/6/findings/3/detail",
-        "text": "turbine: definition attribute engine_max_force. Engine configuration value; not measured torque.",
+        "pointer": "/families/6/findings/70/detail",
+        "text": "A second settings byte must also be nonzero. The option that sets it was not traced; vehicle_damage is bound at settings+2, so it is not this byte. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 80784a00 at 0x14034cfb1. Interpretation rests on retained output investigation/native/behavior/../classic-engines/asm/update.asm:L972-L978; ../classic-engines/asm/overheat-setting.asm; ../classic-engines/asm/vehicle-damage-setting.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/86/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+        "text": "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the speed step, fuel use, heating and starter equations of the classic engine update are covered by the practical behaviour research.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -2072,13 +2060,32 @@
     ]
   },
   {
+    "key": "family:part-turbine",
+    "title": "Turbine Engine: decode remaining behavior and formulas",
+    "wiki": "https://sw-wiki.maxsp.de/parts/part-turbine",
+    "locations": [
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/families/141/limitations/0",
+        "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/families/141/limitations/1",
+        "text": "Part availability in current game modes was not established.",
+        "scope": "Practical behavior guidance"
+      }
+    ]
+  },
+  {
     "key": "family:part-water-hose",
     "title": "Hose: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-water-hose",
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/141/limitations/0",
+        "pointer": "/families/142/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2104,7 +2111,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/142/limitations/0",
+        "pointer": "/families/143/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2130,7 +2137,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/143/limitations/0",
+        "pointer": "/families/144/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2156,7 +2163,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/144/limitations/0",
+        "pointer": "/families/145/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2182,7 +2189,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/145/limitations/0",
+        "pointer": "/families/146/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2227,19 +2234,19 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/148/findings/0/detail",
+        "pointer": "/families/149/findings/0/detail",
         "text": "propeller_pitch_small: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/148/findings/1/detail",
+        "pointer": "/families/149/findings/1/detail",
         "text": "propeller_pitch: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/148/findings/2/detail",
+        "pointer": "/families/149/findings/2/detail",
         "text": "propeller_pitch_large: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
@@ -2282,7 +2289,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/152/limitations/0",
+        "pointer": "/families/153/limitations/0",
         "text": "Thrust and burn time per segment were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2295,7 +2302,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/153/limitations/0",
+        "pointer": "/families/154/limitations/0",
         "text": "Heat per coal not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2308,7 +2315,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/154/limitations/0",
+        "pointer": "/families/155/limitations/0",
         "text": "Torque per pressure was not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2321,7 +2328,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/155/limitations/0",
+        "pointer": "/families/156/limitations/0",
         "text": "Track physics was not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -2359,13 +2366,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/156/limitations/0",
+        "pointer": "/families/157/limitations/0",
         "text": "How power splits between the two connections was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/156/sections/0/body",
+        "pointer": "/families/157/sections/0/body",
         "text": "Each has two power connections (A and B), which allows rotors to be stacked along one drivetrain; how power divides between them was not recovered.",
         "scope": "Practical behavior guidance"
       },
@@ -2439,7 +2446,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/157/limitations/0",
+        "pointer": "/families/158/limitations/0",
         "text": "Whether the wording difference reflects different mechanics is unknown.",
         "scope": "Practical behavior guidance"
       }
@@ -2452,13 +2459,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/158/limitations/0",
+        "pointer": "/families/159/limitations/0",
         "text": "The metre interpretation is unverified.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/158/sections/1/body",
+        "pointer": "/families/159/sections/1/body",
         "text": "Verify speed per RPS with a linear speed sensor.",
         "scope": "Practical behavior guidance"
       }
@@ -2561,14 +2568,8 @@
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/4/body",
-        "text": "The small engine accepts throttle from 0 to 1. Its starter description says electrical power increases engine RPS for startup. Coolant has separate cold return and hot output ports. The small and large definitions set engine_max_force to 20000 and 200000 respectively, but this field does not establish measured power or torque.",
-        "scope": "Shipped-resource mechanics article"
-      },
-      {
-        "file": "wiki/data/mechanics.json",
         "pointer": "/articles/4/limitations/2",
-        "text": "Fuel consumption, thermal efficiency, overheating thresholds, starter load and torque curves are not recovered here.",
+        "text": "The diesel use, speed step, heating, 115 °C overheat threshold and starter request equations come from that native decode. Thermal efficiency in physical units and a conversion of the shaft model to SI torque were not recovered.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

@@ -3,7 +3,7 @@
 // so the chart, readout and data table are present before hydration. Sliders drive every value; the chart
 // can also be clicked or dragged, but nothing depends on pointer input.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { SURFACE_VARIANTS, UPDATES_PER_SECOND, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate, scoopInflow, surfaceForce } from '@/lib/formulas.js';
+import { CLASSIC, CLASSIC_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate, scoopInflow, surfaceForce } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fixed = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
@@ -634,7 +634,98 @@ function SurfaceGraph({ family, variant }) {
   );
 }
 
-const GRAPHS = { engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph };
+/* ---------- classic diesel engines ---------- */
+
+const CLASSIC_PLOTS = {
+  fuel: { label: 'Diesel use (L/s)', key: 'litresPerSecond', axis: 'Diesel use (L/s)', digits: 4 },
+  step: { label: 'Weighted speed step (internal units per update)', key: 'weightedStep', axis: 'W × (submitted − local RPS), internal units', digits: 3 },
+};
+const CLASSIC_LINES = ['graph-line-a', 'graph-line-b', 'graph-line-c'];
+const CLASSIC_DOTS = ['graph-dot-a', 'graph-dot-b', 'graph-dot-c'];
+const tick = (v) => `${+v.toPrecision(3)}`;
+
+function ClassicGraph({ variant }) {
+  const uid = useUid();
+  const [plot, setPlot] = useState('fuel');
+  const [throttle, setThrottle] = useState(1);
+  const [power, setPower] = useState(100);
+  const [limit, setLimit] = useState(20);
+  const [rps, setRps] = useState(10);
+  const p = CLASSIC_PLOTS[plot];
+  const at = (v, r) => classicEngine({ rps: r, force: v.force, throttle, power: power / 100, limit });
+  const samples = useMemo(
+    () => steps(0, 30, 0.25).map((r) => ({ r, by: CLASSIC_VARIANTS.map((v) => classicEngine({ rps: r, force: v.force, throttle, power: power / 100, limit })) })),
+    [throttle, power, limit],
+  );
+  const here = CLASSIC_VARIANTS.map((v) => at(v, rps));
+  const y = forceDomain(samples.flatMap((s) => s.by.map((x) => x[p.key])));
+  const bands = [{ from: 0, to: CLASSIC.threshold }, ...(limit < 30 ? [{ from: limit, to: 30 }] : [])];
+  const own = (v) => (v.id === variant ? `${v.size} (this part)` : v.size);
+  const values = (list) => list.map((x, i) => `${CLASSIC_VARIANTS[i].size.toLowerCase()} ${fixed(x[p.key], p.digits)}`).join(', ');
+  const summary = `At ${fixed(rps, 2)} RPS, throttle ${fixed(throttle, 2)}, Max Power ${power}%: ${p.label.toLowerCase()} ${values(here)}. Submitted speed ${fixed(here[0].submitted, 3)} RPS.`;
+  const status = useSettled(summary);
+  const desc = `${p.label} against local RPS from 0 to 30 for the small, medium and large diesel engine. ${limit < 30 ? `Above the ${limit} RPS limiter the throttle is cut, so there is no fuel use or combustion gain.` : ''} Below 2 RPS combustion adds no speed. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        ...CLASSIC_VARIANTS.map((v, i) => ({ label: `${own(v)}, engine_max_force ${v.force}`, className: CLASSIC_LINES[i] })),
+        { label: 'No combustion speed gain: 2 RPS or less, or throttle cut above the limiter', band: true },
+      ]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-plot`}>Plot</label>
+            <select id={`${uid}-plot`} value={plot} onChange={(e) => setPlot(e.target.value)} aria-describedby={`${uid}-plot-hint`}>
+              {Object.entries(CLASSIC_PLOTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <span id={`${uid}-plot-hint`} className="graph-field-hint">The speed step is a shaft-solver quantity, not a torque in N m.</span>
+          </div>
+          <Range id={`${uid}-u`} label="Throttle" value={throttle} min={0} max={1} step={0.05} onChange={(v) => setThrottle(+v.toFixed(2))} valueText={fixed(throttle, 2)} hint="Effective throttle u, after any diesel, oxygen or pressure shortfall." />
+          <Range id={`${uid}-p`} label="Max Power" value={power} min={0} max={100} step={1} onChange={setPower} valueText={`${power}%`} hint="Scales diesel use and shaft weight together." />
+          <Range id={`${uid}-l`} label="RPS Limiter" value={limit} min={5} max={100} step={1} onChange={setLimit} valueText={`${limit} RPS`} hint="Above it the throttle is cut to 0. Default 20." />
+          <Range id={`${uid}-x`} label="Selected engine speed" value={rps} min={0} max={30} step={0.25} onChange={setRps} valueText={`${fixed(rps, 2)} RPS`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`${p.label} against engine RPS`}
+          desc={desc}
+          x={{ min: 0, max: 30, ticks: steps(0, 30, 5), format: (v) => fixed(v, v % 1 ? 2 : 0), label: 'Local engine speed (RPS)' }}
+          y={{ ...y, format: tick }}
+          bands={bands}
+          series={CLASSIC_VARIANTS.map((v, i) => ({ key: v.id, className: CLASSIC_LINES[i], points: samples.map((s) => [s.r, s.by[i][p.key]]) }))}
+          selected={{ x: rps, points: CLASSIC_VARIANTS.map((v, i) => ({ key: v.id, y: here[i][p.key], className: CLASSIC_DOTS[i] })) }}
+          onSelect={(v) => setRps(snap(v, 0, 30, 0.25))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At ${fixed(rps, 2)} RPS`}
+          rows={[
+            ['Speed factor g(r)', fixed(here[0].g, 4)],
+            ['Effective throttle', here[0].cut ? 'Cut by the limiter' : fixed(here[0].throttle, 2)],
+            ['Combustion adds speed', here[0].combusting && here[0].throttle > 0 ? 'Yes' : 'No', here[0].combusting && here[0].throttle > 0 ? 'graph-ok' : 'graph-no'],
+            ['Submitted speed', `${fixed(here[0].submitted, 3)} RPS`],
+            ['Local step, all sizes', `${fixed(here[0].step, 4)} RPS per update`],
+            ['Heating before cooling, all sizes', `${fixed(here[0].heatPerSecond, 2)} °C/s`],
+            ...CLASSIC_VARIANTS.map((v, i) => [`${v.size}: diesel, W`, `${fixed(here[i].litresPerSecond, 4)} L/s, ${fixed(here[i].weight, 1)}`]),
+          ]}
+        />
+      )}
+      table={{
+        caption: `${p.label}, throttle ${fixed(throttle, 2)}, Max Power ${power}%, RPS Limiter ${limit}`,
+        cols: ['Local speed (RPS)', ...CLASSIC_VARIANTS.map((v) => v.size), 'Local step (RPS per update)'],
+        rows: samples.filter((s) => s.r % 2 === 0).map((s) => [fixed(s.r, 0), ...s.by.map((x) => fixed(x[p.key], p.digits)), fixed(s.by[0].step, 4)]),
+      }}
+    />
+  );
+}
+
+const GRAPHS = { engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {
   const G = GRAPHS[kind];

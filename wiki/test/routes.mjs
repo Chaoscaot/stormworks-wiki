@@ -36,12 +36,12 @@ const jet = await (await fetch(`${base}/components/jet_engine_compressor`)).text
 check(/jet_engine_connections_prev[\s\S]*?node-tag[^>]*>j<[\s\S]*?pos[\s\S]*?y=-2/.test(jet), 'jet_engine_compressor nested physics nodes rendered');
 
 // Interactive graphs render server-side only on families with a recovered formula.
-for (const [path, want] of [['/parts/modular-engine-cylinder', 'graph-engine'], ['/parts/passive-fluid-radiator', 'graph-radiator'], ['/components/heat_exchanger_2_2', 'graph-exchanger']]) {
+for (const [path, want] of [['/parts/modular-engine-cylinder', 'graph-engine'], ['/parts/passive-fluid-radiator', 'graph-radiator'], ['/components/heat_exchanger_2_2', 'graph-exchanger'], ['/parts/diesel-engine', 'graph-classic'], ['/components/engine_diesel', 'graph-classic']]) {
   const html = await (await fetch(base + path)).text();
   check(html.includes(`id="${want}"`) && html.includes('class="graph-svg"') && html.includes('<math'), `${path}: ${want} chart and formula rendered`);
 }
-const noGraph = await (await fetch(`${base}/components/engine_diesel`)).text();
-check(!noGraph.includes('id="graphs"'), '/components/engine_diesel: no interactive graph section');
+const noGraph = await (await fetch(`${base}/components/turbine`)).text();
+check(!noGraph.includes('id="graphs"'), '/components/turbine: no interactive graph section');
 
 // Cooling calculator: example values labelled, result, chart, data table and formula render on the server.
 const cooling = await (await fetch(`${base}/tools/cooling`)).text();

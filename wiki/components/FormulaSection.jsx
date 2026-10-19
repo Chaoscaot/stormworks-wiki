@@ -21,6 +21,12 @@ const FINDINGS = {
     'Surface pressure lapse', 'Surface pressure exponent', 'Surface pressure ceiling', 'Wing-section test', 'Wing speed ramp span',
     'Wing direction exponent', 'Wing term multiplier', 'Air force application limit',
   ],
+  classic: [
+    'Engine speed factor slope', 'Engine speed factor offset', 'Engine speed factor linear term', 'Engine speed factor constant',
+    'Diesel demand coefficient', 'Diesel demand divisor', 'Shaft weight divisor', 'Combustion speed gain', 'Engine speed retention',
+    'Hot coolant bias cap and combustion threshold', 'Effective throttle', 'Engine heating per RPS',
+    'Liquid flow per amount moved each update', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -29,6 +35,7 @@ const TITLES = {
   exchanger: 'Heat exchanger temperatures over updates',
   scoop: 'Air scoop inflow against airspeed',
   surface: 'Surface force, lift and drag against airspeed',
+  classic: 'Diesel use and speed step against engine RPS',
 };
 
 /*
@@ -249,7 +256,45 @@ const SURFACE = {
   ],
 };
 
-const CONTENT = { engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE };
+const CLASSIC_ENGINE = {
+  intro: (
+    <p>
+      The small, medium and large diesel engines run one update. At a given local speed and throttle they gain speed and heat at the
+      same rate; engine_max_force only scales how much diesel they burn and how much weight they carry in the shaft&apos;s average,
+      in the ratio 1 : 3 : 10. Diesel use climbs steeply with RPS, and the RPS Limiter is what stops an unloaded engine from running away.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="g">{mi('g')}<mrow>{mo('(')}{mi('r')}{mo(')')}</mrow>{mo('=')}<mfrac>{mn('1')}<mrow>{mn('0.03')}{mi('r')}{mo('+')}{mn('0.05')}</mrow></mfrac>{mo('+')}{mn('0.4')}{mi('r')}{mo('−')}{mn('6')}</mrow>,
+        <mrow key="s">{mi('s')}{mo('=')}<mfrac><mrow>{mi('F')}{mi('P')}</mrow>{mn('20000')}</mfrac><mspace width="1em" />{mi('W')}{mo('=')}<mfrac><mrow>{mi('F')}{mi('P')}</mrow>{mn('2000')}</mfrac></mrow>,
+        <mrow key="f">{sub('Q', 'diesel')}{mo('=')}{mn('0.012')}{mi('s')}{mi('u')}{mi('r')}{mi('g')}<mrow>{mo('(')}{mi('r')}{mo(')')}</mrow><mspace width="0.5em" /><mtext>L/s</mtext></mrow>,
+        <mrow key="r">{sub('r', 'submit')}{mo('=')}{mn('0.99')}<mrow>{mo('(')}{mi('r')}{mo('+')}{mn('0.1')}{mi('u')}<mrow>{mo('(')}{mi('r')}{mo('+')}{mn('1')}{mo(')')}</mrow>{mo(')')}</mrow><mspace width="1em" /><mtext>above 2 RPS, else </mtext>{mn('0.99')}{mi('r')}</mrow>,
+        <mrow key="w">{mi('Δ')}{mo('=')}{mi('W')}<mrow>{mo('(')}{sub('r', 'submit')}{mo('−')}{mi('r')}{mo(')')}</mrow><mspace width="1em" />{sub('H', 'in')}{mo('=')}{mn('0.45')}<mrow>{mo('|')}{mi('r')}{mo('|')}</mrow><mspace width="0.5em" /><mtext>°C/s</mtext></mrow>,
+      ]}
+      text={[
+        'g(r) = 1 / (0.03 r + 0.05) + 0.4 r - 6, r = local engine speed in RPS',
+        's = F * P / 20000, W = F * P / 2000, F = engine_max_force, P = Max Power fraction',
+        'u = clamp(throttle, 0, 1), 0 above the RPS Limiter, reduced by diesel, oxygen and pressure shortfalls',
+        'Diesel L/s = 60 updates/s * 10 L * 0.00002 * s * u * r * g(r) = 0.012 * s * u * r * g(r)',
+        'r_submit = 0.99 * (r + 0.1 * u * (r + 1)) when r > 2 and undamaged; 0.99 * r otherwise',
+        'Weighted speed step = W * (r_submit - r), internal units per update',
+        'Heating before cooling = 0.0075 * |r| per update = 0.45 * |r| degrees C per simulated second',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Each curve is one engine\'s own update at a fixed local speed. The shaft averages the submitted speed with every other member, weighted by W plus 1 for the shaft itself, so the vehicle\'s next speed depends on the whole shaft. This is not a torque, power or acceleration curve.',
+    'The weighted speed step is in the shaft solver\'s internal units per update and the local step in RPS per update. Neither converts to N m.',
+    'Enough diesel, air with 21 % oxygen and an intake pressure at least 2 above the exhaust are assumed, with no EMP, no starter and no damage. A shortfall lowers u, which scales both curves; set the Throttle slider to the reduced value to see its effect.',
+    'Below 2 RPS the fuel formula still runs while combustion adds no speed. Above the limiter both are 0 and only the 0.99 retention acts.',
+    'Heating is the same for every size. Engine temperature also depends on coolant flow and the surroundings, so the graph does not plot it; the Cooling and overheating section gives the update rule.',
+    'The legacy Turbine Engine uses the same update with W = 50 but ships without fuel or air ports, so it is not plotted.',
+  ],
+};
+
+const CONTENT = { engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE };
 
 function Evidence({ items }) {
   return (
