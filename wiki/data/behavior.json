@@ -288,22 +288,334 @@
     },
     {
       "category": "Displays",
-      "summary": "Monitors and HUDs show video data and need power and their Power Switch; no further behaviour was recovered.",
+      "summary": "Monitors and HUDs draw on a logical grid of 32 pixels per block across their X and Z voxel bounds, from 32×32 on a Monitor 1x1 to 288×160 on a Monitor 9x5. Touch Output returns the screen size and two touch points in pixels.",
       "sections": [
         {
           "title": "Wiring",
-          "body": "Connect Video Signal from a microcontroller or camera, power, and Power Switch. Touch Output carries touch input back."
+          "body": "Feed Video Signal from a microcontroller or camera, connect Electric and turn Power Switch on. For a touchscreen, wire Touch Output to a composite input on the microcontroller that draws the screen and its video output back to Video Signal. While the screen is switched off, every Touch Output channel reads 0."
+        },
+        {
+          "title": "Resolution",
+          "body": "The game sets width = 32 × (voxel_max.x - voxel_min.x + 1) and height = 32 × (voxel_max.z - voxel_min.z + 1) from the definition's block bounds. The same size comes back from screen.getWidth() and screen.getHeight() in onDraw and on Touch Output number channels 1 and 2.\n\nSizes in pixels: Monitor 1x1 32×32, Monitor 1x2 64×32, Monitor 1x3 96×32, Monitor 2x2 64×64, Monitor 2x3 96×64, Monitor 3x3 96×96, Monitor 5x3 160×96, Monitor 9x5 288×160, HUD Small 32×32, HUD Large 96×96.\n\nThe listed voxel count and monitor_border do not change the pixel grid. The graphics quality setting scales the render target by 1, 2 or 4 after the size is stored, so it leaves the Lua and touch grid alone."
+        },
+        {
+          "title": "Touch Output",
+          "body": "Touch Output is a composite. Number channels 1 and 2 carry the width and height in pixels, 3 and 4 the X and Y of the first touch, and 5 and 6 the X and Y of the second. Boolean channels 1 and 2 are on while the first and second touch are pressed. Coordinates are whole pixels from the upper left, X to the right and Y down, accepted from 0 up to the width and height inclusive.\n\nThe screen tracks at most two touches at once and ignores a third. Releasing a touch clears only its flag and leaves its last X and Y on the channels, so check the flag before using a coordinate. The touch area is the screen face inset by monitor_border on each side, stretched over the pixel grid."
+        },
+        {
+          "title": "Lua callbacks",
+          "body": "Read the channels with input.getNumber and input.getBool in onTick, which runs once per logic tick; screen functions do nothing there. Draw in onDraw, which runs whenever a monitor draws the script and can run several times when one script drives several monitors. Composite functions do nothing in onDraw. The shipped example reads number channels 3 and 4 and boolean channel 1 in onTick and draws the matching rectangle in onDraw."
         }
       ],
       "limitations": [
-        "Port labels only; resolution and touch layout were not recovered."
+        "Resolution and touch layout come from static analysis of one build and its shipped definitions; the game was not run and no touch was tested in game.",
+        "Still open: a fixed refresh rate in Hz and the delay from a touch to the next drawn frame. onDraw follows monitor rendering rather than the 60-per-second component update, and the draw scheduling, culling and caching were outside this pass.",
+        "Still open: which player or input event takes each touch slot, and how HUD hits reach the touch setter."
       ],
       "sources": [
         {
           "path": "rom/data/definitions/monitor_1.xml",
           "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 38,
+          "lineEnd": 38
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 41,
+          "lineEnd": 41
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 44,
+          "lineEnd": 44
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
           "lineStart": 47,
           "lineEnd": 47
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 57,
+          "lineEnd": 58
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 81,
+          "lineEnd": 82
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 103,
+          "lineEnd": 104
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 111,
+          "lineEnd": 112
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 145,
+          "lineEnd": 146
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 187,
+          "lineEnd": 188
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 269,
+          "lineEnd": 270
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 641,
+          "lineEnd": 642
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 33,
+          "lineEnd": 34
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 77,
+          "lineEnd": 78
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe3a2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe3bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe6db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e570a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e70e0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e7170"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403169b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403169e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140317ec6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14036531a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365325"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365333"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14036533c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365343"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365540"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365dc3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365de2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e01"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e14"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e25"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e44"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e57"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e61"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e3b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e8e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e97"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366edb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14063ef0d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074b618"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074b6da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140bafbbc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140bafcbc"
         }
       ]
     },
@@ -9121,6 +9433,861 @@
       ]
     },
     {
+      "id": "head-up-display",
+      "summary": "HUD Small draws 32×32 pixels and HUD Large 96×96. HUDs use the monitor component, with the same Touch Output channels.",
+      "sections": [
+        {
+          "title": "Resolution by size",
+          "body": "The game sets width = 32 × (voxel_max.x - voxel_min.x + 1) and height = 32 × (voxel_max.z - voxel_min.z + 1) from the definition's block bounds. The same size comes back from screen.getWidth() and screen.getHeight() in onDraw and on Touch Output number channels 1 and 2.\n\nSizes in pixels: HUD Small 32×32, HUD Large 96×96.\n\nHUDs have component type 43, the monitor type, so the same resolution routine and touch setter apply. Their definitions leave the Touch Output description empty; the channel layout below is the explanation.\n\nThe listed voxel count and monitor_border do not change the pixel grid. The graphics quality setting scales the render target by 1, 2 or 4 after the size is stored, so it leaves the Lua and touch grid alone."
+        },
+        {
+          "title": "Touchscreen channels",
+          "body": "Touch Output is a composite. Number channels 1 and 2 carry the width and height in pixels, 3 and 4 the X and Y of the first touch, and 5 and 6 the X and Y of the second. Boolean channels 1 and 2 are on while the first and second touch are pressed. Coordinates are whole pixels from the upper left, X to the right and Y down, accepted from 0 up to the width and height inclusive.\n\nThe screen tracks at most two touches at once and ignores a third. Releasing a touch clears only its flag and leaves its last X and Y on the channels, so check the flag before using a coordinate. The touch area is the screen face inset by monitor_border on each side, stretched over the pixel grid."
+        },
+        {
+          "title": "Lua callbacks",
+          "body": "Read the channels with input.getNumber and input.getBool in onTick, which runs once per logic tick; screen functions do nothing there. Draw in onDraw, which runs whenever a monitor draws the script and can run several times when one script drives several monitors. Composite functions do nothing in onDraw. The shipped example reads number channels 3 and 4 and boolean channel 1 in onTick and draws the matching rectangle in onDraw."
+        },
+        {
+          "title": "Wiring",
+          "body": "Feed Video Signal from a microcontroller or camera, connect Electric and turn Power Switch on. For a touchscreen, wire Touch Output to a composite input on the microcontroller that draws the screen and its video output back to Video Signal. While the screen is switched off, every Touch Output channel reads 0."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Monitor component type",
+          "value": "43",
+          "detail": "The type method of c_scene_vehicle_component_monitor (vtable 0x140b73178, slot +0x30) returns 43. All ten Displays definitions declare type 43, so monitors and HUDs share this component. The extractor re-reads slots +0x30, +0x2c8 and +0x358 of that vtable. Report: investigation/displays.md. Function 0x140365540-0x140365550; instruction bytes b82b000000c3 at 0x140365540. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-type.asm:L1-L2; ../displays/tables.txt:L3-L7; ../displays/asm/monitor-constructor.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365540@0x140365540",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365540"
+          }
+        },
+        {
+          "label": "voxel_min binding",
+          "value": "definition+0xc0",
+          "detail": "The definition loader binds voxel_min (string 0x140b5baa8) to definition+0xc0. Report: investigation/displays.md. Function 0x1403168d0-0x1403182dd; instruction bytes 4c8d8ec0000000 at 0x1403169b9. Interpretation rests on retained output investigation/native/behavior/../displays/asm/definition-bindings.asm:L1-L18. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x1403169b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403169b9"
+          }
+        },
+        {
+          "label": "voxel_max binding",
+          "value": "definition+0xcc",
+          "detail": "The definition loader binds voxel_max (string 0x140b5bc08) to definition+0xcc, so +0xcc and +0xd4 are its X and Z. Report: investigation/displays.md. Function 0x1403168d0-0x1403182dd; instruction bytes 4c8d8ecc000000 at 0x1403169e3. Interpretation rests on retained output investigation/native/behavior/../displays/asm/definition-bindings.asm:L1-L18. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x1403169e3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403169e3"
+          }
+        },
+        {
+          "label": "Screen extent in blocks",
+          "value": "voxel_max - voxel_min + 1",
+          "detail": "Subtracts voxel_min.x (definition+0xc0) from voxel_max.x (+0xcc) here and voxel_min.z (+0xc8) from voxel_max.z (+0xd4) at 0x140365317, then adds 1 to each at 0x140365320 and 0x140365323: the inclusive X and Z extents in blocks. The Y extent is not read. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 2b90c0000000 at 0x14036531a. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L21-L29; ../displays/pseudocode/0x1403652b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14036531a"
+          }
+        },
+        {
+          "label": "Pixels per block",
+          "value": "32",
+          "detail": "Shifts the Z extent and then the X extent left by 5, multiplying each by 32. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 41c1e005c1e205 at 0x140365325. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L21-L33; ../displays/pseudocode/0x1403652b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365325"
+          }
+        },
+        {
+          "label": "Logical width store",
+          "value": "component+0x4b8",
+          "detail": "Stores 32 × X extent as the monitor's logical width in pixels. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 8993b8040000 at 0x140365333. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L31-L33. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365333"
+          }
+        },
+        {
+          "label": "Logical height store",
+          "value": "component+0x4bc",
+          "detail": "Stores 32 × Z extent as the monitor's logical height in pixels. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 448983bc040000 at 0x14036533c. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L31-L33. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14036533c"
+          }
+        },
+        {
+          "label": "Render quality scale",
+          "value": "q = 1, 2 or 4",
+          "detail": "After storing the logical size, the routine multiplies both by a quality scale q (1, 4 or 2 by the routine's third argument) and allocates the render target at component+0x4c8 at that size, then a second target at +0x4d8 at the unscaled size. q does not reach the stored width and height, so the Lua and touch grid does not change with it. Which settings label selects each q was left out of scope. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 450fafc1410fafd1 at 0x140365343. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L6-L20,L34-L47. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365343",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365343"
+          }
+        },
+        {
+          "label": "Touch Output numbers 1 and 2",
+          "value": "width, height",
+          "detail": "While the switch flag at component+0x4b0 is on and Touch Output is connected, each update writes the width (+0x4b8) and height (+0x4bc) as floats to composite number channels 1 and 2 (+0x3fc and +0x400; the store for channel 2 is at 0x140365dcb). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f1183fc030000f30f118b00040000 at 0x140365dc3. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L13-L33; ../displays/pseudocode/0x140365d30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365dc3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365dc3"
+          }
+        },
+        {
+          "label": "Touch Output boolean 1",
+          "value": "touch 1 pressed",
+          "detail": "Sets bit 0 of the composite boolean word (+0x3f8) while the first slot's pressed byte (+0x150) is set, and clears it otherwise. Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes 0fbae800 at 0x140365de2. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L34-L44. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365de2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365de2"
+          }
+        },
+        {
+          "label": "Touch Output number 3",
+          "value": "touch 1 X",
+          "detail": "Writes the first slot's X (+0x148) to number channel 3 (+0x404). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f118304040000 at 0x140365e01. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L45-L48. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e01",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e01"
+          }
+        },
+        {
+          "label": "Touch Output number 4",
+          "value": "touch 1 Y",
+          "detail": "Writes the first slot's Y (+0x14c) to number channel 4 (+0x408). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f118b08040000 at 0x140365e14. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L45-L48. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e14",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e14"
+          }
+        },
+        {
+          "label": "Touch Output boolean 2",
+          "value": "touch 2 pressed",
+          "detail": "Sets bit 1 of the composite boolean word while the second slot's pressed byte (+0x15c) is set, and clears it otherwise. Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes 0fbae801 at 0x140365e25. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L49-L58. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e25",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e25"
+          }
+        },
+        {
+          "label": "Touch Output number 5",
+          "value": "touch 2 X",
+          "detail": "Writes the second slot's X (+0x154) to number channel 5 (+0x40c). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f11830c040000 at 0x140365e44. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L59-L62. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e44",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e44"
+          }
+        },
+        {
+          "label": "Touch Output number 6",
+          "value": "touch 2 Y",
+          "detail": "Writes the second slot's Y (+0x158) to number channel 6 (+0x410). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f118b10040000 at 0x140365e57. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L59-L62. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e57",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e57"
+          }
+        },
+        {
+          "label": "Touch Output while switched off",
+          "value": "all channels 0",
+          "detail": "With the switch flag at +0x4b0 off, the update zeroes the whole composite payload from +0x3f8 to +0x47b. That this flag follows the Power Switch input is an inference from the port binding; the code that sets it is outside the retained excerpts. Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes 4889b1f8030000 at 0x140365e61. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L13-L16,L64-L81; ../displays/pseudocode/0x140365d30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e61",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e61"
+          }
+        },
+        {
+          "label": "Touch mapping half",
+          "value": "0.5",
+          "detail": "The touch setter maps a hit point to x = trunc((0.5 + 0.5 × (px - cx) ÷ Bx) × width) and y = trunc((0.5 - 0.5 × (pz - cz) ÷ Bz) × height). X grows to the right and Y grows downward from the upper left. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; it reads binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L18-L70; ../displays/tables.txt:L1; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140bafcbc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140bafcbc"
+          }
+        },
+        {
+          "label": "Touch mapping block size",
+          "value": "0.25",
+          "detail": "Half-extents Bx = X extent × 0.5 × this - monitor_border and Bz = Z extent × 0.5 × this - monitor_border (definition+0x2928). monitor_border therefore narrows the touch area on each side but not the pixel grid. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; it reads binary32 0.25 (bytes 0000803e) at 0x140bafbbc. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L40-L70; ../displays/tables.txt:L2; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140bafbbc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140bafbbc"
+          }
+        },
+        {
+          "label": "monitor_border binding",
+          "value": "definition+0x2928",
+          "detail": "The definition loader binds monitor_border (string 0x140b5d1e8) to definition+0x2928; monitor_inset goes to +0x292c and is not read by the touch setter. Report: investigation/displays.md. Function 0x1403168d0-0x1403182dd; instruction bytes 4c8d8e28290000 at 0x140317ec6. Interpretation rests on retained output investigation/native/behavior/../displays/asm/definition-bindings.asm:L20-L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140317ec6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140317ec6"
+          }
+        },
+        {
+          "label": "Touch coordinate conversion",
+          "value": "truncate toward zero",
+          "detail": "cvttss2si converts X to an integer here and Y at 0x140366e72, before any bounds check, so coordinates are whole pixels and a point just outside the left or top edge can still give 0. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes f3440f2cd1 at 0x140366e3b. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L40-L70; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366e3b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366e3b"
+          }
+        },
+        {
+          "label": "Touch X bound",
+          "value": "0 ≤ x ≤ width",
+          "detail": "Rejects a negative X at 0x140366e7f and an X greater than the width (+0x4b8) with a signed jg, so x = width itself is accepted. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes 453b91b80400007f7e at 0x140366e8e. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L71-L78. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366e8e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366e8e"
+          }
+        },
+        {
+          "label": "Touch Y bound",
+          "value": "0 ≤ y ≤ height",
+          "detail": "Rejects a negative Y at 0x140366e88 and a Y greater than the height with a signed jg. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes 443bc17f79 at 0x140366e97. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L71-L78. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366e97",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366e97"
+          }
+        },
+        {
+          "label": "Touch slots",
+          "value": "2",
+          "detail": "Two 12-byte slots start at component+0x148 and +0x154. The setter first matches a slot holding the same integer point, otherwise a press takes the first slot whose pressed byte is clear. Both loops stop at 2, so a third simultaneous touch is ignored. The clear routine 0x140366d70 resets only the pressed bytes, so a released slot keeps its last X and Y. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes 83f902 at 0x140366edb. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L79-L114; ../displays/asm/touch-hit-test.asm; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366edb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366edb"
+          }
+        },
+        {
+          "label": "Lua screen context",
+          "value": "script+0x60",
+          "detail": "The Lua library registration pairs getWidth with 0x1402e70a0 and getHeight with 0x1402e7130 and passes script+0x60 as their context. Report: investigation/displays.md. Function 0x1402e5230-0x1402e5a92; instruction bytes 4c8d4b60 at 0x1402e570a. Interpretation rests on retained output investigation/native/behavior/../displays/asm/lua-registration.asm:L1-L27; ../displays/asm/lua-context.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e5230@0x1402e570a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e570a"
+          }
+        },
+        {
+          "label": "screen.getWidth",
+          "value": "script+0x2d8",
+          "detail": "Returns context+0x278, which is script+0x2d8. Report: investigation/displays.md. Function 0x1402e70a0-0x1402e7129; instruction bytes 8b8078020000 at 0x1402e70e0. Interpretation rests on retained output investigation/native/behavior/../displays/asm/lua-dimensions.asm:L1-L45; ../displays/pseudocode/0x1402e70a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e70a0@0x1402e70e0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e70e0"
+          }
+        },
+        {
+          "label": "screen.getHeight",
+          "value": "script+0x2dc",
+          "detail": "Returns context+0x27c, which is script+0x2dc. Report: investigation/displays.md. Function 0x1402e7130-0x1402e71b9; instruction bytes 8b807c020000 at 0x1402e7170. Interpretation rests on retained output investigation/native/behavior/../displays/asm/lua-dimensions.asm:L46-L83; ../displays/pseudocode/0x1402e7130.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e7130@0x1402e7170",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e7170"
+          }
+        },
+        {
+          "label": "Draw size copy",
+          "value": "script+0x2d8 = width",
+          "detail": "The monitor render record copies the component's width and height (+0x4b8, +0x4bc at 0x140366254 and 0x140366261). The draw loop passes that pair here, and the video Lua draw stores it to script+0x2d8 and, at 0x14074b621, script+0x2dc. screen.getWidth and screen.getHeight therefore return the monitor's logical size. Report: investigation/displays.md. Function 0x14074b310-0x14074c2b6; instruction bytes 8983d8020000 at 0x14074b618. Interpretation rests on retained output investigation/native/behavior/../displays/asm/video-lua-draw.asm:L155-L166; ../displays/asm/monitor-draw-loop.asm; ../displays/asm/monitor-render-record.asm; ../displays/pseudocode/0x14074b310.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14074b310@0x14074b618",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14074b618"
+          }
+        },
+        {
+          "label": "onDraw call",
+          "value": "call 0x1401e2010",
+          "detail": "After copying the size and enabling draw mode, the routine calls the script's onDraw. It runs on the render path, not the component update. Report: investigation/displays.md. Function 0x14074b310-0x14074c2b6; instruction bytes e83169a9ff at 0x14074b6da. Interpretation rests on retained output investigation/native/behavior/../displays/asm/video-lua-draw.asm:L196-L203; ../displays/pseudocode/0x14074b310.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14074b310@0x14074b6da",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14074b6da"
+          }
+        },
+        {
+          "label": "UI text id 0x6ad",
+          "value": "The tick function will be called once every logic tick and should be used for reading composite data and any required processing. Screen functions will have no effect if called within onTick.",
+          "detail": "The built-in English text table assigns id 0x6ad to 'The tick function will be called once every logic tick and should be used for reading composite data and any required processing. Screen functions will have no effect if called within onTick.'. Function 0x1401f3c80-0x14020467e; lea r8,[0x140af1140]; mov edx,0x6ad at 0x1401fe3a2. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L1-L2. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f3c80@0x1401fe3a2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401fe3a2"
+          }
+        },
+        {
+          "label": "UI text id 0x6ae",
+          "value": "The draw function will be called any time this script is drawn by a monitor. Note that it can be called multiple times if this microcontroller is connected to multiple monitors whereas onTick is only called once. Composite input/output functions will have no effect if called within onDraw.",
+          "detail": "The built-in English text table assigns id 0x6ae to 'The draw function will be called any time this script is drawn by a monitor. Note that it can be called multiple times if this microcontroller is connected to multiple monitors whereas onTick is only called once. Composite input/output functions will have no effect if called within onDraw.'. Function 0x1401f3c80-0x14020467e; lea r8,[0x140af1270]; mov edx,0x6ae at 0x1401fe3bb. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L4-L5. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f3c80@0x1401fe3bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401fe3bb"
+          }
+        },
+        {
+          "label": "UI text id 0x6ce",
+          "value": "The composite output from the monitors contains data that can be interpreted in your script to create touchscreens. The layout of the composite data is as follows:\n\nNumber Channels\n1: monitorResolutionX\n2: monitorResolutionY\n3: input1X\n4: input1Y\n5: input2X\n6: input2Y\n\nOn/Off Channels:\n1: isInput1Pressed\n2: isInput2Pressed\n\nThis is an example of a script that outputs a signal on composite channel 1 if the player is pressing the screen within a specific rectangle:",
+          "detail": "The built-in English text table assigns id 0x6ce to 'The composite output from the monitors contains data that can be interpreted in your script to create touchscreens. The layout of the composite data is as follows:\\n\\nNumber Channels\\n1: monitorResolutionX\\n2: monitorResolutionY\\n3: input1X\\n4: input1Y\\n5: input2X\\n6: input2Y\\n\\nOn/Off Channels:\\n1: isInput1Pressed\\n2: isInput2Pressed\\n\\nThis is an example of a script that outputs a signal on composite channel 1 if the player is pressing the screen within a specific rectangle:'. Function 0x1401f3c80-0x14020467e; lea r8,[0x140af3490]; mov edx,0x6ce at 0x1401fe6db. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L7-L22. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f3c80@0x1401fe6db",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401fe6db"
+          }
+        },
+        {
+          "label": "Touchscreen example script",
+          "value": "inputX = input.getNumber(3); inputY = input.getNumber(4); isPressed = input.getBool(1); screen.drawRectF(10, 10, 20, 20)",
+          "detail": "Loads the shipped example script at 0x140b9f800. In onTick it reads number channels 3 and 4 and boolean channel 1 of the monitor composite; in onDraw it draws the rectangle the touch is tested against. The extractor checks that the string contains the quoted lines. Report: investigation/displays.md. Function 0x14063d870-0x14063f1ed; instruction bytes 488d15ec085600 at 0x14063ef0d. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L24-L50. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14063d870@0x14063ef0d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14063ef0d"
+          }
+        },
+        {
+          "label": "HUD Small · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_hud_1: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L14-L14",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 14,
+            "lineEnd": 14
+          }
+        },
+        {
+          "label": "HUD Small · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_hud_1: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L17-L17",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 17,
+            "lineEnd": 17
+          }
+        },
+        {
+          "label": "HUD Small · port Electric",
+          "value": "Electric",
+          "detail": "monitor_hud_1: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L20-L20",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 20,
+            "lineEnd": 20
+          }
+        },
+        {
+          "label": "HUD Small · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_hud_1: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L23-L23",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 23,
+            "lineEnd": 23
+          }
+        },
+        {
+          "label": "HUD Small · Lua/video resolution",
+          "value": "32 × 32 pixels",
+          "detail": "1 block(s) along X and 1 along Z: width 32 × 1 = 32 and height 32 × 1 = 32 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L33-L34, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:22021e8ea3ca",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 33,
+            "lineEnd": 34
+          }
+        },
+        {
+          "label": "HUD Small · voxel bounds",
+          "value": "x 0 to 0, z 0 to 0",
+          "detail": "monitor_hud_1: voxel_min (0, 0, 0) and voxel_max (0, 0, 0), inclusive block coordinates: 1 block(s) along X, 1 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L33-L34",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 33,
+            "lineEnd": 34
+          }
+        },
+        {
+          "label": "HUD Large · Lua/video resolution",
+          "value": "96 × 96 pixels",
+          "detail": "3 block(s) along X and 3 along Z: width 32 × 3 = 96 and height 32 × 3 = 96 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L77-L78, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:5dc09d6a660d",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 77,
+            "lineEnd": 78
+          }
+        },
+        {
+          "label": "HUD Large · voxel bounds",
+          "value": "x -1 to 1, z -1 to 1",
+          "detail": "monitor_hud_3: voxel_min (-1, 0, -1) and voxel_max (1, 0, 1), inclusive block coordinates: 3 block(s) along X, 3 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L77-L78",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 77,
+            "lineEnd": 78
+          }
+        },
+        {
+          "label": "HUD Small · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_hud_1: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L63-L63",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 63,
+            "lineEnd": 63
+          }
+        },
+        {
+          "label": "HUD Small · tooltip",
+          "value": "A clear projection heads up display screen.",
+          "detail": "monitor_hud_1: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_1.xml:9997eae74729:L63-L63",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_1.xml",
+            "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+            "lineStart": 63,
+            "lineEnd": 63
+          }
+        },
+        {
+          "label": "HUD Large · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_hud_3: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L107-L107",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 107,
+            "lineEnd": 107
+          }
+        },
+        {
+          "label": "HUD Large · tooltip",
+          "value": "A clear projection heads up display screen.",
+          "detail": "monitor_hud_3: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L107-L107",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 107,
+            "lineEnd": 107
+          }
+        },
+        {
+          "label": "HUD Large · port Electric",
+          "value": "Electric",
+          "detail": "monitor_hud_3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L32-L32",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 32,
+            "lineEnd": 32
+          }
+        },
+        {
+          "label": "HUD Large · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_hud_3: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L35-L35",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 35,
+            "lineEnd": 35
+          }
+        },
+        {
+          "label": "HUD Large · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_hud_3: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L29-L29",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 29,
+            "lineEnd": 29
+          }
+        },
+        {
+          "label": "HUD Large · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_hud_3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_hud_3.xml:c97af46fe086:L26-L26",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_hud_3.xml",
+            "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+            "lineStart": 26,
+            "lineEnd": 26
+          }
+        }
+      ],
+      "limitations": [
+        "Resolution and touch layout come from static analysis of one build and its shipped definitions; the game was not run and no touch was tested in game.",
+        "Still open: a fixed refresh rate in Hz and the delay from a touch to the next drawn frame. onDraw follows monitor rendering rather than the 60-per-second component update, and the draw scheduling, culling and caching were outside this pass.",
+        "Still open: which player or input event takes each touch slot, and how HUD hits reach the touch setter."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 14,
+          "lineEnd": 14
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 17,
+          "lineEnd": 17
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 20,
+          "lineEnd": 20
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 23,
+          "lineEnd": 23
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 33,
+          "lineEnd": 34
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_1.xml",
+          "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+          "lineStart": 63,
+          "lineEnd": 63
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 26,
+          "lineEnd": 26
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 29,
+          "lineEnd": 29
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 32,
+          "lineEnd": 32
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 35,
+          "lineEnd": 35
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 77,
+          "lineEnd": 78
+        },
+        {
+          "path": "rom/data/definitions/monitor_hud_3.xml",
+          "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+          "lineStart": 107,
+          "lineEnd": 107
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe3a2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe3bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe6db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e570a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e70e0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e7170"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403169b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403169e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140317ec6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14036531a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365325"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365333"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14036533c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365343"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365540"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365dc3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365de2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e01"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e14"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e25"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e44"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e57"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e61"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e3b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e8e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e97"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366edb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14063ef0d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074b618"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074b6da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140bafbbc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140bafcbc"
+        }
+      ]
+    },
+    {
       "id": "heavy-helicopter-rotor",
       "summary": "force_emitter_max_force 120000 and 200000 with thrust vectoring through roll, pitch and collective.",
       "sections": [
@@ -13083,6 +14250,1701 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140bb04e0"
+        }
+      ]
+    },
+    {
+      "id": "monitor",
+      "summary": "Monitors draw 32 pixels per block of width and height, from 32×32 (Monitor 1x1) to 288×160 (Monitor 9x5). Touch Output reports that size and two touch points in pixels.",
+      "sections": [
+        {
+          "title": "Resolution by size",
+          "body": "The game sets width = 32 × (voxel_max.x - voxel_min.x + 1) and height = 32 × (voxel_max.z - voxel_min.z + 1) from the definition's block bounds. The same size comes back from screen.getWidth() and screen.getHeight() in onDraw and on Touch Output number channels 1 and 2.\n\nSizes in pixels: Monitor 1x1 32×32, Monitor 1x2 64×32, Monitor 1x3 96×32, Monitor 2x2 64×64, Monitor 2x3 96×64, Monitor 3x3 96×96, Monitor 5x3 160×96, Monitor 9x5 288×160.\n\nFollow the bounds, not the name: in Monitor 1x2, 1x3 and 2x3 the first number is the height in blocks, while 5x3 and 9x5 give the width first.\n\nThe listed voxel count and monitor_border do not change the pixel grid. The graphics quality setting scales the render target by 1, 2 or 4 after the size is stored, so it leaves the Lua and touch grid alone."
+        },
+        {
+          "title": "Touchscreen channels",
+          "body": "Touch Output is a composite. Number channels 1 and 2 carry the width and height in pixels, 3 and 4 the X and Y of the first touch, and 5 and 6 the X and Y of the second. Boolean channels 1 and 2 are on while the first and second touch are pressed. Coordinates are whole pixels from the upper left, X to the right and Y down, accepted from 0 up to the width and height inclusive.\n\nThe screen tracks at most two touches at once and ignores a third. Releasing a touch clears only its flag and leaves its last X and Y on the channels, so check the flag before using a coordinate. The touch area is the screen face inset by monitor_border on each side, stretched over the pixel grid."
+        },
+        {
+          "title": "Lua callbacks",
+          "body": "Read the channels with input.getNumber and input.getBool in onTick, which runs once per logic tick; screen functions do nothing there. Draw in onDraw, which runs whenever a monitor draws the script and can run several times when one script drives several monitors. Composite functions do nothing in onDraw. The shipped example reads number channels 3 and 4 and boolean channel 1 in onTick and draws the matching rectangle in onDraw."
+        },
+        {
+          "title": "Wiring",
+          "body": "Feed Video Signal from a microcontroller or camera, connect Electric and turn Power Switch on. For a touchscreen, wire Touch Output to a composite input on the microcontroller that draws the screen and its video output back to Video Signal. While the screen is switched off, every Touch Output channel reads 0."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Monitor component type",
+          "value": "43",
+          "detail": "The type method of c_scene_vehicle_component_monitor (vtable 0x140b73178, slot +0x30) returns 43. All ten Displays definitions declare type 43, so monitors and HUDs share this component. The extractor re-reads slots +0x30, +0x2c8 and +0x358 of that vtable. Report: investigation/displays.md. Function 0x140365540-0x140365550; instruction bytes b82b000000c3 at 0x140365540. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-type.asm:L1-L2; ../displays/tables.txt:L3-L7; ../displays/asm/monitor-constructor.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365540@0x140365540",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365540"
+          }
+        },
+        {
+          "label": "voxel_min binding",
+          "value": "definition+0xc0",
+          "detail": "The definition loader binds voxel_min (string 0x140b5baa8) to definition+0xc0. Report: investigation/displays.md. Function 0x1403168d0-0x1403182dd; instruction bytes 4c8d8ec0000000 at 0x1403169b9. Interpretation rests on retained output investigation/native/behavior/../displays/asm/definition-bindings.asm:L1-L18. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x1403169b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403169b9"
+          }
+        },
+        {
+          "label": "voxel_max binding",
+          "value": "definition+0xcc",
+          "detail": "The definition loader binds voxel_max (string 0x140b5bc08) to definition+0xcc, so +0xcc and +0xd4 are its X and Z. Report: investigation/displays.md. Function 0x1403168d0-0x1403182dd; instruction bytes 4c8d8ecc000000 at 0x1403169e3. Interpretation rests on retained output investigation/native/behavior/../displays/asm/definition-bindings.asm:L1-L18. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x1403169e3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403169e3"
+          }
+        },
+        {
+          "label": "Screen extent in blocks",
+          "value": "voxel_max - voxel_min + 1",
+          "detail": "Subtracts voxel_min.x (definition+0xc0) from voxel_max.x (+0xcc) here and voxel_min.z (+0xc8) from voxel_max.z (+0xd4) at 0x140365317, then adds 1 to each at 0x140365320 and 0x140365323: the inclusive X and Z extents in blocks. The Y extent is not read. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 2b90c0000000 at 0x14036531a. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L21-L29; ../displays/pseudocode/0x1403652b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14036531a"
+          }
+        },
+        {
+          "label": "Pixels per block",
+          "value": "32",
+          "detail": "Shifts the Z extent and then the X extent left by 5, multiplying each by 32. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 41c1e005c1e205 at 0x140365325. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L21-L33; ../displays/pseudocode/0x1403652b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365325"
+          }
+        },
+        {
+          "label": "Logical width store",
+          "value": "component+0x4b8",
+          "detail": "Stores 32 × X extent as the monitor's logical width in pixels. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 8993b8040000 at 0x140365333. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L31-L33. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365333"
+          }
+        },
+        {
+          "label": "Logical height store",
+          "value": "component+0x4bc",
+          "detail": "Stores 32 × Z extent as the monitor's logical height in pixels. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 448983bc040000 at 0x14036533c. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L31-L33. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14036533c"
+          }
+        },
+        {
+          "label": "Render quality scale",
+          "value": "q = 1, 2 or 4",
+          "detail": "After storing the logical size, the routine multiplies both by a quality scale q (1, 4 or 2 by the routine's third argument) and allocates the render target at component+0x4c8 at that size, then a second target at +0x4d8 at the unscaled size. q does not reach the stored width and height, so the Lua and touch grid does not change with it. Which settings label selects each q was left out of scope. Report: investigation/displays.md. Function 0x1403652b0-0x14036539d; instruction bytes 450fafc1410fafd1 at 0x140365343. Interpretation rests on retained output investigation/native/behavior/../displays/asm/resolution.asm:L6-L20,L34-L47. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365343",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365343"
+          }
+        },
+        {
+          "label": "Touch Output numbers 1 and 2",
+          "value": "width, height",
+          "detail": "While the switch flag at component+0x4b0 is on and Touch Output is connected, each update writes the width (+0x4b8) and height (+0x4bc) as floats to composite number channels 1 and 2 (+0x3fc and +0x400; the store for channel 2 is at 0x140365dcb). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f1183fc030000f30f118b00040000 at 0x140365dc3. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L13-L33; ../displays/pseudocode/0x140365d30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365dc3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365dc3"
+          }
+        },
+        {
+          "label": "Touch Output boolean 1",
+          "value": "touch 1 pressed",
+          "detail": "Sets bit 0 of the composite boolean word (+0x3f8) while the first slot's pressed byte (+0x150) is set, and clears it otherwise. Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes 0fbae800 at 0x140365de2. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L34-L44. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365de2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365de2"
+          }
+        },
+        {
+          "label": "Touch Output number 3",
+          "value": "touch 1 X",
+          "detail": "Writes the first slot's X (+0x148) to number channel 3 (+0x404). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f118304040000 at 0x140365e01. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L45-L48. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e01",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e01"
+          }
+        },
+        {
+          "label": "Touch Output number 4",
+          "value": "touch 1 Y",
+          "detail": "Writes the first slot's Y (+0x14c) to number channel 4 (+0x408). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f118b08040000 at 0x140365e14. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L45-L48. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e14",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e14"
+          }
+        },
+        {
+          "label": "Touch Output boolean 2",
+          "value": "touch 2 pressed",
+          "detail": "Sets bit 1 of the composite boolean word while the second slot's pressed byte (+0x15c) is set, and clears it otherwise. Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes 0fbae801 at 0x140365e25. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L49-L58. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e25",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e25"
+          }
+        },
+        {
+          "label": "Touch Output number 5",
+          "value": "touch 2 X",
+          "detail": "Writes the second slot's X (+0x154) to number channel 5 (+0x40c). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f11830c040000 at 0x140365e44. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L59-L62. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e44",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e44"
+          }
+        },
+        {
+          "label": "Touch Output number 6",
+          "value": "touch 2 Y",
+          "detail": "Writes the second slot's Y (+0x158) to number channel 6 (+0x410). Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes f30f118b10040000 at 0x140365e57. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L59-L62. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e57",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e57"
+          }
+        },
+        {
+          "label": "Touch Output while switched off",
+          "value": "all channels 0",
+          "detail": "With the switch flag at +0x4b0 off, the update zeroes the whole composite payload from +0x3f8 to +0x47b. That this flag follows the Power Switch input is an inference from the port binding; the code that sets it is outside the retained excerpts. Report: investigation/displays.md. Function 0x140365d30-0x140366121; instruction bytes 4889b1f8030000 at 0x140365e61. Interpretation rests on retained output investigation/native/behavior/../displays/asm/monitor-update.asm:L13-L16,L64-L81; ../displays/pseudocode/0x140365d30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140365d30@0x140365e61",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140365e61"
+          }
+        },
+        {
+          "label": "Touch mapping half",
+          "value": "0.5",
+          "detail": "The touch setter maps a hit point to x = trunc((0.5 + 0.5 × (px - cx) ÷ Bx) × width) and y = trunc((0.5 - 0.5 × (pz - cz) ÷ Bz) × height). X grows to the right and Y grows downward from the upper left. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; it reads binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L18-L70; ../displays/tables.txt:L1; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140bafcbc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140bafcbc"
+          }
+        },
+        {
+          "label": "Touch mapping block size",
+          "value": "0.25",
+          "detail": "Half-extents Bx = X extent × 0.5 × this - monitor_border and Bz = Z extent × 0.5 × this - monitor_border (definition+0x2928). monitor_border therefore narrows the touch area on each side but not the pixel grid. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; it reads binary32 0.25 (bytes 0000803e) at 0x140bafbbc. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L40-L70; ../displays/tables.txt:L2; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140bafbbc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140bafbbc"
+          }
+        },
+        {
+          "label": "monitor_border binding",
+          "value": "definition+0x2928",
+          "detail": "The definition loader binds monitor_border (string 0x140b5d1e8) to definition+0x2928; monitor_inset goes to +0x292c and is not read by the touch setter. Report: investigation/displays.md. Function 0x1403168d0-0x1403182dd; instruction bytes 4c8d8e28290000 at 0x140317ec6. Interpretation rests on retained output investigation/native/behavior/../displays/asm/definition-bindings.asm:L20-L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140317ec6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140317ec6"
+          }
+        },
+        {
+          "label": "Touch coordinate conversion",
+          "value": "truncate toward zero",
+          "detail": "cvttss2si converts X to an integer here and Y at 0x140366e72, before any bounds check, so coordinates are whole pixels and a point just outside the left or top edge can still give 0. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes f3440f2cd1 at 0x140366e3b. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L40-L70; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366e3b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366e3b"
+          }
+        },
+        {
+          "label": "Touch X bound",
+          "value": "0 ≤ x ≤ width",
+          "detail": "Rejects a negative X at 0x140366e7f and an X greater than the width (+0x4b8) with a signed jg, so x = width itself is accepted. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes 453b91b80400007f7e at 0x140366e8e. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L71-L78. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366e8e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366e8e"
+          }
+        },
+        {
+          "label": "Touch Y bound",
+          "value": "0 ≤ y ≤ height",
+          "detail": "Rejects a negative Y at 0x140366e88 and a Y greater than the height with a signed jg. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes 443bc17f79 at 0x140366e97. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L71-L78. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366e97",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366e97"
+          }
+        },
+        {
+          "label": "Touch slots",
+          "value": "2",
+          "detail": "Two 12-byte slots start at component+0x148 and +0x154. The setter first matches a slot holding the same integer point, otherwise a press takes the first slot whose pressed byte is clear. Both loops stop at 2, so a third simultaneous touch is ignored. The clear routine 0x140366d70 resets only the pressed bytes, so a released slot keeps its last X and Y. Report: investigation/displays.md. Function 0x140366d80-0x140366f1a; instruction bytes 83f902 at 0x140366edb. Interpretation rests on retained output investigation/native/behavior/../displays/asm/touch-slots.asm:L79-L114; ../displays/asm/touch-hit-test.asm; ../displays/pseudocode/0x140366d80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140366d80@0x140366edb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140366edb"
+          }
+        },
+        {
+          "label": "Lua screen context",
+          "value": "script+0x60",
+          "detail": "The Lua library registration pairs getWidth with 0x1402e70a0 and getHeight with 0x1402e7130 and passes script+0x60 as their context. Report: investigation/displays.md. Function 0x1402e5230-0x1402e5a92; instruction bytes 4c8d4b60 at 0x1402e570a. Interpretation rests on retained output investigation/native/behavior/../displays/asm/lua-registration.asm:L1-L27; ../displays/asm/lua-context.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e5230@0x1402e570a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e570a"
+          }
+        },
+        {
+          "label": "screen.getWidth",
+          "value": "script+0x2d8",
+          "detail": "Returns context+0x278, which is script+0x2d8. Report: investigation/displays.md. Function 0x1402e70a0-0x1402e7129; instruction bytes 8b8078020000 at 0x1402e70e0. Interpretation rests on retained output investigation/native/behavior/../displays/asm/lua-dimensions.asm:L1-L45; ../displays/pseudocode/0x1402e70a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e70a0@0x1402e70e0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e70e0"
+          }
+        },
+        {
+          "label": "screen.getHeight",
+          "value": "script+0x2dc",
+          "detail": "Returns context+0x27c, which is script+0x2dc. Report: investigation/displays.md. Function 0x1402e7130-0x1402e71b9; instruction bytes 8b807c020000 at 0x1402e7170. Interpretation rests on retained output investigation/native/behavior/../displays/asm/lua-dimensions.asm:L46-L83; ../displays/pseudocode/0x1402e7130.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e7130@0x1402e7170",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e7170"
+          }
+        },
+        {
+          "label": "Draw size copy",
+          "value": "script+0x2d8 = width",
+          "detail": "The monitor render record copies the component's width and height (+0x4b8, +0x4bc at 0x140366254 and 0x140366261). The draw loop passes that pair here, and the video Lua draw stores it to script+0x2d8 and, at 0x14074b621, script+0x2dc. screen.getWidth and screen.getHeight therefore return the monitor's logical size. Report: investigation/displays.md. Function 0x14074b310-0x14074c2b6; instruction bytes 8983d8020000 at 0x14074b618. Interpretation rests on retained output investigation/native/behavior/../displays/asm/video-lua-draw.asm:L155-L166; ../displays/asm/monitor-draw-loop.asm; ../displays/asm/monitor-render-record.asm; ../displays/pseudocode/0x14074b310.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14074b310@0x14074b618",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14074b618"
+          }
+        },
+        {
+          "label": "onDraw call",
+          "value": "call 0x1401e2010",
+          "detail": "After copying the size and enabling draw mode, the routine calls the script's onDraw. It runs on the render path, not the component update. Report: investigation/displays.md. Function 0x14074b310-0x14074c2b6; instruction bytes e83169a9ff at 0x14074b6da. Interpretation rests on retained output investigation/native/behavior/../displays/asm/video-lua-draw.asm:L196-L203; ../displays/pseudocode/0x14074b310.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14074b310@0x14074b6da",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14074b6da"
+          }
+        },
+        {
+          "label": "UI text id 0x6ad",
+          "value": "The tick function will be called once every logic tick and should be used for reading composite data and any required processing. Screen functions will have no effect if called within onTick.",
+          "detail": "The built-in English text table assigns id 0x6ad to 'The tick function will be called once every logic tick and should be used for reading composite data and any required processing. Screen functions will have no effect if called within onTick.'. Function 0x1401f3c80-0x14020467e; lea r8,[0x140af1140]; mov edx,0x6ad at 0x1401fe3a2. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L1-L2. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f3c80@0x1401fe3a2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401fe3a2"
+          }
+        },
+        {
+          "label": "UI text id 0x6ae",
+          "value": "The draw function will be called any time this script is drawn by a monitor. Note that it can be called multiple times if this microcontroller is connected to multiple monitors whereas onTick is only called once. Composite input/output functions will have no effect if called within onDraw.",
+          "detail": "The built-in English text table assigns id 0x6ae to 'The draw function will be called any time this script is drawn by a monitor. Note that it can be called multiple times if this microcontroller is connected to multiple monitors whereas onTick is only called once. Composite input/output functions will have no effect if called within onDraw.'. Function 0x1401f3c80-0x14020467e; lea r8,[0x140af1270]; mov edx,0x6ae at 0x1401fe3bb. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L4-L5. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f3c80@0x1401fe3bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401fe3bb"
+          }
+        },
+        {
+          "label": "UI text id 0x6ce",
+          "value": "The composite output from the monitors contains data that can be interpreted in your script to create touchscreens. The layout of the composite data is as follows:\n\nNumber Channels\n1: monitorResolutionX\n2: monitorResolutionY\n3: input1X\n4: input1Y\n5: input2X\n6: input2Y\n\nOn/Off Channels:\n1: isInput1Pressed\n2: isInput2Pressed\n\nThis is an example of a script that outputs a signal on composite channel 1 if the player is pressing the screen within a specific rectangle:",
+          "detail": "The built-in English text table assigns id 0x6ce to 'The composite output from the monitors contains data that can be interpreted in your script to create touchscreens. The layout of the composite data is as follows:\\n\\nNumber Channels\\n1: monitorResolutionX\\n2: monitorResolutionY\\n3: input1X\\n4: input1Y\\n5: input2X\\n6: input2Y\\n\\nOn/Off Channels:\\n1: isInput1Pressed\\n2: isInput2Pressed\\n\\nThis is an example of a script that outputs a signal on composite channel 1 if the player is pressing the screen within a specific rectangle:'. Function 0x1401f3c80-0x14020467e; lea r8,[0x140af3490]; mov edx,0x6ce at 0x1401fe6db. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L7-L22. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f3c80@0x1401fe6db",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401fe6db"
+          }
+        },
+        {
+          "label": "Touchscreen example script",
+          "value": "inputX = input.getNumber(3); inputY = input.getNumber(4); isPressed = input.getBool(1); screen.drawRectF(10, 10, 20, 20)",
+          "detail": "Loads the shipped example script at 0x140b9f800. In onTick it reads number channels 3 and 4 and boolean channel 1 of the monitor composite; in onDraw it draws the rectangle the touch is tested against. The extractor checks that the string contains the quoted lines. Report: investigation/displays.md. Function 0x14063d870-0x14063f1ed; instruction bytes 488d15ec085600 at 0x14063ef0d. Interpretation rests on retained output investigation/native/behavior/../displays/embedded-docs.txt:L24-L50. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14063d870@0x14063ef0d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14063ef0d"
+          }
+        },
+        {
+          "label": "Monitor 1x1 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_1: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L38-L38",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 38,
+            "lineEnd": 38
+          }
+        },
+        {
+          "label": "Monitor 1x1 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_1: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L41-L41",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 41,
+            "lineEnd": 41
+          }
+        },
+        {
+          "label": "Monitor 1x1 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_1: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L44-L44",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 44,
+            "lineEnd": 44
+          }
+        },
+        {
+          "label": "Monitor 1x1 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_1: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L47-L47",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 47,
+            "lineEnd": 47
+          }
+        },
+        {
+          "label": "Monitor 1x1 · Lua/video resolution",
+          "value": "32 × 32 pixels",
+          "detail": "1 block(s) along X and 1 along Z: width 32 × 1 = 32 and height 32 × 1 = 32 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L57-L58, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:f01645ae75bb",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 57,
+            "lineEnd": 58
+          }
+        },
+        {
+          "label": "Monitor 1x1 · voxel bounds",
+          "value": "x 0 to 0, z 0 to 0",
+          "detail": "monitor_1: voxel_min (0, 0, 0) and voxel_max (0, 0, 0), inclusive block coordinates: 1 block(s) along X, 1 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L57-L58",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 57,
+            "lineEnd": 58
+          }
+        },
+        {
+          "label": "Monitor 1x2 · Lua/video resolution",
+          "value": "64 × 32 pixels",
+          "detail": "2 block(s) along X and 1 along Z: width 32 × 2 = 64 and height 32 × 1 = 32 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L81-L82, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:0a42179b8c47",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 81,
+            "lineEnd": 82
+          }
+        },
+        {
+          "label": "Monitor 1x2 · voxel bounds",
+          "value": "x 0 to 1, z 0 to 0",
+          "detail": "monitor_1x2: voxel_min (0, 0, 0) and voxel_max (1, 0, 0), inclusive block coordinates: 2 block(s) along X, 1 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L81-L82",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 81,
+            "lineEnd": 82
+          }
+        },
+        {
+          "label": "Monitor 1x3 · Lua/video resolution",
+          "value": "96 × 32 pixels",
+          "detail": "3 block(s) along X and 1 along Z: width 32 × 3 = 96 and height 32 × 1 = 32 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L103-L104, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:5786f995954a",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 103,
+            "lineEnd": 104
+          }
+        },
+        {
+          "label": "Monitor 1x3 · voxel bounds",
+          "value": "x -1 to 1, z 0 to 0",
+          "detail": "monitor_1x3: voxel_min (-1, 0, 0) and voxel_max (1, 0, 0), inclusive block coordinates: 3 block(s) along X, 1 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L103-L104",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 103,
+            "lineEnd": 104
+          }
+        },
+        {
+          "label": "Monitor 2x2 · Lua/video resolution",
+          "value": "64 × 64 pixels",
+          "detail": "2 block(s) along X and 2 along Z: width 32 × 2 = 64 and height 32 × 2 = 64 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L111-L112, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:bbbe99bc0192",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 111,
+            "lineEnd": 112
+          }
+        },
+        {
+          "label": "Monitor 2x2 · voxel bounds",
+          "value": "x -1 to 0, z 0 to 1",
+          "detail": "monitor_2: voxel_min (-1, 0, 0) and voxel_max (0, 0, 1), inclusive block coordinates: 2 block(s) along X, 2 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L111-L112",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 111,
+            "lineEnd": 112
+          }
+        },
+        {
+          "label": "Monitor 2x3 · Lua/video resolution",
+          "value": "96 × 64 pixels",
+          "detail": "3 block(s) along X and 2 along Z: width 32 × 3 = 96 and height 32 × 2 = 64 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L145-L146, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:575e98f971eb",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 145,
+            "lineEnd": 146
+          }
+        },
+        {
+          "label": "Monitor 2x3 · voxel bounds",
+          "value": "x -1 to 1, z 0 to 1",
+          "detail": "monitor_2x3: voxel_min (-1, 0, 0) and voxel_max (1, 0, 1), inclusive block coordinates: 3 block(s) along X, 2 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L145-L146",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 145,
+            "lineEnd": 146
+          }
+        },
+        {
+          "label": "Monitor 3x3 · Lua/video resolution",
+          "value": "96 × 96 pixels",
+          "detail": "3 block(s) along X and 3 along Z: width 32 × 3 = 96 and height 32 × 3 = 96 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_3.xml:71a056677517:L187-L188, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:4dca0e51f1be",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 187,
+            "lineEnd": 188
+          }
+        },
+        {
+          "label": "Monitor 3x3 · voxel bounds",
+          "value": "x -1 to 1, z -1 to 1",
+          "detail": "monitor_3: voxel_min (-1, 0, -1) and voxel_max (1, 0, 1), inclusive block coordinates: 3 block(s) along X, 3 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_3.xml:71a056677517:L187-L188",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 187,
+            "lineEnd": 188
+          }
+        },
+        {
+          "label": "Monitor 5x3 · Lua/video resolution",
+          "value": "160 × 96 pixels",
+          "detail": "5 block(s) along X and 3 along Z: width 32 × 5 = 160 and height 32 × 3 = 96 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L269-L270, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:6f608bfb0bc2",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 269,
+            "lineEnd": 270
+          }
+        },
+        {
+          "label": "Monitor 5x3 · voxel bounds",
+          "value": "x -2 to 2, z -1 to 1",
+          "detail": "monitor_5: voxel_min (-2, 0, -1) and voxel_max (2, 0, 1), inclusive block coordinates: 5 block(s) along X, 3 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L269-L270",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 269,
+            "lineEnd": 270
+          }
+        },
+        {
+          "label": "Monitor 9x5 · Lua/video resolution",
+          "value": "288 × 160 pixels",
+          "detail": "9 block(s) along X and 5 along Z: width 32 × 9 = 288 and height 32 × 5 = 160 pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement. Report: investigation/displays.md. Inputs: resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L641-L642, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036531a, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365325, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x140365333, native:stormworks64.exe:f9206d85c82f:0x1403652b0@0x14036533c.",
+          "evidenceId": "derived:7a34a7f52ea2",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 641,
+            "lineEnd": 642
+          }
+        },
+        {
+          "label": "Monitor 9x5 · voxel bounds",
+          "value": "x -4 to 4, z -2 to 2",
+          "detail": "monitor_9: voxel_min (-4, 0, -2) and voxel_max (4, 0, 2), inclusive block coordinates: 9 block(s) along X, 5 along Z. The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).",
+          "evidenceId": "resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L641-L642",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 641,
+            "lineEnd": 642
+          }
+        },
+        {
+          "label": "Monitor 1x1 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_1: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L87-L87",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 87,
+            "lineEnd": 87
+          }
+        },
+        {
+          "label": "Monitor 1x1 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_1: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1.xml:f824fda06ac0:L87-L87",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1.xml",
+            "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+            "lineStart": 87,
+            "lineEnd": 87
+          }
+        },
+        {
+          "label": "Monitor 1x2 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_1x2: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L111-L111",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 111,
+            "lineEnd": 111
+          }
+        },
+        {
+          "label": "Monitor 1x2 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_1x2: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L111-L111",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 111,
+            "lineEnd": 111
+          }
+        },
+        {
+          "label": "Monitor 1x2 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_1x2: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L63-L63",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 63,
+            "lineEnd": 63
+          }
+        },
+        {
+          "label": "Monitor 1x2 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_1x2: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L66-L66",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 66,
+            "lineEnd": 66
+          }
+        },
+        {
+          "label": "Monitor 1x2 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_1x2: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L60-L60",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 60,
+            "lineEnd": 60
+          }
+        },
+        {
+          "label": "Monitor 1x2 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_1x2: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x2.xml:4db04fedc0fe:L57-L57",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x2.xml",
+            "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+            "lineStart": 57,
+            "lineEnd": 57
+          }
+        },
+        {
+          "label": "Monitor 1x3 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_1x3: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L133-L133",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 133,
+            "lineEnd": 133
+          }
+        },
+        {
+          "label": "Monitor 1x3 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_1x3: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L133-L133",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 133,
+            "lineEnd": 133
+          }
+        },
+        {
+          "label": "Monitor 1x3 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_1x3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L81-L81",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 81,
+            "lineEnd": 81
+          }
+        },
+        {
+          "label": "Monitor 1x3 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_1x3: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L84-L84",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 84,
+            "lineEnd": 84
+          }
+        },
+        {
+          "label": "Monitor 1x3 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_1x3: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L78-L78",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 78,
+            "lineEnd": 78
+          }
+        },
+        {
+          "label": "Monitor 1x3 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_1x3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_1x3.xml:c2676db30869:L75-L75",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_1x3.xml",
+            "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+            "lineStart": 75,
+            "lineEnd": 75
+          }
+        },
+        {
+          "label": "Monitor 2x2 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_2: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L141-L141",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 141,
+            "lineEnd": 141
+          }
+        },
+        {
+          "label": "Monitor 2x2 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_2: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L141-L141",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 141,
+            "lineEnd": 141
+          }
+        },
+        {
+          "label": "Monitor 2x2 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_2: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L86-L86",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 86,
+            "lineEnd": 86
+          }
+        },
+        {
+          "label": "Monitor 2x2 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_2: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L89-L89",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 89,
+            "lineEnd": 89
+          }
+        },
+        {
+          "label": "Monitor 2x2 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_2: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L83-L83",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 83,
+            "lineEnd": 83
+          }
+        },
+        {
+          "label": "Monitor 2x2 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_2: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2.xml:bfce445e8ed2:L80-L80",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2.xml",
+            "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+            "lineStart": 80,
+            "lineEnd": 80
+          }
+        },
+        {
+          "label": "Monitor 2x3 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_2x3: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L175-L175",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 175,
+            "lineEnd": 175
+          }
+        },
+        {
+          "label": "Monitor 2x3 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_2x3: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L175-L175",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 175,
+            "lineEnd": 175
+          }
+        },
+        {
+          "label": "Monitor 2x3 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_2x3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L111-L111",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 111,
+            "lineEnd": 111
+          }
+        },
+        {
+          "label": "Monitor 2x3 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_2x3: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L114-L114",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 114,
+            "lineEnd": 114
+          }
+        },
+        {
+          "label": "Monitor 2x3 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_2x3: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L108-L108",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 108,
+            "lineEnd": 108
+          }
+        },
+        {
+          "label": "Monitor 2x3 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_2x3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_2x3.xml:4cef1de01d1a:L105-L105",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_2x3.xml",
+            "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+            "lineStart": 105,
+            "lineEnd": 105
+          }
+        },
+        {
+          "label": "Monitor 3x3 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_3: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_3.xml:71a056677517:L217-L217",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 217,
+            "lineEnd": 217
+          }
+        },
+        {
+          "label": "Monitor 3x3 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_3: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_3.xml:71a056677517:L217-L217",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 217,
+            "lineEnd": 217
+          }
+        },
+        {
+          "label": "Monitor 3x3 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_3.xml:71a056677517:L141-L141",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 141,
+            "lineEnd": 141
+          }
+        },
+        {
+          "label": "Monitor 3x3 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_3: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_3.xml:71a056677517:L144-L144",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 144,
+            "lineEnd": 144
+          }
+        },
+        {
+          "label": "Monitor 3x3 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_3: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_3.xml:71a056677517:L138-L138",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 138,
+            "lineEnd": 138
+          }
+        },
+        {
+          "label": "Monitor 3x3 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_3: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_3.xml:71a056677517:L135-L135",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_3.xml",
+            "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+            "lineStart": 135,
+            "lineEnd": 135
+          }
+        },
+        {
+          "label": "Monitor 5x3 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_5: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L299-L299",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 299,
+            "lineEnd": 299
+          }
+        },
+        {
+          "label": "Monitor 5x3 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_5: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L299-L299",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 299,
+            "lineEnd": 299
+          }
+        },
+        {
+          "label": "Monitor 5x3 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_5: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L200-L200",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 200,
+            "lineEnd": 200
+          }
+        },
+        {
+          "label": "Monitor 5x3 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_5: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L203-L203",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 203,
+            "lineEnd": 203
+          }
+        },
+        {
+          "label": "Monitor 5x3 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_5: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L197-L197",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 197,
+            "lineEnd": 197
+          }
+        },
+        {
+          "label": "Monitor 5x3 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_5: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_5.xml:78e28b72af24:L194-L194",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_5.xml",
+            "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+            "lineStart": 194,
+            "lineEnd": 194
+          }
+        },
+        {
+          "label": "Monitor 9x5 · tooltip",
+          "value": "Displays video data.",
+          "detail": "monitor_9: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L671-L671",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 671,
+            "lineEnd": 671
+          }
+        },
+        {
+          "label": "Monitor 9x5 · tooltip",
+          "value": "A video screen.",
+          "detail": "monitor_9: developer-authored short description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L671-L671",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 671,
+            "lineEnd": 671
+          }
+        },
+        {
+          "label": "Monitor 9x5 · port Electric",
+          "value": "Electric",
+          "detail": "monitor_9: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L452-L452",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 452,
+            "lineEnd": 452
+          }
+        },
+        {
+          "label": "Monitor 9x5 · port Power Switch",
+          "value": "Controls whether or not the screen is switched on.",
+          "detail": "monitor_9: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L455-L455",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 455,
+            "lineEnd": 455
+          }
+        },
+        {
+          "label": "Monitor 9x5 · port Touch Output",
+          "value": "Touch Output",
+          "detail": "monitor_9: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L449-L449",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 449,
+            "lineEnd": 449
+          }
+        },
+        {
+          "label": "Monitor 9x5 · port Video Signal",
+          "value": "Video Signal",
+          "detail": "monitor_9: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/monitor_9.xml:a7ccbff42794:L446-L446",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/monitor_9.xml",
+            "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+            "lineStart": 446,
+            "lineEnd": 446
+          }
+        }
+      ],
+      "limitations": [
+        "Resolution and touch layout come from static analysis of one build and its shipped definitions; the game was not run and no touch was tested in game.",
+        "Still open: a fixed refresh rate in Hz and the delay from a touch to the next drawn frame. onDraw follows monitor rendering rather than the 60-per-second component update, and the draw scheduling, culling and caching were outside this pass.",
+        "Still open: which player or input event takes each touch slot, and how HUD hits reach the touch setter."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 38,
+          "lineEnd": 38
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 41,
+          "lineEnd": 41
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 44,
+          "lineEnd": 44
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 47,
+          "lineEnd": 47
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 57,
+          "lineEnd": 58
+        },
+        {
+          "path": "rom/data/definitions/monitor_1.xml",
+          "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+          "lineStart": 87,
+          "lineEnd": 87
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 57,
+          "lineEnd": 57
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 60,
+          "lineEnd": 60
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 63,
+          "lineEnd": 63
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 66,
+          "lineEnd": 66
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 81,
+          "lineEnd": 82
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x2.xml",
+          "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+          "lineStart": 111,
+          "lineEnd": 111
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 75,
+          "lineEnd": 75
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 78,
+          "lineEnd": 78
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 81,
+          "lineEnd": 81
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 84,
+          "lineEnd": 84
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 103,
+          "lineEnd": 104
+        },
+        {
+          "path": "rom/data/definitions/monitor_1x3.xml",
+          "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+          "lineStart": 133,
+          "lineEnd": 133
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 80,
+          "lineEnd": 80
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 83,
+          "lineEnd": 83
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 86,
+          "lineEnd": 86
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 89,
+          "lineEnd": 89
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 111,
+          "lineEnd": 112
+        },
+        {
+          "path": "rom/data/definitions/monitor_2.xml",
+          "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+          "lineStart": 141,
+          "lineEnd": 141
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 105,
+          "lineEnd": 105
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 108,
+          "lineEnd": 108
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 111,
+          "lineEnd": 111
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 114,
+          "lineEnd": 114
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 145,
+          "lineEnd": 146
+        },
+        {
+          "path": "rom/data/definitions/monitor_2x3.xml",
+          "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+          "lineStart": 175,
+          "lineEnd": 175
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 135,
+          "lineEnd": 135
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 138,
+          "lineEnd": 138
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 141,
+          "lineEnd": 141
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 144,
+          "lineEnd": 144
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 187,
+          "lineEnd": 188
+        },
+        {
+          "path": "rom/data/definitions/monitor_3.xml",
+          "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+          "lineStart": 217,
+          "lineEnd": 217
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 194,
+          "lineEnd": 194
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 197,
+          "lineEnd": 197
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 200,
+          "lineEnd": 200
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 203,
+          "lineEnd": 203
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 269,
+          "lineEnd": 270
+        },
+        {
+          "path": "rom/data/definitions/monitor_5.xml",
+          "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+          "lineStart": 299,
+          "lineEnd": 299
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 446,
+          "lineEnd": 446
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 449,
+          "lineEnd": 449
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 452,
+          "lineEnd": 452
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 455,
+          "lineEnd": 455
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 641,
+          "lineEnd": 642
+        },
+        {
+          "path": "rom/data/definitions/monitor_9.xml",
+          "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+          "lineStart": 671,
+          "lineEnd": 671
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe3a2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe3bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401fe6db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e570a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e70e0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e7170"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403169b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403169e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140317ec6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14036531a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365325"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365333"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14036533c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365343"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365540"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365dc3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365de2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e01"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e14"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e25"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e44"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e57"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140365e61"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e3b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e8e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366e97"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140366edb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14063ef0d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074b618"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074b6da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140bafbbc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140bafcbc"
         }
       ]
     },
@@ -27781,7 +30643,7 @@
     "schemaVersion": 1,
     "categoryCount": 21,
     "categoriesInFamilies": 21,
-    "familyCount": 158,
+    "familyCount": 160,
     "familyTotal": 536,
     "familiesByCategory": {
       "Control surfaces": {
@@ -27793,7 +30655,7 @@
         "total": 3
       },
       "Displays": {
-        "withBehavior": 0,
+        "withBehavior": 2,
         "total": 2
       },
       "Electricity": {
@@ -27886,7 +30748,6 @@
       "flat-window",
       "full-corner-window",
       "function-gate",
-      "head-up-display",
       "inverse-pyramid-window",
       "jet-duct",
       "jet-turbine",
@@ -27894,7 +30755,6 @@
       "modular-engine-crankshaft-converter",
       "modular-engine-drive-belt",
       "modular-engine-manifold",
-      "monitor",
       "part-01-block",
       "part-01-block-static",
       "part-01-block-weight",
@@ -28249,12 +31109,12 @@
       "weapon-xxl-barrel",
       "wheel-with-suspension"
     ],
-    "findingCount": 1325,
+    "findingCount": 1469,
     "findingsByStatus": {
-      "derived": 110,
-      "observed": 1215
+      "derived": 120,
+      "observed": 1349
     },
-    "nativeFindingCount": 522,
+    "nativeFindingCount": 586,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -28305,9 +31165,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 77,
-      "native": 213,
-      "resource": 847
+      "derived": 87,
+      "native": 245,
+      "resource": 938
     }
   }
 }

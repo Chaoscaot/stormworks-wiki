@@ -1,0 +1,1673 @@
+{
+  "target": {
+    "path": "stormworks64.exe",
+    "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+    "analysis": "static only"
+  },
+  "membership_sources": {
+    "wiki/data/families.json": "7cdb6318a8fb833de6aea8abd37268804c34f25a331d4ceeb113743827b61cfc",
+    "wiki/data/behavior.json": "36827a4a008dd53c9ec60177f52b23349adea1293c6f7aa4e51a83d89d8266bd"
+  },
+  "resolution_formula": {
+    "width": "32*(voxel_max.x-voxel_min.x+1)",
+    "height": "32*(voxel_max.z-voxel_min.z+1)",
+    "function": "0x1403652b0",
+    "pixels_per_block": 32
+  },
+  "touch_mappings": {
+    "monitor_two_point": {
+      "max_points": 2,
+      "coordinate_unit": "integer pixels",
+      "origin": "top left",
+      "x_direction": "right",
+      "y_direction": "down",
+      "accepted_integer_bounds": "0<=x<=width; 0<=y<=height, far edge inclusive",
+      "number_channels": {
+        "1": "width",
+        "2": "height",
+        "3": "touch1_x",
+        "4": "touch1_y",
+        "5": "touch2_x",
+        "6": "touch2_y"
+      },
+      "boolean_channels": {
+        "1": "touch1_pressed",
+        "2": "touch2_pressed"
+      },
+      "output_port": "Touch Output",
+      "input_on_controller": "composite input wired by builder",
+      "video_return": "controller video output -> monitor Video Signal",
+      "update_function": "0x140365d30",
+      "setter": "0x140366d80",
+      "inactive_coordinates": "Retained by flag clear; use pressed flags. Output is zeroed when the switch flag is false.",
+      "shipped_documentation": "0x140af3490"
+    }
+  },
+  "refresh": {
+    "logic": "nominal 60 simulation ticks per simulated second; see investigation/update-rate.md",
+    "draw": "onDraw per monitor draw; may run multiple times across monitors",
+    "fixed_monitor_hz": null,
+    "remaining_unknown": "No fixed refresh guarantee, culling/throttling policy or latency proved."
+  },
+  "definitions": [
+    {
+      "id": "monitor_hud_1",
+      "name": "HUD Small",
+      "family": "head-up-display",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_hud_1.xml",
+        "sha256": "9997eae74729c14ec5f36738a403eb2b6b951c3744af9184c0e436f74019a879",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"HUD Small\" category=\"6\" type=\"43\" mass=\"2\" value=\"2000\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_hud_small.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_hud_small.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.02\" monitor_inset=\"0.01\" rx_range=\"10\" rx_length=\"1\">"
+          },
+          {
+            "line": 14,
+            "text": "<logic_node label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 17,
+            "text": "<logic_node label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 20,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 23,
+            "text": "<logic_node label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 33,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 34,
+            "text": "<voxel_max x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 63,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A clear projection heads up display screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "monitor_border": 0.02,
+      "resolution": {
+        "width": 32,
+        "height": 32,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_hud_3",
+      "name": "HUD Large",
+      "family": "head-up-display",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_hud_3.xml",
+        "sha256": "c97af46fe086ae16f6a3fab6071cb971e5db88df200210536369f275add14abd",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"HUD Large\" category=\"6\" type=\"43\" mass=\"18\" value=\"10000\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_hud_medium.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_hud_medium.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.02\" monitor_inset=\"0.01\" rx_range=\"10\" rx_length=\"1\">"
+          },
+          {
+            "line": 26,
+            "text": "<logic_node label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 29,
+            "text": "<logic_node label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 32,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 35,
+            "text": "<logic_node label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 77,
+            "text": "<voxel_min x=\"-1\" y=\"0\" z=\"-1\"/>"
+          },
+          {
+            "line": 78,
+            "text": "<voxel_max x=\"1\" y=\"0\" z=\"1\"/>"
+          },
+          {
+            "line": 107,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A clear projection heads up display screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "voxel_max": {
+        "x": 1,
+        "y": 0,
+        "z": 1
+      },
+      "monitor_border": 0.02,
+      "resolution": {
+        "width": 96,
+        "height": 96,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_1",
+      "name": "Monitor 1x1",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_1.xml",
+        "sha256": "f824fda06ac01b4bc59f9aae0d4bdee754d68163118d978abbc128564535e550",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 1x1\" category=\"6\" type=\"43\" mass=\"4\" value=\"500\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_1.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_1.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\"  rx_range=\"10\" rx_length=\"1\">"
+          },
+          {
+            "line": 38,
+            "text": "<logic_node label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 41,
+            "text": "<logic_node label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 44,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 47,
+            "text": "<logic_node label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 57,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 58,
+            "text": "<voxel_max x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 87,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 32,
+        "height": 32,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_1x2",
+      "name": "Monitor 1x2",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_1x2.xml",
+        "sha256": "4db04fedc0fe78851379af41725345309bfb337c0c0e8bcb409aafec5450fb2b",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 1x2\" category=\"6\" type=\"43\" mass=\"8\" value=\"1000\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_1x2.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_1x2.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" engine_frictionless_force=\"0\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" logic_gate_subtype=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" reward_tier=\"1\" revision=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_class=\"0\" inventory_default_item=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\" rx_range=\"10\" rx_length=\"1\" rocket_type=\"1\" radar_range=\"20000\" engine_module_type=\"0\" steam_component_type=\"0\" steam_component_capacity=\"0\" nuclear_component_type=\"0\">"
+          },
+          {
+            "line": 57,
+            "text": "<logic_node orientation=\"0\" label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 60,
+            "text": "<logic_node orientation=\"0\" label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 63,
+            "text": "<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 66,
+            "text": "<logic_node orientation=\"0\" label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 81,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 82,
+            "text": "<voxel_max x=\"1\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 111,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 64,
+        "height": 32,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "orientation": "0",
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_1x3",
+      "name": "Monitor 1x3",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_1x3.xml",
+        "sha256": "c2676db3086935dac322a079238f7bf6b284995c6fc652f5e082b1c73f8c2453",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 1x3\" category=\"6\" type=\"43\" mass=\"12\" value=\"1500\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_1x3.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_1.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" engine_frictionless_force=\"0\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" logic_gate_subtype=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" reward_tier=\"1\" revision=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_class=\"0\" inventory_default_item=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\" rx_range=\"10\" rx_length=\"1\" rocket_type=\"1\" radar_range=\"20000\" engine_module_type=\"0\" steam_component_type=\"0\" steam_component_capacity=\"0\" nuclear_component_type=\"0\">"
+          },
+          {
+            "line": 75,
+            "text": "<logic_node orientation=\"0\" label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 78,
+            "text": "<logic_node orientation=\"0\" label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 81,
+            "text": "<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 84,
+            "text": "<logic_node orientation=\"0\" label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 103,
+            "text": "<voxel_min x=\"-1\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 104,
+            "text": "<voxel_max x=\"1\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 133,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 96,
+        "height": 32,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "orientation": "0",
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_2",
+      "name": "Monitor 2x2",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_2.xml",
+        "sha256": "bfce445e8ed2775bf99d3130cebdd3945cfe420bc3d0a864eb5fc95177d33179",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 2x2\" category=\"6\" type=\"43\" mass=\"16\" value=\"2000\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_2.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_2.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\"  rx_range=\"10\" rx_length=\"1\">"
+          },
+          {
+            "line": 80,
+            "text": "<logic_node label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 83,
+            "text": "<logic_node label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 86,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 89,
+            "text": "<logic_node label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 111,
+            "text": "<voxel_min x=\"-1\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 112,
+            "text": "<voxel_max x=\"0\" y=\"0\" z=\"1\"/>"
+          },
+          {
+            "line": 141,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 64,
+        "height": 64,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_2x3",
+      "name": "Monitor 2x3",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_2x3.xml",
+        "sha256": "4cef1de01d1a9e4f9cc947a1933697e25aef4381886a952b0dc39a0b4bc25cd3",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 2x3\" category=\"6\" type=\"43\" mass=\"24\" value=\"3000\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_2x3.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_2x3.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" engine_frictionless_force=\"0\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" logic_gate_subtype=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" reward_tier=\"1\" revision=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_class=\"0\" inventory_default_item=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\" rx_range=\"10\" rx_length=\"1\" rocket_type=\"1\" radar_range=\"20000\" engine_module_type=\"0\" steam_component_type=\"0\" steam_component_capacity=\"0\" nuclear_component_type=\"0\">"
+          },
+          {
+            "line": 105,
+            "text": "<logic_node orientation=\"0\" label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 108,
+            "text": "<logic_node orientation=\"0\" label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 111,
+            "text": "<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 114,
+            "text": "<logic_node orientation=\"0\" label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 145,
+            "text": "<voxel_min x=\"-1\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 146,
+            "text": "<voxel_max x=\"1\" y=\"0\" z=\"1\"/>"
+          },
+          {
+            "line": 175,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": -1,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 1,
+        "y": 0,
+        "z": 1
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 96,
+        "height": 64,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "orientation": "0",
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_3",
+      "name": "Monitor 3x3",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_3.xml",
+        "sha256": "71a05667751751b201229206793a38ef32c7d2f8cb23e9d8272d75ec70924674",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 3x3\" category=\"6\" type=\"43\" mass=\"36\" value=\"4500\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_3.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_5.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" engine_frictionless_force=\"0\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" logic_gate_subtype=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" reward_tier=\"1\" revision=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_class=\"0\" inventory_default_item=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\" rx_range=\"10\" rx_length=\"1\" rocket_type=\"1\" radar_range=\"20000\" engine_module_type=\"0\" steam_component_type=\"0\" steam_component_capacity=\"0\" nuclear_component_type=\"0\">"
+          },
+          {
+            "line": 135,
+            "text": "<logic_node orientation=\"0\" label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 138,
+            "text": "<logic_node orientation=\"0\" label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 141,
+            "text": "<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 144,
+            "text": "<logic_node orientation=\"0\" label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 187,
+            "text": "<voxel_min x=\"-1\" y=\"0\" z=\"-1\"/>"
+          },
+          {
+            "line": 188,
+            "text": "<voxel_max x=\"1\" y=\"0\" z=\"1\"/>"
+          },
+          {
+            "line": 217,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": -1,
+        "y": 0,
+        "z": -1
+      },
+      "voxel_max": {
+        "x": 1,
+        "y": 0,
+        "z": 1
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 96,
+        "height": 96,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "orientation": "0",
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "orientation": "0",
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_5",
+      "name": "Monitor 5x3",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_5.xml",
+        "sha256": "78e28b72af241fa78ea3cea193767afe1d02e6995cdeb9767ac2bf55fb1ca7bc",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 5x3\" category=\"6\" type=\"43\" mass=\"60\" value=\"7500\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_5.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_5.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\"  rx_range=\"10\" rx_length=\"1\">"
+          },
+          {
+            "line": 194,
+            "text": "<logic_node label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 197,
+            "text": "<logic_node label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 200,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 203,
+            "text": "<logic_node label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 269,
+            "text": "<voxel_min x=\"-2\" y=\"0\" z=\"-1\"/>"
+          },
+          {
+            "line": 270,
+            "text": "<voxel_max x=\"2\" y=\"0\" z=\"1\"/>"
+          },
+          {
+            "line": 299,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": -2,
+        "y": 0,
+        "z": -1
+      },
+      "voxel_max": {
+        "x": 2,
+        "y": 0,
+        "z": 1
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 160,
+        "height": 96,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "monitor_9",
+      "name": "Monitor 9x5",
+      "family": "monitor",
+      "category": "Displays",
+      "component_type": 43,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/monitor_9.xml",
+        "sha256": "a7ccbff427947efa8e4f0c2ccae9b700913dc660632c8cb33eb0be32c886a7d5",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Monitor 9x5\" category=\"6\" type=\"43\" mass=\"180\" value=\"20000\" flags=\"0\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_screen_9.mesh\" mesh_0_name=\"\" mesh_1_name=\"\" mesh_editor_only_name=\"meshes/arrow_screen_9.mesh\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"10\" cable_radius=\"16\" cable_length=\"0\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0.25\" wheel_wishbone_length=\"1.25\" wheel_suspension_height=\"1\" wheel_wishbone_margin=\"0.085\" wheel_suspension_offset=\"0.25\" wheel_wishbone_offset=\"0\" wheel_type=\"0\" button_type=\"1\" light_intensity=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" rudder_surface_area=\"1\" pump_pressure=\"0.01\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"0\" camera_fov_min=\"1.22\" camera_fov_max=\"0.5\" monitor_border=\"0.022\" monitor_inset=\"0.012\"  rx_range=\"10\" rx_length=\"1\">"
+          },
+          {
+            "line": 446,
+            "text": "<logic_node label=\"Video Signal\" mode=\"1\" type=\"6\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 449,
+            "text": "<logic_node label=\"Touch Output\" mode=\"0\" type=\"5\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 452,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"\" flags=\"0\">"
+          },
+          {
+            "line": 455,
+            "text": "<logic_node label=\"Power Switch\" mode=\"1\" type=\"0\" description=\"Controls whether or not the screen is switched on.\" flags=\"0\">"
+          },
+          {
+            "line": 641,
+            "text": "<voxel_min x=\"-4\" y=\"0\" z=\"-2\"/>"
+          },
+          {
+            "line": 642,
+            "text": "<voxel_max x=\"4\" y=\"0\" z=\"2\"/>"
+          },
+          {
+            "line": 671,
+            "text": "<tooltip_properties description=\"Displays video data.\" short_description=\"A video screen.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": -4,
+        "y": 0,
+        "z": -2
+      },
+      "voxel_max": {
+        "x": 4,
+        "y": 0,
+        "z": 2
+      },
+      "monitor_border": 0.022,
+      "resolution": {
+        "width": 288,
+        "height": 160,
+        "unit": "pixels",
+        "status": "derived from shipped bounds and native shifts"
+      },
+      "lua_screen_api": true,
+      "touch_mapping": "monitor_two_point",
+      "not_applicable_reason": null,
+      "ports": [
+        {
+          "label": "Video Signal",
+          "mode": "1",
+          "type": "6",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Touch Output",
+          "mode": "0",
+          "type": "5",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "",
+          "flags": "0"
+        },
+        {
+          "label": "Power Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Controls whether or not the screen is switched on.",
+          "flags": "0"
+        }
+      ]
+    }
+  ],
+  "supplemental_non_video_displays": [
+    {
+      "id": "dial",
+      "name": "Dial",
+      "family": "part-dial",
+      "category": "Other components",
+      "component_type": 21,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/dial.xml",
+        "sha256": "3641918efe0c2a4d284995b1d9b3c81344c8a1d2ed4fdbb52727f2dabc9eef88",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Dial\" category=\"6\" type=\"21\" mass=\"1.000000\" value=\"20\" flags=\"8192\" tags=\"basic\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_gain=\"0.000000\" mesh_data_name=\"meshes/component_dial.mesh\" mesh_0_name=\"meshes/component_dial_needle.mesh\" mesh_1_name=\"meshes/component_dial_backlight.mesh\" mesh_editor_only_name=\"\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0.000000\" max_motor_force=\"100.000000\" seat_type=\"0\" buoy_radius=\"1.000000\" buoy_factor=\"1.000000\" buoy_force=\"100.000000\" force_emitter_max_force=\"1000.000000\" force_emitter_max_vector=\"1.000000\" engine_max_force=\"1000.000000\" trans_conn_type=\"0\" trans_type=\"0\" wheel_radius=\"0.250000\" button_type=\"1\" light_intensity=\"0.000000\" light_range=\"1.000000\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1.000000\" light_type=\"0\" door_lower_limit=\"-1.000000\" door_upper_limit=\"1.000000\" door_flipped=\"false\" dynamic_min_rotation=\"0.000000\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"1.000000\" gyro_type=\"0\" rudder_surface_area=\"0.000000\">"
+          },
+          {
+            "line": 41,
+            "text": "<logic_node label=\"Value to Display\" mode=\"1\" type=\"1\" description=\"The numerical value to display, ideally scaled to be within a -1 to 1 range.\">"
+          },
+          {
+            "line": 44,
+            "text": "<logic_node label=\"Backlight\" mode=\"1\" type=\"0\" description=\"Enables the backlight when receiving an on signal.\">"
+          },
+          {
+            "line": 47,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"Electrical power connection.\" flags=\"0\">"
+          },
+          {
+            "line": 61,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 62,
+            "text": "<voxel_max x=\"0\" y=\"1\" z=\"0\"/>"
+          },
+          {
+            "line": 78,
+            "text": "<tooltip_properties description=\"The dial's face represents values ranging from -1 to 1 by default. This can be configured by selecting it with the select tool. Values outside this range will cause the needle to wrap around, but can be scaled to fit using additional logic components if necessary. An on/off signal can be used to toggle the backlight.\" short_description=\"A dial with a rotating needle for displaying numerical values.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "monitor_border": 0.0,
+      "resolution": null,
+      "lua_screen_api": false,
+      "touch_mapping": null,
+      "not_applicable_reason": "Not a video monitor. No video input, Lua pixel grid or monitor touch-coordinate output. Instrument-panel buttons are a separate composite protocol.",
+      "ports": [
+        {
+          "label": "Value to Display",
+          "mode": "1",
+          "type": "1",
+          "description": "The numerical value to display, ideally scaled to be within a -1 to 1 range."
+        },
+        {
+          "label": "Backlight",
+          "mode": "1",
+          "type": "0",
+          "description": "Enables the backlight when receiving an on signal."
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "Electrical power connection.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "digital_display",
+      "name": "Digital Display",
+      "family": "part-digital-display",
+      "category": "Other components",
+      "component_type": 21,
+      "indicator_type": 3,
+      "source": {
+        "path": "rom/data/definitions/digital_display.xml",
+        "sha256": "f637c7bf3dad0eb3df6156c334ee8e3575072c1b80e8bf06b016332d6a2ae1db",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Digital Display\" category=\"6\" type=\"21\" mass=\"2.000000\" value=\"20\" flags=\"8192\" tags=\"basic\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_gain=\"0.000000\" mesh_data_name=\"meshes/component_digital_display.mesh\" mesh_0_name=\"meshes/component_digital_display_numbers.mesh\" mesh_1_name=\"meshes/component_digital_display_plusminus.mesh\" mesh_editor_only_name=\"\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0.000000\" max_motor_force=\"100.000000\" seat_type=\"0\" buoy_radius=\"1.000000\" buoy_factor=\"1.000000\" buoy_force=\"100.000000\" force_emitter_max_force=\"1000.000000\" force_emitter_max_vector=\"1.000000\" engine_max_force=\"1000.000000\" trans_conn_type=\"0\" trans_type=\"0\" wheel_radius=\"0.250000\" button_type=\"1\" light_intensity=\"0.000000\" light_range=\"1.000000\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1.000000\" light_type=\"0\" door_lower_limit=\"-1.000000\" door_upper_limit=\"1.000000\" door_flipped=\"false\" dynamic_min_rotation=\"0.000000\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"3\" connector_type=\"0\" magnet_force=\"1.000000\" gyro_type=\"0\" rudder_surface_area=\"0.000000\">"
+          },
+          {
+            "line": 62,
+            "text": "<logic_node label=\"Value to Display\" mode=\"1\" type=\"1\" description=\"The numerical value to display.\">"
+          },
+          {
+            "line": 65,
+            "text": "<logic_node label=\"Backlight\" mode=\"1\" type=\"0\" description=\"Enables the backlight when receiving an on signal.\">"
+          },
+          {
+            "line": 68,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"Electrical power connection.\" flags=\"0\">"
+          },
+          {
+            "line": 82,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 83,
+            "text": "<voxel_max x=\"0\" y=\"0\" z=\"1\"/>"
+          },
+          {
+            "line": 99,
+            "text": "<tooltip_properties description=\"The position of the decimal point can be configured by selecting this component with the select tool, allowing you to control the number of decimal places in the output.\" short_description=\"Displays a 5 digit (6 with decimal point disabled) signed numerical value with optional decimal point.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "monitor_border": 0.0,
+      "resolution": null,
+      "lua_screen_api": false,
+      "touch_mapping": null,
+      "not_applicable_reason": "Not a video monitor. No video input, Lua pixel grid or monitor touch-coordinate output. Instrument-panel buttons are a separate composite protocol.",
+      "ports": [
+        {
+          "label": "Value to Display",
+          "mode": "1",
+          "type": "1",
+          "description": "The numerical value to display."
+        },
+        {
+          "label": "Backlight",
+          "mode": "1",
+          "type": "0",
+          "description": "Enables the backlight when receiving an on signal."
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "Electrical power connection.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "gauge_display",
+      "name": "Gauge Display",
+      "family": "part-gauge-display",
+      "category": "Other components",
+      "component_type": 21,
+      "indicator_type": 5,
+      "source": {
+        "path": "rom/data/definitions/gauge_display.xml",
+        "sha256": "67cb6ce09d90d50f6c7081539ca0387de23243e0dedd17b34e9ac5ae4b2f0a29",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Gauge Display\" category=\"6\" type=\"21\" mass=\"2.000000\" value=\"20\" flags=\"8192\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_gain=\"0.000000\" mesh_data_name=\"meshes/component_gauge_static.mesh\" mesh_0_name=\"meshes/component_gauge_dynamic.mesh\" mesh_1_name=\"meshes/component_gauge_dynamic_2.mesh\" mesh_editor_only_name=\"\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0.000000\" max_motor_force=\"100.000000\" seat_type=\"0\" buoy_radius=\"1.000000\" buoy_factor=\"1.000000\" buoy_force=\"100.000000\" force_emitter_max_force=\"1000.000000\" force_emitter_max_vector=\"1.000000\" engine_max_force=\"1000.000000\" trans_conn_type=\"0\" trans_type=\"0\" wheel_radius=\"0.250000\" button_type=\"1\" light_intensity=\"0.000000\" light_range=\"1.000000\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1.000000\" light_type=\"0\" door_lower_limit=\"-1.000000\" door_upper_limit=\"1.000000\" door_flipped=\"false\" dynamic_min_rotation=\"0.000000\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"5\" connector_type=\"0\" magnet_force=\"1.000000\" gyro_type=\"0\" rudder_surface_area=\"0.000000\">"
+          },
+          {
+            "line": 62,
+            "text": "<logic_node label=\"Primary Display Value\" mode=\"1\" type=\"1\" description=\"The numerical value that sets the position of the white needle.\">"
+          },
+          {
+            "line": 65,
+            "text": "<logic_node label=\"Secondary Display Value\" mode=\"1\" type=\"1\" description=\"The numerical value that sets the position of the red needle.\">"
+          },
+          {
+            "line": 68,
+            "text": "<logic_node label=\"Backlight\" mode=\"1\" type=\"0\" description=\"Enables the backlight when receiving an on signal.\">"
+          },
+          {
+            "line": 71,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"Electrical power connection.\" flags=\"0\">"
+          },
+          {
+            "line": 93,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 94,
+            "text": "<voxel_max x=\"0\" y=\"1\" z=\"1\"/>"
+          },
+          {
+            "line": 110,
+            "text": "<tooltip_properties description=\"The primary needle is white and the secondary needle is red. The positions of the needles represent values ranging from -1 to 1 by default. This range can be configured by selecting the display with the select tool.\" short_description=\"A display with two needles that can be positioned independently.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 1,
+        "z": 1
+      },
+      "monitor_border": 0.0,
+      "resolution": null,
+      "lua_screen_api": false,
+      "touch_mapping": null,
+      "not_applicable_reason": "Not a video monitor. No video input, Lua pixel grid or monitor touch-coordinate output. Instrument-panel buttons are a separate composite protocol.",
+      "ports": [
+        {
+          "label": "Primary Display Value",
+          "mode": "1",
+          "type": "1",
+          "description": "The numerical value that sets the position of the white needle."
+        },
+        {
+          "label": "Secondary Display Value",
+          "mode": "1",
+          "type": "1",
+          "description": "The numerical value that sets the position of the red needle."
+        },
+        {
+          "label": "Backlight",
+          "mode": "1",
+          "type": "0",
+          "description": "Enables the backlight when receiving an on signal."
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "Electrical power connection.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "indicator",
+      "name": "Indicator Light",
+      "family": "part-indicator",
+      "category": "Other components",
+      "component_type": 21,
+      "indicator_type": 1,
+      "source": {
+        "path": "rom/data/definitions/indicator.xml",
+        "sha256": "4bdc3f5be10b9c5c0f442ae1fbd9216e64de2f0a73b4165b9143f718e93b1806",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Indicator Light\" category=\"6\" type=\"21\" mass=\"1.000000\" value=\"20\" flags=\"8192\" tags=\"basic\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_gain=\"0.000000\" mesh_data_name=\"meshes/component_indicator.mesh\" mesh_0_name=\"meshes/component_indicator_add.mesh\" mesh_1_name=\"\" mesh_editor_only_name=\"\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0.000000\" max_motor_force=\"100.000000\" seat_type=\"0\" buoy_radius=\"1.000000\" buoy_factor=\"1.000000\" buoy_force=\"100.000000\" force_emitter_max_force=\"1000.000000\" force_emitter_max_vector=\"1.000000\" engine_max_force=\"1000.000000\" trans_conn_type=\"0\" trans_type=\"0\" wheel_radius=\"0.250000\" button_type=\"1\" light_intensity=\"0.000000\" light_range=\"1.000000\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1.000000\" light_type=\"0\" door_lower_limit=\"-1.000000\" door_upper_limit=\"1.000000\" door_flipped=\"false\" dynamic_min_rotation=\"0.000000\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"1\" connector_type=\"0\" magnet_force=\"1.000000\" gyro_type=\"0\" rudder_surface_area=\"0.000000\">"
+          },
+          {
+            "line": 41,
+            "text": "<logic_node label=\"Indicator Light\" mode=\"1\" type=\"0\" description=\"Switches the light on when receiving an on signal.\">"
+          },
+          {
+            "line": 44,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"Electrical power connection.\" flags=\"0\">"
+          },
+          {
+            "line": 54,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 55,
+            "text": "<voxel_max x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 71,
+            "text": "<tooltip_properties description=\"\" short_description=\"A simple light that can be used as an indicator in logic systems.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "monitor_border": 0.0,
+      "resolution": null,
+      "lua_screen_api": false,
+      "touch_mapping": null,
+      "not_applicable_reason": "Not a video monitor. No video input, Lua pixel grid or monitor touch-coordinate output. Instrument-panel buttons are a separate composite protocol.",
+      "ports": [
+        {
+          "label": "Indicator Light",
+          "mode": "1",
+          "type": "0",
+          "description": "Switches the light on when receiving an on signal."
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "Electrical power connection.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "indicator_rgb",
+      "name": "Indicator Light (RGB)",
+      "family": "part-indicator-rgb",
+      "category": "Other components",
+      "component_type": 38,
+      "indicator_type": 1,
+      "source": {
+        "path": "rom/data/definitions/indicator_rgb.xml",
+        "sha256": "e19534400290033942c32f73b14140a9c6862c0e842a4a1a293ed5d12ab85b4c",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Indicator Light (RGB)\" category=\"6\" type=\"38\" mass=\"1\" value=\"50\" flags=\"8192\" tags=\"basic\" phys_collision_dampen=\"0\" audio_filename_start=\"\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"0\" mesh_data_name=\"meshes/component_indicator.mesh\" mesh_0_name=\"meshes/component_indicator_add.mesh\" mesh_1_name=\"\" mesh_editor_only_name=\"\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"1\" constraint_range_of_motion=\"0\" max_motor_force=\"100\" max_motor_speed=\"5\" cable_radius=\"0.02\" cable_length=\"16\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0.25\" button_type=\"1\" light_intensity=\"0\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" light_type=\"0\" door_lower_limit=\"-1\" door_upper_limit=\"1\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"3.141593\" logic_gate_type=\"0\" indicator_type=\"1\" connector_type=\"0\" magnet_force=\"1\" gyro_type=\"0\" rudder_surface_area=\"0\" pump_pressure=\"0\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"1\">"
+          },
+          {
+            "line": 41,
+            "text": "<logic_node label=\"Color Data\" mode=\"1\" type=\"5\" description=\"Composite link containing the indicator's color data.\" flags=\"0\">"
+          },
+          {
+            "line": 44,
+            "text": "<logic_node label=\"Electric\" mode=\"1\" type=\"4\" description=\"Electrical power connection.\" flags=\"0\">"
+          },
+          {
+            "line": 54,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 55,
+            "text": "<voxel_max x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 83,
+            "text": "<tooltip_properties description=\"Three channels of the composite input can be used to set the red, green and blue components of the indicator's color using numbers between 0 and 1. The light can also operate in HSV mode, where the 3 inputs correspond to the hue, saturation and value (brightness) of the color between 0 and 1. The color mode and input channels can be customised by selecting this component with the select tool.\" short_description=\"An advanced indicator that can be controlled using a microcontroller.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "monitor_border": 0.0,
+      "resolution": null,
+      "lua_screen_api": false,
+      "touch_mapping": null,
+      "not_applicable_reason": "Not a video monitor. No video input, Lua pixel grid or monitor touch-coordinate output. Instrument-panel buttons are a separate composite protocol.",
+      "ports": [
+        {
+          "label": "Color Data",
+          "mode": "1",
+          "type": "5",
+          "description": "Composite link containing the indicator's color data.",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "Electrical power connection.",
+          "flags": "0"
+        }
+      ]
+    },
+    {
+      "id": "instrument_display",
+      "name": "Instrument Panel",
+      "family": "part-instrument-display",
+      "category": "Other components",
+      "component_type": 38,
+      "indicator_type": 0,
+      "source": {
+        "path": "rom/data/definitions/instrument_display.xml",
+        "sha256": "6caaaac4e0fe450bca6fca1e0295171b8d76cce09fba1ee7068ad80d7a6180a9",
+        "lines": [
+          {
+            "line": 2,
+            "text": "<definition name=\"Instrument Panel\" category=\"6\" type=\"38\" mass=\"1\" value=\"200\" flags=\"56\" tags=\"\" phys_collision_dampen=\"0\" audio_filename_start=\"audio/misc/stormworks_button_press.ogg\" audio_filename_loop=\"\" audio_filename_end=\"\" audio_filename_start_b=\"\" audio_filename_loop_b=\"\" audio_filename_end_b=\"\" audio_gain=\"1\" mesh_data_name=\"\" mesh_0_name=\"meshes/component_instrument_display_editor.mesh\" mesh_1_name=\"\" mesh_editor_only_name=\"\" block_type=\"0\" child_name=\"\" extender_name=\"\" constraint_type=\"0\" constraint_axis=\"0\" constraint_range_of_motion=\"0\" max_motor_force=\"0\" max_motor_speed=\"5\" cable_radius=\"0.02\" cable_length=\"16\" seat_pose=\"0\" seat_health_per_sec=\"0\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"0\" force_emitter_default_pitch=\"0\" force_emitter_blade_height=\"0\" force_emitter_rotation_speed=\"1\" force_emitter_blade_physics_length=\"4\" force_emitter_blade_efficiency=\"0.01\" force_emitter_efficiency=\"1\" engine_max_force=\"1000\" trans_conn_type=\"0\" wheel_radius=\"0\" button_type=\"0\" light_intensity=\"0\" light_range=\"0\" light_ies_map=\"\" light_fov=\"0\" light_type=\"0\" door_lower_limit=\"0\" door_upper_limit=\"0\" door_flipped=\"false\" custom_door_type=\"0\" door_side_dist=\"1\" door_up_dist=\"1\" dynamic_min_rotation=\"0\" dynamic_max_rotation=\"0\" logic_gate_type=\"0\" indicator_type=\"0\" connector_type=\"0\" magnet_force=\"0\" gyro_type=\"0\" rudder_surface_area=\"0\" pump_pressure=\"0\" water_component_type=\"0\" torque_component_type=\"0\" jet_engine_component_type=\"0\" particle_speed=\"0.05\" inventory_type=\"0\" inventory_default_outfit=\"0\" electric_type=\"0\" electric_charge_capacity=\"0\" electric_magnitude=\"0\" composite_type=\"2\">"
+          },
+          {
+            "line": 51,
+            "text": "<logic_node label=\"Out Signal\" mode=\"0\" type=\"5\" description=\"Output signal containing data set by buttons on the display.\" flags=\"0\">"
+          },
+          {
+            "line": 54,
+            "text": "<logic_node label=\"In Signal\" mode=\"1\" type=\"5\" description=\"Input signal containing data to be displayed.\" flags=\"0\">"
+          },
+          {
+            "line": 57,
+            "text": "<logic_node label=\"Electric\" mode=\"0\" type=\"4\" description=\"Electrical power connection.\" flags=\"0\">"
+          },
+          {
+            "line": 60,
+            "text": "<logic_node label=\"Backlight\" mode=\"1\" type=\"0\" description=\"Enables the backlight when receiving an on signal.\" flags=\"0\">"
+          },
+          {
+            "line": 74,
+            "text": "<voxel_min x=\"0\" y=\"0\" z=\"0\"/>"
+          },
+          {
+            "line": 75,
+            "text": "<voxel_max x=\"0\" y=\"1\" z=\"0\"/>"
+          },
+          {
+            "line": 103,
+            "text": "<tooltip_properties description=\"The 4 instruments can be selected in the properties window. Each type of instrument has options for choosing the composite channels that they read from or write to. Composite signals are bridged from the input node to the output node to enable displays to be chained together. Instruments marked as '(On/Off)' require multiple on/off signals to control each of their segments individually.\" short_description=\"A customisable panel that can have up to 4 different instruments, controlled by a composite signal from a microcontroller.\"/>"
+          }
+        ]
+      },
+      "voxel_min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "voxel_max": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "monitor_border": 0.0,
+      "resolution": null,
+      "lua_screen_api": false,
+      "touch_mapping": null,
+      "not_applicable_reason": "Not a video monitor. No video input, Lua pixel grid or monitor touch-coordinate output. Instrument-panel buttons are a separate composite protocol.",
+      "ports": [
+        {
+          "label": "Out Signal",
+          "mode": "0",
+          "type": "5",
+          "description": "Output signal containing data set by buttons on the display.",
+          "flags": "0"
+        },
+        {
+          "label": "In Signal",
+          "mode": "1",
+          "type": "5",
+          "description": "Input signal containing data to be displayed.",
+          "flags": "0"
+        },
+        {
+          "label": "Electric",
+          "mode": "0",
+          "type": "4",
+          "description": "Electrical power connection.",
+          "flags": "0"
+        },
+        {
+          "label": "Backlight",
+          "mode": "1",
+          "type": "0",
+          "description": "Enables the backlight when receiving an on signal.",
+          "flags": "0"
+        }
+      ]
+    }
+  ],
+  "instruction_checks": [
+    {
+      "address": "0x140365325",
+      "bytes": "41c1e005"
+    },
+    {
+      "address": "0x140365329",
+      "bytes": "c1e205"
+    },
+    {
+      "address": "0x140365333",
+      "bytes": "8993b8040000"
+    },
+    {
+      "address": "0x14036533c",
+      "bytes": "448983bc040000"
+    },
+    {
+      "address": "0x140365dc3",
+      "bytes": "f30f1183fc030000"
+    },
+    {
+      "address": "0x140365dcb",
+      "bytes": "f30f118b00040000"
+    },
+    {
+      "address": "0x140365de2",
+      "bytes": "0fbae800"
+    },
+    {
+      "address": "0x140365e01",
+      "bytes": "f30f118304040000"
+    },
+    {
+      "address": "0x140365e14",
+      "bytes": "f30f118b08040000"
+    },
+    {
+      "address": "0x140365e25",
+      "bytes": "0fbae801"
+    },
+    {
+      "address": "0x140365e44",
+      "bytes": "f30f11830c040000"
+    },
+    {
+      "address": "0x140365e57",
+      "bytes": "f30f118b10040000"
+    },
+    {
+      "address": "0x140366e3b",
+      "bytes": "f3440f2cd1"
+    },
+    {
+      "address": "0x140366e72",
+      "bytes": "f3440f2cc5"
+    },
+    {
+      "address": "0x140366e8e",
+      "bytes": "453b91b8040000"
+    },
+    {
+      "address": "0x140366e95",
+      "bytes": "7f7e"
+    },
+    {
+      "address": "0x140366e97",
+      "bytes": "443bc1"
+    },
+    {
+      "address": "0x140366e9a",
+      "bytes": "7f79"
+    },
+    {
+      "address": "0x140366edb",
+      "bytes": "83f902"
+    },
+    {
+      "address": "0x1402e70e0",
+      "bytes": "8b8078020000"
+    },
+    {
+      "address": "0x1402e7170",
+      "bytes": "8b807c020000"
+    },
+    {
+      "address": "0x1402e570a",
+      "bytes": "4c8d4b60"
+    },
+    {
+      "address": "0x14074b618",
+      "bytes": "8983d8020000"
+    },
+    {
+      "address": "0x14074b621",
+      "bytes": "8983dc020000"
+    },
+    {
+      "address": "0x14074b6da",
+      "bytes": "e83169a9ff"
+    }
+  ],
+  "embedded_strings": [
+    {
+      "address": "0x140af1140",
+      "file_offset": "0xaf0140",
+      "text": "The tick function will be called once every logic tick and should be used for reading composite data and any required processing. Screen functions will have no effect if called within onTick."
+    },
+    {
+      "address": "0x140af1270",
+      "file_offset": "0xaf0270",
+      "text": "The draw function will be called any time this script is drawn by a monitor. Note that it can be called multiple times if this microcontroller is connected to multiple monitors whereas onTick is only called once. Composite input/output functions will have no effect if called within onDraw."
+    },
+    {
+      "address": "0x140af3490",
+      "file_offset": "0xaf2490",
+      "text": "The composite output from the monitors contains data that can be interpreted in your script to create touchscreens. The layout of the composite data is as follows:\n\nNumber Channels\n1: monitorResolutionX\n2: monitorResolutionY\n3: input1X\n4: input1Y\n5: input2X\n6: input2Y\n\nOn/Off Channels:\n1: isInput1Pressed\n2: isInput2Pressed\n\nThis is an example of a script that outputs a signal on composite channel 1 if the player is pressing the screen within a specific rectangle:"
+    },
+    {
+      "address": "0x140b9f800",
+      "file_offset": "0xb9e800",
+      "text": "function onTick()\n\t-- Read the touchscreen data from the script's composite input\n\tinputX = input.getNumber(3)\n\tinputY = input.getNumber(4)\n\tisPressed = input.getBool(1)\n\n\t-- Check if the player is pressing the rectangle at (10, 10) with width and height of 20px\n\tisPressingRectangle = isPressed and isPointInRectangle(inputX, inputY, 10, 10, 20, 20)\n\n\t-- Set the composite output, on/off channel 1\n\toutput.setBool(1, isPressingRectangle)\nend\n\n-- Returns true if the point (x, y) is inside the rectangle at (rectX, rectY) with width rectW and height rectH\nfunction isPointInRectangle(x, y, rectX, rectY, rectW, rectH)\n\treturn x > rectX and y > rectY and x < rectX+rectW and y < rectY+rectH\nend\n\nfunction onDraw()\n\t-- Draw a rectangle that fills in when the player is pressing it\n\tif isPressingRectangle then\n\t\tscreen.drawRectF(10, 10, 20, 20)\n\telse\n\t\tscreen.drawRect(10, 10, 20, 20)\n\tend\nend"
+    },
+    {
+      "address": "0x140b12678",
+      "file_offset": "0xb11678",
+      "text": "getWidth"
+    },
+    {
+      "address": "0x140b12658",
+      "file_offset": "0xb11658",
+      "text": "getHeight"
+    },
+    {
+      "address": "0x140b1288c",
+      "file_offset": "0xb1188c",
+      "text": "screen"
+    },
+    {
+      "address": "0x140b5baa8",
+      "file_offset": "0xb5aaa8",
+      "text": "voxel_min"
+    },
+    {
+      "address": "0x140b5bc08",
+      "file_offset": "0xb5ac08",
+      "text": "voxel_max"
+    },
+    {
+      "address": "0x140b5d1e8",
+      "file_offset": "0xb5c1e8",
+      "text": "monitor_border"
+    },
+    {
+      "address": "0x140b5d218",
+      "file_offset": "0xb5c218",
+      "text": "monitor_inset"
+    },
+    {
+      "address": "0x140b5963c",
+      "file_offset": "0xb5863c",
+      "text": "onDraw"
+    },
+    {
+      "address": "0x140cd8018",
+      "file_offset": "0xcd6418",
+      "text": ".?AUc_scene_vehicle_component_monitor@@"
+    }
+  ]
+}

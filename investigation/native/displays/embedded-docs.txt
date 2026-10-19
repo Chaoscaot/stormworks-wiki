@@ -1,0 +1,77 @@
+0x140af1140 file+0xaf0140
+The tick function will be called once every logic tick and should be used for reading composite data and any required processing. Screen functions will have no effect if called within onTick.
+
+0x140af1270 file+0xaf0270
+The draw function will be called any time this script is drawn by a monitor. Note that it can be called multiple times if this microcontroller is connected to multiple monitors whereas onTick is only called once. Composite input/output functions will have no effect if called within onDraw.
+
+0x140af3490 file+0xaf2490
+The composite output from the monitors contains data that can be interpreted in your script to create touchscreens. The layout of the composite data is as follows:
+
+Number Channels
+1: monitorResolutionX
+2: monitorResolutionY
+3: input1X
+4: input1Y
+5: input2X
+6: input2Y
+
+On/Off Channels:
+1: isInput1Pressed
+2: isInput2Pressed
+
+This is an example of a script that outputs a signal on composite channel 1 if the player is pressing the screen within a specific rectangle:
+
+0x140b9f800 file+0xb9e800
+function onTick()
+	-- Read the touchscreen data from the script's composite input
+	inputX = input.getNumber(3)
+	inputY = input.getNumber(4)
+	isPressed = input.getBool(1)
+
+	-- Check if the player is pressing the rectangle at (10, 10) with width and height of 20px
+	isPressingRectangle = isPressed and isPointInRectangle(inputX, inputY, 10, 10, 20, 20)
+
+	-- Set the composite output, on/off channel 1
+	output.setBool(1, isPressingRectangle)
+end
+
+-- Returns true if the point (x, y) is inside the rectangle at (rectX, rectY) with width rectW and height rectH
+function isPointInRectangle(x, y, rectX, rectY, rectW, rectH)
+	return x > rectX and y > rectY and x < rectX+rectW and y < rectY+rectH
+end
+
+function onDraw()
+	-- Draw a rectangle that fills in when the player is pressing it
+	if isPressingRectangle then
+		screen.drawRectF(10, 10, 20, 20)
+	else
+		screen.drawRect(10, 10, 20, 20)
+	end
+end
+
+0x140b12678 file+0xb11678
+getWidth
+
+0x140b12658 file+0xb11658
+getHeight
+
+0x140b1288c file+0xb1188c
+screen
+
+0x140b5baa8 file+0xb5aaa8
+voxel_min
+
+0x140b5bc08 file+0xb5ac08
+voxel_max
+
+0x140b5d1e8 file+0xb5c1e8
+monitor_border
+
+0x140b5d218 file+0xb5c218
+monitor_inset
+
+0x140b5963c file+0xb5863c
+onDraw
+
+0x140cd8018 file+0xcd6418
+.?AUc_scene_vehicle_component_monitor@@

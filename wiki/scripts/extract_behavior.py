@@ -280,6 +280,19 @@ class Evidence:
         return self.located(path, start, end, "%s · listed voxels" % self.block(bid)["name"], count,
                             "%s: %d <voxel> element(s) in the definition. %s" % (bid, count, meaning))
 
+    def bounds(self, bid, meaning):
+        """voxel_min/voxel_max of a definition; returns the finding and the inclusive X and Z block extents."""
+        path = DEFS + bid + ".xml"
+        lo, start, _ = self.at(path, r'<voxel_min x="(-?\d+)" y="(-?\d+)" z="(-?\d+)"/>')
+        hi, _, end = self.at(path, r'<voxel_max x="(-?\d+)" y="(-?\d+)" z="(-?\d+)"/>', lo.end())
+        a, b = [int(v) for v in lo.groups()], [int(v) for v in hi.groups()]
+        sx, sz = b[0] - a[0] + 1, b[2] - a[2] + 1
+        finding = self.located(path, start, end, "%s · voxel bounds" % self.block(bid)["name"],
+                               "x %d to %d, z %d to %d" % (a[0], b[0], a[2], b[2]),
+                               "%s: voxel_min (%d, %d, %d) and voxel_max (%d, %d, %d), inclusive block coordinates: %d block(s) along X, %d along Z. %s" % (
+                                   bid, a[0], a[1], a[2], b[0], b[1], b[2], sx, sz, meaning))
+        return finding, sx, sz
+
     def mesh_mouth(self, bid, x_face, x_recess, y, z, detail):
         """Open side of a part mesh: a ray along X at (y, z) must hit the recess and the back face but not the front face."""
         name = self.attr(bid, "mesh_data_name", "")["value"]
@@ -667,6 +680,69 @@ WHERE.update({
     (0x14019A370, 0x14019A3A3): CS + "asm/bullet-force.asm:L1-L56; " + CS + "pseudocode/0x14019a370.c",
     (0x140128608, 0x140128734): CS + "asm/solver-force-integration.asm:L81-L87; " + CS + "asm/solver-time-call.asm; " + CS + "pseudocode/0x140128560.c",
     (0x140293A40, None): CS + "asm/tuning-loader.asm:L249-L258; " + CS + "asm/tuning-load-call.asm; " + CS + "pseudocode/0x140293a40.c",
+})
+
+
+# displays pass; files under investigation/native/displays/, report investigation/displays.md.
+DSP = "../displays/"
+DSP_REPORT = "investigation/displays.md"
+F_MONITOR_TYPE = 0x140365540  # monitor component type method (vtable 0x140b73178 slot +0x30), returns 43
+F_MONITOR_SIZE = 0x1403652B0  # monitor resolution and render-target setup, slot +0x2c8
+F_MONITOR = 0x140365D30       # monitor component update, slot +0x358: writes the Touch Output composite
+F_TOUCH = 0x140366D80         # monitor touch setter: hit point -> integer pixel slot
+F_LUA_REG = 0x1402E5230       # Lua library registration: screen callbacks get script+0x60 as context
+F_LUA_WIDTH = 0x1402E70A0     # Lua screen.getWidth
+F_LUA_HEIGHT = 0x1402E7130    # Lua screen.getHeight
+F_VIDEO_DRAW = 0x14074B310    # video Lua draw: copies the monitor size into the script, then calls onDraw
+F_LUA_EXAMPLE = 0x14063D870   # loads the shipped touchscreen example script
+# vtable 0x140b73178 (c_scene_vehicle_component_monitor): slots +0x30, +0x2c8 and +0x358.
+MONITOR_SLOTS = ((0x140B731A8, F_MONITOR_TYPE), (0x140B73440, F_MONITOR_SIZE), (0x140B734D0, F_MONITOR))
+# Report table "Answer in brief": inclusive X × Z blocks per definition.
+DISPLAY_BLOCKS = {"monitor_1": (1, 1), "monitor_1x2": (2, 1), "monitor_1x3": (3, 1), "monitor_2": (2, 2), "monitor_2x3": (3, 2),
+                  "monitor_3": (3, 3), "monitor_5": (5, 3), "monitor_9": (9, 5), "monitor_hud_1": (1, 1), "monitor_hud_3": (3, 3)}
+DOC_TICK = ("The tick function will be called once every logic tick and should be used for reading composite data and any required processing. "
+            "Screen functions will have no effect if called within onTick.")
+DOC_DRAW = ("The draw function will be called any time this script is drawn by a monitor. Note that it can be called multiple times if this "
+            "microcontroller is connected to multiple monitors whereas onTick is only called once. Composite input/output functions will have "
+            "no effect if called within onDraw.")
+DOC_TOUCH = ("The composite output from the monitors contains data that can be interpreted in your script to create touchscreens. "
+             "The layout of the composite data is as follows:\n\nNumber Channels\n1: monitorResolutionX\n2: monitorResolutionY\n3: input1X\n"
+             "4: input1Y\n5: input2X\n6: input2Y\n\nOn/Off Channels:\n1: isInput1Pressed\n2: isInput2Pressed\n\nThis is an example of a script "
+             "that outputs a signal on composite channel 1 if the player is pressing the screen within a specific rectangle:")
+_MU, _TS = DSP + "asm/monitor-update.asm", DSP + "asm/touch-slots.asm"
+WHERE.update({
+    (0x140365540, 0x140365540): DSP + "asm/monitor-type.asm:L1-L2; " + DSP + "tables.txt:L3-L7; " + DSP + "asm/monitor-constructor.asm",
+    (0x1403168D0, 0x1403169B9): DSP + "asm/definition-bindings.asm:L1-L18",
+    (0x1403168D0, 0x1403169E3): DSP + "asm/definition-bindings.asm:L1-L18",
+    (0x1403168D0, 0x140317EC6): DSP + "asm/definition-bindings.asm:L20-L31",
+    (0x1403652B0, 0x14036531A): DSP + "asm/resolution.asm:L21-L29; " + DSP + "pseudocode/0x1403652b0.c",
+    (0x1403652B0, 0x140365325): DSP + "asm/resolution.asm:L21-L33; " + DSP + "pseudocode/0x1403652b0.c",
+    (0x1403652B0, 0x140365333): DSP + "asm/resolution.asm:L31-L33",
+    (0x1403652B0, 0x14036533C): DSP + "asm/resolution.asm:L31-L33",
+    (0x1403652B0, 0x140365343): DSP + "asm/resolution.asm:L6-L20,L34-L47",
+    (0x140365D30, 0x140365DC3): _MU + ":L13-L33; " + DSP + "pseudocode/0x140365d30.c",
+    (0x140365D30, 0x140365DE2): _MU + ":L34-L44",
+    (0x140365D30, 0x140365E01): _MU + ":L45-L48",
+    (0x140365D30, 0x140365E14): _MU + ":L45-L48",
+    (0x140365D30, 0x140365E25): _MU + ":L49-L58",
+    (0x140365D30, 0x140365E44): _MU + ":L59-L62",
+    (0x140365D30, 0x140365E57): _MU + ":L59-L62",
+    (0x140365D30, 0x140365E61): _MU + ":L13-L16,L64-L81; " + DSP + "pseudocode/0x140365d30.c",
+    (0x140366D80, 0x140BAFCBC): _TS + ":L18-L70; " + DSP + "tables.txt:L1; " + DSP + "pseudocode/0x140366d80.c",
+    (0x140366D80, 0x140BAFBBC): _TS + ":L40-L70; " + DSP + "tables.txt:L2; " + DSP + "pseudocode/0x140366d80.c",
+    (0x140366D80, 0x140366E3B): _TS + ":L40-L70; " + DSP + "pseudocode/0x140366d80.c",
+    (0x140366D80, 0x140366E8E): _TS + ":L71-L78",
+    (0x140366D80, 0x140366E97): _TS + ":L71-L78",
+    (0x140366D80, 0x140366EDB): _TS + ":L79-L114; " + DSP + "asm/touch-hit-test.asm; " + DSP + "pseudocode/0x140366d80.c",
+    (0x1402E5230, 0x1402E570A): DSP + "asm/lua-registration.asm:L1-L27; " + DSP + "asm/lua-context.asm",
+    (0x1402E70A0, 0x1402E70E0): DSP + "asm/lua-dimensions.asm:L1-L45; " + DSP + "pseudocode/0x1402e70a0.c",
+    (0x1402E7130, 0x1402E7170): DSP + "asm/lua-dimensions.asm:L46-L83; " + DSP + "pseudocode/0x1402e7130.c",
+    (0x14074B310, 0x14074B618): DSP + "asm/video-lua-draw.asm:L155-L166; " + DSP + "asm/monitor-draw-loop.asm; " + DSP + "asm/monitor-render-record.asm; " + DSP + "pseudocode/0x14074b310.c",
+    (0x14074B310, 0x14074B6DA): DSP + "asm/video-lua-draw.asm:L196-L203; " + DSP + "pseudocode/0x14074b310.c",
+    (0x1401F3C80, 0x1401FE3A2): DSP + "embedded-docs.txt:L1-L2",
+    (0x1401F3C80, 0x1401FE3BB): DSP + "embedded-docs.txt:L4-L5",
+    (0x1401F3C80, 0x1401FE6DB): DSP + "embedded-docs.txt:L7-L22",
+    (0x14063D870, 0x14063EF0D): DSP + "embedded-docs.txt:L24-L50",
 })
 
 
@@ -1768,10 +1844,6 @@ def remaining(B, E):
                "Buttons accept an external on/off input so several buttons can drive one output; the large keypad also emits a pulse on confirm.",
                [section("Wiring", "Chain buttons through External Input to unify outputs. Toggle buttons and lock buttons can set their default state in the properties.")],
                [E.tooltip("button_push"), E.tooltip("button_keypad_large")], ["Tooltip semantics only."])
-    B.category("Displays",
-               "Monitors and HUDs show video data and need power and their Power Switch; no further behaviour was recovered.",
-               [section("Wiring", "Connect Video Signal from a microcontroller or camera, power, and Power Switch. Touch Output carries touch input back.")],
-               [E.port("monitor_1", "Power Switch")], ["Port labels only; resolution and touch layout were not recovered."])
     B.category("Seating",
                "Pilot seats expose four axes from −1 to 1, six hotkeys, look angles in turns and a composite with fixed channels (on/off 31 trigger, 32 occupied; values 1–4 axes, 9–10 look).",
                [section("Composite layout", "On/Off 1 and up carry hotkeys, 31 the trigger and 32 occupancy; values 1–4 carry the axes and 9–10 the look direction. The HOTAS seat adds axes 5–8 and up to 48 hotkeys.")],
@@ -2280,12 +2352,165 @@ def air_scoop(B, E):
               "The L/s figure on the inspection tooltip is a fixed display factor of 600 L per gas amount. It does not measure the compressed gas volume in the network."])
 
 
+def display_protocol(E):
+    """Monitor resolution, Touch Output composite and Lua dimensions, verified once and shared by both display families."""
+    if hasattr(E, "display"):
+        return E.display
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / DSP_REPORT).is_file():
+        raise ValueError("Display report missing: " + DSP_REPORT)
+    for slot, target in MONITOR_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Monitor vtable slot %#x does not point to %#x" % (slot, target))
+    rep = " Report: %s." % DSP_REPORT
+    f = {}
+    f["type"] = code(F_MONITOR_TYPE, 0x140365540, "b82b000000c3", "Monitor component type", "43",
+                     "The type method of c_scene_vehicle_component_monitor (vtable 0x140b73178, slot +0x30) returns 43. All ten Displays definitions declare type 43, so monitors and HUDs share this component. "
+                     "The extractor re-reads slots +0x30, +0x2c8 and +0x358 of that vtable." + rep)
+    f["vmin"] = code(F_DEFSER, 0x1403169B9, "4c8d8ec0000000", "voxel_min binding", "definition+0xc0",
+                     "The definition loader binds voxel_min (string 0x140b5baa8) to definition+0xc0." + rep)
+    f["vmax"] = code(F_DEFSER, 0x1403169E3, "4c8d8ecc000000", "voxel_max binding", "definition+0xcc",
+                     "The definition loader binds voxel_max (string 0x140b5bc08) to definition+0xcc, so +0xcc and +0xd4 are its X and Z." + rep)
+    f["border"] = code(F_DEFSER, 0x140317EC6, "4c8d8e28290000", "monitor_border binding", "definition+0x2928",
+                       "The definition loader binds monitor_border (string 0x140b5d1e8) to definition+0x2928; monitor_inset goes to +0x292c and is not read by the touch setter." + rep)
+    f["extent"] = code(F_MONITOR_SIZE, 0x14036531A, "2b90c0000000", "Screen extent in blocks", "voxel_max - voxel_min + 1",
+                       "Subtracts voxel_min.x (definition+0xc0) from voxel_max.x (+0xcc) here and voxel_min.z (+0xc8) from voxel_max.z (+0xd4) at 0x140365317, then adds 1 to each at 0x140365320 and 0x140365323: the inclusive X and Z extents in blocks. The Y extent is not read." + rep)
+    f["shift"] = code(F_MONITOR_SIZE, 0x140365325, "41c1e005c1e205", "Pixels per block", "32",
+                      "Shifts the Z extent and then the X extent left by 5, multiplying each by 32." + rep)
+    f["width"] = code(F_MONITOR_SIZE, 0x140365333, "8993b8040000", "Logical width store", "component+0x4b8",
+                      "Stores 32 × X extent as the monitor's logical width in pixels." + rep)
+    f["height"] = code(F_MONITOR_SIZE, 0x14036533C, "448983bc040000", "Logical height store", "component+0x4bc",
+                       "Stores 32 × Z extent as the monitor's logical height in pixels." + rep)
+    f["quality"] = code(F_MONITOR_SIZE, 0x140365343, "450fafc1410fafd1", "Render quality scale", "q = 1, 2 or 4",
+                        "After storing the logical size, the routine multiplies both by a quality scale q (1, 4 or 2 by the routine's third argument) and allocates the render target at component+0x4c8 at that size, then a second target at +0x4d8 at the unscaled size. "
+                        "q does not reach the stored width and height, so the Lua and touch grid does not change with it. Which settings label selects each q was left out of scope." + rep)
+    chan = lambda address, hexbytes, label, value, detail: code(F_MONITOR, address, hexbytes, label, value, detail + rep)
+    f["n12"] = chan(0x140365DC3, "f30f1183fc030000f30f118b00040000", "Touch Output numbers 1 and 2", "width, height",
+                    "While the switch flag at component+0x4b0 is on and Touch Output is connected, each update writes the width (+0x4b8) and height (+0x4bc) as floats to composite number channels 1 and 2 (+0x3fc and +0x400; the store for channel 2 is at 0x140365dcb).")
+    f["b1"] = chan(0x140365DE2, "0fbae800", "Touch Output boolean 1", "touch 1 pressed",
+                   "Sets bit 0 of the composite boolean word (+0x3f8) while the first slot's pressed byte (+0x150) is set, and clears it otherwise.")
+    f["n3"] = chan(0x140365E01, "f30f118304040000", "Touch Output number 3", "touch 1 X", "Writes the first slot's X (+0x148) to number channel 3 (+0x404).")
+    f["n4"] = chan(0x140365E14, "f30f118b08040000", "Touch Output number 4", "touch 1 Y", "Writes the first slot's Y (+0x14c) to number channel 4 (+0x408).")
+    f["b2"] = chan(0x140365E25, "0fbae801", "Touch Output boolean 2", "touch 2 pressed",
+                   "Sets bit 1 of the composite boolean word while the second slot's pressed byte (+0x15c) is set, and clears it otherwise.")
+    f["n5"] = chan(0x140365E44, "f30f11830c040000", "Touch Output number 5", "touch 2 X", "Writes the second slot's X (+0x154) to number channel 5 (+0x40c).")
+    f["n6"] = chan(0x140365E57, "f30f118b10040000", "Touch Output number 6", "touch 2 Y", "Writes the second slot's Y (+0x158) to number channel 6 (+0x410).")
+    f["off"] = chan(0x140365E61, "4889b1f8030000", "Touch Output while switched off", "all channels 0",
+                    "With the switch flag at +0x4b0 off, the update zeroes the whole composite payload from +0x3f8 to +0x47b. That this flag follows the Power Switch input is an inference from the port binding; the code that sets it is outside the retained excerpts.")
+    f["half"] = E.const(F_TOUCH, 0x140BAFCBC, "Touch mapping half",
+                        "The touch setter maps a hit point to x = trunc((0.5 + 0.5 × (px - cx) ÷ Bx) × width) and y = trunc((0.5 - 0.5 × (pz - cz) ÷ Bz) × height). X grows to the right and Y grows downward from the upper left." + rep)
+    f["quarter"] = E.const(F_TOUCH, 0x140BAFBBC, "Touch mapping block size",
+                           "Half-extents Bx = X extent × 0.5 × this - monitor_border and Bz = Z extent × 0.5 × this - monitor_border (definition+0x2928). monitor_border therefore narrows the touch area on each side but not the pixel grid." + rep)
+    f["trunc"] = code(F_TOUCH, 0x140366E3B, "f3440f2cd1", "Touch coordinate conversion", "truncate toward zero",
+                      "cvttss2si converts X to an integer here and Y at 0x140366e72, before any bounds check, so coordinates are whole pixels and a point just outside the left or top edge can still give 0." + rep)
+    f["xbound"] = code(F_TOUCH, 0x140366E8E, "453b91b80400007f7e", "Touch X bound", "0 ≤ x ≤ width",
+                       "Rejects a negative X at 0x140366e7f and an X greater than the width (+0x4b8) with a signed jg, so x = width itself is accepted." + rep)
+    f["ybound"] = code(F_TOUCH, 0x140366E97, "443bc17f79", "Touch Y bound", "0 ≤ y ≤ height",
+                       "Rejects a negative Y at 0x140366e88 and a Y greater than the height with a signed jg." + rep)
+    f["slots"] = code(F_TOUCH, 0x140366EDB, "83f902", "Touch slots", "2",
+                      "Two 12-byte slots start at component+0x148 and +0x154. The setter first matches a slot holding the same integer point, otherwise a press takes the first slot whose pressed byte is clear. Both loops stop at 2, so a third simultaneous touch is ignored. "
+                      "The clear routine 0x140366d70 resets only the pressed bytes, so a released slot keeps its last X and Y." + rep)
+    f["context"] = code(F_LUA_REG, 0x1402E570A, "4c8d4b60", "Lua screen context", "script+0x60",
+                        "The Lua library registration pairs getWidth with 0x1402e70a0 and getHeight with 0x1402e7130 and passes script+0x60 as their context." + rep)
+    f["getw"] = code(F_LUA_WIDTH, 0x1402E70E0, "8b8078020000", "screen.getWidth", "script+0x2d8",
+                     "Returns context+0x278, which is script+0x2d8." + rep)
+    f["geth"] = code(F_LUA_HEIGHT, 0x1402E7170, "8b807c020000", "screen.getHeight", "script+0x2dc",
+                     "Returns context+0x27c, which is script+0x2dc." + rep)
+    f["copy"] = code(F_VIDEO_DRAW, 0x14074B618, "8983d8020000", "Draw size copy", "script+0x2d8 = width",
+                     "The monitor render record copies the component's width and height (+0x4b8, +0x4bc at 0x140366254 and 0x140366261). The draw loop passes that pair here, and the video Lua draw stores it to script+0x2d8 and, at 0x14074b621, script+0x2dc. "
+                     "screen.getWidth and screen.getHeight therefore return the monitor's logical size." + rep)
+    f["ondraw"] = code(F_VIDEO_DRAW, 0x14074B6DA, "e83169a9ff", "onDraw call", "call 0x1401e2010",
+                       "After copying the size and enabling draw mode, the routine calls the script's onDraw. It runs on the render path, not the component update." + rep)
+    f["doc_tick"] = E.text_id(0x1401FE3A2, 0x6AD, DOC_TICK)
+    f["doc_draw"] = E.text_id(0x1401FE3BB, 0x6AE, DOC_DRAW)
+    f["doc_touch"] = E.text_id(0x1401FE6DB, 0x6CE, DOC_TOUCH)
+    script = n.cstring(0x140B9F800)
+    lines = ("inputX = input.getNumber(3)", "inputY = input.getNumber(4)", "isPressed = input.getBool(1)", "screen.drawRectF(10, 10, 20, 20)")
+    if not all(x in script for x in lines):
+        raise ValueError("Touchscreen example script at 0x140b9f800 differs")
+    f["example"] = code(F_LUA_EXAMPLE, 0x14063EF0D, "488d15ec085600", "Touchscreen example script", "; ".join(lines),
+                        "Loads the shipped example script at 0x140b9f800. In onTick it reads number channels 3 and 4 and boolean channel 1 of the monitor composite; in onDraw it draws the rectangle the touch is tested against. "
+                        "The extractor checks that the string contains the quoted lines." + rep)
+    shared = [f[k] for k in ("type", "vmin", "vmax", "extent", "shift", "width", "height", "quality", "n12", "b1", "n3", "n4", "b2", "n5", "n6", "off",
+                             "half", "quarter", "border", "trunc", "xbound", "ybound", "slots", "context", "getw", "geth", "copy", "ondraw",
+                             "doc_tick", "doc_draw", "doc_touch", "example")]
+    ppb = 1 << n.raw(0x140365328, 1)[0]  # shl imm8 of the Z shift; the X shift at 0x14036532b uses the same 5
+    sizes = {}
+    for bid, blocks in DISPLAY_BLOCKS.items():
+        bounds, sx, sz = E.bounds(bid, "The monitor resolution routine reads these bounds (definition+0xc0 and +0xcc).")
+        if (sx, sz) != blocks or E.block(bid)["attributes"].get("type") != "43":
+            raise ValueError("Display bounds or type differ from the report: " + bid)
+        w, h = sx * ppb, sz * ppb
+        res = E.derived("%s · Lua/video resolution" % E.block(bid)["name"], "%d × %d pixels" % (w, h),
+                        "%d block(s) along X and %d along Z: width 32 × %d = %d and height 32 × %d = %d pixels, the values screen.getWidth(), screen.getHeight() and Touch Output numbers 1 and 2 report. A calculation from the shipped bounds and the native formula; no game measurement." % (
+                            sx, sz, sx, w, sz, h) + rep,
+                        [bounds, f["extent"], f["shift"], f["width"], f["height"]])
+        sizes[bid] = {"bounds": bounds, "res": res, "w": w, "h": h, "type": E.attr(bid, "type", "Component type 43, the monitor component.")}
+    E.display = {"f": f, "shared": shared, "sizes": sizes}
+    return E.display
+
+
+def displays(B, E):
+    D = display_protocol(E)
+    shared, sizes = D["shared"], D["sizes"]
+    name = lambda bid: E.block(bid)["name"]
+    sized = lambda ids: ", ".join("%s %d×%d" % (name(b), sizes[b]["w"], sizes[b]["h"]) for b in ids)
+    ports = lambda bid: [E.port(bid, p) for p in ("Video Signal", "Touch Output", "Electric", "Power Switch")]
+    per_variant = lambda ids: [x for b in ids for x in (sizes[b]["res"], sizes[b]["bounds"])]
+    formula = ("The game sets width = 32 × (voxel_max.x - voxel_min.x + 1) and height = 32 × (voxel_max.z - voxel_min.z + 1) from the definition's block bounds. "
+               "The same size comes back from screen.getWidth() and screen.getHeight() in onDraw and on Touch Output number channels 1 and 2.")
+    grid = ("The listed voxel count and monitor_border do not change the pixel grid. The graphics quality setting scales the render target by 1, 2 or 4 after the size is stored, so it leaves the Lua and touch grid alone.")
+    touch = ("Touch Output is a composite. Number channels 1 and 2 carry the width and height in pixels, 3 and 4 the X and Y of the first touch, and 5 and 6 the X and Y of the second. "
+             "Boolean channels 1 and 2 are on while the first and second touch are pressed. "
+             "Coordinates are whole pixels from the upper left, X to the right and Y down, accepted from 0 up to the width and height inclusive.")
+    slots = ("The screen tracks at most two touches at once and ignores a third. Releasing a touch clears only its flag and leaves its last X and Y on the channels, so check the flag before using a coordinate. "
+             "The touch area is the screen face inset by monitor_border on each side, stretched over the pixel grid.")
+    lua = ("Read the channels with input.getNumber and input.getBool in onTick, which runs once per logic tick; screen functions do nothing there. "
+           "Draw in onDraw, which runs whenever a monitor draws the script and can run several times when one script drives several monitors. Composite functions do nothing in onDraw. "
+           "The shipped example reads number channels 3 and 4 and boolean channel 1 in onTick and draws the matching rectangle in onDraw.")
+    wiring = ("Feed Video Signal from a microcontroller or camera, connect Electric and turn Power Switch on. "
+              "For a touchscreen, wire Touch Output to a composite input on the microcontroller that draws the screen and its video output back to Video Signal. "
+              "While the screen is switched off, every Touch Output channel reads 0.")
+    open_items = ("Still open: a fixed refresh rate in Hz and the delay from a touch to the next drawn frame. onDraw follows monitor rendering rather than the 60-per-second component update, "
+                  "and the draw scheduling, culling and caching were outside this pass.")
+    static = "Resolution and touch layout come from static analysis of one build and its shipped definitions; the game was not run and no touch was tested in game."
+    slot_owner = "Still open: which player or input event takes each touch slot, and how HUD hits reach the touch setter."
+    monitors = ["monitor_1", "monitor_1x2", "monitor_1x3", "monitor_2", "monitor_2x3", "monitor_3", "monitor_5", "monitor_9"]
+    huds = ["monitor_hud_1", "monitor_hud_3"]
+    B.category("Displays",
+               "Monitors and HUDs draw on a logical grid of 32 pixels per block across their X and Z voxel bounds, from 32×32 on a Monitor 1x1 to 288×160 on a Monitor 9x5. "
+               "Touch Output returns the screen size and two touch points in pixels.",
+               [section("Wiring", wiring),
+                section("Resolution", formula, "Sizes in pixels: %s, %s." % (sized(monitors), sized(huds)), grid),
+                section("Touch Output", touch, slots),
+                section("Lua callbacks", lua)],
+               shared + ports("monitor_1") + per_variant(monitors + huds) + [sizes[b]["type"] for b in monitors + huds],
+               [static, open_items, slot_owner])
+    B.family("monitor",
+             "Monitors draw 32 pixels per block of width and height, from 32×32 (Monitor 1x1) to 288×160 (Monitor 9x5). Touch Output reports that size and two touch points in pixels.",
+             [section("Resolution by size", formula,
+                      "Sizes in pixels: %s." % sized(monitors),
+                      "Follow the bounds, not the name: in Monitor 1x2, 1x3 and 2x3 the first number is the height in blocks, while 5x3 and 9x5 give the width first.", grid),
+              section("Touchscreen channels", touch, slots),
+              section("Lua callbacks", lua),
+              section("Wiring", wiring)],
+             shared + ports("monitor_1") + per_variant(monitors), [static, open_items, slot_owner])
+    B.family("head-up-display",
+             "HUD Small draws 32×32 pixels and HUD Large 96×96. HUDs use the monitor component, with the same Touch Output channels.",
+             [section("Resolution by size", formula, "Sizes in pixels: %s." % sized(huds),
+                      "HUDs have component type 43, the monitor type, so the same resolution routine and touch setter apply. Their definitions leave the Touch Output description empty; the channel layout below is the explanation.", grid),
+              section("Touchscreen channels", touch, slots),
+              section("Lua callbacks", lua),
+              section("Wiring", wiring)],
+             shared + ports("monitor_hud_1") + per_variant(huds), [static, open_items, slot_owner])
+
+
 def build(root):
     E = Evidence(root)
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 air_scoop):
+                 air_scoop, displays):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.
