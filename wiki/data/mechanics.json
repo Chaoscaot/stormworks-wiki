@@ -1054,7 +1054,7 @@
       "title": "Fluid tanks, pumps and damping",
       "category": "Fluids",
       "summary": "Tank and pump outputs document litres, atmospheres and litres per second.",
-      "body": "The small tank reports content in litres and pressure in atmospheres, and its tooltip says it spawns full of the selected fluid. Pump Flow Rate outputs use L/s. Small and large pump definitions set pump_pressure to 10 and 100, but do not document the units of that internal field. Realtime tuning distinguishes gas and liquid base damping, 0.99 and 0.9999, while their flow damping entries both read 0.0005.",
+      "body": "The small tank reports content in litres and pressure in atmospheres, and its tooltip says it spawns full of the selected fluid. Pump Flow Rate outputs use L/s. Small and large pump definitions set pump_pressure to 10 and 100, but do not document the units of that internal field. Realtime tuning distinguishes gas and liquid base damping, 0.99 and 0.9999, while their flow damping entries both read 0.0005. Tank capacities, the pressure law, the network solver and pump flow bounds come from native code and are in the Fluids category and the Fluid Tank, Gas Tank and pump part articles. None of the four fluid damping names occurs in the executable.",
       "findings": [
         {
           "label": "Fluid Tank Small: Stored Fluid",
@@ -1312,7 +1312,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Pump pressure fields do not establish a pressure-flow curve. Network solver, gas compression, transfer limits and temperature effects remain unknown."
+        "No unit or delivered head is documented for pump_pressure. The effect of the realtime damping entries on this build was not recovered; their names do not occur in the executable."
       ]
     },
     {
@@ -4214,7 +4214,7 @@
       "title": "Winch controls, length and hose connections",
       "category": "Fluids",
       "summary": "Winch descriptions document electrical operation, length telemetry and hose-coil ports.",
-      "body": "The selected mechanical winch raises its cable on Up and lowers it on Down. Length reports the current cable length in metres. The selected large variant documents the same controls and units. Their short tooltips describe 20m and 100m mechanical winches respectively. Both expose electrical and hose-coil fluid connections. These descriptions do not supply cable strength or reeling speed.",
+      "body": "The selected mechanical winch raises its cable on Up and lowers it on Down. Length reports the current cable length in metres. The selected large variant documents the same controls and units. Their short tooltips describe 20m and 100m mechanical winches respectively. Both expose electrical and hose-coil fluid connections. These descriptions do not supply cable strength or reeling speed. Native code shows the hose-coil connection: these type-20 winches link the winch and end-piece fluid networks with zero bias in both directions and no length term, so a longer cable adds no hose volume or flow loss (Hose and winch part articles).",
       "findings": [
         {
           "label": "Medium Winch: Up",
@@ -4416,7 +4416,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Tooltip lengths are documented variant descriptions, not measured effective travel. Tension limits, breakage, reel speed, electricity use, hose pressure losses and behavior when both controls are on remain unknown."
+        "Tooltip lengths are documented variant descriptions, not measured effective travel. Tension limits, breakage, reel speed, electricity use and behavior when both controls are on remain unknown."
       ]
     },
     {

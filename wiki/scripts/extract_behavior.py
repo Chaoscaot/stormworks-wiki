@@ -643,6 +643,240 @@ def fluid_transport(E):
     return E.transport
 
 
+# fluid-network pass; files under investigation/native/fluids-network/, report investigation/fluids-network.md.
+FN = "../fluids-network/"
+FN_REPORT = "investigation/fluids-network.md"
+F_PRESSURE = 0x1402EB500     # compartment pressure: 60 × A ÷ V up to volume 8, else 7.5 × window amount
+F_PHASE = 0x1402EB550        # fluid-index phase classifier (leaf): 0 gas, 1 liquid
+F_FILL = 0x1404B7664         # chained unwind chunk of the tank and spawner initial fill 0x1404b7640
+F_BODY_BUILD = 0x1404BBCA0   # body build: pipe-network builders, then the initial fill
+F_WATER_CTOR = 0x1403EE3D0   # water component constructor
+F_SPECIES_UI = 0x1403F9E40   # tank species-list tooltip
+F_HOSE = 0x1403E3A70         # winch component update (type 20: Hose and mechanical winches), vtable 0x140b958e8 slot +0x358
+F_WINCH_CTOR = 0x1403E26F0   # winch component constructor
+F_ROPE_FLUID = 0x1403B6840   # rope-hook second component pass, slot +0x360: fluid exchange across hose links
+F_PULLEY_NET = 0x1404A2130   # extra network builder: shared network of a hose pulley's two ports
+F_CONNECTOR = 0x1403D4130    # connector update, vtable 0x140b50988 slot +0x358
+F_ROOM_VOLUME = 0x1402F5D22  # chunk of custom-compartment volume builder 0x1402f5cd0: per-cell accumulation
+F_ROOM_STORE = 0x1402F63C6   # chunk of 0x1402f5cd0: final volume store
+WATER_TABLE = 0x1403F5100    # fluid-update jump table, image-relative dwords indexed by water_component_type
+FLUID_DAMPING = ("fluid_flow_damping_gas", "fluid_flow_damping_liquid", "fluid_base_damping_gas", "fluid_base_damping_liquid")
+FLUID_SLOTS = ((0x140B95C40, F_HOSE), (0x140B60450, F_ROPE_FLUID), (0x140B50CE0, F_CONNECTOR))
+WATER_CASES = ((7, 0x1403F509D), (8, 0x1403F3766), (10, 0x1403F2394), (20, 0x1403F3766), (22, 0x1403F343F), (27, 0x1403F262E))
+LIQUID_TANKS = ("fluid_tank_small", "fluid_tank_medium", "fluid_tank_large")
+GAS_TANKS = ("fluid_tank_compressed_gas_1_3", "fluid_tank_compressed_gas_1_7", "fluid_tank_compressed_gas_3_7", "fluid_tank_compressed_gas_5_9")
+PHASE_TARGETS = [0x1402EB56D, 0x1402EB56D, 0x1402EB56D, 0x1402EB56A, 0x1402EB56A, 0x1402EB56D, 0x1402EB56D,
+                 0x1402EB56A, 0x1402EB56D, 0x1402EB56D, 0x1402EB56A, 0x1402EB56A, 0x1402EB56A]
+FILL_TARGETS = [0x1404B7A25 if t == 0x1402EB56D else 0x1404B7A03 for t in PHASE_TARGETS]
+_FA, _FP = FN + "asm/", FN + "pseudocode/"
+WHERE.update({
+    (0x1403EF450, 0x1403EF6BF): _FA + "tank-init.asm:L135-L153; " + FN + "tools/resources.json",
+    (0x1403EF450, 0x1403EF705): _FA + "tank-init.asm:L159-L164",
+    (0x1403EF450, 0x1403EF6DD): _FA + "tank-init.asm:L145-L153",
+    (0x1403EF860, 0x1403F37B8): _FA + "tank-update.asm:L17-L35",
+    (0x1403EF860, 0x1403F3802): _FA + "tank-update.asm:L17-L52",
+    (0x1403EF860, 0x1403F3863): _FA + "tank-update.asm:L53-L56",
+    (0x1403EF860, 0x1403F387E): _FA + "tank-update.asm:L57-L61; " + _FA + "pressure-species.asm:L49-L64",
+    (0x1403F9E40, 0x1403F9FA7): _FA + "tank-contents-ui.asm:L81-L93",
+    (0x1402EB460, 0x1402EB471): _FA + "pressure-species.asm:L1-L35",
+    (0x1402EB460, 0x1402EB4B6): _FA + "pressure-species.asm:L12-L35",
+    (0x1402EB500, None): _FA + "pressure-species.asm:L49-L64",
+    (0x1402EB550, None): _FA + "pressure-species.asm:L74-L82; " + FN + "tools/anchors.json",
+    (0x1404B7664, None): _FA + "tank-fill.asm; " + _FP + "0x1404b7640.c",
+    (0x1404BBCA0, 0x1404BC38A): _FA + "tank-fill-call.asm:L9-L14",
+    (0x1403EE3D0, None): _FA + "water-constructor.asm",
+    (0x1403EF860, 0x1403F34EB): _FA + "manual-pump.asm:L1-L34; " + _FA + "manual-interact.asm; " + _FP + "0x1408cddd0.c; " + _FP + "0x1408cde20.c",
+    (0x1403EF860, 0x1403F360E): _FA + "manual-pump.asm:L92-L97,L112-L120",
+    (0x1403EF860, 0x1403F3616): _FA + "manual-pump.asm:L92-L97,L112-L120",
+    (0x1403EF860, 0x1403F364C): _FA + "manual-pump.asm:L98-L110",
+    (0x1403EF860, 0x1403F3491): _FA + "manual-pump.asm:L13-L17; " + _FA + "manual-animation.asm",
+    (0x1403EF860, 0x1403F25FB): _FA + "manual-pump.asm:L112-L120; " + _FA + "filter-old.asm:L120-L129",
+    (0x1403EF860, 0x1403F2394): _FA + "filter-old.asm:L1-L5,L66-L75",
+    (0x1403EF860, 0x1403F24F2): _FA + "filter-old.asm:L66-L75,L120-L129",
+    (0x1403EF860, 0x1403F2676): _FA + "filter-new.asm:L15-L48; " + _FA + "bit-masks.asm",
+    (0x1403EF860, 0x1403F26EC): _FA + "filter-new.asm:L49-L81; " + _FA + "bit-masks.asm",
+    (0x1403EF860, 0x1403F27B7): _FA + "filter-new.asm:L82-L94",
+    (0x1403E3A70, None): _FA + "hose-update.asm:L1-L28; " + _FP + "0x1403e3a70.c",
+    (0x1403E26F0, None): _FA + "winch-construct.asm",
+    (0x14045DD20, 0x14045E240): _FA + "winch-construct.asm",
+    (0x1403B6840, None): _FA + "rope-hook-exchange.asm; " + _FP + "0x1403b6840.c",
+    (0x1404995E7, 0x1404996A7): _FA + "rope-hook-dispatch.asm:L20-L31",
+    (0x1404A2130, None): _FA + "network-extra.asm:L28-L105",
+    (0x1403D4130, None): _FA + "connector-update.asm:L150-L183; " + _FP + "0x1403d4130.c",
+    (0x1404A0F50, 0x1404A1970): _FA + "network-traverse.asm:L96-L103",
+    (0x1403168D0, 0x140317C96): _FA + "name-binding.asm",
+    (0x1402F5D22, None): _FA + "open-volume.asm:L300-L317; " + _FP + "0x1402f5cd0.c",
+    (0x1402F63C6, None): _FA + "open-volume.asm:L440-L444; " + _FP + "0x1402f5cd0.c",
+})
+
+
+def window_pressure(V, L, G):
+    """Pressure from the recovered window equation, plain floats; mirrors 0x1402eb500 and 0x1402eb460."""
+    if V <= 8:
+        return 60 * (L + G) / V
+    return 7.5 * (G * min(1, 8 / (V - L)) + max(L * 4 / (60 * V), L - V + 8))
+
+
+def fluid_network(E):
+    """Tank volumes, the pressure law, initial fill, manual pump, filters, hoses, pulleys and connectors, verified once and shared."""
+    if hasattr(E, "network"):
+        return E.network
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / FN_REPORT).is_file():
+        raise ValueError("Fluid-network report missing: " + FN_REPORT)
+    for name in FLUID_DAMPING:
+        if name.encode() in n.data or name.encode("utf-16-le") in n.data:
+            raise ValueError(name + " now occurs in the executable")
+    for slot, target in FLUID_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Vtable slot %#x does not point to %#x" % (slot, target))
+    for t, target in WATER_CASES:
+        if n.base + struct.unpack("<I", n.raw(WATER_TABLE + 4 * t, 4))[0] != target:
+            raise ValueError("Fluid-update case %d does not select %#x" % (t, target))
+    init = lambda t: n.base + struct.unpack("<I", n.raw(0x1403EF810 + 4 * n.raw(0x1403EF82C + t - 8, 1)[0], 4))[0]
+    if init(8) != 0x1403EF6F7 or init(20) != 0x1403EF6AA:
+        raise ValueError("Fluid initializer cases 8 and 20 moved")
+    if n.base + struct.unpack("<I", n.raw(0x14045E8A4 + 4 * 20, 4))[0] != 0x14045E22F:
+        raise ValueError("Factory case 20 does not lead to 0x14045e22f")
+    rep = " Report: %s." % FN_REPORT
+    f = {}
+    # Realtime damping: the names are absent from the executable (checked above).
+    f["damping"] = [E.realtime(name, "The extractor confirms the name occurs in the executable neither as ASCII nor as UTF-16LE text, so no setting binding was recovered. The 0.99 used by the tank fill below is a separate constant.")
+                    for name in FLUID_DAMPING]
+    f["pp_name"] = E.string(F_DEFSER, 0x140B5CE98, "pump_pressure", "pump_pressure binding",
+                            "The definition serializer binds definition+0xec8 (lea r9 at 0x140317c96) to this name. It is the only one of the five fluid names that occurs in the executable; the pump branches read definition+0xec8 as their bias factor. No inspected tooltip or editor control gives it a unit." + rep)
+    # Tank compartments.
+    f["v_gas_k"] = op(F_FLUID_INIT, 0x1403EF6BF, "f30f5905b5027c00", 0x140BAF97C, "Gas tank volume factor",
+                      "The initializer's water_component_type 20 case converts the listed voxel count (definition+0xb8) to binary32 and multiplies by this." + rep)
+    f["v_gas_100"] = op(F_FLUID_INIT, 0x1403EF6C7, "f30f5905c1107c00", 0x140BB0790, "Gas tank volume scale",
+                        "Then multiplies by this, so V = voxels × 0.015625 × 100 = 1.5625 × voxels, stored at component+0x5a0 (0x1403ef6cf). One volume unit is 10 L, so each voxel gives 15.625 L." + rep)
+    f["v_liquid"] = op(F_FLUID_INIT, 0x1403EF705, "f30f59056f027c00", 0x140BAF97C, "Liquid tank volume factor",
+                       "The water_component_type 8 case applies the same 0.015625 and 100 (0x1403ef70d) to the listed voxel count and stores V at component+0x5a0 (0x1403ef715)." + rep)
+    f["gas_air"] = code(F_FLUID_INIT, 0x1403EF6DD, "c7838805000003000000", "Gas tank default selection", "fluid index 3",
+                        "A gas tank still on the constructor's selection 1 is switched to index 3, the air slot. The tank UI 0x1403f87f0 offers indices 3, 10, 11 and 12 for gas tanks and a fill setting from 0 to 100 scaled by 0.01." + rep)
+    f["t_factor"] = op(F_FLUID, 0x1403F37B8, "f30f103d0cc77b00", 0x140BAFECC, "Tank port exchange factor",
+                       "Water cases 8 and 20 both jump to 0x1403f3766 (jump-table entries 0x1403f5120 and 0x1403f5150). The branch loads this as the exchange factor and clears the bias (xorps xmm2 at 0x1403f37f1)." + rep)
+    f["t_ports"] = code(F_FLUID, 0x1403F3802, "e8098fefff", "Tank port exchanges", "two calls to 0x1402ec710",
+                        "For each connected port (component+0x148 here, +0x180 at 0x1403f3855) the tank calls the port exchange with its internal compartment at component+0x598, bias 0, factor 1, both direction flags 0 and all species. The ports stay on their own pipe networks; the tank compartment is not merged into them. Gas tanks have one Stored Gas port, so the second call is skipped." + rep)
+    f["t_content"] = op(F_FLUID, 0x1403F3863, "f30f590de1cd7b00", 0x140BB064C, "Tank Content factor",
+                        "Tank Content = this × the compartment's total amount (component+0x5d8), with no extra factor for gases." + rep)
+    f["t_pressure"] = code(F_FLUID, 0x1403F387E, "e87d7cefff", "Tank Pressure output", "call 0x1402eb500",
+                           "Tank Pressure is the general compartment pressure helper applied to the tank compartment. The shipped Tank Pressure ports say atmospheres." + rep)
+    f["species_60"] = op(F_SPECIES_UI, 0x1403F9FA7, "f30f5905b1677b00", 0x140BB0760, "Gas amount expansion in the species list",
+                         "The tank species tooltip multiplies a gas species' amount by this, then by 10 (0x1403f9fb6) before printing it as litres; liquid amounts get only the 10. Inference: 600 × amount is the gas's volume in litres at 1 atm, since 60 × A ÷ V = 1 when A = V ÷ 60." + rep)
+    # Pressure law.
+    f["w_8"] = op(F_WINDOW, 0x1402EB471, "f30f103587518c00", 0x140BB0600, "Pressure window volume",
+                  "The window helper returns the total amount when V ≤ this. Otherwise it forms G × min(1, 8 ÷ (V − L)) + max(L × 0.5 × 8 ÷ (60 × V), L − (V − 8)), with L the liquid and G the gas sum (0x1402eb5e0 and 0x1402eb660)." + rep)
+    f["w_half"] = op(F_WINDOW, 0x1402EB4B6, "f30f5915fe478c00", 0x140BAFCBC, "Window liquid weight",
+                     "Liquid sum × this × 8, divided by 60 × V (0x1402eb4cd): the small liquid term L × 4 ÷ (60 × V)." + rep)
+    f["p_60"] = op(F_PRESSURE, 0x1402EB51B, "f30f59053d528c00", 0x140BB0760, "Pressure scale",
+                   "For V ≤ 8 the pressure helper returns total amount × this ÷ V." + rep)
+    f["p_eighth"] = op(F_PRESSURE, 0x1402EB539, "f30f5905bf458c00", 0x140BAFB00, "Pressure scale above volume 8",
+                       "For V > 8 it returns window amount × 60 × this = 7.5 × window amount." + rep)
+    f["phase"] = E.case_table(F_PHASE, 0x1402EB550, "83f90c", 0x1402EB574, PHASE_TARGETS, "Gas or liquid by fluid index",
+                              "The phase classifier returns 0 (target 0x1402eb56a) for indices 3, 4, 7, 10, 11 and 12 (air slot, CO2, steam, oxygen, nitrogen, hydrogen) and 1 (0x1402eb56d) for 0, 1, 2, 5, 6, 8 and 9 (fresh water, diesel, jet fuel, oil, seawater, slurry, saturated slurry). The pressure law reads only these two sums, so every species of a phase counts the same." + rep)
+    # Initial fill.
+    f["fill_call"] = code(F_BODY_BUILD, 0x1404BC38A, "e8b1b2ffff", "Initial fill call", "call 0x1404b7640",
+                          "The body build calls the fill routine after the ordinary (0x1404a0f50) and extra (0x1404a2130) network builders." + rep)
+    f["fill_default"] = code(F_WATER_CTOR, 0x1403EE788, "48c786900500000000803f", "Fill setting default", "1",
+                             "The water component constructor stores fill fraction 1 at component+0x590 after setting the selection to 1 and fill-pending to 1 (0x1403ee777, 0x1403ee781)." + rep)
+    f["fill_099"] = op(F_FILL, 0x1404B76A2, "f3440f101d01886f00", 0x140BAFEAC, "Initial fill fraction",
+                       "Held in xmm11 for the fill. This is an initialization multiplier, not the realtime damping value of the same size." + rep)
+    f["fill_skip"] = code(F_FILL, 0x1404B7984, "83b88805000001", "Diesel skips the tank fill", "selection 1",
+                          "For water types 8 and 20 with fill pending, selection 1 (diesel) and, at 0x1404b799d, selection 2 (jet fuel) branch past the fill to 0x1404b7b06, which only clears fill-pending." + rep)
+    f["fill_q"] = code(F_FILL, 0x1404B79E0, "f3410f59f3", "Tank fill amount", "q = V × fill × 0.99",
+                       "Reads V (component+0x5a0, 0x1404b79b9), multiplies by the fill setting (component+0x590, 0x1404b79d5) and by 0.99." + rep)
+    f["fill_air"] = code(F_FILL, 0x1404B79D0, "f3410f5efd", "Ambient gas added with a liquid", "V ÷ 60",
+                         "xmm13 holds binary32 60 (0x1404b76bb). V ÷ 60 is added to the air slot along with a liquid selection; for a gas selection it is set to 0 (0x1404b7a09)." + rep)
+    f["fill_gas"] = E.case_table(F_FILL, 0x1404B79F6, "418b8c8f307c4b00", 0x1404B7C30, FILL_TARGETS, "Tank fill phase dispatch",
+                                 "Gas selections (3, 4, 7, 10, 11, 12) go to 0x1404b7a03, which drops the ambient gas and, unless the tank is water type 20 (test at 0x1404b7a17), divides q by 60 (0x1404b7a20). Liquid selections go to 0x1404b7a25." + rep)
+    f["fill_add"] = code(F_FILL, 0x1404B7A52, "f30f11848ba4050000", "Tank fill store", "amount[selected] + q",
+                         "Adds q to the selected species and the total (0x1404b7a72), then the ambient gas to the air slot and the total (0x1404b7a83 to 0x1404b7aad). Positive air is then split 0.7896 nitrogen, 0.21 oxygen and 0.0004 CO2 (xmm8 to xmm10, loaded at 0x1404b7678 to 0x1404b7694; split at 0x1404b7ac4 to 0x1404b7b01) and fill-pending is cleared at 0x1404b7b12." + rep)
+    f["spawn_room"] = code(F_FILL, 0x1404B77D6, "f30f5dfe", "Fluid spawner fill", "q = min(C.V − C.A, 0.99 × fill × C.V)",
+                           "The spawner (water type 7) reads its enclosing compartment C (component+0x4b0): free room C.V − C.A (0x1404b77b5) against 0.99 × fill × C.V (fill at 0x1404b77c6). Selections 1, 2 and 13 are skipped; air is split as for tanks." + rep)
+    # Manual pump.
+    f["m_gate"] = op(F_FLUID, 0x1403F34EB, "0f2f0566c47b00", 0x140BAF958, "Manual pump handle threshold",
+                     "Water type 22 (entry 0x1403f5158) feeds the interaction target, 1 while either interact action is held, into a smoothing controller at component+0x8e8 whose duration is 60 (constructor 0x1403ee9ce), and reads its output h (0x1403f34e6). It pumps only when h exceeds this." + rep)
+    f["m_bias"] = code(F_FLUID, 0x1403F360E, "f30f1090c80e0000", "Manual pump bias", "pump_pressure, factor h",
+                       "Loads pump_pressure (definition+0xec8) as the bias in xmm2, with h as the factor in xmm3 (0x1403f360b), and jumps to the common call 0x1403f25fb to the two-port solver 0x1402ed8d0 with ports component+0x148 and +0x180." + rep)
+    f["m_oneway"] = code(F_FLUID, 0x1403F3616, "c644242001", "Manual pump direction", "one-way",
+                         "Sets the one-way flag, so backpressure cannot push fluid back through the pump, and moves all species." + rep)
+    f["m_idle"] = code(F_FLUID, 0x1403F364C, "0f57db0f57d2", "Manual pump idle", "bias 0, factor 0",
+                       "With h at or below 0.01 the call gets factor 0 and bias 0, so nothing moves." + rep)
+    f["m_cycle"] = op(F_FLUID, 0x1403F3491, "f30f5905dbc47b00", 0x140BAF974, "Manual pump handle cycle",
+                      "Advances the handle and sound cycle (component+0x918) by this × h per update. It is not a fluid amount or a second pressure factor." + rep)
+    # Filters.
+    f["f_old"] = code(F_FLUID, 0x1403F24F2, "418b8694050000", "Fluid filter species mask", "component+0x594",
+                      "Water type 10 (entry 0x1403f5128) shares the valve path and submits its species mask, default −1 for all (constructor 0x1403eea09), to the common two-port call at 0x1403f25fb with bias 0, factor 1 (0x1403f2394) and both directions allowed. The filter has no internal compartment." + rep)
+    f["f_gas"] = code(F_FLUID, 0x1403F2676, "bb03000000", "Group filter gas set", "indices 3, 4, 10, 11, 12, 7",
+                      "Water type 27 (entry 0x1403f516c): when the gas flag (bit 3 of component+0x594) is set, the branch enables indices 3, 4, 10, 11, 12 and 7, every gas." + rep)
+    f["f_liquid"] = code(F_FLUID, 0x1403F26EC, "33d2", "Group filter liquid set", "indices 0, 6, 5, 1, 2, 8, 9",
+                         "When bit 0 is set it enables indices 0, 6, 5, 1, 2, 8 and 9, every liquid." + rep)
+    f["f_call"] = code(F_FLUID, 0x1403F27B7, "e814b1efff", "Group filter exchange", "bias 0, factor 1, two-way",
+                       "Calls the two-port solver with that mask, bias 0, factor 1 (0x1403f27ac) and the one-way flag clear. Masks choose which species move; excluded species still count in each side's pressure." + rep)
+    # Old coiled Hose and mechanical winches.
+    f["factory20"] = code(F_FACTORY, 0x14045E240, "e8ab44f8ff", "Type-20 component factory case", "call 0x1403e26f0",
+                          "Factory jump-table entry 20 (0x14045e8f4) leads to this call of the winch constructor, which installs vtable 0x140b958e8 (lea at 0x1403e2703), RTTI c_scene_vehicle_component_winch. water_hose.xml and the mechanical winches winch_a, winch_large_a, winch_huge_a and winch_electric all have type 20, so all of them run the update below. This factory link is an extractor check added to the report's Hose decode." + rep)
+    f["h_factor"] = op(F_HOSE, 0x1403E3AA4, "f30f101d20c47c00", 0x140BAFECC, "Hose exchange factor",
+                       "Slot +0x358 of vtable 0x140b958e8 (0x140b95c40) holds this update. With a linked end component (component+0x148) it loads this factor and clears the bias (0x1403e3ade)." + rep)
+    f["h_call"] = code(F_HOSE, 0x1403E3B09, "e8c29df0ff", "Hose exchange", "two-port solver, bias 0, factor 1, two-way",
+                       "Calls 0x1402ed8d0 with the base port (component+0x230) and the end's port (linked+0x230), mask −1 (0x1403e3aed) and the one-way flag 0 (0x1403e3b04). No hose compartment, volume or length is read." + rep)
+    # Rope-hook hoses and pulleys.
+    f["r_pass"] = code(F_EMP_PASS, 0x1404996A7, "41ff9260030000", "Rope-hook fluid pass", "slot +0x360",
+                       "The vehicle component pass calls slot +0x360. In the rope-hook vtable 0x140b600f0 that slot (0x140b60450) holds 0x1403b6840, the hose-link fluid exchange." + rep)
+    f["r_sub"] = code(F_ROPE_FLUID, 0x1403B6BE7, "83b8740e000008", "Rope-hook pulley test", "subtype 8",
+                      "Tests the definition subtype (+0xe74): 8 is the hose pulley." + rep)
+    f["r_one"] = op(F_ROPE_FLUID, 0x1403B68A2, "f30f103522967f00", 0x140BAFECC, "Hose-pulley exchange factor",
+                    "Held in xmm6 and used as the factor when the component is a hose pulley (0x1403b6bf0)." + rep)
+    f["r_half"] = op(F_ROPE_FLUID, 0x1403B6BF5, "f30f101dbf907f00", 0x140BAFCBC, "Hose-link exchange factor",
+                     "Factor for any other rope hook, such as a hose anchor or a rope-hook winch. The second side applies the same choice at 0x1403b6e99." + rep)
+    f["r_call"] = code(F_ROPE_FLUID, 0x1403B6C4A, "e8816cf3ff", "Hose-link exchange", "two-port solver, bias 0, two-way",
+                       "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed." + rep)
+    f["p_sub"] = code(F_PULLEY_NET, 0x1404A21A5, "83f908", "Hose-pulley network test", "subtype 8",
+                      "The extra network builder handles rope hooks of subtype 8 whose first fluid port has no network yet." + rep)
+    f["p_vol"] = code(F_PULLEY_NET, 0x1404A226F, "c7400800008040", "Hose-pulley shared network", "volume 4",
+                      "Allocates one network of volume 4 (40 L), 20 °C, and registers both pulley fluid ports in it (0x1404a22c6, 0x1404a22f1). Its volume does not depend on deployed hose length." + rep)
+    # Fluid connector.
+    f["c_half"] = op(F_CONNECTOR, 0x1403D4463, "f30f101d51b87d00", 0x140BAFCBC, "Fluid connector exchange factor",
+                     "Slot +0x358 of the connector vtable 0x140b50988 (0x140b50ce0) holds this update. With an attached connector (+0x950), a network on its port (+0x8f0) and the transfer flag (+0x970, tested at 0x1403d4439) it loads this factor." + rep)
+    f["c_call"] = code(F_CONNECTOR, 0x1403D44D4, "e8f793f1ff", "Fluid connector exchange", "two-port solver, bias 0, factor 0.5, two-way",
+                       "Calls 0x1402ed8d0 between its port (+0x8d0) and the attached connector's (+0x8d0), mask −1 and one-way flag 0. The two networks stay separate and the connector stores no fluid." + rep)
+    # Enclosed pipes and custom compartments.
+    f["pipe6"] = code(F_NET_BUILD, 0x1404A1970, "83f806", "Pipe-network traversal type", "type 6",
+                      "The ordinary network builder follows a neighbour only when its virtual type is 6 and its fluid face matches. Open and enclosed pipe definitions both have type 6, and traversal adds no volume per block." + rep)
+    f["room_add"] = code(F_ROOM_VOLUME, 0x1402F61E3, "f3440f58d8", "Custom compartment volume step", "V + cell weight × 0.015625 × 100",
+                         "The compartment builder 0x1402f5cd0 accumulates a weight from occupancy transitions, in steps of 0.5, times 0.015625 × 100 per cell." + rep)
+    f["room_v"] = code(F_ROOM_STORE, 0x1402F63F3, "f3440f115e38", "Custom compartment volume", "compartment+0x38",
+                       "Stores the accumulated V in the compartment's fluid state. A custom compartment's volume follows its geometry; it is not the pipe network's 4." + rep)
+    # Tank volumes from listed voxels.
+    vol = {}
+    for bid in LIQUID_TANKS + GAS_TANKS:
+        vox = E.voxels(bid, "The tank initializer multiplies this count by 0.015625 × 100.")
+        V = vox["value"] * 0.015625 * 100
+        vol[bid] = (V, E.derived("%s · compartment volume" % E.block(bid)["name"], "V = %s, %s L" % (fmt(V), fmt(10 * V)),
+                                 "%d listed voxels × 1.5625 = %s volume units, × 10 = %s L. This is the compartment volume, not a measured usable inventory." % (vox["value"], fmt(V), fmt(10 * V)) + rep,
+                                 [vox, f["v_gas_k"] if bid in GAS_TANKS else f["v_liquid"], f["v_gas_100"]]))
+    f["vol"] = vol
+    law = [f["w_8"], f["w_half"], f["p_60"], f["p_eighth"], f["phase"]]
+    f["law"] = E.derived("Compartment pressure law", "V ≤ 8: P = 60 × A ÷ V; V > 8: P = 7.5 × (G × min(1, 8 ÷ (V − L)) + max(L × 4 ÷ (60 × V), L − V + 8))",
+                         "All 13 fluid indices (0 to 12) enter only as liquid sum L or gas sum G, with A = L + G. Pure gas reduces to P = 60 × A ÷ V at any volume. Pure liquid in a volume up to 8 (80 L), such as a pipe network of 4, also gives 60 × A ÷ V. Pure liquid above volume 8 gives max(0.5 × A ÷ V, 7.5 × (A − V + 8)): under 0.5 atm until less than 8 (80 L) of room is left, then 7.5 atm per amount (per 75 L) up to 60 at full. Temperature does not enter. Inference from the instruction sequence; degenerate states follow the original SSE arithmetic." + rep, law)
+    small, medium, large = (vol[b][0] for b in LIQUID_TANKS)
+    start = [window_pressure(V, 0.99 * V, V / 60) for V in (small, medium, large)]
+    f["start_liquid"] = E.derived("Liquid tank start pressure", "about %.1f, %.1f and %.1f atm (small, medium, large)" % tuple(start),
+                                  "Inference from the fill branch and the pressure law, before any exchange: a fresh tank with a liquid other than diesel or jet fuel selected and fill 1 holds 0.99 × V of it plus V ÷ 60 of air, so L = 0.99 × V and G = V ÷ 60. Small (V %s): 60 × 1.0067 = %.2f atm. Medium (V %s) and large (V %s): the air fills the last 1 %% of room, giving %.2f and %.2f atm. A liquid tank set to a gas instead receives 0.99 × fill × V ÷ 60 of it, 0.99 atm at fill 1." % (
+                                      fmt(small), start[0], fmt(medium), fmt(large), start[1], start[2]) + rep,
+                                  [f["fill_q"], f["fill_air"], f["fill_gas"], f["fill_add"], f["law"]] + [vol[b][1] for b in LIQUID_TANKS])
+    f["start_gas"] = E.derived("Gas tank start pressure", "59.4 atm at fill 1",
+                               "Inference from the fill branch and the pressure law, before any exchange: a fresh gas tank receives q = 0.99 × fill × V of the selected gas and no ambient air, so P = 60 × 0.99 × fill = 59.4 × fill atm for every size. Tank Content then reads 10 × 0.99 × V, 0.99 of the geometric litres; the species list shows 600 × amount." + rep,
+                               [f["fill_q"], f["fill_gas"], f["fill_add"], f["law"], f["t_content"], f["species_60"]])
+    T = fluid_transport(E)
+    f["manual_env"] = E.derived("Manual pump flow bound", "60 L/s at h = 1",
+                                "Equal-pressure bound of the two-port solver with bias b = 3 and factor h = 1 between two pipe networks of volume 4: q ≤ min(3, 20) ÷ 30 = 0.1 amount per update, × 600 = 60 L/s. Between 0.01 and 1 the step limit also scales with h. Inventory, backpressure and other ports lower real flow." + rep,
+                                [f["m_bias"], f["m_oneway"], f["m_gate"], T["solver"][7], T["solver"][6]])
+    E.network = f
+    return f
+
+
 # control-surface pass; files under investigation/native/control-surfaces/, report investigation/control-surfaces.md.
 CS = "../control-surfaces/"
 CS_REPORT = "investigation/control-surfaces.md"
@@ -2025,32 +2259,46 @@ def fluids(B, E):
     p = [E.attr(b, "pump_pressure", meaning) for b, meaning in (
         ("water_pump", "Pump bias factor: the electric pump adds supply × this × Max Power to the pressure difference."),
         ("water_pump_large", "Pump bias factor: the electric pump adds supply × this × Max Power to the pressure difference."),
-        ("water_pump_manual", "Pump configuration value; the manual pump branch was not traced."),
+        ("water_pump_manual", "Pump bias: the manual pump passes this to the two-port solver, with its handle factor as the step factor."),
         ("turbocharger_small", "Pump bias factor: the impeller adds 4 × |RPS| × this to the pressure difference."),
         ("turbocharger", "Pump bias factor: the impeller adds 4 × |RPS| × this to the pressure difference."))]
     T = fluid_transport(E)
+    N = fluid_network(E)
     spawn = E.tooltip("water_spawner")
     tank_leak = E.const(F_FLUID, 0x140BAF8F8, "Tank temperature drift",
                         "Water component cases 8 and 0x14 (fluid and gas tanks) move the stored contents toward the surrounding temperature by this fraction per update.")
     meters = [E.port("water_measure", "Composite Data"), E.port("gas_measure", "Composite Data")]
-    damping = [E.realtime("fluid_base_damping_gas", "Gas network damping."), E.realtime("fluid_base_damping_liquid", "Liquid network damping.")]
     tank_s = relaxation(E, "Tank temperature gap after one simulated second", 0.001, [tank_leak])
     R = update_rate(E)["findings"]
+    vols = [N["vol"][b][1] for b in LIQUID_TANKS + GAS_TANKS] + [N["v_gas_k"], N["v_gas_100"], N["v_liquid"]]
+    links = [N[k] for k in ("t_factor", "t_ports", "factory20", "h_factor", "h_call", "r_one", "r_half", "r_call", "p_vol", "c_half", "c_call", "f_old", "f_call", "pipe6")]
+    law = [N[k] for k in ("w_8", "w_half", "p_60", "p_eighth", "phase", "law", "pp_name", "t_pressure")]
+    start = [N[k] for k in ("fill_099", "fill_q", "fill_gas", "fill_add", "start_gas", "spawn_room")]
+    manual = [N[k] for k in ("m_gate", "m_bias", "m_oneway", "m_idle", "manual_env")]
+    rooms = [N["room_add"], N["room_v"]]
     B.category("Fluids",
-               "Each connected pipe network is one 40 L compartment; pumps add a pressure bias, which caps equal-pressure flow at 200 L/s for the small electric pump and 400 L/s for the large one; tanks drift toward ambient temperature; fluid meters use one channel per fluid type.",
+               "Each connected run of open or enclosed pipe is one 40 L network; pumps add a pressure bias, which caps equal-pressure flow at 200 L/s for the small electric pump, 400 L/s for the large one and 60 L/s for the manual pump; tanks, hoses, connectors and filters move fluid between networks without merging them; fluid meters use one channel per fluid type.",
                [section("Moving fluid",
-                        "Every connected run of ordinary pipe is one network compartment of volume 4, 40 L, however many pipe blocks it spans. For clean water its pressure is 15 × the stored amount, 60 when full. Each update the network shares its fluid and free room among the demands its ports set on the previous update, and each port then moves at most half its demand.",
-                        "A pump adds its bias to the pressure difference. Electric pumps use electrical supply × pump_pressure × Max Power, impeller pumps 4 × |RPS| × pump_pressure, and the modular engine fluid pump its own shaft speed. At equal pressure the move is at most min(bias, 20) ÷ 30 amount per update: 200 L/s for the small electric pump (pump_pressure 10), 400 L/s for the large one (100), and no pump exceeds 400 L/s. The flow readout shows 1 amount per update as 600 L/s, 10 L per amount. The manual pump (pump_pressure 3) was not traced."),
+                        "Every connected run of ordinary or enclosed pipe is one network compartment of volume 4, 40 L, however many pipe blocks it spans. Both pipe kinds have type 6 and join the same network. For clean water its pressure is 15 × the stored amount, 60 when full. Each update the network shares its fluid and free room among the demands its ports set on the previous update, and each port then moves at most half its demand.",
+                        "A pump adds its bias to the pressure difference. Electric pumps use electrical supply × pump_pressure × Max Power, impeller pumps 4 × |RPS| × pump_pressure, and the modular engine fluid pump its own shaft speed. At equal pressure the move is at most min(bias, 20) ÷ 30 amount per update: 200 L/s for the small electric pump (pump_pressure 10), 400 L/s for the large one (100), and no pump exceeds 400 L/s. The flow readout shows 1 amount per update as 600 L/s, 10 L per amount. The manual pump (pump_pressure 3) pushes one-way with bias 3 while an interact action is held, with a smoothed handle factor h from 0 to 1 as its step factor; at h = 1 its bound is 60 L/s.",
+                        "Tanks, hoses, connectors and filters keep their networks separate and move fluid between them each update. A tank exchanges each port's network with its own compartment at factor 1. The old coiled Hose, the mechanical winches, rope-hook hoses, hose pulleys, fluid connectors and filters link two networks through the two-port solver with bias 0 in both directions. Their factor, 1 for the Hose, mechanical winches, hose pulleys and filters and 0.5 for rope-hook hoses and fluid connectors, scales the per-update step limit. None of these links reads hose length or adds hose volume; a hose pulley shares one 40 L network between its two ports."),
+                section("Pressure",
+                        "All 13 fluid types use one pressure law; only gas or liquid matters. Gases are the air slot, CO2, steam, oxygen, nitrogen and hydrogen; the rest are liquids. With L and G the liquid and gas amounts in a compartment of volume V: up to V = 8 (80 L), P = 60 × (L + G) ÷ V. Above 8, P = 7.5 × (G × min(1, 8 ÷ (V − L)) + max(L × 4 ÷ (60 × V), L − V + 8)).",
+                        "Pure gas gives 60 × amount ÷ V at any volume. Pure liquid in a compartment above volume 8 reads under 0.5 atm until less than 80 L of room is left, then rises 7.5 atm per 75 L to 60 when full. Pressure outputs are in atmospheres. pump_pressure adds to the same scale inside the solver, but no unit or delivered head is documented for it."),
                 section("Temperature carried with fluid",
                         "Fluid arriving in a compartment is mixed by the compartment's amount after the move: T = (A' × T + q × T_donor) ÷ (A' + q). So 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not the 46.7 °C of ordinary mixing. Below 0.01 amount per update, radiator, manifold and two-way pump ports also exchange temperature directly at a rate of up to 0.1 ÷ volume per update, so heat crosses a port even with no net flow."),
                 section("Storage and temperature",
-                        "Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s. The fluid spawner fills custom tanks; gases are spawned compressed at 60 atm."),
+                        "Each listed voxel of a tank gives 15.625 L. Liquid tanks hold 31.25, 187.5 and 703.125 L and gas tanks 46.875, 109.375, 984.375 and 3515.625 L. Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s.",
+                        "A fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4."),
                 section("Identifying fluids",
                         "The liquid and gas meters share one composite layout: 1 water, 2 diesel, 3 jet fuel, 4 air, 5 CO2, 6 oil, 7 seawater, 8 steam, 9 slurry, 10 saturated slurry, 11 oxygen, 12 nitrogen, 13 hydrogen. Air is reported as the sum of oxygen, carbon dioxide and nitrogen."),
                 section("Measurement questions",
-                        "Whether the realtime damping values (0.99 gas, 0.9999 liquid) are used by this build. Compare Flow Rate in game with the recovered bounds; pipe length should not change it, because a network's volume does not grow with its length.")],
-               p + [spawn, tank_leak, tank_s] + meters + damping + T["solver"] + T["electric"][:2] + T["impeller"][:2] + T["modular"][:1] + R,
-               ["The network builder was traced for ordinary pipes only; hoses, tanks, open compartments, special connectors and the manual pump were not. Multiphase fluids, filters and sea water are outside the recovered clean-water model.", TICK])
+                        "The shipped realtime file lists gas and liquid base damping 0.99 and 0.9999, but none of the four fluid damping names occurs in the executable, so no setting binding was recovered. To test for an effect, compare two values of a setting on the same layout and starting inventory. Check Flow Rate against the solver bounds on the actual network graph: pipe length adds no volume, and hoses and connectors link networks at factor 1 or 0.5. Check a prefab gas tank's start (59.4 atm decoded) separately from a fluid-spawner compartment (60 atm in its tooltip).")],
+               p + [spawn, tank_leak, tank_s] + meters + N["damping"] + T["solver"] + T["electric"][:2] + T["impeller"][:2] + T["modular"][:1] + R +
+               vols + links + law + start + manual + rooms,
+               ["Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. "
+                "Custom-compartment volume from wall geometry and hull flooding were not decoded. Diesel and jet-fuel tank startup, startup from saved inventory, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
+                "The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.", TICK])
     B.family("electric-fluid-pump",
              "Pushes fluid with a bias of electrical supply × pump_pressure × Max Power; at equal pressure the small pump moves at most 200 L/s and the large one 400 L/s.",
              [section("Operating conditions",
@@ -2075,18 +2323,99 @@ def fluids(B, E):
                       "They pump only while the shaft turns; compare variants with the Flow Rate output in L/s.")],
              p[3:] + [E.tooltip("turbocharger_small"), E.port("turbocharger_small", "Flow Rate")] + T["impeller"] + T["solver"],
              ["Static analysis of one build; the flow figures are equal-pressure bounds, not measured flow. The shaft load unit was not established."])
+    liquid = [N["vol"][b][1] for b in LIQUID_TANKS]
+    gas = [N["vol"][b][1] for b in GAS_TANKS]
+    tank_common = [tank_leak, tank_s, N["t_factor"], N["t_ports"], N["t_content"], N["t_pressure"], N["law"], N["phase"], N["fill_default"], N["fill_call"],
+                   N["fill_099"], N["fill_q"], N["fill_gas"], N["fill_add"], N["fill_skip"]] + R
     B.family("fluid-tank",
-             "Spawns full of the selected fluid; contents drift toward ambient temperature by 0.001 per update, a time constant of 16.7 simulated seconds.",
+             "Small, medium and large tanks have 31.25, 187.5 and 703.125 L compartments that exchange with each port's pipe network; liquid pressure stays low until the last 80 L of room fills; contents drift toward ambient temperature with a time constant of 16.7 simulated seconds.",
              [section("Operating conditions",
-                      "Tank Content reports litres and Tank Pressure atmospheres. Fluid tanks run through water component case 8, gas tanks through case 0x14; both apply the same ambient drift.")],
-             [tank_leak, tank_s] + R + [E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"), E.attr("fluid_tank_small", "water_component_type", "Selects case 8 of the fluid update.")],
-             ["Capacity is not recorded in the definition attributes.", TICK])
+                      "The tank keeps its own compartment of volume 1.5625 × listed voxels: 3.125, 18.75 and 70.3125 units, 31.25, 187.5 and 703.125 L. Each Stored Fluid port stays on its own pipe network, and the tank exchanges each network with its compartment at bias 0 and factor 1. Tank Content reads 10 × the stored amount, in litres, and Tank Pressure reads atmospheres. Fluid tanks run water component case 8 and drift toward the surrounding temperature by 0.001 per update."),
+              section("Pressure and fill",
+                      "Pressure follows the compartment law, not the fill fraction. The medium and large tanks are above volume 8, so pure liquid in them reads under 0.5 atm until less than 80 L of room is left, then 7.5 atm more per 75 L, 60 when full. The small tank (volume 3.125) reads 60 × amount ÷ 3.125. Gas in the tank counts toward the same pressure."),
+              section("Initial contents",
+                      "A new tank component starts with fluid index 1, diesel, and fill 1. For a liquid other than diesel or jet fuel, the first build adds 0.99 × fill × V of it plus V ÷ 60 of air, split into nitrogen, oxygen and CO2. Inference from the decoded equations: before any exchange that reads about 60.4, 60.9 and 63.5 atm for the three sizes, because the air takes the last 1 % of room. Set to a gas, a fluid tank receives only 0.99 × fill × V ÷ 60 of it, 0.99 atm at full fill.")],
+             liquid + tank_common + [N["start_liquid"], N["v_liquid"], N["v_gas_100"], E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"),
+                                     E.attr("fluid_tank_small", "water_component_type", "Selects case 8 of the fluid update.")],
+             ["Diesel and jet-fuel startup was not traced: the decoded fill skips both, and diesel is a new tank's default selection. Startup from a saved inventory or after a rebuild was not traced.", TICK])
     B.family("gas-tank",
-             "Gas storage on the same ambient-drift rule as fluid tanks; gas spawned with the fluid spawner is compressed to 60 atm.",
-             [section("Setup and interactions",
-                      "Watch Tank Pressure in atmospheres. Custom gas tanks built with the fluid spawner start at 60 atm. The contents' temperature gap to ambient has a time constant of 16.7 simulated seconds.")],
-             [tank_leak, tank_s] + R + [spawn, E.attr("fluid_tank_compressed_gas_1_3", "water_component_type", "Selects case 0x14 of the fluid update."), E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")],
-             ["Whether the prefab gas tanks also spawn at 60 atm was not established.", TICK])
+             "Small, medium, large and huge gas tanks have 46.875, 109.375, 984.375 and 3515.625 L compartments; pressure is 60 × amount ÷ volume, and a fresh tank starts at 59.4 atm at full fill.",
+             [section("Operating conditions",
+                      "The compartment volume is 1.5625 × listed voxels: 4.6875, 10.9375, 98.4375 and 351.5625 units. The single Stored Gas port exchanges its network with the compartment at bias 0 and factor 1. Gas tanks run water component case 0x14 with the same ambient drift as fluid tanks, a time constant of 16.7 simulated seconds."),
+              section("Pressure and readouts",
+                      "Pressure is 60 × stored amount ÷ volume for any gas or gas mixture, so a full compartment reads 60 atm. Tank Content reads 10 × the stored amount. The tooltip's species list multiplies each gas amount by 60 and then 10, 600 per amount; inference: that is the gas's volume in litres at 1 atm. The two readouts differ by a factor of 60 for the same gas."),
+              section("Setup and interactions",
+                      "A new gas tank selects the air slot; the editor offers air, oxygen, nitrogen and hydrogen and a fill setting from 0 to 100. The first build adds 0.99 × fill × V of the selected gas, so a fresh tank reads 59.4 atm at full fill before any exchange, and Tank Content reads 0.99 of the litre volume. Air is split into nitrogen, oxygen and CO2 at that point. Custom tanks filled by the fluid spawner take a separate path; its tooltip says 60 atm.")],
+             gas + tank_common + [N["start_gas"], N["species_60"], N["gas_air"], N["v_gas_k"], N["v_gas_100"], spawn,
+                                  E.attr("fluid_tank_compressed_gas_1_3", "water_component_type", "Selects case 0x14 of the fluid update."), E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")],
+             ["Startup from a saved inventory or after a rebuild was not traced.", TICK])
+
+
+def fluid_links(B, E):
+    """Hose, winch, pulley, connector, filter, manual pump, pipe and spawner entries from the fluid-network pass."""
+    N, T = fluid_network(E), fluid_transport(E)
+    A, P, Tt = E.attr, E.port, E.tooltip
+    step = T["solver"][1]
+
+    def amend(fid, sec, findings):
+        fam = B.families[fid]
+        fam["sections"].append(sec)
+        fam["findings"] = dedupe(fam["findings"] + findings)
+        fam["sources"] = sources_of(fam["findings"])
+
+    hose = [N["factory20"], N["h_factor"], N["h_call"], step]
+    amend("part-water-hose", section("Fluid through the hose",
+                                     "The Hose links the fluid network at its base (Fluid) to the one at its end piece through the two-port solver: bias 0, both directions, factor 1, all species. It adds no compartment of its own, and the exchange does not read the current length, so a longer hose neither stores more fluid nor restricts flow more."),
+          hose + [A("water_hose", "type", "Component type 20, built by the winch constructor.")])
+    for fid, bid in (("part-winch-a", "winch_a"), ("part-winch-large-a", "winch_large_a"), ("part-winch-huge-a", "winch_huge_a"), ("part-winch-electric", "winch_electric")):
+        amend(fid, section("Fluid through the cable",
+                           "This winch is type 20, like the Hose, and runs the same update: the Fluid port on the winch and the one on its end piece are linked through the two-port solver with bias 0, both directions and factor 1. The exchange does not read cable length and adds no hose volume."),
+              hose + [A(bid, "type", "Component type 20, built by the winch constructor."), P(bid, "Fluid")])
+    rope = [N["r_pass"], N["r_sub"], N["r_one"], N["r_half"], N["r_call"], step]
+    for fid, bid in (("part-rope-hook-winch-small", "rope_hook_winch_small"), ("part-rope-hook-winch", "rope_hook_winch"),
+                     ("part-rope-hook-winch-large", "rope_hook_winch_large"), ("part-rope-hook-winch-huge", "rope_hook_winch_huge")):
+        amend(fid, section("Fluid through the cable",
+                           "A rope-hook link moves fluid between the networks on the Fluid ports at its two ends through the two-port solver, with bias 0 in both directions and factor 0.5, or 1 when the exchange runs from a hose pulley. It reads no cable length and adds no hose volume."),
+              rope + [A(bid, "logic_gate_subtype", "Rope-hook subtype; 3 is a winch, not the hose pulley's 8."), P(bid, "Fluid")])
+
+    def simple(fid, summary, sections, findings, limits=()):
+        B.family(fid, summary, [section(t, b) for t, b in sections], findings, list(limits))
+
+    links_open = "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced."
+    simple("part-rope-hook-fluid", "Links the fluid networks at both ends of a hose with bias 0, both directions and exchange factor 0.5; hose length adds no volume or resistance.",
+           [("Operating conditions", "A rope logic link between two anchors forms the hose. Each update a valid link calls the two-port solver between the Fluid Node networks at its two ends with bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. When the far end is a hose pulley the link uses the pulley's matching port."),
+            ("Setup and interactions", "The anchor stores no fluid and the exchange reads no length, so a long hose moves fluid as readily as a short one.")],
+           rope + [Tt("rope_hook_fluid"), A("rope_hook_fluid", "logic_gate_subtype", "Rope-hook subtype 1, the hose anchor."), P("rope_hook_fluid", "Fluid Node")], [links_open])
+    for fid, bid in (("part-winch-pulley-hose", "winch_pulley_hose"), ("part-winch-pulley-hose-corner", "winch_pulley_hose_corner")):
+        simple(fid, "Shares one 40 L fluid network between Fluid Node 1 and Fluid Node 2 and exchanges with linked hoses at factor 1.",
+               [("Operating conditions", "The extra network builder gives a subtype 8 pulley one network of volume 4, 40 L, and registers both fluid ports in it, so fluid passes through the pulley freely. Exchanges started from the pulley use factor 1 instead of the hose links' 0.5. The network's volume does not change with deployed hose length.")],
+               rope + [N["p_sub"], N["p_vol"], Tt(bid), A(bid, "logic_gate_subtype", "Rope-hook subtype 8, the hose pulley."), P(bid, "Fluid Node 1"), P(bid, "Fluid Node 2")], [links_open])
+    simple("part-connector-water", "When attached, links its fluid network to the other connector's with bias 0, both directions and exchange factor 0.5; the two networks stay separate.",
+           [("Operating conditions", "With an attached connector, a network on its Fluid port and the transfer flag set, each update calls the two-port solver between the two Fluid ports: bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. The connector holds no fluid and does not merge the networks, so each side keeps its own 40 L pipe pressure."),
+            ("Setup and interactions", "Free flow in the tooltip means no bias and no species filter. The halved step limit still applies, so it is not unlimited flow.")],
+           [N["c_half"], N["c_call"], step, T["solver"][5], Tt("connector_water"), P("connector_water", "Fluid")], ["Attachment distance, holding force and release mechanics were not traced."])
+    simple("part-water-pump-manual", "Hold either interact action to pump: bias 3, one-way, with a smoothed handle factor; at most 60 L/s at equal pressure.",
+           [("Operating conditions", "Holding an interact action sets the handle target to 1, and a smoothing controller with duration 60 moves the factor h toward it. While h is above 0.01 the pump calls the two-port solver with bias pump_pressure = 3 and factor h, one-way, all species. Released, h falls back, and at or below 0.01 nothing moves. The pump holds no fluid; its ports connect straight to the pipe networks."),
+            ("Flow", "At equal pressure between two pipe networks the bound is min(3, 20) ÷ 30 = 0.1 amount per update, 60 L/s at h = 1, against 200 L/s for the small electric pump. Backpressure, fill and other ports lower it, and backpressure cannot reverse it.")],
+           [N[k] for k in ("m_gate", "m_bias", "m_oneway", "m_idle", "m_cycle", "manual_env", "pp_name")] + [A("water_pump_manual", "pump_pressure", "Bias passed to the two-port solver."), Tt("water_pump_manual"),
+                                                                                                          P("water_pump_manual", "Flow Rate"), T["electric"][5], T["solver"][0], T["solver"][1]],
+           ["The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure."])
+    filt = [N["f_old"], N["f_call"], step]
+    simple("part-fluid-filter", "Moves only the fluid types enabled in its mask between Fluid A and Fluid B, both ways, with bias 0 and factor 1; excluded types still count toward pressure.",
+           [("Operating conditions", "Each update the filter calls the two-port solver between its two ports with bias 0, factor 1, both directions and its species mask, which defaults to all types. It has no compartment. Allowed species move in proportion to their share of the source's total, so the mask does not renormalize the source to the allowed species, and excluded species still count in each side's pressure.")],
+           filt + [Tt("fluid_filter"), A("fluid_filter", "water_component_type", "Selects case 10 of the fluid update."), N["phase"]], [])
+    simple("part-fluid-filter-v2", "Lets liquids, gases or both cross between Fluid A and Fluid B, both ways, with bias 0 and factor 1.",
+           [("Operating conditions", "The liquid setting enables all seven liquid types and the gas setting all six gas types; the mask is built each update and passed to the two-port solver with bias 0, factor 1 and both directions. It has no compartment, and excluded species still count in each side's pressure.")],
+           [N["f_gas"], N["f_liquid"], N["f_call"], N["phase"], step, Tt("fluid_filter_v2"), A("fluid_filter_v2", "water_component_type", "Selects case 27 of the fluid update.")], [])
+    pipe = [N["pipe6"], T["solver"][5], T["solver"][6]]
+    for fid, bid in (("pipe", "trans_straight"), ("enclosed-pipe", "trans_block_straight")):
+        simple(fid, "Joins one 40 L network with every connected open or enclosed pipe; length adds no volume.",
+               [("Operating conditions", "Open and enclosed pipes are both type 6. The network builder follows matching fluid faces through either kind and gives the whole connected run one compartment of volume 4, 40 L, no matter how many blocks it spans. For clean water the network pressure is 15 × the stored amount, 60 when full.")],
+               pipe + [A(bid, "type", "Component type 6, followed by the pipe-network builder.")], [])
+    simple("part-water-spawner", "Fills its enclosing custom compartment once, at the first build, with up to 0.99 × fill × volume of the selected fluid, limited by free room.",
+           [("Operating conditions", "On the first build the spawner adds min(free room, 0.99 × fill × V) of the selected fluid to the compartment it sits in, where V is that compartment's volume. Air is split into nitrogen, oxygen and CO2. Diesel and jet fuel are skipped by this branch. Its tooltip says gases are spawned compressed at 60 atm; under the pressure law a compartment whose gas reaches A = V reads 60 atm.")],
+           [N["spawn_room"], N["fill_call"], N["fill_099"], N["law"], N["room_add"], N["room_v"], Tt("water_spawner")],
+           ["Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced."])
 
 
 def engines(B, E):
@@ -3092,7 +3421,7 @@ def build(root):
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 air_scoop, displays):
+                 fluid_links, air_scoop, displays):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.
