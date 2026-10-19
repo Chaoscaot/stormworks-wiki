@@ -2118,14 +2118,14 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/limitations/0",
-        "text": "The size of the velocity effect was not recovered.",
+        "pointer": "/families/117/limitations/3",
+        "text": "The vector subtracted from the point velocity is argument 10 of the fluid update; it is taken to be air velocity because the radiators subtract it for their airflow term, but its source was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/sections/1/body",
-        "text": "Flow gain against airspeed; the exterior-pressure routine 0x140311f20 was not decoded.",
+        "pointer": "/families/117/sections/5/body",
+        "text": "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the update rate needed to turn per-update amounts into per-second flow, and what the point sources that lower the factor near them are.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -6319,6 +6319,12 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/81/limitations/0",
+        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/families/117/limitations/1",
         "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
         "scope": "Practical behavior guidance"
       },

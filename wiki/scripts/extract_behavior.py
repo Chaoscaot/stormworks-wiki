@@ -254,6 +254,29 @@ class Evidence:
         return self._native(func, address, label, value, detail,
                             "instruction bytes %s at %#x." % (hexbytes, address))
 
+    def operand(self, func, address, hexbytes, target, label, detail, kind="f32"):
+        """Instruction bytes whose RIP-relative operand resolves to a constant; reports that constant."""
+        n = self.native
+        start, body = n.body(func)
+        size = len(hexbytes) // 2
+        if not (start <= address < start + len(body)) or n.raw(address, size).hex() != hexbytes:
+            raise ValueError("Instruction bytes differ at %#x" % address)
+        if not any(address < r and r + 4 <= address + size for r in n.references(func, target)):
+            raise ValueError("Instruction at %#x does not address %#x" % (address, target))
+        width = 4 if kind == "f32" else 8
+        value = fmt(n.f32(target)) if kind == "f32" else repr(struct.unpack("<d", n.raw(target, 8))[0])
+        return self._native(func, address, label, value, detail,
+                            "instruction bytes %s at %#x address binary%d %s (bytes %s) at %#x." % (
+                                hexbytes, address, width * 8, value, n.raw(target, width).hex(), target))
+
+    def voxels(self, bid, meaning):
+        """Count of <voxel> elements: the listed voxel count the game keeps at definition+0xb8."""
+        path = DEFS + bid + ".xml"
+        m, start, end = self.at(path, r"<voxels>[\s\S]*?</voxels>")
+        count = len(re.findall(r"<voxel\b", m.group()))
+        return self.located(path, start, end, "%s · listed voxels" % self.block(bid)["name"], count,
+                            "%s: %d <voxel> element(s) in the definition. %s" % (bid, count, meaning))
+
     def case_table(self, func, address, hexbytes, table, targets, label, detail):
         """Dispatch instruction bytes plus the image-relative jump table it indexes."""
         n = self.native
@@ -306,6 +329,13 @@ F_GENERATOR = 0x140400BC0  # chained unwind chunk of F_ELEC_UPDATE holding elect
 F_REQUEST = 0x1402EECA0    # electricity draw helper: returns the supplied fraction of a request
 F_ENGINE_CLASSIC = 0x14034BA00  # classic engine update (starter draw)
 F_JET = 0x140350F40        # jet engine component update (turbine branch)
+F_EXTERIOR = 0x140311F20   # outside-of-port state: compartment, air or sea water (entry chunk)
+F_EXTERIOR_BODY = 0x140311F79  # chained unwind chunk of F_EXTERIOR with the air/water branches
+F_PORT_DEMAND = 0x1402EC754  # chunk of port exchange 0x1402ec710: pressures, demand, step clamp
+F_PORT_MOVE = 0x1402ECA04  # chunk of port exchange 0x1402ec710: moving fluid between the sides
+F_WINDOW = 0x1402EB460     # window amount helper used by the port pressure
+F_READOUT = 0x1402EC210    # per-port readout written after each exchange (leaf)
+F_NET_ALLOC = 0x1404C9D20  # pipe-network allocation of port demand into the next move
 
 RETAINED = "investigation/native/behavior/"
 PROVENANCE = ("Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine "
@@ -329,7 +359,7 @@ WHERE = {
     (0x1403EF860, 0x140BAF8F8): "asm/water.asm:L4523-L4528,L3526; pseudocode/0x1403ef860.c:L876-L932,L2173-L2207",
     (0x1403EF860, 0x140BAF918): "asm/water.asm:L3657-L3661 (case 9)", (0x1403EF860, 0x140BB072C): "asm/water.asm:L3570-L3578 (case 9)",
     (0x1403EF860, 0x140BB0218): "asm/water.asm:L3540-L3580 (case 9)", (0x1403EF860, 0x140BAFAD0): "pseudocode/0x1403ef860.c:L2173-L2185",
-    (0x1403EF860, 0x1403F4C98): "asm/water.asm:L4503", (0x1403EF860, 0x1403EFEBE): "asm/water.asm:L358-L361; pseudocode/0x1403ef860.c:L217-L224",
+    (0x1403EF860, 0x1403F4C98): "asm/water.asm:L4503", (0x1403EF860, 0x1403EFEBE): "asm/water.asm:L358-L361; pseudocode/0x1403ef860.c:L217-L224; ../air-scoop/asm/0x1403efc60-case0-scoop.asm:L136-L171",
     (0x1403FB870, None): "pseudocode/0x1403fb870.c", (0x1403FBD70, None): "pseudocode/0x1403fbd70.c",
     (0x1403FAE40, None): "pseudocode/0x1403fae40.c:L76-L105", (0x140358B30, None): "pseudocode/0x140358b30.c",
     (0x14044BD70, None): "pseudocode/0x14044bd70.c", (0x140292D60, None): "pseudocode/0x140292d60.c; asm/set.asm",
@@ -347,6 +377,48 @@ WHERE.update({
     (0x140350F40, None): EMAG + "pseudocode/0x140350f40.c:L460-L483; " + EMAG + "asm/jet-turbine.asm:L26-L48",
     (0x140449670, 0x14044A388): "pseudocode/0x140449670.c:L469-L482; " + EMAG + "asm/modular-engine.asm:L27-L39",
     (0x140449670, 0x14044A5A2): "pseudocode/0x140449670.c:L525-L537; " + EMAG + "asm/modular-engine.asm:L129-L140",
+})
+
+
+# air-scoop pass; files under investigation/native/air-scoop/.
+SCOOP = "../air-scoop/"
+_C, _X = SCOOP + "asm/0x1403efc60-case0-scoop.asm", SCOOP + "asm/0x140311f20-exterior.asm"
+_P, _H = SCOOP + "asm/0x1402ec710-port-exchange.asm", SCOOP + "asm/0x1402eaff0-compartment-helpers.asm"
+_XC, _PC = SCOOP + "pseudocode/0x140311f20.c", SCOOP + "pseudocode/0x1402ec710.c"
+WHERE.update({
+    (0x1403EF860, 0x1403EFC60): _C + ":L9-L10",
+    (0x1403EF860, 0x1403EFD3A): _C + ":L54-L82; " + SCOOP + "asm/vector-helpers.asm:L47-L62",
+    (0x1403EF860, 0x1403EFEE9): _C + ":L142-L156; " + SCOOP + "asm/vector-helpers.asm:L1-L46",
+    (0x1403EF860, 0x1403EFF28): _C + ":L157-L171",
+    (0x1403EF860, 0x1403EFEB5): _C + ":L137,L166",
+    (0x1403EF860, 0x1403EFF77): _C + ":L172-L173", (0x1403EF860, 0x1403EFF7F): _C + ":L172-L173",
+    (0x1403EF860, 0x1403EFFF9): _C + ":L113-L135,L195-L199",
+    (0x140311F20, 0x140311F5A): _X + ":L7-L20; " + _XC + ":L24-L27,L86-L88",
+    (0x140311F79, 0x140311FE7): _X + ":L21-L40; " + _XC + ":L30-L34; " + SCOOP + "pseudocode/0x1402bbbb0.c",
+    (0x140311F79, 0x14031212D): _X + ":L93-L103; " + _XC + ":L48-L52",
+    (0x140311F79, 0x140312139): _X + ":L93-L103; " + _XC + ":L48-L52",
+    (0x140311F79, 0x140312118): _X + ":L93-L103; " + _XC + ":L48-L52",
+    (0x140311F79, 0x140312151): _X + ":L104-L109; " + _XC + ":L52",
+    (0x140311F79, 0x1403120CC): _X + ":L74-L92; " + _H + ":L1-L13",
+    (0x140311F79, 0x1403120B1): _X + ":L74-L87; " + _H + ":L1-L13",
+    (0x140311F79, 0x1403120C1): _X + ":L74-L87; " + _H + ":L1-L13",
+    (0x140311F79, 0x1403120E4): _X + ":L74-L87; " + _H + ":L1-L13",
+    (0x140311F79, 0x14031216E): _X + ":L110-L113; " + _XC + ":L53-L58; " + SCOOP + "pseudocode/0x14030e1f0.c",
+    (0x140311F79, 0x140312026): _X + ":L41-L53; " + _XC + ":L61-L70; " + SCOOP + "pseudocode/0x140310540.c",
+    (0x140311F79, 0x140312037): _X + ":L54-L72; " + _XC + ":L72-L81",
+    (0x140311F79, 0x140312073): _X + ":L54-L72; " + _XC + ":L72-L81",
+    (0x140311F79, 0x140312083): _X + ":L54-L72; " + _XC + ":L72-L81",
+    (0x140311F79, 0x14031206B): _X + ":L54-L72; " + _XC + ":L72-L81",
+    (0x1402EC754, 0x1402EC782): _P + ":L24-L59; " + _H + ":L15-L50",
+    (0x1402EC754, 0x1402EC7CC): _P + ":L37-L42,L55-L59",
+    (0x1402EB460, None): _H + ":L15-L50; " + SCOOP + "pseudocode/0x1402eb460.c",
+    (0x1402EC754, 0x1402EC827): _P + ":L61-L168; " + _PC + ":L21-L133",
+    (0x1402EC754, 0x1402EC8AA): _P + ":L89-L113,L128-L154",
+    (0x1402EC754, 0x1402EC9DD): _P + ":L169-L186; " + _PC + ":L134-L143",
+    (0x1402EC754, 0x1402EC9EE): _P + ":L174-L186",
+    (0x1402ECA04, 0x1402ECEB1): _P + ":L451-L466; " + _PC + ":L346-L356",
+    (0x1404C9D20, 0x1404CA050): SCOOP + "asm/0x1404c9d20-network-allocation.asm:L26-L40,L151-L202",
+    (0x1402EC210, None): SCOOP + "asm/0x1402ec210-port-readout.asm:L1-L19",
 })
 
 
@@ -1246,13 +1318,6 @@ def more_families(B, E):
     simple("part-fluid-heat-sink", "Runs the radiator rule: 0.003 × (1 + airflow term) of the gap to the surroundings per update, with no fan.",
            [("Operating conditions", "It shares water component case 9 with the radiators. With no electric node its only boost is airflow when mounted outside an enclosed compartment, as air speed ÷ 40 capped at 2. Both fluid ports must be connected.")],
            [rad, air, A("fluid_heat_sink", "water_component_type", "Value 9 selects the radiator case."), T("fluid_heat_sink")], [TICK])
-    simple("part-scoop-intake-2", "Exchanges air with the outside using the vehicle's motion only when it is not inside an enclosed compartment.",
-           [("Operating conditions", "Water component case 0xf adds a velocity-dependent exterior term only when the scoop has no enclosing compartment; inside a compartment it behaves like a plain port. Mount it on the exterior facing the airflow."),
-            ("Open measurement questions", "Flow gain against airspeed; the exterior-pressure routine 0x140311f20 was not decoded.")],
-           [A("scoop_intake_2", "water_component_type", "Value 15 (0xf) selects the scoop branch of the fluid update."), T("scoop_intake_2"),
-            E.code(F_FLUID, 0x1403EFEBE, "83b8cc0e00000f0f85ac0000004d39beb0040000", "Scoop exterior branch", "type 0xf and no compartment", "The branch tests water_component_type == 0xf together with a null compartment pointer (offset 0x4b0) before adding the component velocity term.")],
-           ["The size of the velocity effect was not recovered."])
-
     # Sensors with documented ranges and encodings.
     simple("part-laser-point-sensor", "Reports the laser spot nearest its view centre as x and y from −1 to 1 across a cone of ±cos(0.5).",
            [("Setup and interactions", "Composite number channels 1 and 2 give x and y; on/off channel 1 is set while a point is visible. Match the Wavelength input to the emitting beacon or laser."),
@@ -1504,11 +1569,140 @@ def extra_families(B, E):
            [("Setup and interactions", "Use the large keypad's Pulse to latch new values into registers.")], [T("button_keypad_large"), P("button_keypad_large", "Pulse")], [])
 
 
+def air_scoop(B, E):
+    """Air scoop: exterior state 0x140311f20, speed bias in fluid case 0xf, port exchange 0x1402ec710."""
+    op, code, n = E.operand, E.code, E.native
+    k = lambda a: n.f32(a)
+    # Scoop branch of the fluid update (case 0/0xc/0xf/0x17 block).
+    gate = code(F_FLUID, 0x1403EFC60, "4d39be680100000f8430540000", "Connection gate", "port+0x20 non-null",
+                "Cases 0, 0xc, 0xf and 0x17 share this block. It is skipped while the first port (component+0x148) has no compartment pointer at port+0x20, i.e. while the Fluid port is not connected.")
+    branch = code(F_FLUID, 0x1403EFEBE, "83b8cc0e00000f0f85ac0000004d39beb00400000f859f000000", "Scoop speed branch", "type 0xf and no compartment",
+                  "The speed term is computed only when water_component_type == 0xf and the component's compartment pointer (offset 0x4b0) is null; otherwise the bias passed on stays 0.")
+    axis = code(F_FLUID, 0x1403EFD3A, "e8a12cf3ff8b4424788985400500004c89bd44050000", "Scoop axis", "(s_x, 0, 0)",
+                "0x1403229e0 turns definition byte +0x40 into a sign vector (bit 0 set gives -1 on X, else +1; bits 1 and 2 do the same for Y and Z). Only the X sign is kept, so the axis is the part's local X; it is rotated by the part orientation (0x14017abf0) and the body (0x140178e20) and stored at frame+0x40.")
+    relv = code(F_FLUID, 0x1403EFEE9, "498d95a40000004c8d442478488d8dd8000000e8df59d8ff4c8bc0498d9598000000488d4da0e89c5cd8ff4c8b45b0488d55a0488d8d40050000e8085dd8ff",
+                "Relative velocity", "v + w × r - a",
+                "Point velocity = body velocity (body+0x98) + angular velocity (body+0xa4) × lever arm (0x1401758e0 cross product, 0x140175bb0 add); 0x140175c30 then subtracts the vector passed as argument 10 of the fluid update, the same vector the case 9 radiators subtract before taking their airflow speed.")
+    dot = code(F_FLUID, 0x1403EFF28, "f30f107540f30f59b540050000f30f104544f30f598544050000f30f58f0f30f104d48f30f598d48050000f30f58f1498b4658f3410f59f48b80b80000000f57c0f3480f2ac0f30f59f0f3410f58f2",
+               "Speed term", "axis · relative velocity × gain × voxels",
+               "Dot product of the axis with the relative velocity, times the gain held in xmm12, times the listed voxel count definition+0xb8 converted to float.")
+    gain = op(F_FLUID, 0x1403EFEB5, "f3440f102512fc7b00", 0x140BAFAD0, "Scoop speed gain",
+              "Loaded into xmm12 right after the exterior call and multiplied into the speed term.")
+    clamp = op(F_FLUID, 0x1403EFF77, "f30f5f3515107c00", 0x140BB0F94, "Bias lower clamp", "maxss on the bias before it is passed on.")
+    clamp_hi = op(F_FLUID, 0x1403EFF7F, "f30f5d35c5067c00", 0x140BB064C, "Bias upper clamp", "minss on the bias before it is passed on.")
+    passon = code(F_FLUID, 0x1403EFFF9, "f30f105c24600f28d6488b95a8000000498d8e48010000e8fbc6efff", "Exchange call", "xmm2 = bias, xmm3 = factor",
+                  "For the scoop the port exchange 0x1402ec710 gets the clamped bias as its third argument and the factor written by 0x140311f20 as its fourth, with both mode flags 0 and fluid mask 0xffffffff.")
+    voxels = E.voxels("scoop_intake_2", "The speed term multiplies by this count (definition+0xb8).")
+    # Exterior state 0x140311f20.
+    inside = code(F_EXTERIOR, 0x140311F5A, "c7060000803f4885c97414488b8424e80000004883c130488908e932020000", "Compartment case", "outside = compartment+0x30, factor 1",
+                  "The factor output is set to 1. With a compartment pointer the routine returns that compartment's fluid state and stops, so an enclosed scoop exchanges with the compartment.")
+    wet = code(F_EXTERIOR_BODY, 0x140311FE7, "66440f2f47080f86b6000000", "Water test", "surface > port y",
+               "0x1402bbbb0 returns the water surface height at the port's x, z (wave terms included). The port is under water when that height exceeds the port's world y; otherwise the air branch runs.")
+    lapse = op(F_EXTERIOR_BODY, 0x14031212D, "f30f590d4bd78900", 0x140BAF880, "Air pressure lapse", "pressure ratio = (1 - this × y)^exponent, y = port world height.")
+    expo = op(F_EXTERIOR_BODY, 0x140312139, "f30f100dc3e38900", 0x140BB0504, "Air pressure exponent", "Second argument of the power call 0x1409b9c10.")
+    ceil = op(F_EXTERIOR_BODY, 0x140312118, "660f2f0560e48900", 0x140BB0580, "Air pressure ceiling",
+              "Above this height the ratio stays 0, so the exterior volume becomes infinite and the exterior pressure 0.", kind="f64")
+    per_v = op(F_EXTERIOR_BODY, 0x140312151, "f30f590d07e68900", 0x140BB0760, "Volume per amount at ratio 1",
+               "Exterior volume (+0x08) = total amount × this ÷ ratio, so ratio 1 gives the pressure value 1 in the port routine.")
+    total = code(F_EXTERIOR_BODY, 0x1403120CC, "c743400000a041c7431800000000", "Exterior air amount", "20",
+                 "Total amount +0x40 = 20 (0x41a00000) and fluid index 3 (+0x18) = 0.")
+    mix = [op(F_EXTERIOR_BODY, a, h, c, lab, d) for a, h, c, lab, d in (
+        (0x1403120B1, "f30f5805ebe58900", 0x140BB06A4, "Exterior air, fluid index 11", "Added to +0x38 of a zeroed state."),
+        (0x1403120C1, "f30f580dc7e38900", 0x140BB0490, "Exterior air, fluid index 10", "Added to +0x34 of a zeroed state."),
+        (0x1403120E4, "f30f580558d88900", 0x140BAF944, "Exterior air, fluid index 4", "Added to +0x1c of a zeroed state."))]
+    floor = op(F_EXTERIOR_BODY, 0x14031216E, "f30f5f35e2d78900", 0x140BAF958, "Exchange factor floor",
+               "In air the factor output is max(this, 1 - s), where s is the largest strength × radius ÷ distance over a world list of point sources read by 0x14030e1f0; in water it stays 1.")
+    sea = code(F_EXTERIOR_BODY, 0x140312026, "c743240000a041f30f114340", "Exterior water amount", "20 + oil",
+               "Under water fluid index 6 (+0x24) = 20 and index 5 (+0x20) = the oil amount 0x140310540 reads from the world oil map at that spot; total = 20 + oil.")
+    wconst = [op(F_EXTERIOR_BODY, a, h, c, lab, d) for a, h, c, lab, d in (
+        (0x140312037, "f30f100dc1e68900", 0x140BB0700, "Water depth numerator", "volume = total + 8 - (this ÷ (-1 - depth × 0.001) + 30) × 8 ÷ 60."),
+        (0x140312073, "f30f593d7dd88900", 0x140BAF8F8, "Water depth scale", "Multiplies depth = max(0, surface - y)."),
+        (0x140312083, "f30f580d85e68900", 0x140BB0710, "Water depth offset", "Added after the division."),
+        (0x14031206B, "f30f1005b5eb8900", 0x140BB0C28, "Water depth denominator base", "Denominator = this - depth × 0.001."))]
+    # Port exchange 0x1402ec710 and the window helper 0x1402eb460.
+    win = op(F_PORT_DEMAND, 0x1402EC782, "f3440f1015753e8c00", 0x140BB0600, "Port window",
+             "Each side's weight is min(volume, this). A side with volume up to this has pressure = total × 60 ÷ volume; a larger side uses the window helper.")
+    per_w = op(F_PORT_DEMAND, 0x1402EC7CC, "f30f59352c338c00", 0x140BAFB00, "Window pressure scale",
+               "For volume above 8, pressure = window amount (0x1402eb460) × 60 × this; for gas that is 60 × gas ÷ volume.")
+    whelp = E.const(F_WINDOW, 0x140BAFCBC, "Window helper liquid weight",
+                    "Window amount = gas × min(1, 8 ÷ (volume - liquid)) + max(liquid × this × 8 ÷ (60 × volume), liquid - volume + 8).")
+    diff = code(F_PORT_DEMAND, 0x1402EC827, "0f28cef30f5cca0f57e4440f2ffcf3410f5ccc", "Pressure difference", "P_network - P_outside - bias",
+                "Side A is the port's compartment (port+0x20, the pipe network) and side B the state passed in. A negative difference takes the inflow branch: target = weighted mean - bias, clamped to B ± 20 and 0…60, demand = -(1 - target ÷ P_B) × window amount of B, limited by A's free window.")
+    pclamp = op(F_PORT_DEMAND, 0x1402EC8AA, "f30f5c1d163e8c00", 0x140BB06C8, "Target pressure band", "The target pressure is held within this of the source side's pressure, then within 0…60.")
+    step = code(F_PORT_DEMAND, 0x1402EC9DD, "f30f114728f3410f59c7c7472c00000000f30f5905c6328c00", "Demand and step", "port+0x28 = demand; move ≤ 0.5 × factor × |demand|",
+                "Stores the demand at port+0x28, clears port+0x2c and clamps the amount actually moved (the previous port+0x2c) to ± demand × factor × 0.5.")
+    half = op(F_PORT_DEMAND, 0x1402EC9EE, "f30f5905c6328c00", 0x140BAFCBC, "Step fraction", "Multiplies demand × factor before the clamp.")
+    incap = op(F_PORT_MOVE, 0x1402ECEB1, "f30f10056f3d8c00", 0x140BB0C28, "Inflow cap per update", "An inflow move is limited to this and to the outside state's total amount.")
+    alloc = code(F_NET_ALLOC, 0x1404CA050, "f30f114a2cf30f114a3044897a28", "Network allocation", "port+0x2c = f·|f| ÷ Σ × room",
+                 "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update.")
+    readout = E.case_table(F_READOUT, 0x1402EC221, "438b948268c22e00", 0x1402EC268,
+                           [0x1402EC23D] * 3 + [0x1402EC22E] * 2 + [0x1402EC23D] * 2 + [0x1402EC22E] + [0x1402EC23D] * 2 + [0x1402EC22E] * 3,
+                           "Port readout scale by fluid index",
+                           "After each exchange port+0x34 = Σ moved amount × 10, with gas indices 3, 4, 7, 10, 11, 12 multiplied by 60 first (0x1402ec22e).")
+    gas60 = op(F_READOUT, 0x1402EC233, "f30f590525458c00", 0x140BB0760, "Gas readout factor", "Gas amounts only.")
+    ten = op(F_READOUT, 0x1402EC242, "f30f590502448c00", 0x140BB064C, "Readout factor", "All fluids.")
+
+    # Derived curves from the verified constants (formulas in investigation/air-scoop.md).
+    L, X, CEIL, V60, W8 = k(0x140BAF880), k(0x140BB0504), 40000.0, k(0x140BB0760), k(0x140BB0600)
+    G, LO, HI, HALF = k(0x140BAFAD0), k(0x140BB0F94), k(0x140BB064C), k(0x140BAFCBC)
+    rho = lambda h: (1 - h * L) ** X if h <= CEIL else 0.0
+    wp = lambda d: k(0x140BB0710) + k(0x140BB0700) / (k(0x140BB0C28) - d * k(0x140BAF8F8))  # 30 - 29/(1 + 0.001 d)
+    gas_l = V60 * HI
+    air = E.derived("Exterior air pressure", "; ".join("%d m: %.4f" % (h, rho(h)) for h in (0, 1000, 2000, 5000, 10000, 20000)),
+                    "p_out = (1 - %s × y)^%s for y ≤ 40000 m, else 0; 1 = sea level. Port pressure = %s × amount ÷ volume = ratio." % (fmt(L), fmt(X), fmt(V60)),
+                    [lapse, expo, ceil, per_v, total, per_w])
+    water = E.derived("Exterior water pressure", "; ".join("%d m: %.4f" % (d, wp(d)) for d in (0, 10, 50, 100, 1000)),
+                      "p_out = 30 - 29 ÷ (1 + 0.001 × depth): window amount = (30 - 29 ÷ (1 + 0.001 d)) × 8 ÷ 60 and pressure = window amount × 60 × 0.125.",
+                      wconst + [sea, per_w, whelp])
+
+    def moved(speed, p_net):
+        b = min(max(G * speed, LO), HI)
+        target = max(0.0, (rho(0) + p_net) / 2 - b)  # inflow branch, both windows 8
+        return HALF * (2 / 15) * (rho(0) - target)
+    pts = [(s, moved(s, 1.0)) for s in (0, 2.5, 5, 7.5, 10, 20)]
+    pts0 = [(s, moved(s, 0.0)) for s in (0, 2.5, 5)]
+    law = E.derived("Scoop demand law", "demand = (P_net - (p_out + 2 × bias)) ÷ 15, inflow ≤ 2 ÷ 15 × p_out",
+                    "With both windows 8 in a gas network (network volume ≥ 8, p_out ≤ 150), away from target-pressure and free-window clamps, both nonzero-difference branches of 0x1402ec710 give demand = (P_net - p_out - 2 × bias) ÷ 15 amount per update; negative is inflow. The inflow target cannot fall below 0, so inflow demand ≤ 2 ÷ 15 × p_out. Bias = clamp(%s × voxels × speed, %s, %s) with 1 voxel on scoop_intake_2." % (fmt(G), fmt(LO), fmt(HI)),
+                    [diff, pclamp, win, per_w, gain, clamp, clamp_hi, voxels, dot])
+    table = E.derived("Scoop transfer at sea level", "; ".join("%g: %.4f (%g)" % (s, t, round(t * gas_l, 2)) for s, t in pts),
+                      "Amount moved per update (readout units in brackets, amount × %s) against speed along the axis, network at pressure 1, sole port, factor 1: 0.5 × min(2 × bias, 2) ÷ 15. Network at pressure 0: %s." % (
+                          fmt(gas_l), "; ".join("%g: %.4f (%g)" % (s, t, round(t * gas_l, 2)) for s, t in pts0)),
+                      [law, half, step, alloc, gas60, ten, readout])
+    stall = E.derived("Sealed-network stall pressure", "; ".join("%d: %g" % (s, 1 + 2 * min(G * s, HI)) for s in (10, 50, 100)),
+                      "The simplified demand reaches 0 at P_net = p_out + 2 × bias; listed against speed at sea level. The bias clamp caps that zero at 21. The exact routine also sets demand to 0 when P_net - p_out - bias equals 0, so this is not a guaranteed filling endpoint.", [law])
+
+    scoop = "scoop_intake_2"
+    B.family("part-scoop-intake-2",
+             "Takes outside air through its Fluid port. Speed along the part's local X axis adds 0.1 × speed of bias, which acts like 2 × that much extra outside pressure; inside an enclosed compartment it is a plain port.",
+             [section("Operating conditions",
+                      "Case 0xf shares the fluid-update block of cases 0, 0xc and 0x17, which does nothing until the Fluid port is connected. Each update 0x140311f20 builds the state outside the port. If the scoop sits in an enclosed compartment, outside means that compartment's air, the factor is 1 and no speed term is added. Otherwise the outside is fresh air when the port is above the water surface and sea water when it is below."),
+              section("Outside pressure",
+                      "Air pressure is (1 - 2.2413793e-05 × y)^5.3595023 with y the port's world height in metres, 1 at sea level, 0.8856 at 1000 m, 0.5289 at 5000 m and 0.2566 at 10000 m. Above 40000 m it is 0. The air is 20 units split 15.792, 4.2 and 0.007999999 across fluid indices 11, 10 and 4, the dry-air nitrogen, oxygen and carbon dioxide shares, though the code does not name them.",
+                      "Under water the pressure is 30 - 29 ÷ (1 + 0.001 × depth): 1.2871 at 10 m, 3.6364 at 100 m, 15.5 at 1000 m. The outside fluid is 20 units of index 6 plus any oil the world map holds at that spot, so a submerged scoop pulls water."),
+              section("Speed term",
+                      "The update takes the port's velocity, including spin, subtracts the air-velocity vector the radiators also use, and projects the result on the part's local X axis. Bias = 0.1 × voxel count × that speed, clamped to -10…10; the scoop has 1 voxel, so the clamp is hit at 100 speed units. The sign matters. Moving along -X gives a negative bias that favors outflow from the network, and sideways motion adds nothing. The code fixes the axis but not which mesh face it is, so check the direction in game."),
+              section("Flow per update",
+                      "The port routine works in pressure units where 1 is sea-level air. For a gas-filled pipe network of 8 or more volume units, away from the target-pressure and free-window clamps, the demand is (P_net - (p_out + 2 × bias)) ÷ 15 amount per update, negative meaning inflow, and inflow demand stops growing at 2 ÷ 15 × p_out. The move magnitude is at most 0.5 × factor × the absolute demand, using the network's allocation from the previous update. At exactly P_net - p_out - bias = 0 the routine instead sets demand to 0.",
+                      "At sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 speed units, and stays at 0.0667 above that. The port readout shows 600 × a gas amount: 10, 20, 30 and 40. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 (20), so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too."),
+              section("Sealed network",
+                      "The simplified demand has a zero at P_net = p_out + 2 × bias: 3 at 10 speed units, 11 at 50 and 21 at 100 or more, where the bias clamp caps it. The exact branch also gives zero demand at P_net = p_out + bias. These are mathematical zero-demand points, not a verified final pressure for a filling network."),
+              section("Open measurement questions",
+                      "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the update rate needed to turn per-update amounts into per-second flow, and what the point sources that lower the factor near them are.")],
+             [E.attr(scoop, "water_component_type", "Value 15 (0xf) selects the scoop branch of the fluid update."), E.tooltip(scoop),
+              gate, branch, axis, relv, dot, gain, clamp, clamp_hi, passon, voxels,
+              inside, wet, lapse, expo, ceil, per_v, total] + mix + [floor, sea] + wconst +
+             [win, per_w, whelp, diff, pclamp, step, half, incap, alloc, readout, gas60, ten, air, water, law, table, stall],
+             ["Static decompilation of one build; the game was not run and no flow was measured.", TICK,
+              "The flow figures assume the scoop is the only port moving gas into a network of at least 8 volume units with room to spare. With several ports, the allocation gives each f·|f| ÷ Σ|f|, and the move lags the demand by one update.",
+              "The vector subtracted from the point velocity is argument 10 of the fluid update; it is taken to be air velocity because the radiators subtract it for their airflow term, but its source was not traced."])
+
+
 def build(root):
     E = Evidence(root)
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
-                 propulsion, control_surfaces, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families):
+                 propulsion, control_surfaces, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
+                 air_scoop):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.

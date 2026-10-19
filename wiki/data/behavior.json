@@ -17396,15 +17396,31 @@
     },
     {
       "id": "part-scoop-intake-2",
-      "summary": "Exchanges air with the outside using the vehicle's motion only when it is not inside an enclosed compartment.",
+      "summary": "Takes outside air through its Fluid port. Speed along the part's local X axis adds 0.1 × speed of bias, which acts like 2 × that much extra outside pressure; inside an enclosed compartment it is a plain port.",
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "Water component case 0xf adds a velocity-dependent exterior term only when the scoop has no enclosing compartment; inside a compartment it behaves like a plain port. Mount it on the exterior facing the airflow."
+          "body": "Case 0xf shares the fluid-update block of cases 0, 0xc and 0x17, which does nothing until the Fluid port is connected. Each update 0x140311f20 builds the state outside the port. If the scoop sits in an enclosed compartment, outside means that compartment's air, the factor is 1 and no speed term is added. Otherwise the outside is fresh air when the port is above the water surface and sea water when it is below."
+        },
+        {
+          "title": "Outside pressure",
+          "body": "Air pressure is (1 - 2.2413793e-05 × y)^5.3595023 with y the port's world height in metres, 1 at sea level, 0.8856 at 1000 m, 0.5289 at 5000 m and 0.2566 at 10000 m. Above 40000 m it is 0. The air is 20 units split 15.792, 4.2 and 0.007999999 across fluid indices 11, 10 and 4, the dry-air nitrogen, oxygen and carbon dioxide shares, though the code does not name them.\n\nUnder water the pressure is 30 - 29 ÷ (1 + 0.001 × depth): 1.2871 at 10 m, 3.6364 at 100 m, 15.5 at 1000 m. The outside fluid is 20 units of index 6 plus any oil the world map holds at that spot, so a submerged scoop pulls water."
+        },
+        {
+          "title": "Speed term",
+          "body": "The update takes the port's velocity, including spin, subtracts the air-velocity vector the radiators also use, and projects the result on the part's local X axis. Bias = 0.1 × voxel count × that speed, clamped to -10…10; the scoop has 1 voxel, so the clamp is hit at 100 speed units. The sign matters. Moving along -X gives a negative bias that favors outflow from the network, and sideways motion adds nothing. The code fixes the axis but not which mesh face it is, so check the direction in game."
+        },
+        {
+          "title": "Flow per update",
+          "body": "The port routine works in pressure units where 1 is sea-level air. For a gas-filled pipe network of 8 or more volume units, away from the target-pressure and free-window clamps, the demand is (P_net - (p_out + 2 × bias)) ÷ 15 amount per update, negative meaning inflow, and inflow demand stops growing at 2 ÷ 15 × p_out. The move magnitude is at most 0.5 × factor × the absolute demand, using the network's allocation from the previous update. At exactly P_net - p_out - bias = 0 the routine instead sets demand to 0.\n\nAt sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 speed units, and stays at 0.0667 above that. The port readout shows 600 × a gas amount: 10, 20, 30 and 40. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 (20), so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too."
+        },
+        {
+          "title": "Sealed network",
+          "body": "The simplified demand has a zero at P_net = p_out + 2 × bias: 3 at 10 speed units, 11 at 50 and 21 at 100 or more, where the bias clamp caps it. The exact branch also gives zero demand at P_net = p_out + bias. These are mathematical zero-demand points, not a verified final pressure for a filling network."
         },
         {
           "title": "Open measurement questions",
-          "body": "Flow gain against airspeed; the exterior-pressure routine 0x140311f20 was not decoded."
+          "body": "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the update rate needed to turn per-update amounts into per-second flow, and what the point sources that lower the factor near them are."
         }
       ],
       "findings": [
@@ -17435,9 +17451,21 @@
           }
         },
         {
-          "label": "Scoop exterior branch",
+          "label": "Connection gate",
+          "value": "port+0x20 non-null",
+          "detail": "Cases 0, 0xc, 0xf and 0x17 share this block. It is skipped while the first port (component+0x148) has no compartment pointer at port+0x20, i.e. while the Fluid port is not connected. Function 0x1403ef860-0x1403f51f4; instruction bytes 4d39be680100000f8430540000 at 0x1403efc60. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L9-L10. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efc60",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403efc60"
+          }
+        },
+        {
+          "label": "Scoop speed branch",
           "value": "type 0xf and no compartment",
-          "detail": "The branch tests water_component_type == 0xf together with a null compartment pointer (offset 0x4b0) before adding the component velocity term. Function 0x1403ef860-0x1403f51f4; instruction bytes 83b8cc0e00000f0f85ac0000004d39beb0040000 at 0x1403efebe. Interpretation rests on retained output investigation/native/behavior/asm/water.asm:L358-L361; pseudocode/0x1403ef860.c:L217-L224. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The speed term is computed only when water_component_type == 0xf and the component's compartment pointer (offset 0x4b0) is null; otherwise the bias passed on stays 0. Function 0x1403ef860-0x1403f51f4; instruction bytes 83b8cc0e00000f0f85ac0000004d39beb00400000f859f000000 at 0x1403efebe. Interpretation rests on retained output investigation/native/behavior/asm/water.asm:L358-L361; pseudocode/0x1403ef860.c:L217-L224; ../air-scoop/asm/0x1403efc60-case0-scoop.asm:L136-L171. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efebe",
           "status": "observed",
           "source": {
@@ -17445,10 +17473,506 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403efebe"
           }
+        },
+        {
+          "label": "Scoop axis",
+          "value": "(s_x, 0, 0)",
+          "detail": "0x1403229e0 turns definition byte +0x40 into a sign vector (bit 0 set gives -1 on X, else +1; bits 1 and 2 do the same for Y and Z). Only the X sign is kept, so the axis is the part's local X; it is rotated by the part orientation (0x14017abf0) and the body (0x140178e20) and stored at frame+0x40. Function 0x1403ef860-0x1403f51f4; instruction bytes e8a12cf3ff8b4424788985400500004c89bd44050000 at 0x1403efd3a. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L54-L82; ../air-scoop/asm/vector-helpers.asm:L47-L62. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efd3a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403efd3a"
+          }
+        },
+        {
+          "label": "Relative velocity",
+          "value": "v + w × r - a",
+          "detail": "Point velocity = body velocity (body+0x98) + angular velocity (body+0xa4) × lever arm (0x1401758e0 cross product, 0x140175bb0 add); 0x140175c30 then subtracts the vector passed as argument 10 of the fluid update, the same vector the case 9 radiators subtract before taking their airflow speed. Function 0x1403ef860-0x1403f51f4; instruction bytes 498d95a40000004c8d442478488d8dd8000000e8df59d8ff4c8bc0498d9598000000488d4da0e89c5cd8ff4c8b45b0488d55a0488d8d40050000e8085dd8ff at 0x1403efee9. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L142-L156; ../air-scoop/asm/vector-helpers.asm:L1-L46. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efee9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403efee9"
+          }
+        },
+        {
+          "label": "Speed term",
+          "value": "axis · relative velocity × gain × voxels",
+          "detail": "Dot product of the axis with the relative velocity, times the gain held in xmm12, times the listed voxel count definition+0xb8 converted to float. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f107540f30f59b540050000f30f104544f30f598544050000f30f58f0f30f104d48f30f598d48050000f30f58f1498b4658f3410f59f48b80b80000000f57c0f3480f2ac0f30f59f0f3410f58f2 at 0x1403eff28. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L157-L171. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403eff28",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403eff28"
+          }
+        },
+        {
+          "label": "Scoop speed gain",
+          "value": "0.1",
+          "detail": "Loaded into xmm12 right after the exterior call and multiplied into the speed term. Function 0x1403ef860-0x1403f51f4; instruction bytes f3440f102512fc7b00 at 0x1403efeb5 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L137,L166. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efeb5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403efeb5"
+          }
+        },
+        {
+          "label": "Bias lower clamp",
+          "value": "-10",
+          "detail": "maxss on the bias before it is passed on. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f5f3515107c00 at 0x1403eff77 address binary32 -10 (bytes 000020c1) at 0x140bb0f94. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L172-L173. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403eff77",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403eff77"
+          }
+        },
+        {
+          "label": "Bias upper clamp",
+          "value": "10",
+          "detail": "minss on the bias before it is passed on. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f5d35c5067c00 at 0x1403eff7f address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L172-L173. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403eff7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403eff7f"
+          }
+        },
+        {
+          "label": "Exchange call",
+          "value": "xmm2 = bias, xmm3 = factor",
+          "detail": "For the scoop the port exchange 0x1402ec710 gets the clamped bias as its third argument and the factor written by 0x140311f20 as its fourth, with both mode flags 0 and fluid mask 0xffffffff. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f105c24600f28d6488b95a8000000498d8e48010000e8fbc6efff at 0x1403efff9. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1403efc60-case0-scoop.asm:L113-L135,L195-L199. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efff9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403efff9"
+          }
+        },
+        {
+          "label": "Air Scoop Intake 1x1 · listed voxels",
+          "value": 1,
+          "detail": "scoop_intake_2: 1 <voxel> element(s) in the definition. The speed term multiplies by this count (definition+0xb8).",
+          "evidenceId": "resource:rom/data/definitions/scoop_intake_2.xml:0f9cb86521aa:L22-L27",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/scoop_intake_2.xml",
+            "sha256": "0f9cb86521aa435f1274c77d26f017ac025a86197126a08de4f335200a5c867e",
+            "lineStart": 22,
+            "lineEnd": 27
+          }
+        },
+        {
+          "label": "Compartment case",
+          "value": "outside = compartment+0x30, factor 1",
+          "detail": "The factor output is set to 1. With a compartment pointer the routine returns that compartment's fluid state and stops, so an enclosed scoop exchanges with the compartment. Function 0x140311f20-0x140311f79; instruction bytes c7060000803f4885c97414488b8424e80000004883c130488908e932020000 at 0x140311f5a. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L7-L20; ../air-scoop/pseudocode/0x140311f20.c:L24-L27,L86-L88. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f20@0x140311f5a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140311f5a"
+          }
+        },
+        {
+          "label": "Water test",
+          "value": "surface > port y",
+          "detail": "0x1402bbbb0 returns the water surface height at the port's x, z (wave terms included). The port is under water when that height exceeds the port's world y; otherwise the air branch runs. Function 0x140311f79-0x1403121ab; instruction bytes 66440f2f47080f86b6000000 at 0x140311fe7. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L21-L40; ../air-scoop/pseudocode/0x140311f20.c:L30-L34; ../air-scoop/pseudocode/0x1402bbbb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140311fe7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140311fe7"
+          }
+        },
+        {
+          "label": "Air pressure lapse",
+          "value": "2.2413793e-05",
+          "detail": "pressure ratio = (1 - this × y)^exponent, y = port world height. Function 0x140311f79-0x1403121ab; instruction bytes f30f590d4bd78900 at 0x14031212d address binary32 2.2413793e-05 (bytes 4105bc37) at 0x140baf880. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L93-L103; ../air-scoop/pseudocode/0x140311f20.c:L48-L52. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x14031212d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031212d"
+          }
+        },
+        {
+          "label": "Air pressure exponent",
+          "value": "5.3595023",
+          "detail": "Second argument of the power call 0x1409b9c10. Function 0x140311f79-0x1403121ab; instruction bytes f30f100dc3e38900 at 0x140312139 address binary32 5.3595023 (bytes 0b81ab40) at 0x140bb0504. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L93-L103; ../air-scoop/pseudocode/0x140311f20.c:L48-L52. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312139",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312139"
+          }
+        },
+        {
+          "label": "Air pressure ceiling",
+          "value": "40000.0",
+          "detail": "Above this height the ratio stays 0, so the exterior volume becomes infinite and the exterior pressure 0. Function 0x140311f79-0x1403121ab; instruction bytes 660f2f0560e48900 at 0x140312118 address binary64 40000.0 (bytes 000000000088e340) at 0x140bb0580. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L93-L103; ../air-scoop/pseudocode/0x140311f20.c:L48-L52. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312118",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312118"
+          }
+        },
+        {
+          "label": "Volume per amount at ratio 1",
+          "value": "60",
+          "detail": "Exterior volume (+0x08) = total amount × this ÷ ratio, so ratio 1 gives the pressure value 1 in the port routine. Function 0x140311f79-0x1403121ab; instruction bytes f30f590d07e68900 at 0x140312151 address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L104-L109; ../air-scoop/pseudocode/0x140311f20.c:L52. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312151",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312151"
+          }
+        },
+        {
+          "label": "Exterior air amount",
+          "value": "20",
+          "detail": "Total amount +0x40 = 20 (0x41a00000) and fluid index 3 (+0x18) = 0. Function 0x140311f79-0x1403121ab; instruction bytes c743400000a041c7431800000000 at 0x1403120cc. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L74-L92; ../air-scoop/asm/0x1402eaff0-compartment-helpers.asm:L1-L13. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x1403120cc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403120cc"
+          }
+        },
+        {
+          "label": "Exterior air, fluid index 11",
+          "value": "15.792",
+          "detail": "Added to +0x38 of a zeroed state. Function 0x140311f79-0x1403121ab; instruction bytes f30f5805ebe58900 at 0x1403120b1 address binary32 15.792 (bytes 08ac7c41) at 0x140bb06a4. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L74-L87; ../air-scoop/asm/0x1402eaff0-compartment-helpers.asm:L1-L13. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x1403120b1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403120b1"
+          }
+        },
+        {
+          "label": "Exterior air, fluid index 10",
+          "value": "4.2",
+          "detail": "Added to +0x34 of a zeroed state. Function 0x140311f79-0x1403121ab; instruction bytes f30f580dc7e38900 at 0x1403120c1 address binary32 4.2 (bytes 66668640) at 0x140bb0490. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L74-L87; ../air-scoop/asm/0x1402eaff0-compartment-helpers.asm:L1-L13. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x1403120c1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403120c1"
+          }
+        },
+        {
+          "label": "Exterior air, fluid index 4",
+          "value": "0.007999999",
+          "detail": "Added to +0x1c of a zeroed state. Function 0x140311f79-0x1403121ab; instruction bytes f30f580558d88900 at 0x1403120e4 address binary32 0.007999999 (bytes 6e12033c) at 0x140baf944. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L74-L87; ../air-scoop/asm/0x1402eaff0-compartment-helpers.asm:L1-L13. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x1403120e4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403120e4"
+          }
+        },
+        {
+          "label": "Exchange factor floor",
+          "value": "0.01",
+          "detail": "In air the factor output is max(this, 1 - s), where s is the largest strength × radius ÷ distance over a world list of point sources read by 0x14030e1f0; in water it stays 1. Function 0x140311f79-0x1403121ab; instruction bytes f30f5f35e2d78900 at 0x14031216e address binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L110-L113; ../air-scoop/pseudocode/0x140311f20.c:L53-L58; ../air-scoop/pseudocode/0x14030e1f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x14031216e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031216e"
+          }
+        },
+        {
+          "label": "Exterior water amount",
+          "value": "20 + oil",
+          "detail": "Under water fluid index 6 (+0x24) = 20 and index 5 (+0x20) = the oil amount 0x140310540 reads from the world oil map at that spot; total = 20 + oil. Function 0x140311f79-0x1403121ab; instruction bytes c743240000a041f30f114340 at 0x140312026. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L41-L53; ../air-scoop/pseudocode/0x140311f20.c:L61-L70; ../air-scoop/pseudocode/0x140310540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312026",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312026"
+          }
+        },
+        {
+          "label": "Water depth numerator",
+          "value": "29",
+          "detail": "volume = total + 8 - (this ÷ (-1 - depth × 0.001) + 30) × 8 ÷ 60. Function 0x140311f79-0x1403121ab; instruction bytes f30f100dc1e68900 at 0x140312037 address binary32 29 (bytes 0000e841) at 0x140bb0700. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L54-L72; ../air-scoop/pseudocode/0x140311f20.c:L72-L81. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312037",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312037"
+          }
+        },
+        {
+          "label": "Water depth scale",
+          "value": "0.001",
+          "detail": "Multiplies depth = max(0, surface - y). Function 0x140311f79-0x1403121ab; instruction bytes f30f593d7dd88900 at 0x140312073 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L54-L72; ../air-scoop/pseudocode/0x140311f20.c:L72-L81. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312073",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312073"
+          }
+        },
+        {
+          "label": "Water depth offset",
+          "value": "30",
+          "detail": "Added after the division. Function 0x140311f79-0x1403121ab; instruction bytes f30f580d85e68900 at 0x140312083 address binary32 30 (bytes 0000f041) at 0x140bb0710. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L54-L72; ../air-scoop/pseudocode/0x140311f20.c:L72-L81. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312083",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312083"
+          }
+        },
+        {
+          "label": "Water depth denominator base",
+          "value": "-1",
+          "detail": "Denominator = this - depth × 0.001. Function 0x140311f79-0x1403121ab; instruction bytes f30f1005b5eb8900 at 0x14031206b address binary32 -1 (bytes 000080bf) at 0x140bb0c28. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x140311f20-exterior.asm:L54-L72; ../air-scoop/pseudocode/0x140311f20.c:L72-L81. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140311f79@0x14031206b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031206b"
+          }
+        },
+        {
+          "label": "Port window",
+          "value": "8",
+          "detail": "Each side's weight is min(volume, this). A side with volume up to this has pressure = total × 60 ÷ volume; a larger side uses the window helper. Function 0x1402ec754-0x1402eca04; instruction bytes f3440f1015753e8c00 at 0x1402ec782 address binary32 8 (bytes 00000041) at 0x140bb0600. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec710-port-exchange.asm:L24-L59; ../air-scoop/asm/0x1402eaff0-compartment-helpers.asm:L15-L50. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec782",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec782"
+          }
+        },
+        {
+          "label": "Window pressure scale",
+          "value": "0.125",
+          "detail": "For volume above 8, pressure = window amount (0x1402eb460) × 60 × this; for gas that is 60 × gas ÷ volume. Function 0x1402ec754-0x1402eca04; instruction bytes f30f59352c338c00 at 0x1402ec7cc address binary32 0.125 (bytes 0000003e) at 0x140bafb00. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec710-port-exchange.asm:L37-L42,L55-L59. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec7cc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec7cc"
+          }
+        },
+        {
+          "label": "Window helper liquid weight",
+          "value": "0.5",
+          "detail": "Window amount = gas × min(1, 8 ÷ (volume - liquid)) + max(liquid × this × 8 ÷ (60 × volume), liquid - volume + 8). Function 0x1402eb460-0x1402eb4f3; it reads binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402eaff0-compartment-helpers.asm:L15-L50; ../air-scoop/pseudocode/0x1402eb460.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb460@0x140bafcbc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140bafcbc"
+          }
+        },
+        {
+          "label": "Pressure difference",
+          "value": "P_network - P_outside - bias",
+          "detail": "Side A is the port's compartment (port+0x20, the pipe network) and side B the state passed in. A negative difference takes the inflow branch: target = weighted mean - bias, clamped to B ± 20 and 0…60, demand = -(1 - target ÷ P_B) × window amount of B, limited by A's free window. Function 0x1402ec754-0x1402eca04; instruction bytes 0f28cef30f5cca0f57e4440f2ffcf3410f5ccc at 0x1402ec827. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec710-port-exchange.asm:L61-L168; ../air-scoop/pseudocode/0x1402ec710.c:L21-L133. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec827",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec827"
+          }
+        },
+        {
+          "label": "Target pressure band",
+          "value": "20",
+          "detail": "The target pressure is held within this of the source side's pressure, then within 0…60. Function 0x1402ec754-0x1402eca04; instruction bytes f30f5c1d163e8c00 at 0x1402ec8aa address binary32 20 (bytes 0000a041) at 0x140bb06c8. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec710-port-exchange.asm:L89-L113,L128-L154. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec8aa",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec8aa"
+          }
+        },
+        {
+          "label": "Demand and step",
+          "value": "port+0x28 = demand; move ≤ 0.5 × factor × |demand|",
+          "detail": "Stores the demand at port+0x28, clears port+0x2c and clamps the amount actually moved (the previous port+0x2c) to ± demand × factor × 0.5. Function 0x1402ec754-0x1402eca04; instruction bytes f30f114728f3410f59c7c7472c00000000f30f5905c6328c00 at 0x1402ec9dd. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec710-port-exchange.asm:L169-L186; ../air-scoop/pseudocode/0x1402ec710.c:L134-L143. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9dd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec9dd"
+          }
+        },
+        {
+          "label": "Step fraction",
+          "value": "0.5",
+          "detail": "Multiplies demand × factor before the clamp. Function 0x1402ec754-0x1402eca04; instruction bytes f30f5905c6328c00 at 0x1402ec9ee address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec710-port-exchange.asm:L174-L186. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9ee",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec9ee"
+          }
+        },
+        {
+          "label": "Inflow cap per update",
+          "value": "-1",
+          "detail": "An inflow move is limited to this and to the outside state's total amount. Function 0x1402eca04-0x1402ed308; instruction bytes f30f10056f3d8c00 at 0x1402eceb1 address binary32 -1 (bytes 000080bf) at 0x140bb0c28. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec710-port-exchange.asm:L451-L466; ../air-scoop/pseudocode/0x1402ec710.c:L346-L356. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402eceb1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eceb1"
+          }
+        },
+        {
+          "label": "Network allocation",
+          "value": "port+0x2c = f·|f| ÷ Σ × room",
+          "detail": "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f114a2cf30f114a3044897a28 at 0x1404ca050. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1404c9d20-network-allocation.asm:L26-L40,L151-L202. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca050",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca050"
+          }
+        },
+        {
+          "label": "Port readout scale by fluid index",
+          "value": "0 → 0x1402ec23d, 1 → 0x1402ec23d, 2 → 0x1402ec23d, 3 → 0x1402ec22e, 4 → 0x1402ec22e, 5 → 0x1402ec23d, 6 → 0x1402ec23d, 7 → 0x1402ec22e, 8 → 0x1402ec23d, 9 → 0x1402ec23d, 10 → 0x1402ec22e, 11 → 0x1402ec22e, 12 → 0x1402ec22e",
+          "detail": "After each exchange port+0x34 = Σ moved amount × 10, with gas indices 3, 4, 7, 10, 11, 12 multiplied by 60 first (0x1402ec22e). Jump table at 0x1402ec268 read as image-relative dwords. Function 0x1402ec210-0x1402ec2a0; instruction bytes 438b948268c22e00 at 0x1402ec221. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec210-port-readout.asm:L1-L19. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec221",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec221"
+          }
+        },
+        {
+          "label": "Gas readout factor",
+          "value": "60",
+          "detail": "Gas amounts only. Function 0x1402ec210-0x1402ec2a0; instruction bytes f30f590525458c00 at 0x1402ec233 address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec210-port-readout.asm:L1-L19. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec233",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec233"
+          }
+        },
+        {
+          "label": "Readout factor",
+          "value": "10",
+          "detail": "All fluids. Function 0x1402ec210-0x1402ec2a0; instruction bytes f30f590502448c00 at 0x1402ec242 address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../air-scoop/asm/0x1402ec210-port-readout.asm:L1-L19. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec242",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec242"
+          }
+        },
+        {
+          "label": "Exterior air pressure",
+          "value": "0 m: 1.0000; 1000 m: 0.8856; 2000 m: 0.7821; 5000 m: 0.5289; 10000 m: 0.2566; 20000 m: 0.0413",
+          "detail": "p_out = (1 - 2.2413793e-05 × y)^5.3595023 for y ≤ 40000 m, else 0; 1 = sea level. Port pressure = 60 × amount ÷ volume = ratio. Inputs: native:stormworks64.exe:f9206d85c82f:0x140311f79@0x14031212d, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312139, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312118, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312151, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x1403120cc, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec7cc.",
+          "evidenceId": "derived:04fdc3f4b9b9",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031212d"
+          }
+        },
+        {
+          "label": "Exterior water pressure",
+          "value": "0 m: 1.0000; 10 m: 1.2871; 50 m: 2.3810; 100 m: 3.6364; 1000 m: 15.5000",
+          "detail": "p_out = 30 - 29 ÷ (1 + 0.001 × depth): window amount = (30 - 29 ÷ (1 + 0.001 d)) × 8 ÷ 60 and pressure = window amount × 60 × 0.125. Inputs: native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312037, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312073, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312083, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x14031206b, native:stormworks64.exe:f9206d85c82f:0x140311f79@0x140312026, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec7cc, native:stormworks64.exe:f9206d85c82f:0x1402eb460@0x140bafcbc.",
+          "evidenceId": "derived:d43c305d2dbd",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140312037"
+          }
+        },
+        {
+          "label": "Scoop demand law",
+          "value": "demand = (P_net - (p_out + 2 × bias)) ÷ 15, inflow ≤ 2 ÷ 15 × p_out",
+          "detail": "With both windows 8 in a gas network (network volume ≥ 8, p_out ≤ 150), away from target-pressure and free-window clamps, both nonzero-difference branches of 0x1402ec710 give demand = (P_net - p_out - 2 × bias) ÷ 15 amount per update; negative is inflow. The inflow target cannot fall below 0, so inflow demand ≤ 2 ÷ 15 × p_out. Bias = clamp(0.1 × voxels × speed, -10, 10) with 1 voxel on scoop_intake_2. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec827, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec8aa, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec782, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec7cc, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403efeb5, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403eff77, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403eff7f, resource:rom/data/definitions/scoop_intake_2.xml:0f9cb86521aa:L22-L27, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403eff28.",
+          "evidenceId": "derived:24de75632861",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec827"
+          }
+        },
+        {
+          "label": "Scoop transfer at sea level",
+          "value": "0: 0.0000 (0); 2.5: 0.0167 (10); 5: 0.0333 (20); 7.5: 0.0500 (30); 10: 0.0667 (40); 20: 0.0667 (40)",
+          "detail": "Amount moved per update (readout units in brackets, amount × 600) against speed along the axis, network at pressure 1, sole port, factor 1: 0.5 × min(2 × bias, 2) ÷ 15. Network at pressure 0: 0: 0.0333 (20); 2.5: 0.0500 (30); 5: 0.0667 (40). Inputs: derived:24de75632861, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9ee, native:stormworks64.exe:f9206d85c82f:0x1402ec754@0x1402ec9dd, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca050, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec233, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec242, native:stormworks64.exe:f9206d85c82f:0x1402ec210@0x1402ec221.",
+          "evidenceId": "derived:2d48d3d9d064",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec827"
+          }
+        },
+        {
+          "label": "Sealed-network stall pressure",
+          "value": "10: 3; 50: 11; 100: 21",
+          "detail": "The simplified demand reaches 0 at P_net = p_out + 2 × bias; listed against speed at sea level. The bias clamp caps that zero at 21. The exact routine also sets demand to 0 when P_net - p_out - bias equals 0, so this is not a guaranteed filling endpoint. Inputs: derived:24de75632861.",
+          "evidenceId": "derived:51b819677e62",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec827"
+          }
         }
       ],
       "limitations": [
-        "The size of the velocity effect was not recovered."
+        "Static decompilation of one build; the game was not run and no flow was measured.",
+        "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
+        "The flow figures assume the scoop is the only port moving gas into a network of at least 8 volume units with room to spare. With several ports, the allocation gives each f·|f| ÷ Σ|f|, and the move lags the demand by one update.",
+        "The vector subtracted from the point velocity is argument 10 of the fluid update; it is taken to be air velocity because the radiators subtract it for their airflow term, but its source was not traced."
       ],
       "sources": [
         {
@@ -17460,13 +17984,199 @@
         {
           "path": "rom/data/definitions/scoop_intake_2.xml",
           "sha256": "0f9cb86521aa435f1274c77d26f017ac025a86197126a08de4f335200a5c867e",
+          "lineStart": 22,
+          "lineEnd": 27
+        },
+        {
+          "path": "rom/data/definitions/scoop_intake_2.xml",
+          "sha256": "0f9cb86521aa435f1274c77d26f017ac025a86197126a08de4f335200a5c867e",
           "lineStart": 58,
           "lineEnd": 58
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec221"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec233"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec242"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec782"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec7cc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec827"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec8aa"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec9dd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec9ee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eceb1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140311f5a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140311fe7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140312026"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140312037"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031206b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140312073"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140312083"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403120b1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403120c1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403120cc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403120e4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140312118"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031212d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140312139"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140312151"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031216e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403efc60"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403efd3a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403efeb5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403efebe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403efee9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403eff28"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403eff77"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403eff7f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403efff9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca050"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140bafcbc"
         }
       ]
     },
@@ -22369,12 +23079,12 @@
       "weapon-xxl-barrel",
       "wheel-with-suspension"
     ],
-    "findingCount": 984,
+    "findingCount": 1026,
     "findingsByStatus": {
-      "derived": 34,
-      "observed": 950
+      "derived": 39,
+      "observed": 987
     },
-    "nativeFindingCount": 198,
+    "nativeFindingCount": 239,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -22425,9 +23135,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 37,
-      "native": 106,
-      "resource": 832
+      "derived": 42,
+      "native": 142,
+      "resource": 833
     }
   }
 }
