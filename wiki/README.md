@@ -1,0 +1,66 @@
+# Stormworks Parts Wiki
+
+A read-only wiki for Stormworks: Build and Rescue, built with Next.js (App Router). Pages are generated from the research JSON in `data/`. Each value cites the file and SHA-256 it came from. Executable findings cite a code address instead of a line.
+
+## Pages
+
+| Route | What it is |
+| --- | --- |
+| `/` | Main page: category portals, the families with the most sizes, the most-cited mechanics articles, how to read a citation |
+| `/parts` | Every part article with its image, grouped by the research's editorial categories, each with the category's behaviour summary |
+| `/parts/[familyId]` | Part article: lead, infobox with image, how it behaves, research sections, choosing a variant (documented limits and behaviour only), logic and coupling tables, documented behaviour, definition figures (collapsed), limitations, see also, numbered references |
+| `/components` | Every component definition. Search, category, sort and paging work as plain GET forms, so they also work without JavaScript |
+| `/components/[id]` | Every extracted fact for one variant: image, the family's behaviour write-up, interfaces, family facts, mechanics findings, constants, definition figures (collapsed), all raw attributes (filterable), physics nodes with nested elements |
+| `/mechanics`, `/mechanics/[id]` | Mechanics articles from `mechanics.json` and `native.json`. Findings are grouped by the file they cite |
+| `/constants` | Every constant, filterable by text, evidence source and data set |
+| `/tools/cooling` | Cooling capacity calculator with two methods. The ideal-flow estimate (default) sizes radiators for a modular engine from the heat, coolant and radiator terms recovered from the executable, and compares the four radiator types. The measured calibration sizes any engine from the user's paired readings and draws a temperature-time curve. Inputs can be shared as a URL |
+| `/provenance` | Game build, data sets, evidence labels, coverage, source disagreements, limitations |
+| `/search?q=` | Server-side search across parts, components, mechanics and constants. `&show=<group>` lists every match in one group |
+
+## Data
+
+`lib/data.js` reads these files from `data/` once per server process:
+
+- `blocks.json` (required): component definitions
+- `families.json` (optional): part families. Definitions it does not cover become one-member articles
+- `mechanics.json` (optional): articles and constants read from shipped files
+- `native.json` (optional): same schema as `mechanics.json`, from static analysis of the executable. Records keep `origin: 'native'`
+- `build.json` (optional): Steam build identity
+- `images.json` (optional): one image per component ID, `{src, alt, kind, width, height, source}`. Only site-relative `src` paths whose file exists in `public/` are shown, so a missing file never renders as a broken image. Renders cite every mesh in `source.meshes`
+- `behavior.json` (optional): behaviour write-ups keyed by category string and family ID, each with `summary`, `sections` (`title`, `body`, optional `sources` and `status`), `findings`, `limitations` and `sources`
+
+Definition mass, value and voxel counts stay in collapsed "Definition figures" sections. Variant comparisons show only tooltips and behaviour findings, and say so when nothing is documented. `/`, `/parts` and `/provenance` are prerendered, so rebuild after changing `images.json` or `behavior.json`.
+
+A finding or constant links to a component only when its `source.path` and `source.sha256` both match that component's definition. Raw codes (category, logic mode, logic type, coupling gender) are shown undecoded. Absent attributes read "Not in file", which is different from empty or zero. No units are shown unless the data states one.
+
+Modular engine cylinder, fluid radiator and heat exchanger articles (and their component pages) have an "Interactive graphs" section. `components/FormulaSection.jsx` renders the formula as MathML, the assumptions and the cited executable constants on the server. `components/FormulaGraphs.jsx` is the client chart: native sliders, a select and checkboxes drive an SVG plot, a persistent selected-point readout and a data table, all server-rendered in their default state. The formulas live in `lib/formulas.js`, and `graphKindsForFamily` decides which families get a graph. There is no jet thrust graph because the full thrust formula is not verified.
+
+`/tools/cooling` is built from `components/CoolingCalculator.jsx` (client) and the pure functions in `lib/cooling.js`. The ideal-flow estimate assumes unlimited pump flow and clean fresh water, so its radiator count is a minimum within that model, not verified in-game sizing; it is labelled "Ideal-flow estimate" and has no time curve because the update rate is unknown. The measured calibration starts from example values marked "Example, not measurements", and its results read "Example estimate" until the user ticks "I entered measurements from my build". Both keep the last valid result on screen while a field is invalid. A shared link carries `mode=ideal` or `mode=measured` plus the inputs, read after hydration. Engine and radiator articles link to the calculator.
+
+Every logic node a definition declares gets its own row. Two identical nodes in one component, such as the two Exhaust nodes on `engine_diesel`, are numbered rather than merged (`lib/logic-groups.js`).
+
+## Commands
+
+```bash
+npm ci
+npm run build              # next build, standalone output in .next/standalone
+npm run start:standalone   # copy static assets and run the standalone server on :3000
+npm test                   # unit tests against the real data/ files
+npm run test:routes -- http://127.0.0.1:3000   # HTTP status and rendered-row checks against a running server
+npm run test:browser -- http://127.0.0.1:3000  # agent-browser sweep for overflow at 390px and 1280px
+```
+
+Mechanics articles are prerendered at build time. Part and component pages render on first request and are then cached, which keeps the image small.
+
+## Docker
+
+The `Dockerfile` sits at the project root. It builds in three stages on `node:24-alpine`: `npm ci`, `next build`, then a runtime that copies only the standalone server, static assets, `public/` and `data/*.json`. It runs as the `node` user on port 3000 and has a health check. `.dockerignore` whitelists the Next.js project and `data/*.json`, so no game files can enter the build context.
+
+```bash
+docker build -t stormworks-wiki .
+docker run -p 3000:3000 stormworks-wiki
+```
+
+## Other folders
+
+`legacy-static/` holds the earlier vanilla JavaScript version for reference. The build and the image do not use it. `scripts/extract_*.py`, `data/` and the deployment files belong to the research and deployment work, not to this frontend.

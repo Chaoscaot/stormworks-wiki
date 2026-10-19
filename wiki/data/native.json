@@ -1,0 +1,841 @@
+{
+  "articles": [
+    {
+      "id": "native-configuration-loading",
+      "title": "Configuration loading and native defaults",
+      "category": "Research methods",
+      "summary": "The executable contains the float-reading helper, constants fallback table and component field serialization path.",
+      "body": "Static analysis connects several shipped configuration names to executable code. The float helper reads named attributes and applies a caller-supplied fallback when an attribute is absent. The game-constants routine supplies 42 such fallbacks.\n\nThese are code observations. They do not measure the simulation or establish when a particular resource override takes effect. The buoyancy multiplier remains a useful example: the native fallback and SDK value are 10, while the shipped realtime file stores 12.",
+      "findings": [
+        {
+          "label": "Missing float attributes use a fallback",
+          "value": "*param_4 = param_5",
+          "detail": "The recovered helper searches a named attribute. In its read branch, a missing attribute writes the caller-supplied float fallback. Found text is converted to a float. A separate branch serializes values.",
+          "evidenceId": "ev_d1d0245ead1a1c53918eb0208dac1397baff4da18cde8b87bf68e2315f6da3ff",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408efd50"
+          },
+          "status": "observed"
+        },
+        {
+          "label": "Native gravity fallback",
+          "value": 10,
+          "detail": "The constants serializer supplies 0x41200000. Assembly and a complete four-byte analysis-memory read corroborate the binary32 representation of 10.0.",
+          "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140293a40"
+          },
+          "status": "observed",
+          "corroboratingEvidenceIds": [
+            "ev_75028bcfc21d3a8e7b3d96daf2863d3307255cb8eee3d123ba21585e30ad76db",
+            "ev_74105630428ba1823f95caa34445cdc2694523f4dfbf9233958c006dc0b5e92e"
+          ]
+        },
+        {
+          "label": "Native buoyancy mass multiplier fallback",
+          "value": 10,
+          "detail": "The native constants serializer also supplies 10.0 for buoyancy_mass_multiplier. The SDK says 10 and the shipped realtime settings say 12. This trace does not establish which value wins during gameplay.",
+          "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140293a40"
+          },
+          "status": "observed"
+        },
+        {
+          "label": "Additional compartment force fields",
+          "value": {
+            "water_compartment_force_factor": 1,
+            "gas_compartment_force_factor": 1
+          },
+          "detail": "Both named fields and fallback values are present in the recovered serializer but absent from the supplied SDK XML attributes. The force equation and effective runtime values are unresolved.",
+          "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140293a40"
+          },
+          "status": "observed"
+        },
+        {
+          "label": "Constants resource path",
+          "value": "data/game_constants.xml",
+          "detail": "A recovered initialization routine references this relative resource path and conditionally invokes the game_constants serializer wrapper. The wrapper dispatches to the constants field routine. Resource mount selection and gameplay loading were not observed.",
+          "evidenceId": "ev_c6f0aaa627a81c3259e36c920893f94d6dfb628c4f1c2908b09c15b61991aeed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140846920"
+          },
+          "status": "observed",
+          "corroboratingEvidenceIds": [
+            "ev_945b4f13ae7180403e9ac3a574c9068be2f0991b7942d1b77f391b2a84c26566"
+          ]
+        },
+        {
+          "label": "Component fields have a native serialization path",
+          "value": {
+            "engine_max_force": "object + 0x874",
+            "pump_pressure": "object + 0xec8",
+            "electric_charge_capacity": "object + 0x141c"
+          },
+          "detail": "The native component serializer passes these literal names and destination offsets to the float helper. A serialized field does not establish that every component uses it or define its physical units.",
+          "evidenceId": "ev_b27f0136800573e499f6000cb03fd38bb44a03a0543d8bcb7282143d6fd22762",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403168d0"
+          },
+          "status": "observed"
+        }
+      ],
+      "limitations": [
+        "No Windows game process was executed. Effective values, override precedence and simulation equations remain unverified.",
+        "Ghidra 12.1.4 produced recovered pseudocode, not original source. Original function names were unavailable.",
+        "The successful profile disabled x86 Constant Reference Analyzer, Decompiler Parameter ID and Stack after the default analysis exhausted its heap. Reference and type recovery may therefore be incomplete.",
+        "Object offsets belong only to this executable hash and are not a stable modding API.",
+        "Only selected string references and routines were traced. This is not a complete reverse engineering of the engine."
+      ]
+    }
+  ],
+  "constants": [
+    {
+      "name": "gravity",
+      "value": 10.0,
+      "rawValue": "0x41200000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_drag_factor_linear_pressure",
+      "value": 0.05000000074505806,
+      "rawValue": "0x3d4ccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 4",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_drag_factor_quadratic_pressure",
+      "value": 0.10000000149011612,
+      "rawValue": "0x3dcccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 8",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_drag_factor_linear_suction",
+      "value": 0.02500000037252903,
+      "rawValue": "0x3ccccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0xc",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_drag_factor_quadratic_suction",
+      "value": 0.05000000074505806,
+      "rawValue": "0x3d4ccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x10",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_falloff_power_pressure",
+      "value": 0.6000000238418579,
+      "rawValue": "0x3f19999a",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x14",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_falloff_power_suction",
+      "value": 0.4000000059604645,
+      "rawValue": "0x3ecccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x18",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "drag_factor_linear_pressure",
+      "value": 15.0,
+      "rawValue": "0x41700000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x1c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "drag_factor_quadratic_pressure",
+      "value": 17.0,
+      "rawValue": "0x41880000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x20",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "drag_factor_linear_suction",
+      "value": 12.0,
+      "rawValue": "0x41400000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x24",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "drag_factor_quadratic_suction",
+      "value": 5.0,
+      "rawValue": "0x40a00000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x28",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "falloff_power_pressure",
+      "value": 2.5,
+      "rawValue": "0x40200000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x2c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "falloff_power_suction",
+      "value": 0.30000001192092896,
+      "rawValue": "0x3e99999a",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x30",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "water_drag_factor",
+      "value": 1.0,
+      "rawValue": "0x3f800000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x34",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_drag_factor",
+      "value": 0.20000000298023224,
+      "rawValue": "0x3e4ccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x38",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_speed_threshold",
+      "value": 15.0,
+      "rawValue": "0x41700000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x3c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_high_speed_threshold",
+      "value": 50.0,
+      "rawValue": "0x42480000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x40",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_high_speed_factor_scale",
+      "value": 8.0,
+      "rawValue": "0x41000000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x44",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "buoyancy_mass_multiplier",
+      "value": 10.0,
+      "rawValue": "0x41200000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x48",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "buoyancy_mass_modifier",
+      "value": 10.0,
+      "rawValue": "0x41200000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x4c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "buoyancy_mass_modifier_lower",
+      "value": 2000.0,
+      "rawValue": "0x44fa0000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x50",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "buoyancy_mass_modifier_upper",
+      "value": 23000.0,
+      "rawValue": "0x46b3b000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x54",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "buoyancy_mass_modifier_pow",
+      "value": 1.0,
+      "rawValue": "0x3f800000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x58",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "vehicle_linear_damping",
+      "value": 0.10000000149011612,
+      "rawValue": "0x3dcccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x5c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "vehicle_angular_damping",
+      "value": 0.10000000149011612,
+      "rawValue": "0x3dcccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x60",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "vehicle_friction",
+      "value": 0.800000011920929,
+      "rawValue": "0x3f4ccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 100",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "air_density",
+      "value": 1.225000023841858,
+      "rawValue": "0x3f9ccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x68",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "water_density",
+      "value": 1000.0,
+      "rawValue": "0x447a0000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x6c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "water_compartment_force_factor",
+      "value": 1.0,
+      "rawValue": "0x3f800000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x70",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "gas_compartment_force_factor",
+      "value": 1.0,
+      "rawValue": "0x3f800000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x74",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "water_drag_weight_factor_multiplier",
+      "value": 4.0,
+      "rawValue": "0x40800000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x78",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "wave_velocity_factor",
+      "value": 0.5,
+      "rawValue": "0x3f000000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x7c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "wave_velocity_factor_reverse",
+      "value": 0.30000001192092896,
+      "rawValue": "0x3e99999a",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x80",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "viscous_resistance_factor",
+      "value": 0.5,
+      "rawValue": "0x3f000000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x84",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "slamming_force_multiplier",
+      "value": 100.0,
+      "rawValue": "0x42c80000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x88",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "viscous_air_resistance",
+      "value": 0.25,
+      "rawValue": "0x3e800000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x8c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "lift_force",
+      "value": 0.25,
+      "rawValue": "0x3e800000",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x90",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "buoyancy_damping",
+      "value": 0.05000000074505806,
+      "rawValue": "0x3d4ccccd",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x94",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "buoyancy_damping_submerged",
+      "value": 0.9200000166893005,
+      "rawValue": "0x3f6b851f",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x98",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "sonar_noise",
+      "value": 0.0010000000474974513,
+      "rawValue": "0x3a83126f",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0x9c",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "radar_noise",
+      "value": 0.0010000000474974513,
+      "rawValue": "0x3a83126f",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0xa0",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    },
+    {
+      "name": "radar_distance_noise",
+      "value": 0.009999999776482582,
+      "rawValue": "0x3c23d70a",
+      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "source": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140293a40"
+      },
+      "status": "observed",
+      "evidenceType": "native-static-fallback",
+      "category": "Native configuration",
+      "destination": "param_1 + 0xa4",
+      "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
+    }
+  ],
+  "summary": {
+    "articleCount": 1,
+    "constantCount": 42,
+    "findingCount": 6,
+    "binary": {
+      "path": "stormworks64.exe",
+      "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+      "address": "0x140000000"
+    },
+    "provider": "Ghidra 12.1.4",
+    "profileDigest": "6c713149f72c4f70686a3bad5ac9e893ece51247b673b2f148b08f8334e44a53",
+    "evidenceIds": [
+      "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+      "ev_d1d0245ead1a1c53918eb0208dac1397baff4da18cde8b87bf68e2315f6da3ff",
+      "ev_c6f0aaa627a81c3259e36c920893f94d6dfb628c4f1c2908b09c15b61991aeed",
+      "ev_945b4f13ae7180403e9ac3a574c9068be2f0991b7942d1b77f391b2a84c26566",
+      "ev_b27f0136800573e499f6000cb03fd38bb44a03a0543d8bcb7282143d6fd22762"
+    ]
+  }
+}
