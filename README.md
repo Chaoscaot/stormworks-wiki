@@ -18,6 +18,6 @@ The Python extractors expect a matching local Stormworks installation in the rep
 
 ## Research backlog
 
-GitHub issues track undecoded methods, missing formulas and measurement questions quoted from the wiki. Resource-only findings and executable findings have separate scopes; a missing formula in a resource article can coexist with a partial native decode. Issues retain that distinction.
+[GitHub issues](https://github.com/Chaoscaot/stormworks-wiki/issues?q=is%3Aissue+label%3Aresearch) track undecoded methods, missing formulas and measurement questions quoted from the wiki. Resource-only findings and executable findings have separate scopes; a missing formula in a resource article can coexist with a partial native decode. Issues retain that distinction.
 
-Research summaries live in [research/](research/). Game content remains the property of its owners.
+The [backlog index](research/BACKLOG.md) links every tracked topic to its issue. Research summaries live in [research/](research/). Game content remains the property of its owners.

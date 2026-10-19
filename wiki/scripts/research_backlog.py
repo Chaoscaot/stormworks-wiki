@@ -153,10 +153,11 @@ def main():
         for group in groups:
             if group['key'] in registry:continue
             # Pass exact Markdown through stdin, never through shell interpolation.
-            result=subprocess.run(['gh','issue','create','--repo',REPO,'--title',group['title'][:250],
-                                   '--label','research','--body-file','-'],input=body(group),text=True,capture_output=True)
+            payload = json.dumps({'title': group['title'][:250], 'body': body(group), 'labels': ['research']})
+            result=subprocess.run(['gh','api',f'repos/{REPO}/issues','--input','-'],
+                                  input=payload,text=True,capture_output=True)
             if result.returncode:raise RuntimeError(result.stderr)
-            url=result.stdout.strip()
+            url=json.loads(result.stdout)['html_url']
             registry[group['key']]={'url':url,'number':int(url.rsplit('/',1)[-1])}
             registry_path.write_text(json.dumps(registry,indent=2,ensure_ascii=False)+'\n')
             print(url,flush=True)
