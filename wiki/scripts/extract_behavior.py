@@ -25,6 +25,7 @@ from collections import Counter
 import hashlib
 import html
 import json
+import math
 from pathlib import Path
 import re
 import struct
@@ -39,8 +40,10 @@ DEFS = "rom/data/definitions/"
 REALTIME = "rom/data/realtime_values/general_debug.txt"
 SDK = "sdk/data/game_constants.xml"
 NUMBER = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)")
-TICK = ("The recovered routines run once per call of the component update; the simulation "
-        "update rate itself was not recovered, so per-update fractions are not converted to seconds.")
+TICK = ("For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. "
+        "Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves "
+        "(1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, "
+        "sleeping, unloaded vehicles and real-time slowdown are outside this conversion.")
 
 
 def sha(data):
@@ -422,6 +425,25 @@ WHERE.update({
 })
 
 
+# update-rate pass; files under investigation/native/update-rate/, report investigation/update-rate.md.
+RATE = "../update-rate/"
+RATE_REPORT = "investigation/update-rate.md"
+F_COORD = 0x14073F890      # simulation coordinator: scene update, then physics worker submission
+F_SCENE = 0x1405E8FB0      # scene update, calls the vehicle/component dispatcher
+F_DISPATCH = 0x140549240   # vehicle/component dispatcher, one virtual update per component
+F_WORKER = 0x1405E3A80     # scene physics worker, update_thread_task@c_scene vtable slot +8
+# Slot +0x358 of the water, electric and modular-engine component vtables.
+COMPONENT_SLOTS = ((0x140B09270, F_FLUID), (0x140B81428, F_ELEC_UPDATE), (0x140B9CC08, F_ENGINE))
+WHERE.update({
+    (0x14073F890, 0x1407435BB): RATE + "asm/stormworks64-physics-submit.asm:L9",
+    (0x14073F890, 0x1407439C6): RATE + "asm/stormworks64-physics-submit.asm:L139-L148; " + RATE + "asm/stormworks64-physics-construction.asm",
+    (0x1405E8FB0, 0x1405EBD5C): RATE + "asm/stormworks64-scene-dispatch.asm:L31",
+    (0x140549240, 0x1405498D6): RATE + "asm/stormworks64-component-dispatch.asm:L55-L110; " + RATE + "tables.txt:L7-L12",
+    (0x1405E3A80, 0x1405E3AEA): RATE + "asm/stormworks64-physics-worker.asm:L19-L31; " + RATE + "pseudocode/0x1405e3a80.c; " + RATE + "tables.txt:L4,L13-L14",
+    (0x1405E3A80, 0x1405E3ADD): RATE + "asm/stormworks64-physics-worker.asm:L20-L31; " + RATE + "asm/stormworks64-physics-accumulator.asm",
+})
+
+
 def section(title, *paragraphs):
     return {"title": title, "body": "\n\n".join(paragraphs)}
 
@@ -490,6 +512,58 @@ def sources_of(findings):
     return sorted(out, key=lambda s: (s["path"], s.get("lineStart", 0), s.get("address", "")))
 
 
+def update_rate(E):
+    """Component updates per simulated second, verified once and shared by every entry that converts per-update amounts."""
+    if hasattr(E, "rate"):
+        return E.rate
+    n, code = E.native, E.code
+    if not (E.root / RATE_REPORT).is_file():
+        raise ValueError("Update-rate report missing: " + RATE_REPORT)
+    for slot, target in COMPONENT_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Component vtable slot %#x does not point to %#x" % (slot, target))
+    report = " Report: %s." % RATE_REPORT
+    scene = code(F_COORD, 0x1407435BB, "e8f059eaff", "Scene update call", "call 0x1405e8fb0",
+                 "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker." + report)
+    reach = code(F_SCENE, 0x1405EBD5C, "e8dfd4f5ff", "Component dispatcher call", "call 0x140549240",
+                 "The scene update calls the vehicle/component dispatcher for vehicles with a physics body." + report)
+    each = code(F_DISPATCH, 0x1405498D6, "41ff9258030000", "Component update call", "one call per component",
+                "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. "
+                "Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers." + report)
+    count = code(F_COORD, 0x1407439C6, "b801000000898288670000", "Physics ticks per component pass", "1",
+                 "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick." + report)
+    tick = E.operand(F_WORKER, 0x1405E3AEA, "f30f5e0d6ecc5c00", 0x140BB0760, "Ticks per simulated second",
+                     "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s." + report)
+    sub = code(F_WORKER, 0x1405E3ADD, "f30f5e83b8000000", "Solver substep", "1 ÷ solver rate",
+               "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates." + report)
+    ups = n.f32(0x140BB0760)
+    if ups != 60:
+        raise ValueError("Tick divisor at 0x140bb0760 is not 60")
+    rate = E.derived("Component updates per simulated second", int(ups),
+                     "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it." + report,
+                     [each, count, tick, sub, scene, reach])
+    E.rate = {"ups": int(ups), "findings": [rate, scene, reach, each, count, tick, sub]}
+    return E.rate
+
+
+def per_second(E, label, value, detail):
+    """Per-update amount × updates per simulated second."""
+    R = update_rate(E)
+    return E.derived(label, value, detail + " At %d updates per simulated second." % R["ups"], R["findings"][:1])
+
+
+def relaxation(E, label, k, extra=()):
+    """Gap left after one simulated second and time constant for a constant per-update fraction k."""
+    R = update_rate(E)
+    left = (1 - k) ** R["ups"]
+    tau = -1 / (R["ups"] * math.log(1 - k))
+    return E.derived(label, "%.3g left after 1 s; time constant %.3g s" % (left, tau),
+                     "(1 - %s)^%d = %.6f of a gap remains after one simulated second when the coefficient and target stay fixed and nothing else acts; "
+                     "time constant -1 ÷ (%d × ln(1 - %s)) = %.6f s. %d × %s is not the fraction removed per second." % (
+                         fmt(k), R["ups"], left, R["ups"], fmt(k), tau, R["ups"], fmt(k)),
+                     R["findings"][:1] + list(extra))
+
+
 # --------------------------------------------------------------------------
 # Content. Each function owns one editorial category.
 
@@ -510,16 +584,26 @@ def heat_exchange(B, E):
     sample = E.code(F_FLUID, 0x1403F4C98, "a80f", "Surrounding-temperature sampling", "every 16 updates",
                     "test al,0xf on the update counter: the surrounding temperature is re-sampled only when the low four bits are zero, i.e. once every 16 updates, then filtered into offset 0x644.")
     full_air = E.derived("Airflow for maximum radiator fan term", 80, "Fan term cap 2 × airflow divisor 40.", [fan, air])
+    R = update_rate(E)["findings"]
+    hx_s = relaxation(E, "Exchanger gap after one simulated second", 0.03, [step])
+    leak_s = relaxation(E, "Ambient leak after one simulated second", 0.001, [floor])
+    rad_s = relaxation(E, "Passive radiator gap after one simulated second", 0.003, [rad])
+    rad3_s = relaxation(E, "Radiator gap after one simulated second at the full multiplier 3", 0.009, [rad, fan])
+    ups = update_rate(E)["ups"]
+    refresh = per_second(E, "Surrounding-temperature refresh interval", "16 ÷ %d = %.3g s" % (ups, 16 / ups), "One sample every 16 component updates.")
+    per_s = [hx_s, leak_s, rad_s, rad3_s] + R
     B.category("Heat exchange",
                "Exchangers equalise two compartments by a fixed fraction per update weighted by how much fluid each side holds; radiators cool toward the surroundings and gain up to three times their passive rate from an electric fan or airflow.",
                [section("How the game moves heat",
                         "The fluid-component update gives every exchanger two internal compartments, A and B. Each update A moves toward B by 0.03·qB/(qA+qB) of the temperature gap and B moves toward A by 0.03·qA/(qA+qB), so heat is conserved and the gap shrinks by a constant fraction regardless of variant. The q terms are capacity values taken from the fluid inside each compartment. The fraction itself does not depend on the variant, so any size advantage must come through q or through-flow; it is plausible that larger variants hold more fluid, but their compartment volumes were not recovered, so that advantage is inferred, not shown.",
                         "Both compartments also leak toward the surrounding temperature by 0.001 per update. Radiators use a separate rule: the compartment moves toward the surrounding temperature by 0.003 × (1 + fan), with the fan term clamped to 0…2."),
+                section("Per-second rates",
+                        "Component updates run 60 times per simulated second. The fractions compound, so they are not multiplied by 60. With constant coefficients and nothing else acting, one simulated second leaves 0.161 of the gap between an exchanger's two compartments (time constant 0.547 s), 0.942 of a gap to fixed ambient through the leak alone (16.7 s), 0.835 of a passive radiator's gap to fixed ambient (5.55 s) and 0.581 at the full radiator multiplier of 3 (1.84 s). Through-flow and changing temperatures need the full model stepped 60 times per second."),
                 section("Practical setup",
                         "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts relative airflow as fan, reaching the maximum term at an air speed of 80 in the game's speed units (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's."),
                 section("Measurement questions",
-                        "The unit and per-fluid weighting of the q capacity terms, the update rate, and the filter applied to the surrounding-temperature sample (refreshed every 16 updates) were not recovered. Measure exchanger outlet temperatures at fixed flow to turn the per-update fractions into per-second rates.")],
-               [step, floor, rad, air, fan, sample, full_air] + tooltips,
+                        "The unit and per-fluid weighting of the q capacity terms and the filter applied to the surrounding-temperature sample (refreshed every 16 updates, 0.267 simulated seconds) were not recovered. Measure exchanger outlet temperatures at fixed flow to see how through-flow changes the isolated per-second figures.")],
+               [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips,
                ["Native findings come from static decompilation of one build; no in-game measurement was made.", TICK,
                 "The compartment volume of each exchanger variant was not recovered, so the size advantage cannot be stated as a ratio."])
 
@@ -529,44 +613,46 @@ def heat_exchange(B, E):
              [section("Operating conditions",
                       "Case 0x12 of the fluid-component update treats side A as gas (Air In/Air Out) and side B as liquid (Fluid In/Fluid Out). Fluid only flows through a side whose In and Out ports are both connected; the A/B exchange itself runs whenever the two compartments together hold more than 0.001 capacity units."),
               section("Performance drivers",
-                      "Per update, A moves toward B by 0.03·qB/(qA+qB) and B toward A by 0.03·qA/(qA+qB). " + hx + " When the liquid side's capacity is much larger than the air side's, the air moves toward the liquid temperature by close to 0.03 of the gap per update while the liquid barely changes; with similar capacities each side moves about half that. The fraction is capped at 0.03 per update, so closing a large gap takes many updates and depends on fresh fluid flowing through."),
+                      "Per update, A moves toward B by 0.03·qB/(qA+qB) and B toward A by 0.03·qA/(qA+qB). " + hx + " When the liquid side's capacity is much larger than the air side's, the air moves toward the liquid temperature by close to 0.03 of the gap per update while the liquid barely changes; with similar capacities each side moves about half that. The fraction is capped at 0.03 per update, so closing a large gap takes many updates and depends on fresh fluid flowing through. With no through-flow and no ambient leak, 0.161 of the gap remains after one simulated second (60 updates)."),
               section("Variant tradeoffs",
                       "All five variants share the same code path and the same 0.03 fraction. If larger variants hold more fluid in their compartments (plausible but not established, because compartment volumes were not recovered), q and the heat moved per update would rise with size."),
               section("Setup and interactions",
-                      "Temp A and Temp B read the internal compartments, so they show how close the two sides are, not inlet temperatures. Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient."),
+                      "Temp A and Temp B read the internal compartments, so they show how close the two sides are, not inlet temperatures. Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."),
               section("Open measurement questions",
                       "Measure Temp A/Temp B against flow rate to calibrate how fast fluid passing through refreshes each compartment, and compare variants at equal flow to quantify the size effect.")],
-             [step, floor, E.tooltip("air_exchanger"), E.port("air_exchanger", "Temp A"), E.port("air_exchanger", "Temp B")],
+             [step, floor, hx_s, leak_s, E.tooltip("air_exchanger"), E.port("air_exchanger", "Temp A"), E.port("air_exchanger", "Temp B")] + R,
              ["The q capacity weighting per fluid type and the through-flow rate were not recovered.", TICK])
     B.family("liquid-liquid-heat-exchanger",
              "Equalises two liquid compartments by 0.03 of the gap per update, weighted by liquid capacity on each side.",
              [section("Operating conditions",
                       "Case 0x10 uses the liquid capacity helper for both sides. Each side passes fluid only with both its In and Out ports connected."),
               section("Performance drivers",
-                      "Per update the hotter compartment loses and the colder gains heat in proportion 0.03·q_other/(qA+qB), conserving the capacity-weighted temperature. Throughput depends on how quickly flowing liquid replaces each compartment's contents."),
+                      "Per update the hotter compartment loses and the colder gains heat in proportion 0.03·q_other/(qA+qB), conserving the capacity-weighted temperature. Without through-flow the gap keeps 0.161 of its size after one simulated second (time constant 0.547 s). Throughput depends on how quickly flowing liquid replaces each compartment's contents."),
               section("Variant tradeoffs",
                       "The 2x2 and 5x5 variants share the same fraction; a larger internal volume for the 5x5 would raise q, but the volumes were not recovered."),
               section("Open measurement questions",
                       "Compare outlet temperatures of both variants at equal pump flow.")],
-             [step, floor, E.tooltip("intercooler")],
+             [step, floor, hx_s, E.tooltip("intercooler")] + R,
              ["Compartment volumes and the capacity weighting were not recovered.", TICK])
     B.family("air-air-heat-exchanger",
              "Equalises two gas compartments by 0.03 of the gap per update, weighted by gas capacity on each side.",
              [section("Operating conditions",
                       "Case 0x11 uses the gas capacity helper for both sides; each side passes gas only with both its In and Out ports connected."),
               section("Performance drivers",
-                      "The per-update rule is the same as for the other exchangers: 0.03 of the gap, weighted by the opposite side's share of capacity, plus a 0.001 drift toward ambient."),
+                      "The per-update rule is the same as for the other exchangers: 0.03 of the gap, weighted by the opposite side's share of capacity, plus a 0.001 drift toward ambient. Without through-flow, 0.161 of the gap remains after one simulated second."),
               section("Open measurement questions",
                       "How gas pressure affects the capacity term was not recovered; measure the exchanger at different manifold pressures.")],
-             [step, floor, E.tooltip("heat_exchanger_2_2")],
+             [step, floor, hx_s, E.tooltip("heat_exchanger_2_2")] + R,
              ["The gas capacity weighting was not recovered.", TICK])
-    elec = [rad, air, fan, E.tooltip("fluid_radiator_electric"), E.port("fluid_radiator_electric", "Fan On/Off")]
+    fan_draw = per_second(E, "Electric radiator fan draw per simulated second", "%s × %d = %.3g" % (floor["value"], ups, float(floor["value"]) * ups),
+                          "Request of %s electricity units per powered update." % floor["value"])
+    elec = [rad, air, fan, rad_s, rad3_s, fan_draw, E.tooltip("fluid_radiator_electric"), E.port("fluid_radiator_electric", "Fan On/Off")] + R
     B.family("electric-fluid-radiator",
              "Cools its fluid toward the surrounding temperature at 0.003 × (1 + fan) per update; the electric fan can triple the passive rate.",
              [section("Operating conditions",
-                      "Cooling runs only while both Fluid A and Fluid B are connected. The fan term is 2 × the electrical availability while Fan On/Off is on and power is present; each powered update also draws 0.001 units through the shared electricity helper."),
+                      "Cooling runs only while both Fluid A and Fluid B are connected. The fan term is 2 × the electrical availability while Fan On/Off is on and power is present; each powered update also draws 0.001 units through the shared electricity helper, 0.06 units per simulated second."),
               section("Performance drivers",
-                      "Cooling multiplier = 1 + fan, with fan clamped to 0…2, so a fully powered fan gives three times the passive rate. Mounted outside an enclosed compartment, relative airflow counts as fan as speed ÷ 40, so a fast vehicle reaches full cooling without power."),
+                      "Cooling multiplier = 1 + fan, with fan clamped to 0…2, so a fully powered fan gives three times the passive rate. Mounted outside an enclosed compartment, relative airflow counts as fan as speed ÷ 40, so a fast vehicle reaches full cooling without power. The term alone leaves 0.835 of the gap to ambient after one simulated second at multiplier 1 and 0.581 at multiplier 3."),
               section("Variant tradeoffs",
                       "Both sizes run the same rule and fraction; whether the larger radiator removes more heat depends on its internal fluid volume, which was not recovered."),
               section("Open measurement questions",
@@ -578,8 +664,10 @@ def heat_exchange(B, E):
              [section("Operating conditions",
                       "The passive radiator shares case 9 with the electric radiators and the fluid heat sink. Without a fan, its only boost is airflow: outside an enclosed compartment the multiplier becomes 1 + min(2, air speed ÷ 40)."),
               section("Setup and interactions",
-                      "Connect both fluid ports; with either port unconnected the cooling step is skipped. Place it on the exterior of a moving vehicle to use the airflow term.")],
-             [rad, air, fan, E.tooltip("fluid_radiator"), E.port("fluid_radiator", "Fluid A")],
+                      "Connect both fluid ports; with either port unconnected the cooling step is skipped. Place it on the exterior of a moving vehicle to use the airflow term."),
+              section("Per-second rate",
+                      "At 60 updates per simulated second the passive term leaves 0.835 of the gap to ambient after one second (time constant 5.55 s). At the airflow cap the multiplier is 3, which leaves 0.581 (1.84 s).")],
+             [rad, air, fan, rad_s, rad3_s, E.tooltip("fluid_radiator"), E.port("fluid_radiator", "Fluid A")] + R,
              [TICK])
 
 
@@ -656,17 +744,24 @@ def modular_engines(B, E):
             E.derived("Speed efficiency at 50 RPS", 0.5, "4 × (1 + 0.5) ÷ (1 + 1)² − 1 with 0.02 × 50 = 1.", [eff_a, eff_b, afr_mult]),
             E.derived("Air:fuel ratio with equal throttles and no boost", 7, "600 × 2.8e-6 ÷ 60 ÷ 4e-6 = 7.", [air_k, fuel_k, afr_mul])]
     core = [rps60, air_k, fuel_k, p_scale, afr16, afr12, afr_mult, two, opt, eff_a, eff_b, afr_mul] + best
+    R = update_rate(E)["findings"]
+    ups = update_rate(E)["ups"]
+    fuel_s = per_second(E, "Cylinder fuel per simulated second", "RPS × %.3g × voxels × fuel throttle" % (float(fuel_k["value"]) * ups),
+                        "Fuel per update RPS × %s × voxels × fuel throttle, before the diesel, combustion and exhaust limits." % fuel_k["value"])
+    damage_s = per_second(E, "Overheat damage interval", "%s ÷ %d = %g s" % (damage_period["value"], ups, float(damage_period["value"]) / ups),
+                          "One damage step per %s component updates." % damage_period["value"])
+    timed = [fuel_s, damage_s] + R
     B.category("Modular engines",
                "Recovered cylinder code gives a concrete tuning target: keep the air:fuel ratio near 13.6–14.0, keep the crank below 60 RPS, keep manifolds under 115 °C and give the exhaust room.",
                [section("Combustion window",
-                        "Each cylinder computes a fuel term (RPS × 4e-6 × voxels × fuel throttle) and an intake term (RPS × 2.8e-6 × voxels ÷ 60 × air throttle × pressure factor). The displayed air:fuel ratio is intake × 600 ÷ fuel, so with equal throttles and no boost it reads 7. Combustion happens only when the ratio lies between 12 − 2t and 16 + 4t, where t is manifold temperature ÷ 100 clamped to 0…1. Within the window the mixture factor 1 − 2(s − 0.6)² peaks at an air:fuel ratio of 13.6 cold and 14.0 when the manifold is at or above 100 °C."),
+                        "Each cylinder computes a fuel term (RPS × 4e-6 × voxels × fuel throttle) and an intake term (RPS × 2.8e-6 × voxels ÷ 60 × air throttle × pressure factor). At 60 updates per simulated second the fuel term is RPS × 0.00024 × voxels × fuel throttle per second. The displayed air:fuel ratio is intake × 600 ÷ fuel, so with equal throttles and no boost it reads 7. Combustion happens only when the ratio lies between 12 − 2t and 16 + 4t, where t is manifold temperature ÷ 100 clamped to 0…1. Within the window the mixture factor 1 − 2(s − 0.6)² peaks at an air:fuel ratio of 13.6 cold and 14.0 when the manifold is at or above 100 °C."),
                 section("Speed, heat and damage",
-                        "Fuel admission is cut above 60 RPS, so cylinders act as a hard rev limiter. Speed efficiency falls from 1 at standstill to 0.5 at 50 RPS. Burning fuel heats the manifold group (gain 6000 ÷ heat capacity); above 115 °C, with engine overheating enabled, the cylinder takes damage every 300 updates, and torque gain drops from 80000 to 40000 once damaged."),
+                        "Fuel admission is cut above 60 RPS, so cylinders act as a hard rev limiter. Speed efficiency falls from 1 at standstill to 0.5 at 50 RPS. Burning fuel heats the manifold group (gain 6000 ÷ heat capacity); above 115 °C, with engine overheating enabled, the cylinder takes damage every 300 updates (5 simulated seconds), and torque gain drops from 80000 to 40000 once damaged."),
                 section("Assembly",
                         "Crank inertia is the sum of engine_max_force over the assembly: a 1x1 crank block adds 0.7 while flywheels add 150, 600 and 2400. Inertia divides every torque impulse, so flywheels smooth speed and make starting slower. The starter only pushes while the crank is below 5 RPS."),
                 section("Measurement questions",
-                        "Compartment pressure units, manifold heat capacity, coolant transfer and the update rate were not recovered; measure RPS response and temperatures in game to calibrate these.")],
-               core + [hot, heat, torque_ok, torque_dmg, starter] + texts + fly + cyl_vox,
+                        "Compartment pressure units and the units of manifold heat and coolant transfer were not recovered; measure RPS response and temperatures in game to calibrate these.")],
+               core + [hot, heat, torque_ok, torque_dmg, starter, damage_period] + texts + fly + cyl_vox + timed,
                ["All engine formulas are reconstructed from static decompilation of build f9206d85…; they were not checked in a running game.", TICK,
                 "Throttle offsets 0x88 and 0x90 are attributed to the fuel and air manifolds from the oxygen/diesel caps applied to them; the manifold write path was only partially traced."])
     B.family("modular-engine-cylinder",
@@ -674,14 +769,14 @@ def modular_engines(B, E):
              [section("Operating conditions",
                       "A cylinder produces torque only when the crank is above 2 RPS, its air:fuel ratio is inside the window 12 − 2t … 16 + 4t (t = manifold °C ÷ 100, clamped 0…1), and the crank is at or below 60 RPS. Fuel is capped by the diesel available in its fuel manifolds and intake by the oxygen in its air manifolds."),
               section("Performance drivers",
-                      "Fuel per update = RPS × 4e-6 × listed voxels × fuel throttle. Intake = RPS × 2.8e-6 × listed voxels ÷ 60 × air throttle × pressure factor, where the pressure factor rises from 1 to 2 with air-manifold pressure (scale 0.01). Efficiency = speed efficiency × mixture factor; speed efficiency = clamp(4(0.02·RPS + 0.5)/(0.02·RPS + 1)² − 1, 0, 1), and the mixture factor 1 − 2(s − 0.6)² peaks at the air:fuel ratio 13.6 cold, 14.0 hot. The displayed Stoichiometric value is 2s − 1, so aim for about 0.2."),
+                      "Fuel per update = RPS × 4e-6 × listed voxels × fuel throttle, which is RPS × 0.00024 × listed voxels × fuel throttle per simulated second. Intake = RPS × 2.8e-6 × listed voxels ÷ 60 × air throttle × pressure factor, where the pressure factor rises from 1 to 2 with air-manifold pressure (scale 0.01). Efficiency = speed efficiency × mixture factor; speed efficiency = clamp(4(0.02·RPS + 0.5)/(0.02·RPS + 1)² − 1, 0, 1), and the mixture factor 1 − 2(s − 0.6)² peaks at the air:fuel ratio 13.6 cold, 14.0 hot. The displayed Stoichiometric value is 2s − 1, so aim for about 0.2."),
               section("Variant tradeoffs",
                       "The cylinder code multiplies fuel and intake by the definition's listed voxel count: 1 for the 1x1, 27 for the 3x3 and 125 for the 5x5. At equal RPS and throttle a 3x3 cylinder therefore admits 27 times the fuel of a 1x1 and heats its manifolds correspondingly."),
               section("Setup and interactions",
-                      "With equal air and fuel throttles and no boost the ratio is 7, below the window, so the engine will not fire; reduce fuel throttle to roughly half of air throttle or add manifold pressure. Exhaust that cannot fit into the exhaust manifolds reduces torque and heat in proportion (Exhaust % in the inspection text). Above 115 °C with overheating enabled the cylinder accumulates damage every 300 updates; while damaged its torque gain halves from 80000 to 40000, and at a counter of 20 it stops producing torque."),
+                      "With equal air and fuel throttles and no boost the ratio is 7, below the window, so the engine will not fire; reduce fuel throttle to roughly half of air throttle or add manifold pressure. Exhaust that cannot fit into the exhaust manifolds reduces torque and heat in proportion (Exhaust % in the inspection text). Above 115 °C with overheating enabled the cylinder accumulates damage every 300 updates, once per 5 simulated seconds; while damaged its torque gain halves from 80000 to 40000, and at a counter of 20 it stops producing torque."),
               section("Open measurement questions",
-                      "Confirm the target ratio in game with the Air:Fuel Ratio inspection line; measure how manifold pressure units relate to the pressure factor; time the damage interval to recover the update rate.")],
-             core + [hot, heat, torque_ok, torque_dmg, fixed, damage_period, vox, emt] + texts + cyl_vox + settings + [E.port("modular_engine_cylinder_straight", "Composite Data")],
+                      "Confirm the target ratio in game with the Air:Fuel Ratio inspection line; measure how manifold pressure units relate to the pressure factor; time the damage interval to check the 5-second period.")],
+             core + [hot, heat, torque_ok, torque_dmg, fixed, damage_period, vox, emt] + texts + cyl_vox + settings + [E.port("modular_engine_cylinder_straight", "Composite Data")] + timed,
              ["Reconstructed from static decompilation; signs and offsets were checked against instruction bytes, but no in-game run confirmed the curves.", TICK,
               "The fuel/air attribution of the two throttle offsets rests on the diesel and oxygen caps applied to them.",
               "The counter at component offset 0x8 is read as damage because the overheat branch increments it (capped at 50); its other writers were not traced."])
@@ -700,37 +795,40 @@ def modular_engines(B, E):
              [fly[0], inertia, rps60, E.attr("modular_engine_crankshaft_3x3", "engine_max_force", "Added to the crank inertia sum."),
               E.attr("modular_engine_crankshaft_5x5", "engine_max_force", "Added to the crank inertia sum.")],
              ["Only the inertia contribution was traced."])
+    decay_s = relaxation(E, "Belt accessory speed after one simulated second", round(1 - float(pump_decay["value"]), 9), [pump_decay])
     B.family("part-modular-engine-starter",
              "Pushes the crank only below 5 RPS, in proportion to the shortfall, while powered.",
              [section("Operating conditions",
-                      "Case 7 runs while the starter input is on and the component is undamaged. It draws electricity through the shared helper and adds speed proportional to (5 − crank RPS), clamped at zero. Its speed is coupled to the crank with weights engine_max_force (0.5) and the crank inertia, then decays by 0.99 per update."),
+                      "Case 7 runs while the starter input is on and the component is undamaged. It draws electricity through the shared helper and adds speed proportional to (5 − crank RPS), clamped at zero. Its speed is coupled to the crank with weights engine_max_force (0.5) and the crank inertia, then decays by 0.99 per update. Without coupling or drive it would keep 0.547 of its speed after one simulated second."),
               section("Setup and interactions",
                       "Because assistance ends at 5 RPS and a cylinder needs more than 2 RPS plus a valid mixture, set the throttles before cranking. Large flywheels reduce how fast the starter can bring the crank up.")],
-             [starter, pump_decay, E.attr("modular_engine_starter", "engine_max_force", "Inertia weight in the starter-crank coupling."), E.tooltip("modular_engine_starter"), two],
+             [starter, pump_decay, decay_s, E.attr("modular_engine_starter", "engine_max_force", "Inertia weight in the starter-crank coupling."), E.tooltip("modular_engine_starter"), two] + R,
              [TICK])
     B.family("part-modular-engine-alternator",
              "Charge per update rises with the square of its coupled speed up to 140, then linearly.",
              [section("Performance drivers",
-                      "Case 5 adds electric_magnitude × force_emitter_max_force × 0.1 × 0.1 × |ω| × min(|ω| ÷ 560, 0.25) per update, with electric_magnitude 0.05 and force_emitter_max_force 100. The second factor saturates at |ω| = 140, so the output is quadratic in speed below that and linear above it. The alternator then retains (1 − min(|ω| ÷ 560, 0.25)) of its speed, which is the load it puts on the belt."),
+                      "Case 5 adds electric_magnitude × force_emitter_max_force × 0.1 × 0.1 × |ω| × min(|ω| ÷ 560, 0.25) per update, with electric_magnitude 0.05 and force_emitter_max_force 100. The second factor saturates at |ω| = 140, so the output is quadratic in speed below that and linear above it. The alternator then retains (1 − min(|ω| ÷ 560, 0.25)) of its speed, which is the load it puts on the belt. Multiply the charge per update by 60 for charge per simulated second."),
               section("Open measurement questions",
                       "How ω relates to crank RPS through the belt coupling and what the charge unit is were not recovered.")],
              [alt, E.attr("modular_engine_alternator", "electric_magnitude", "Multiplier in the alternator charge expression."),
               E.attr("modular_engine_alternator", "force_emitter_max_force", "Multiplier in the alternator charge expression."), clutch,
               E.derived("Alternator saturation speed", 140, "560 × 0.25: above this |ω| the min() term is constant.", [alt]),
               E.const(F_ENGINE, 0x140BAFBBC, "Alternator factor cap", "The min(|ω| ÷ 560, 0.25) cap in case 5."),
-              E.const(F_ENGINE, 0x140BAFECC, "Alternator speed retention base", "Case 5 multiplies its speed by (1 − min(|ω| ÷ 560, 0.25)) after charging.")],
+              E.const(F_ENGINE, 0x140BAFECC, "Alternator speed retention base", "Case 5 multiplies its speed by (1 − min(|ω| ÷ 560, 0.25)) after charging.")] + R,
              ["The alternator formula comes from decompiled code; its energy unit is the game's internal charge unit."])
+    slew_s = per_second(E, "Shortest full clutch travel", "%g ÷ %s = %d updates = %.3g s" % (1, clutch["value"], round(1 / float(clutch["value"])), round(1 / float(clutch["value"])) / ups),
+                        "Engagement moves by at most %s per update." % clutch["value"])
     B.family("modular-engine-clutch",
              "Stored engagement follows the Clutch Pressure input at no more than 0.1 per update.",
              [section("Operating conditions",
-                      "Cases 3, 0x15 and 0x1a clamp the change of engagement to −0.1 … 0.1 per update, so a full engage or release takes at least ten updates. Engagement then scales the transfer between crank speed and the output side.")],
-             [clutch, E.const(F_ENGINE, 0x140BB0ABC, "Clutch release slew", "Lower clamp of the engagement change."), E.tooltip("modular_engine_clutch")],
+                      "Cases 3, 0x15 and 0x1a clamp the change of engagement to −0.1 … 0.1 per update, so a full engage or release takes at least ten updates, 0.167 simulated seconds. Engagement then scales the transfer between crank speed and the output side.")],
+             [clutch, slew_s, E.const(F_ENGINE, 0x140BB0ABC, "Clutch release slew", "Lower clamp of the engagement change."), E.tooltip("modular_engine_clutch")] + R,
              ["The exact shaping of the target value (a powf call) was not resolved.", TICK])
     B.family("part-modular-engine-fluid-pump",
              "Belt-driven pump coupled to the crank by clutch pressure; its own speed decays by the factor 0.99 every update.",
              [section("Operating conditions",
-                      "The fluid-pump case couples the pump speed to the crank weighted by its engine_max_force (0.5) against the crank inertia, scaled by Clutch Pressure clamped between zero and one, then pumps and multiplies its speed by 0.99.")],
-             [pump_decay, E.attr("modular_engine_fluid_pump", "engine_max_force", "Inertia weight in the belt coupling."), E.tooltip("modular_engine_fluid_pump")],
+                      "The fluid-pump case couples the pump speed to the crank weighted by its engine_max_force (0.5) against the crank inertia, scaled by Clutch Pressure clamped between zero and one, then pumps and multiplies its speed by 0.99. Uncoupled, it keeps 0.547 of its speed after one simulated second (time constant 1.66 s).")],
+             [pump_decay, decay_s, E.attr("modular_engine_fluid_pump", "engine_max_force", "Inertia weight in the belt coupling."), E.tooltip("modular_engine_fluid_pump")] + R,
              ["Pump flow per unit speed was not recovered.", TICK])
     B.family("part-modular-engine-coolant-manifold",
              "Shows litres, coolant temperature and a coolant-scaling percentage when inspected; it exchanges fluid with the manifold group.",
@@ -928,6 +1026,13 @@ def electricity(B, E):
     alt_cmp = E.derived("Alternator and small generator charge coefficients at equal |ω| × k", "0.05, 0.06",
                         "Alternator 0.05 × 100 × 0.1 × 0.1 = 0.05; small generator 0.6 × 1 × 0.1 = 0.06.", [o_alt, gm[0], gf[0]])
     native_em = [dispatch, m_read, m_call, g_read, g_add, r_inf]
+    R = update_rate(E)["findings"]
+    ups = update_rate(E)["ups"]
+    m_full_s = per_second(E, "Motor request per simulated second while the step stays at 2 (small, medium, large)",
+                          ", ".join(num(2 * m * f * 0.1 * ups) for m, f in zip(mv, mfv)), "60 × the full-throttle request per update; actual draw is limited by supply.")
+    m_coast = relaxation(E, "Unlinked coasting motor speed after one simulated second", round(1 - float(m_keep["value"]), 9), [m_keep])
+    g_out_s = per_second(E, "Generator charge per simulated second", "60 × Q",
+                         "Q is the charge deposited per update; the update writes the same 60 × Q to its Output slot (component offset 0x1a0).")
     B.category("Electricity",
                "Battery capacity is electric_charge_capacity (1 : 8 : 160 across sizes). electric_magnitude is a per-component multiplier on charge: a motor pays electric_magnitude × force_emitter_max_force × 0.1 per unit of speed step, and a generator earns the same product per unit of speed it removes.",
                [section("Storage",
@@ -940,9 +1045,9 @@ def electricity(B, E):
                 section("Supply and settings",
                         "Motors and both starters draw through the same helper. It removes min(a × request, network charge) and returns the supplied fraction, where a = max(0, (300 − n) ÷ 300) × q comes from two node fields whose meaning was not recovered. A motor's step is scaled by that fraction, so starving it slows acceleration without changing the cost per unit of step. With infinite_batteries on, the helper returns 1 and takes nothing. Generators deposit regardless of that setting."),
                 section("Measurement questions",
-                        "The speed unit of ω, the update rate and the shaft-link model were not recovered, so charge per update cannot yet be turned into charge per second or per unit of work. The shipped realtime file sets electric_consumption_scale to 0.01, but the release binary does not contain that name.")],
+                        "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. The speed unit of ω and the shaft-link model were not recovered, so charge cannot yet be turned into charge per unit of work. The shipped realtime file sets electric_consumption_scale to 0.01, but the release binary does not contain that name.")],
                cap + [init, tenth, ratio, consumption] + level + gm + mm + gf + mf + native_em +
-               [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse,
+               [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse + R,
                ["Electric units are internal; no conversion to joules or watts was recovered.",
                 "ω is the component's internal speed state; how it maps to the RPS port and how the shaft link exchanges speed were not decoded.",
                 "Static analysis only."])
@@ -951,7 +1056,7 @@ def electricity(B, E):
              [section("Variant tradeoffs",
                       "The medium battery stores 8 times and the large 160 times the small battery's charge."),
               section("Setup and interactions",
-                      "Set Charge Level (0–100) in the properties to spawn partially charged. Charge outputs the stored fraction from 0 to 1."),
+                      "Set Charge Level (0 to 100) in the properties to spawn partially charged. Charge outputs the stored fraction from 0 to 1."),
               section("Open measurement questions",
                       "How fast a battery can charge or discharge was not recovered.")],
              cap + [init, ratio, E.port("battery_small", "Charge")] + level,
@@ -959,14 +1064,14 @@ def electricity(B, E):
     B.family("generator",
              "Charge per update is electric_magnitude × force_emitter_max_force × 0.1 × |ω| × min(|ω| ÷ 560, 0.25). The speed the generator removes does not depend on electric_magnitude, so 0.6, 0.75 and 0.85 act as conversion factors.",
              [section("How the update works",
-                      "The generator writes its speed and force_emitter_max_force into its shaft link and takes the link's speed ω back. With k = min(|ω| ÷ 560, 0.25), it deposits Q = electric_magnitude × force_emitter_max_force × 0.1 × |ω| × k into the electric network and keeps (1 − k) of its speed; that loss is the load it puts on the shaft. Charge grows with the square of speed below |ω| = 140 and linearly above it. The update also writes 60 × Q to the slot where the battery keeps its Charge output, so Output most likely reads 60 × Q."),
+                      "The generator writes its speed and force_emitter_max_force into its shaft link and takes the link's speed ω back. With k = min(|ω| ÷ 560, 0.25), it deposits Q = electric_magnitude × force_emitter_max_force × 0.1 × |ω| × k into the electric network and keeps (1 − k) of its speed; that loss is the load it puts on the shaft. Charge grows with the square of speed below |ω| = 140 and linearly above it. The update also writes 60 × Q to the slot where the battery keeps its Charge output, so Output most likely reads 60 × Q. Component updates run 60 times per simulated second, so 60 × Q is the charge the generator deposits per simulated second while ω holds steady."),
               section("Variant tradeoffs",
                       "Per unit of speed removed, the small, medium and large generator deposit 0.06, 2.25 and 10.625. Divided by force_emitter_max_force that is 0.06, 0.075 and 0.085, so for the same force-weighted speed removal the large generator yields 1.4167 times and the medium 1.25 times what the small one does. That comparison assumes the shaft link weights each part's speed by force_emitter_max_force, which matches how the parts write into it but was not decoded."),
               section("Compared with motors and the alternator",
                       "A motor driving a generator of the same size returns 0.5 (small), 0.6818 (medium) or 0.8095 (large) of the motor's charge for an equal force-weighted speed change, under the same assumption. At equal |ω| × k the modular alternator's coefficient is 0.05 against the small generator's 0.06."),
               section("Open measurement questions",
-                      "The factor 60 between Q and Output is consistent with Output being a per-second figure at 60 updates per second, but the update rate was not recovered. Measure Output against shaft RPS per size to fix the unit of ω.")],
-             gm + gf + [init, tenth, g_read, g_norm, g_cap, g_tenth, g_out, g_add, dispatch, g_cost, g_per_f, g_rel, g_sat, trip, alt_cmp, o_alt,
+                      "Output is not labelled with a unit, and the charge unit itself has no recovered conversion to joules. Measure Output against shaft RPS per size to fix the unit of ω.")],
+             gm + gf + [init, tenth, g_read, g_norm, g_cap, g_tenth, g_out, g_add, dispatch, g_cost, g_per_f, g_rel, g_sat, trip, alt_cmp, o_alt, g_out_s] + R + [
                         E.port("generator_small", "Output"), E.port("generator_small", "RPS")] + mm,
              ["Static analysis only; Q is in the internal charge unit.",
               "The shaft-link exchange and the unit of ω were not decoded; the force-weighted comparisons depend on that link.",
@@ -976,12 +1081,12 @@ def electricity(B, E):
              [section("How the update works",
                       "With s = Throttle clamped to −1…1, the step is Δ = (20 × sign(s) − speed) × |s|, clamped to −2|s| … 2|s|. Δ is dropped when its sign differs from the throttle's, so a motor running faster than 20 in the throttle direction is not held back, while reversing the throttle drives it toward −20. At zero throttle it only coasts. The motor requests |Δ| × electric_magnitude × force_emitter_max_force × 0.1, multiplies Δ by the fraction supplied, adds it, and then keeps 0.995 of its speed. With a shaft link it writes that speed and force_emitter_max_force into the link and takes the link's speed back. A damaged motor targets 0; the same step sign gate still applies."),
               section("Variant tradeoffs",
-                      "At the full-throttle step of 2, the small, medium and large motor request 0.48, 13.2 and 52.5 per update. Per unit of force_emitter_max_force the cost is 0.12, 0.11 and 0.105, so if the shaft link weights speed by that force (the generator comparison makes the same assumption), the small motor pays 1.1429 times and the medium 1.0476 times what the large one pays for the same force-weighted speed change."),
+                      "At the full-throttle step of 2, the small, medium and large motor request 0.48, 13.2 and 52.5 per update. While the step stays at that bound, that is 28.8, 792 and 3150 per simulated second; supply limits the actual draw. Per unit of force_emitter_max_force the cost is 0.12, 0.11 and 0.105, so if the shaft link weights speed by that force (the generator comparison makes the same assumption), the small motor pays 1.1429 times and the medium 1.0476 times what the large one pays for the same force-weighted speed change."),
               section("What the cost tracks",
                       "Charge scales with the speed step, not with speed × step. A given speed change costs the same at low and high shaft speed, so equal charge buys equal force-weighted speed change rather than equal mechanical work. Turning it into work needs the shaft-link model, which was not decoded."),
               section("Setup and interactions",
-                      "Throttle limits the step, not the target speed: the target is always 20 in the motor's internal speed units. Without a shaft link the update settles at 19.9 at full throttle. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge.")],
-             mm + mf + [m_read, m_call, m_target, m_bound, m_tenth, m_keep, r_inf, r_300, dispatch, m_cost, m_full, m_per_f, m_rel, m_free, trip,
+                      "Throttle limits the step, not the target speed: the target is always 20 in the motor's internal speed units. Without a shaft link the update settles at 19.9 at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge.")],
+             mm + mf + [m_read, m_call, m_target, m_bound, m_tenth, m_keep, r_inf, r_300, dispatch, m_cost, m_full, m_per_f, m_rel, m_free, trip, m_full_s, m_coast] + R + [
                         E.port("motor_small", "Throttle"), E.port("motor_small", "RPS")] + gm,
              ["Static analysis only; charge is in the internal unit.",
               "Reading component offset 0x160 as the Throttle input and offset 0x2a4 as the speed linked to RPS is an inference from how the update uses them.",
@@ -997,17 +1102,19 @@ def fluids(B, E):
                         "Water component cases 8 and 0x14 (fluid and gas tanks) move the stored contents toward the surrounding temperature by this fraction per update.")
     meters = [E.port("water_measure", "Composite Data"), E.port("gas_measure", "Composite Data")]
     damping = [E.realtime("fluid_base_damping_gas", "Gas network damping."), E.realtime("fluid_base_damping_liquid", "Liquid network damping.")]
+    tank_s = relaxation(E, "Tank temperature gap after one simulated second", 0.001, [tank_leak])
+    R = update_rate(E)["findings"]
     B.category("Fluids",
                "Pumps differ mainly in their pump_pressure field (10 small, 100 large electric; 1 and 9 for impeller pumps; 3 manual); tanks drift toward ambient temperature; fluid meters use one channel per fluid type.",
                [section("Moving fluid",
                         "Electric pumps carry pump_pressure 10 and 100, the small and standard impeller pumps 1 and 9, and the manual pump 3. The fields are per-definition configuration with no recovered unit, but they are the only values that distinguish the variants' pumping strength in the definitions. Every pump and valve reports flow in L/s, which is the practical way to compare them in game."),
                 section("Storage and temperature",
-                        "Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. The fluid spawner fills custom tanks; gases are spawned compressed at 60 atm."),
+                        "Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s. The fluid spawner fills custom tanks; gases are spawned compressed at 60 atm."),
                 section("Identifying fluids",
                         "The liquid and gas meters share one composite layout: 1 water, 2 diesel, 3 jet fuel, 4 air, 5 CO2, 6 oil, 7 seawater, 8 steam, 9 slurry, 10 saturated slurry, 11 oxygen, 12 nitrogen, 13 hydrogen. Air is reported as the sum of oxygen, carbon dioxide and nitrogen."),
                 section("Measurement questions",
                         "Flow rate against pump_pressure and pipe length, and whether the realtime damping values (0.99 gas, 0.9999 liquid) are used by this build.")],
-               p + [spawn, tank_leak] + meters + damping,
+               p + [spawn, tank_leak, tank_s] + meters + damping + R,
                ["pump_pressure units and the network solver were not recovered.", TICK])
     B.family("electric-fluid-pump",
              "The large pump's pump_pressure is 10 times the small pump's (100 versus 10).",
@@ -1024,16 +1131,16 @@ def fluids(B, E):
              p[3:] + [E.tooltip("turbocharger_small"), E.port("turbocharger_small", "Flow Rate")],
              ["Flow per RPS was not recovered."])
     B.family("fluid-tank",
-             "Spawns full of the selected fluid; contents drift toward ambient temperature by 0.001 per update.",
+             "Spawns full of the selected fluid; contents drift toward ambient temperature by 0.001 per update, a time constant of 16.7 simulated seconds.",
              [section("Operating conditions",
                       "Tank Content reports litres and Tank Pressure atmospheres. Fluid tanks run through water component case 8, gas tanks through case 0x14; both apply the same ambient drift.")],
-             [tank_leak, E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"), E.attr("fluid_tank_small", "water_component_type", "Selects case 8 of the fluid update.")],
+             [tank_leak, tank_s] + R + [E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"), E.attr("fluid_tank_small", "water_component_type", "Selects case 8 of the fluid update.")],
              ["Capacity is not recorded in the definition attributes.", TICK])
     B.family("gas-tank",
              "Gas storage on the same ambient-drift rule as fluid tanks; gas spawned with the fluid spawner is compressed to 60 atm.",
              [section("Setup and interactions",
-                      "Watch Tank Pressure in atmospheres. Custom gas tanks built with the fluid spawner start at 60 atm.")],
-             [tank_leak, spawn, E.attr("fluid_tank_compressed_gas_1_3", "water_component_type", "Selects case 0x14 of the fluid update."), E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")],
+                      "Watch Tank Pressure in atmospheres. Custom gas tanks built with the fluid spawner start at 60 atm. The contents' temperature gap to ambient has a time constant of 16.7 simulated seconds.")],
+             [tank_leak, tank_s] + R + [spawn, E.attr("fluid_tank_compressed_gas_1_3", "water_component_type", "Selects case 0x14 of the fluid update."), E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")],
              ["Whether the prefab gas tanks also spawn at 60 atm was not established.", TICK])
 
 
@@ -1307,17 +1414,23 @@ def more_families(B, E):
     floor = E.const(F_FLUID, 0x140BAF8F8, "Cryo electric demand and ambient leak",
                     "The cryo cooler requests this much electricity per update, requires qA+qB above it, and both compartments drift toward the surrounding temperature by this fraction.")
     cmin = E.const(F_FLUID, 0x140BAFAD0, "Cryo minimum electricity fraction", "Heat pumping runs only when the draw helper returns more than this fraction.")
+    R = update_rate(E)["findings"]
+    ups = update_rate(E)["ups"]
+    cryo_s = per_second(E, "Cryo transfer and demand per simulated second", "%.3g·qB/(qA+qB) and %.3g·qA/(qA+qB); demand %.3g" % (
+        float(step["value"]) * ups, float(step["value"]) * ups, float(floor["value"]) * ups),
+        "60 × the per-update temperature transfer and electricity request, with q held constant.")
     simple("part-cryo-cooler", "Pumps heat from liquid A to liquid B by a fixed amount per update, even against the gradient, while powered and switched on.",
-           [("Operating conditions", "Case 0x21 pumps only with On/Off on, electricity supplied above 0.1 of the request, and the two compartments together holding more than 0.001 capacity units. Each update it requests 0.001 electricity units."),
-            ("Performance drivers", "Unlike an exchanger it does not stop at equal temperatures: A loses 0.03·qB/(qA+qB) and B gains 0.03·qA/(qA+qB) every update, so B can be driven hotter than A. Remove heat from B with a radiator or exchanger or the transfer stalls as B climbs."),
+           [("Operating conditions", "Case 0x21 pumps only with On/Off on, electricity supplied above 0.1 of the request, and the two compartments together holding more than 0.001 capacity units. Each update it requests 0.001 electricity units, 0.06 per simulated second."),
+            ("Performance drivers", "Unlike an exchanger it does not stop at equal temperatures: A loses 0.03·qB/(qA+qB) and B gains 0.03·qA/(qA+qB) every update, so B can be driven hotter than A. While q stays constant, that is 1.8·qB/(qA+qB) and 1.8·qA/(qA+qB) per simulated second. Remove heat from B with a radiator or exchanger or the transfer stalls as B climbs."),
             ("Open measurement questions", "Electric unit cost of the 0.001 request and the capacity terms q per litre of each liquid.")],
-           [step, floor, cmin, T("cryo_cooler"), P("cryo_cooler", "On/Off"), A("cryo_cooler", "water_component_type", "Selects case 0x21 of the fluid update.")],
+           [step, floor, cmin, cryo_s] + R + [T("cryo_cooler"), P("cryo_cooler", "On/Off"), A("cryo_cooler", "water_component_type", "Selects case 0x21 of the fluid update.")],
            ["Static decompilation only.", TICK])
     rad = E.const(F_FLUID, 0x140BAF918, "Heat sink cooling fraction", "Case 9, shared with the radiators: compartment moves toward the surrounding temperature by this × (1 + fan) while both fluid ports are connected.")
     air = E.const(F_FLUID, 0x140BB072C, "Airflow divisor", "Outside an enclosed compartment, fan term = max(fan, relative air speed ÷ this), clamped to 2.")
+    sink_s = relaxation(E, "Heat sink gap after one simulated second", 0.003, [rad])
     simple("part-fluid-heat-sink", "Runs the radiator rule: 0.003 × (1 + airflow term) of the gap to the surroundings per update, with no fan.",
-           [("Operating conditions", "It shares water component case 9 with the radiators. With no electric node its only boost is airflow when mounted outside an enclosed compartment, as air speed ÷ 40 capped at 2. Both fluid ports must be connected.")],
-           [rad, air, A("fluid_heat_sink", "water_component_type", "Value 9 selects the radiator case."), T("fluid_heat_sink")], [TICK])
+           [("Operating conditions", "It shares water component case 9 with the radiators. With no electric node its only boost is airflow when mounted outside an enclosed compartment, as air speed ÷ 40 capped at 2. Both fluid ports must be connected. Without airflow it leaves 0.835 of the gap to ambient after one simulated second (time constant 5.55 s).")],
+           [rad, air, sink_s] + R + [A("fluid_heat_sink", "water_component_type", "Value 9 selects the radiator case."), T("fluid_heat_sink")], [TICK])
     # Sensors with documented ranges and encodings.
     simple("part-laser-point-sensor", "Reports the laser spot nearest its view centre as x and y from −1 to 1 across a cone of ±cos(0.5).",
            [("Setup and interactions", "Composite number channels 1 and 2 give x and y; on/off channel 1 is set while a point is visible. Match the Wavelength input to the emitting beacon or laser."),
@@ -1329,7 +1442,7 @@ def more_families(B, E):
                [("Operating conditions", "Distance is in metres; the tooltip equates one metre with four blocks." + (" The laser can be pivoted up to 0.125 turns via composite channels 1 and 2 and needs Active on." if bid == "laser_distance_sensor" else ""))],
                [T(bid), T(bid, "short_description"), P(bid, "Distance")] + ([P(bid, "Pivot")] if bid == "laser_distance_sensor" else []), [])
     simple("part-physics-sensor", "Seventeen composite channels of position, rotation and velocity; GPS position needs electricity.",
-           [("Setup and interactions", "Channels 1–3 position, 4–6 Euler rotation, 7–9 linear and 10–12 angular velocity, 13–14 absolute speeds, 15–16 local tilts and 17 compass heading from −0.5 to 0.5. It measures along its local Y axis.")],
+           [("Setup and interactions", "Channels 1–3 position, 4–6 Euler rotation, 7–9 linear and 10 to 12 angular velocity, 13–14 absolute speeds, 15–16 local tilts and 17 compass heading from −0.5 to 0.5. It measures along its local Y axis.")],
            [T("physics_sensor"), P("physics_sensor", "Composite Output")], [])
     simple("part-temperature-probe", "Reads the enclosed space it sits in, or ambient air outside any enclosure, in Celsius.",
            [("Setup and interactions", "Place it inside the compartment you want to read; outside any enclosure it reports ambient air at its location.")],
@@ -1668,6 +1781,14 @@ def air_scoop(B, E):
                       "Amount moved per update (readout units in brackets, amount × %s) against speed along the axis, network at pressure 1, sole port, factor 1: 0.5 × min(2 × bias, 2) ÷ 15. Network at pressure 0: %s." % (
                           fmt(gas_l), "; ".join("%g: %.4f (%g)" % (s, t, round(t * gas_l, 2)) for s, t in pts0)),
                       [law, half, step, alloc, gas60, ten, readout])
+    R = update_rate(E)["findings"]
+    ups = update_rate(E)["ups"]
+    cap_s, static_s = moved(20, 1.0) * ups, moved(0, 0.0) * ups
+    slope_s = (moved(5, 1.0) - moved(0, 1.0)) / 5 * ups
+    flow_s = E.derived("Scoop transfer per simulated second", "cap %.4g (%g readout units); still scoop into pressure 0: %.4g; unsaturated at pressure 1: %.4g × speed" % (
+                           cap_s, round(cap_s * gas_l, 2), static_s, slope_s),
+                       "Amount moved per update × %d updates per simulated second, under the same sole-port, sea-level, free-room assumptions as the per-update table; readout units are amount × %s." % (ups, fmt(gas_l)),
+                       [table] + R[:1])
     stall = E.derived("Sealed-network stall pressure", "; ".join("%d: %g" % (s, 1 + 2 * min(G * s, HI)) for s in (10, 50, 100)),
                       "The simplified demand reaches 0 at P_net = p_out + 2 × bias; listed against speed at sea level. The bias clamp caps that zero at 21. The exact routine also sets demand to 0 when P_net - p_out - bias equals 0, so this is not a guaranteed filling endpoint.", [law])
 
@@ -1681,17 +1802,18 @@ def air_scoop(B, E):
                       "Under water the pressure is 30 - 29 ÷ (1 + 0.001 × depth): 1.2871 at 10 m, 3.6364 at 100 m, 15.5 at 1000 m. The outside fluid is 20 units of index 6 plus any oil the world map holds at that spot, so a submerged scoop pulls water."),
               section("Speed term",
                       "The update takes the port's velocity, including spin, subtracts the air-velocity vector the radiators also use, and projects the result on the part's local X axis. Bias = 0.1 × voxel count × that speed, clamped to -10…10; the scoop has 1 voxel, so the clamp is hit at 100 speed units. The sign matters. Moving along -X gives a negative bias that favors outflow from the network, and sideways motion adds nothing. The code fixes the axis but not which mesh face it is, so check the direction in game."),
-              section("Flow per update",
+              section("Flow per update and per second",
                       "The port routine works in pressure units where 1 is sea-level air. For a gas-filled pipe network of 8 or more volume units, away from the target-pressure and free-window clamps, the demand is (P_net - (p_out + 2 × bias)) ÷ 15 amount per update, negative meaning inflow, and inflow demand stops growing at 2 ÷ 15 × p_out. The move magnitude is at most 0.5 × factor × the absolute demand, using the network's allocation from the previous update. At exactly P_net - p_out - bias = 0 the routine instead sets demand to 0.",
-                      "At sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 speed units, and stays at 0.0667 above that. The port readout shows 600 × a gas amount: 10, 20, 30 and 40. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 (20), so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too."),
+                      "At sea level with the network at pressure 1, a sole scoop moves 0.0167, 0.0333, 0.05 and 0.0667 amount per update at 2.5, 5, 7.5 and 10 speed units, and stays at 0.0667 above that. The port readout shows 600 × a gas amount: 10, 20, 30 and 40. A stationary scoop on a network an engine has pulled to 0 moves 0.0333 (20), so speed can double the best static intake. At altitude the maximum inflow scales with p_out while the bias does not. Unsaturated flow does not generally scale in the same way; it depends on network pressure too.",
+                      "Component updates run 60 times per simulated second, so under the same assumptions the sea-level cap is 4 amount per second, 2400 per second on the readout's scale of 600 per amount (the readout itself shows the 40 moved in one update), the still scoop into a network at 0 takes 2 amount per second, and below the cap flow into a network at 1 is 0.4 × speed amount per second. These are rates at a fixed state; a filling network raises P_net and the flow falls."),
               section("Sealed network",
                       "The simplified demand has a zero at P_net = p_out + 2 × bias: 3 at 10 speed units, 11 at 50 and 21 at 100 or more, where the bias clamp caps it. The exact branch also gives zero demand at P_net = p_out + bias. These are mathematical zero-demand points, not a verified final pressure for a filling network."),
               section("Open measurement questions",
-                      "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the update rate needed to turn per-update amounts into per-second flow, and what the point sources that lower the factor near them are.")],
+                      "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the unit the port readout displays, and what the point sources that lower the factor near them are.")],
              [E.attr(scoop, "water_component_type", "Value 15 (0xf) selects the scoop branch of the fluid update."), E.tooltip(scoop),
               gate, branch, axis, relv, dot, gain, clamp, clamp_hi, passon, voxels,
               inside, wet, lapse, expo, ceil, per_v, total] + mix + [floor, sea] + wconst +
-             [win, per_w, whelp, diff, pclamp, step, half, incap, alloc, readout, gas60, ten, air, water, law, table, stall],
+             [win, per_w, whelp, diff, pclamp, step, half, incap, alloc, readout, gas60, ten, air, water, law, table, stall, flow_s] + R,
              ["Static decompilation of one build; the game was not run and no flow was measured.", TICK,
               "The flow figures assume the scoop is the only port moving gas into a network of at least 8 volume units with room to spare. With several ports, the allocation gives each f·|f| ÷ Σ|f|, and the move lags the demand by one update.",
               "The vector subtracted from the point velocity is argument 10 of the fluid update; it is taken to be air velocity because the radiators subtract it for their airflow term, but its source was not traced."])
@@ -1724,6 +1846,15 @@ def build(root):
                     extra.append(E.port(bid, label))
         fam["findings"] = dedupe(fam["findings"] + extra)
         fam["sources"] = sources_of(fam["findings"])
+    # The update-rate limitation is a finding: every entry that states it cites the verified chain.
+    rate = update_rate(E)["findings"]
+    for fam in B.families.values():
+        if TICK in fam["limitations"]:
+            fam["findings"] = dedupe(fam["findings"] + rate)
+            fam["sources"] = sources_of(fam["findings"])
+    for cat in B.categories.values():
+        if TICK in cat["limitations"]:
+            cat["sources"] = sources_of([{"source": x} for x in cat["sources"]] + rate)
     for fam in B.families.values():  # entries amended after creation are re-validated here
         B._check(fam["id"], fam["summary"], fam["sections"], fam["findings"])
     categories = sorted({f["category"] for f in E.families.values()})

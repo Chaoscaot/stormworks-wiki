@@ -57,7 +57,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/3/sections/4/body",
-        "text": "The speed unit of ω, the update rate and the shaft-link model were not recovered, so charge per update cannot yet be turned into charge per second or per unit of work. The shipped realtime file sets electric_consumption_scale to 0.01, but the release binary does not contain that name.",
+        "text": "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. The speed unit of ω and the shaft-link model were not recovered, so charge cannot yet be turned into charge per unit of work. The shipped realtime file sets electric_consumption_scale to 0.01, but the release binary does not contain that name.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -131,8 +131,8 @@
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/6/sections/2/body",
-        "text": "The unit and per-fluid weighting of the q capacity terms, the update rate, and the filter applied to the surrounding-temperature sample (refreshed every 16 updates) were not recovered. Measure exchanger outlet temperatures at fixed flow to turn the per-update fractions into per-second rates.",
+        "pointer": "/categories/6/sections/3/body",
+        "text": "The unit and per-fluid weighting of the q capacity terms and the filter applied to the surrounding-temperature sample (refreshed every 16 updates, 0.267 simulated seconds) were not recovered. Measure exchanger outlet temperatures at fixed flow to see how through-flow changes the isolated per-second figures.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -190,7 +190,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/11/sections/3/body",
-        "text": "Compartment pressure units, manifold heat capacity, coolant transfer and the update rate were not recovered; measure RPS response and temperatures in game to calibrate these.",
+        "text": "Compartment pressure units and the units of manifold heat and coolant transfer were not recovered; measure RPS response and temperatures in game to calibrate these.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -746,7 +746,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/16/sections/3/body",
-        "text": "The factor 60 between Q and Output is consistent with Output being a per-second figure at 60 updates per second, but the update rate was not recovered. Measure Output against shaft RPS per size to fix the unit of ω.",
+        "text": "Output is not labelled with a unit, and the charge unit itself has no recovered conversion to joules. Measure Output against shaft RPS per size to fix the unit of ω.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -1159,7 +1159,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/29/sections/4/body",
-        "text": "Confirm the target ratio in game with the Air:Fuel Ratio inspection line; measure how manifold pressure units relate to the pressure factor; time the damage interval to recover the update rate.",
+        "text": "Confirm the target ratio in game with the Air:Fuel Ratio inspection line; measure how manifold pressure units relate to the pressure factor; time the damage interval to check the 5-second period.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -2125,7 +2125,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/117/sections/5/body",
-        "text": "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the update rate needed to turn per-update amounts into per-second flow, and what the point sources that lower the factor near them are.",
+        "text": "Which face of the mesh is local +X, the unit of the speed (the radiator airflow term uses the same velocity), the unit the port readout displays, and what the point sources that lower the factor near them are.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -6216,146 +6216,25 @@
     ]
   },
   {
-    "key": "shared:update-rate",
-    "title": "Recover the simulation update rate used by component formulas",
-    "wiki": "https://sw-wiki.maxsp.de/provenance",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/5/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/6/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/11/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/0/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/1/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/11/limitations/3",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/13/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/14/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/16/limitations/2",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/24/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/27/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/29/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/41/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/48/limitations/0",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/79/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/81/limitations/0",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/limitations/1",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/145/limitations/0",
-        "text": "The recovered routines run once per call of the component update; the simulation update rate itself was not recovered, so per-update fractions are not converted to seconds.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/app/provenance/page.jsx",
-        "pointer": "line:114",
-        "text": "The simulation update rate and exchanger compartment volumes remain unresolved, so per-update rates are not converted into seconds and size advantages are labeled as inferences.",
-        "scope": "Application text"
-      }
-    ]
-  },
-  {
     "key": "tool:cooling-flow",
     "title": "Cooling calculator: recover real pump throughput and fluid transport",
     "wiki": "https://sw-wiki.maxsp.de/tools/cooling",
     "locations": [
       {
         "file": "wiki/app/tools/cooling/page.jsx",
-        "pointer": "line:193",
+        "pointer": "line:194",
         "text": "How fast fluid moves between ports was not recovered. Real flow restrictions can raise the required count.",
         "scope": "Application text"
       },
       {
+        "file": "wiki/app/tools/cooling/page.jsx",
+        "pointer": "line:204",
+        "text": "<li>There is no temperature-over-time curve in this mode. It solves the steady state only. A warm-up curve would depend on how fast the pump moves coolant between the manifold and the radiators, which was not recovered.</li>",
+        "scope": "Application text"
+      },
+      {
         "file": "wiki/components/CoolingCalculator.jsx",
-        "pointer": "line:548",
+        "pointer": "line:549",
         "text": "Assumes ideal pump flow: every radiator full of clean fresh water as hot as the coolant manifold. Pump throughput was not recovered,",
         "scope": "Application text"
       }

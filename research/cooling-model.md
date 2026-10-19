@@ -116,7 +116,7 @@ Round up. Real layouts need more, because radiator water runs cooler than manifo
 ## What cannot be computed honestly
 
 - The pump/flow coupling: how much fluid moves through ports per update (`FUN_1402ec710`), and so the temperature drop between manifold and radiators. Without it, radiator counts are lower bounds.
-- The update rate. This doesn't affect the steady-state counts, but does affect time-to-overheat in seconds.
+- Time-to-overheat curves. The update rate is now recovered: active vehicles run 60 component updates per simulated second (`investigation/update-rate.md`), so per-update heat flows × 60 give flows per simulated second and relaxation fractions compound as `(1-k)^60` per second. The rate cancels in the steady-state counts. A warm-up curve still needs the pump/flow coupling above.
 - In-game validation. None of these figures has been measured.
 - Combustion details the bound hides: when the mixture leaves the window or the exhaust is blocked, `H` falls and so does torque. The calculator must not report cooling demand for a state that doesn't burn fuel.
 

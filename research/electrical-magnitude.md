@@ -145,7 +145,7 @@ Without a shaft link, a motor at full throttle settles where `ω = 0.995·(ω + 
 ## Units and gaps
 
 - ω is the component's internal speed (`c+0x2a4`). How it maps to the RPS port was not decoded, and neither was the shaft-link solver behind `c[0x1e0]`.
-- The update rate was not recovered. The generator's Output = 60 × Q would fit a per-second readout at 60 updates per second, but that's unverified.
+- Components update 60 times per simulated second for active, normally simulated vehicles (`investigation/update-rate.md`). Charge per update × 60 is charge per simulated second, so the generator's Output = 60 × Q is the charge it deposits per simulated second, in internal units.
 - Charge is in the internal network unit (the same field batteries store), so there's no conversion to watts or joules.
 - Draw-helper factors `node[0x28]` and `node[0x3c]` are unidentified.
 - `electric_consumption_scale` (realtime file, 0.01) appears nowhere in the binary as plaintext. Its effect is still unknown.

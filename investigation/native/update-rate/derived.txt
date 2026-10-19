@@ -1,0 +1,50 @@
+Amounts per update -> per nominal simulation second: multiply by 60
+Scoop cap: (1/15)*60 = 4.0
+Static sea-level intake into P_net=0: (1/30)*60 = 2.0
+Scoop unsaturated slope: (s/150)*60 = 0.4*s
+For constant target and coefficient: residual=(1-k)^60; tau=-1/(60*ln(1-k))
+tank/ambient: k=0.001, residual=0.941736262223, tau=16.6583319437 s
+radiator passive: k=0.003, residual=0.835044266956, tau=5.54721804929 s
+radiator maximum airflow: k=0.009, residual=0.58132535985, tau=1.84350596195 s
+exchanger gap, exchange only: k=0.03, residual=0.160806669022, tau=0.547179918422 s
+motor damping, other torque absent: k=0.005, residual=0.740260957697, tau=3.32499303814 s
+engine ambient: k=1e-05, residual=0.999400176966, tau=1666.65833332 s
+
+Resource search, case-insensitive, text extensions .xml/.lua/.txt/.html/.md
+Pattern: physics[_ ]?(?:tick|timestep)|mp_physics_update_tick_limit|ticks? per second|60\s*(?:Hz|ticks)|tick_rate|update_rate|simulation_rate
+rom/data/missions/dlc_weapons_ai/script.lua:932: 				local vehicle_tick_rate = 60
+  SHA-256 4b6fed56373b03128b32ee0db994e078907758838a7c503074f9a0242bc5de2a
+rom/data/missions/dlc_weapons_ai/script.lua:936: 						if isTickID(vehicle_id, vehicle_tick_rate) then
+  SHA-256 4b6fed56373b03128b32ee0db994e078907758838a7c503074f9a0242bc5de2a
+rom/data/missions/dlc_weapons_ai/script.lua:938: AND_CAPTURE_AMOUNT_PER_SECOND * vehicle_tick_rate / 60
+  SHA-256 4b6fed56373b03128b32ee0db994e078907758838a7c503074f9a0242bc5de2a
+rom/data/missions/dlc_weapons_ai/script.lua:962: 				local player_tick_rate = 60
+  SHA-256 4b6fed56373b03128b32ee0db994e078907758838a7c503074f9a0242bc5de2a
+rom/data/missions/dlc_weapons_ai/script.lua:966: 					if isTickID(player.id, player_tick_rate) then
+  SHA-256 4b6fed56373b03128b32ee0db994e078907758838a7c503074f9a0242bc5de2a
+rom/data/missions/dlc_weapons_ai/script.lua:971: TURE_AMOUNT_PER_SECOND * 100) *  player_tick_rate / 60
+  SHA-256 4b6fed56373b03128b32ee0db994e078907758838a7c503074f9a0242bc5de2a
+rom/data/realtime_values/general_debug.txt:173: s32 mp_physics_update_tick_limit 6
+  SHA-256 8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58
+Files searched: 3278
+
+Shipped Lua corroboration: rom/data/missions/dlc_weapons_ai/script.lua
+146: local ISLAND_CAPTURE_AMOUNT_PER_SECOND = 60
+930: 		if island.capture_timer > 0 then
+931: 			if island.faction ~= FACTION_AI then
+932: 				local vehicle_tick_rate = 60
+933: 
+934: 				for squad_index, squad in pairs(g_savedata.ai_army.squadrons) do
+935: 					for vehicle_id, vehicle_object in pairs(squad.vehicles) do
+936: 						if isTickID(vehicle_id, vehicle_tick_rate) then
+937: 							if matrix.distance(island.transform, vehicle_object.transform) < CAPTURE_RADIUS then
+938: 								island.capture_timer = island.capture_timer - ISLAND_CAPTURE_AMOUNT_PER_SECOND * vehicle_tick_rate / 60
+939: 							end
+940: 						end
+2086: function onTick(tick_time)
+2087: 	g_tick_counter = g_tick_counter + 1
+2088: 
+2089: 	if is_dlc_weapons then
+2431: function isTickID(id, rate)
+2432: 	return (g_tick_counter + id) % rate == 0
+2433: end

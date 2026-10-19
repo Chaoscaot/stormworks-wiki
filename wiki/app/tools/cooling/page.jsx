@@ -27,9 +27,9 @@ const MEANING = {
   'Combustion heat gain': 'Each update a firing cylinder adds fuel × exhaust share × this ÷ the group heat capacity to the engine temperature. The ideal-flow estimate uses it as the heat input.',
   'Fuel intake coefficient': 'Fuel per update = RPS × this × listed voxels × fuel throttle. It sets how much heat the term above produces.',
   'Overheat damage threshold': 'With engine overheating enabled, a cylinder whose manifold is above this temperature takes damage. Stay below it while measuring.',
-  'Overheat damage period': 'The damage branch fires once every this many updates.',
+  'Overheat damage period': 'The damage branch fires once every this many updates. At 60 updates per simulated second, 300 updates are 5 seconds.',
   'Coolant manifold inspection line': 'The scaling percentage is sea-water build-up, which weakens the engine-to-coolant coupling above 100 °C. The ideal-flow estimate assumes clean fresh water, so no scaling.',
-  'Radiator cooling fraction': 'Each update a connected radiator closes this fraction of the gap to the surrounding temperature, times (1 + fan term). Updates per minute are not established, but a steady state does not need them.',
+  'Radiator cooling fraction': 'Each update a connected radiator closes this fraction of the gap to the surrounding temperature, times (1 + fan term). Components update 60 times per simulated second, but a steady state does not need the rate.',
   'Radiator airflow divisor': 'Outside an enclosed compartment, airspeed ÷ this raises the fan term. Moving and standing vehicles cool differently, so measure at the airflow you plan for.',
   'Radiator fan term cap and electric fan gain': 'An electric fan adds 2 × its power availability. The fan term is capped at 2, so one radiator cools at most three times its base rate.',
   'Heat sink cooling fraction': 'The fluid heat sink shares the radiator code and its base fraction.',
@@ -78,7 +78,7 @@ const NATIVE_LINES = [
 ];
 
 const NATIVE_TEXT = [
-  'All quantities per simulation update. The update rate cancels in a steady state.',
+  'All quantities per simulation update, 60 per simulated second. The update rate cancels in a steady state.',
   'H = 0.024 × v × n × RPS × θ × x      v = cylinder voxels (1, 27, 125), n = cylinders, θ = fuel throttle, x = exhaust share',
   '                                    H = 0 unless the air:fuel ratio is in the combustion window and 2 < RPS ≤ 60',
   'C = 40 × v × n                      engine heat capacity',
@@ -177,7 +177,8 @@ export default function CoolingPage() {
           voxel count of fluid<Cite n={nn.volume} /> and closes 0.003 × (1 + fan term) of the gap to ambient per update.<Cite n={nn.relax} /><Cite n={n['Radiator cooling fraction']} />
         </p>
         <p>
-          In a steady state every term is per update, so the unknown update rate cancels. The estimate holds the engine at the target, works
+          In a steady state every term is per update, so the update rate cancels. Components update 60 times per simulated second, so the
+          readout also gives heat flows per simulated second. The estimate holds the engine at the target, works
           out how warm the coolant can be while still carrying the heat away, and counts the radiators needed at that coolant temperature.
         </p>
         <div className="formula">
@@ -200,7 +201,7 @@ export default function CoolingPage() {
           </li>
           <li>The loop is assumed to hold clean fresh water. Diesel, oil or slurry in the loop dilutes the coupling. Sea water scales the coolant manifold once the engine passes 100 °C.</li>
           <li>Modular engines only. The fixed diesel engines use other code; use the measured calibration for them.</li>
-          <li>There is no temperature-over-time curve in this mode, because minutes need the update rate, which is not known.</li>
+          <li>There is no temperature-over-time curve in this mode. It solves the steady state only. A warm-up curve would depend on how fast the pump moves coolant between the manifold and the radiators, which was not recovered.</li>
         </ul>
       </Section>
 
@@ -257,8 +258,8 @@ export default function CoolingPage() {
       <Section id="game-files" title="What the game files say">
         <p>
           Static analysis of the game executable recovered these values. The ideal-flow estimate uses them together with the addresses cited
-          above. The measured calibration uses none of them: they are per simulation update, and minutes need the update rate, which is not
-          recovered.
+          above. They are per simulation update, 60 updates per simulated second. The measured calibration uses none of them: it works from
+          your readings, which already include the pump flow, pipe run and airflow these values do not capture.
         </p>
         <div className="table-wrap" role="region" aria-labelledby="gf-cap" tabIndex={0}>
           <table className="wikitable cards" id="gf-t">

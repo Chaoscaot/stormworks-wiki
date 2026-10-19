@@ -111,7 +111,9 @@ export default function Provenance() {
             <p>
               The new executable findings come from targeted static analysis with Ghidra 12.1.4, separate from the earlier REA investigation.
               Findings name retained pseudocode or assembly and cite addresses in the exact executable build. They have not been tested in a running game.
-              The simulation update rate and exchanger compartment volumes remain unresolved, so per-update rates are not converted into seconds and size advantages are labeled as inferences.
+              Component formulas run once per simulation update. Active, normally simulated vehicles get 60 updates per simulated second, because the game
+              follows each component pass with one 1/60 s physics tick. The wiki multiplies per-update amounts by 60 to get amounts per simulated second and
+              compounds relaxation fractions over 60 updates. Exchanger compartment volumes remain unresolved, so size advantages are labeled as inferences.
             </p>
           </>
         ) : null}

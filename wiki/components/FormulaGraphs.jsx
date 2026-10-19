@@ -3,7 +3,7 @@
 // so the chart, readout and data table are present before hydration. Sliders drive every value; the chart
 // can also be clicked or dragged, but nothing depends on pointer input.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { engineEfficiency, exchangerTemperatures, radiatorRate } from '@/lib/formulas.js';
+import { UPDATES_PER_SECOND, engineEfficiency, exchangerTemperatures, gapLeftAfter, radiatorRate } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fixed = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
@@ -335,6 +335,7 @@ function RadiatorGraph() {
             ['Term used, capped at 2', `${fixed(at.fan, 2)}, ${source}`],
             ['Multiplier', `× ${fixed(at.multiplier, 2)}`],
             ['Gap closed per update', fixed(at.fraction, 4)],
+            ['Gap left after one simulated second', pct(gapLeftAfter(at.fraction))],
           ]}
         />
       )}
@@ -426,6 +427,7 @@ function ExchangerGraph() {
         <Readout
           title={`After ${updates} updates`}
           rows={[
+            ['Simulated time', `${fixed(updates / UPDATES_PER_SECOND, 2)} s`],
             ['Side A', fixed(at.temperatureA, 2)],
             ['Side B', fixed(at.temperatureB, 2)],
             ['Gap', fixed(Math.abs(at.temperatureA - at.temperatureB), 2)],

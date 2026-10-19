@@ -126,11 +126,11 @@ A constant reference by itself proves only that a routine reads that value. Each
 
 ## Limitations and open questions
 
-- Nothing here was measured in a running game, and the update rate was not recovered. Per-update fractions are not converted to seconds.
+- Nothing here was measured in a running game. Component formulas run once per update, 60 updates per simulated second for active, normally simulated vehicles (`investigation/update-rate.md`). Per-update amounts × 60 give amounts per simulated second; a relaxation fraction k leaves `(1-k)^60` of a gap after one second. Solver substeps, render frames, pauses, sleep, unloaded vehicles and real-time slowdown are outside that conversion.
 - Exchanger and radiator compartment volumes, and the per-fluid capacity weighting q, were not recovered. Any size advantage of larger exchangers is inferred, not shown.
 - The units of manifold pressure, alternator charge and electric quantities are internal.
 - The fuel/air attribution of manifold throttle offsets 0x88/0x90 rests on the diesel and oxygen caps applied to them. The offset-0x8 counter is read as damage because the overheat branch increments it.
 - Not decoded: gearbox ratio orientation and slip; the numeric effect of joint Gear Ratio and Max Power; classic diesel engines, propellers, rotors, wings, wheels, jets, steam and weapons. For these, guidance uses definition fields (labelled as configuration) and tooltips. The radian readings of deflection and camera fields and the metre reading of wheel_radius are flagged as interpretations.
 - Some source documentation conflicts. The register's Clear is described as resetting to 0 by the port and to the configured value by the tooltip. The train junction's text duplicates Push To Toggle. The laser point sensor's field of view is given as cos(0.5) in the tooltip and as 120° on the port.
 
-Suggested measurements: exchanger outlet temperature against flow per variant; radiator temperature against fan and airspeed; cylinder Air:Fuel and RPS against throttles (confirms 13.6/14.0 and 60 RPS); gearbox port speeds per ratio; wheel speed per RPS; and the timing of the overheat damage interval to recover the update rate.
+Suggested measurements: exchanger outlet temperature against flow per variant; radiator temperature against fan and airspeed; cylinder Air:Fuel and RPS against throttles (confirms 13.6/14.0 and 60 RPS); gearbox port speeds per ratio; wheel speed per RPS; and the timing of the overheat damage interval, which should be 5 simulated seconds (300 updates).

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { engineEfficiency, radiatorRate, exchangerTemperatures, graphKindsForFamily } from '../../lib/formulas.js';
+import { engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -67,4 +67,19 @@ test('graphed constants remain tied to verified native findings in the research 
     assert.ok(f?.source?.address, `${label}: native address is required`);
     assert.equal(Number(f.value), value, label);
   }
+});
+test('per-update fractions compound over 60 updates per simulated second', () => {
+  assert.equal(UPDATES_PER_SECOND, 60);
+  near(gapLeftAfter(0.003), 0.835044266956);
+  near(gapLeftAfter(0.009), 0.58132535985);
+  near(gapLeftAfter(0.03), 0.160806669022);
+  near(gapLeftAfter(0.001), 0.941736262223);
+  near(gapLeftAfter(0.03, 0.5), Math.sqrt(gapLeftAfter(0.03)));
+  assert.equal(gapLeftAfter(0.003, 0), 1);
+  assert.notEqual(gapLeftAfter(0.003), 1 - 60 * 0.003);
+  // One second of exchange alone matches stepping the recovered exchanger rule 60 times.
+  const t = exchangerTemperatures({ temperatureA: 100, temperatureB: 0, capacityA: 1, capacityB: 1, updates: UPDATES_PER_SECOND });
+  near((t.temperatureA - t.temperatureB) / 100, gapLeftAfter(0.03));
+  assert.throws(() => gapLeftAfter(1.5), RangeError);
+  assert.throws(() => gapLeftAfter(0.003, -1), RangeError);
 });

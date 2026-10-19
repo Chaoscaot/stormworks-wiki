@@ -1,0 +1,255 @@
+# Component update rate (static native evidence)
+
+Target: `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`. Addresses apply to this build only. The hash was verified. This investigation reads the Windows executables on Linux. No game executable was run.
+
+Question: [issue #163](https://github.com/Chaoscaot/stormworks-wiki/issues/163), "Recover the simulation update rate used by component formulas". The issue body is retained in `native/update-rate/issue-163.json`.
+
+## Answer in brief
+
+- Use **60 component updates per nominal simulated second** for active, normally simulated vehicles. The logic path calls the component dispatcher, then submits one physics interval. At `0x1407439c6` it sets the physics tick count to 1; at `0x1405e3aea` the worker divides that count by 60. The actual argument is `double(float(1)/float(60))`, approximately `0.01666666753590107` seconds.
+- Component updates are outside the physics substep loop. The dispatcher at `0x1405498d6` calls virtual slot `+0x358` once for each component. The water, electric and modular-engine vtables resolve that slot to `0x1403ef860`, `0x1404008a0` and `0x140449670`.
+- Rigid-body physics has a separate substep. The worker passes either `double(float(1)/physics_rate)` or the fallback `double(float(1/60))` to the physics solver. The coordinator contains 60, 120 and 180 settings. Those are solver rates, not three possible multipliers for the recovered component formulas.
+- Both `server64.exe` and `server.exe` contain the same tick-count/60 call pattern. Shipped Lua code also converts a callback interval of N ticks to N/60 seconds.
+- Multiply amounts per update by 60. For a constant relaxation fraction `k`, compound the recurrence: a gap retains `(1-k)^60` after one simulated second. This establishes simulation-time conversion, not a guarantee of 60 updates per wall-clock second under every load or game mode.
+
+## Evidence map
+
+Evidence is in `native/update-rate/`. All assembly excerpts include virtual addresses and original instruction bytes. Abbreviations below refer to these files in `asm/`:
+
+| Label | File |
+|---|---|
+| W | `stormworks64-physics-worker.asm` |
+| S | `stormworks64-physics-submit.asm` |
+| D | `stormworks64-component-dispatch.asm` |
+| C | `stormworks64-scene-dispatch.asm` |
+| B | `stormworks64-physics-construction.asm` |
+| A | `stormworks64-physics-accumulator.asm` |
+
+`tables.txt` gives constant values, source-file offsets, vtable entries, RTTI names and embedded documentation strings. `pseudocode/` contains Ghidra output. Pseudocode is a secondary reading aid; the address and byte citations below are the evidence for the call arguments. Ghidra's inferred C signatures sometimes lose floating-point arguments or misclassify pointers, particularly in the large coordinator.
+
+## From a component call to a simulation interval
+
+The relevant normal path is:
+
+```text
+0x14073f890, simulation coordinator
+  0x1407435bb -> 0x1405e8fb0, scene update
+    0x1405ebd5c -> 0x140549240, vehicle/component dispatcher
+      0x1405498d6 -> component vtable +0x358
+      0x140549a9d -> 0x1404cb790, modular-engine group update
+  0x1407439c6: tick_count = 1
+  0x1407439df: submit scene physics worker
+    0x1405e3a80: elapsed = tick_count / 60
+    0x1405e3b16 -> physics world vtable +0x60
+      0x140133ea0: accumulate elapsed and execute solver substeps
+```
+
+The two direct links are `e8 f0 59 ea ff` at `0x1407435bb` and `e8 df d4 f5 ff` at `0x1405ebd5c` [S, C]. Inside the dispatcher, `0x1405497be` clears the component index, `0x1405497d0` compares it with the component count, and `0x1405498dd` increments it. There is one virtual update call per iteration, `41 ff 92 58 03 00 00` at `0x1405498d6` [D]. The enclosing loops select eligible groups and vehicles with a physics body. This is not a claim that unloaded or inactive vehicles receive the same calls.
+
+The vtable links are direct data observations, not guesses from nearby function addresses:
+
+| RTTI class | Vtable | Slot address | Eight bytes | Target |
+|---|---|---|---|---|
+| `c_scene_vehicle_component_water` | `0x140b08f18` | `0x140b09270` | `60 f8 3e 40 01 00 00 00` | `0x1403ef860` |
+| `c_scene_vehicle_component_electric` | `0x140b810d0` | `0x140b81428` | `a0 08 40 40 01 00 00 00` | `0x1404008a0` |
+| `c_scene_vehicle_component_modular_engine` | `0x140b9c8b0` | `0x140b9cc08` | `70 96 44 40 01 00 00 00` | `0x140449670` |
+
+The water and electric constructors install those vtables at `0x1403ee40e` and `0x1403ffe73`; their stores are retained in `stormworks64-component-constructors.asm`. The dispatcher also calls the modular-engine group update once per eligible group at `0x140549a9d`, bytes `e8 ee 1c f8 ff` [D]. That connects the engine-to-coolant recurrence in `cooling-model.md` to the same update cadence.
+
+The coordinator constructs the worker at scene `+0x66b8`; its constructor installs vtable `0x140b80fd0` and initializes worker `+0xd0` to 1 [B]. RTTI names it `update_thread_task@c_scene`, and vtable slot `+8` contains `0x1405e3a80` [tables.txt]. At submission, the coordinator writes:
+
+| Address | Bytes | Operation |
+|---|---|---|
+| `0x1407439a5` | `f3 0f 11 82 70 67 00 00` | Store solver rate at scene `+0x6770`, worker `+0xb8`. |
+| `0x1407439b4` | `48 89 82 78 67 00 00` | Store physics scene pointer at worker `+0xc0`. |
+| `0x1407439bf` | `48 89 82 80 67 00 00` | Store context at worker `+0xc8`. |
+| `0x1407439c6` | `b8 01 00 00 00` | `eax = 1`. |
+| `0x1407439cb` | `89 82 88 67 00 00` | Store 1 at scene `+0x6788`, worker `+0xd0`. |
+| `0x1407439df` | `e8 3c 9d a3 ff` | Submit the worker through `0x14017d720`. |
+
+The repeated 1 is the important link: one normal component pass corresponds to one 1/60-second physics interval. There is no multiplication of component calls by the solver substep count on this path.
+
+## The worker's two time arguments
+
+The following is a reconstruction of the instructions, not original source [W]:
+
+```text
+elapsed = float(worker.tick_count) / 60.0f
+substep = 1.0f / worker.physics_rate
+if byte[0x140ceb6ff] == 0:
+    substep = float_bits(0x3c888889)
+world.stepSimulation(double(elapsed), 1000, double(substep))
+```
+
+| Address | Bytes | Meaning |
+|---|---|---|
+| `0x1405e3ad7` | `8b 83 d0 00 00 00` | Load unsigned tick count. |
+| `0x1405e3ae5` | `f3 48 0f 2a c8` | Convert count to binary32 in XMM1. |
+| `0x1405e3aea` | `f3 0f 5e 0d 6e cc 5c 00` | Divide XMM1 by binary32 60 at `0x140bb0760`. |
+| `0x1405e3add` | `f3 0f 5e 83 b8 00 00 00` | Divide binary32 1 by the worker's solver-rate field. |
+| `0x1405e3af4` | `f3 0f 10 05 90 be 5c 00` | In the fallback branch, load binary32 1/60 from `0x140baf98c`. |
+| `0x1405e3b03` | `41 b8 e8 03 00 00` | R8D = 1000, maximum substeps. |
+| `0x1405e3b09` | `0f 5a d8` | Widen substep to binary64 in XMM3. |
+| `0x1405e3b10` | `0f 5a c9` | Widen elapsed to binary64 in XMM1. |
+| `0x1405e3b16` | `ff 50 60` | Call physics-world slot `+0x60`. |
+
+`0x140bb0760` contains `00 00 70 42`, exactly 60. `0x140baf98c` contains `89 88 88 3c`, the nearest binary32 approximation to 1/60. Both constants and file offsets are retained [tables.txt]. "60 Hz" is the nominal rate represented by this arithmetic; it does not mean that the binary32 interval is an exact rational number.
+
+The physics scene creates a `btSoftRigidDynamicsWorld` through `0x140159b50` and stores it at scene `+0x20` at `0x1401a398e`, bytes `48 89 5f 20` [B]. That constructor installs vtable `0x140ae3760` at `0x140159b72`. Its `+0x60` entry at `0x140ae37c0` contains `a0 3e 13 40 01 00 00 00`, resolving to `0x140133ea0` [tables.txt]. The base `btDiscreteDynamicsWorld` vtable has the same entry.
+
+## The accumulator and solver detail
+
+The called routine implements a fixed-substep accumulator [A]:
+
+1. `0x140133fd6`, `f2 0f 58 b3 00 02 00 00`, adds stored world `+0x200` to elapsed.
+2. `0x140133fde`, `f2 0f 11 bb 08 02 00 00`, stores the supplied substep at world `+0x208`.
+3. `0x140133ff7`, `f2 0f 5e c7`, divides accumulated elapsed by substep. `0x140133ffb`, `f2 0f 2c e8`, truncates the quotient to a substep count.
+4. `0x140134007` multiplies that count by substep; `0x14013400b`, `f2 0f 5c f1`, subtracts it from the accumulator.
+5. The count is capped against the supplied maximum at `0x14013409b-0x14013409f`. At `0x140134152`, `0f 28 cf`, the substep is placed in XMM1; `0x140134158`, `ff 90 38 01 00 00`, calls the single-step virtual method. The loop repeats at `0x140134170`.
+
+The component-dispatch call is outside this accumulator. Inferring the component rate from the solver's internalSingleStep calls would give the wrong multiplier when physics detail changes.
+
+The coordinator's automatic solver-rate branch stores 60 at `0x140743954`, 180 at `0x140743968`, and 120 at `0x140743987` [S]. Their immediate binary32 encodings are `00 00 70 42`, `00 00 34 43`, and `00 00 f0 42`. It also accepts a nonzero rate from a context field, so the three automatic choices do not establish a complete list of allowed overrides. The `physics_timestep` string at `0x140b10a58` is bound to a settings field at `+0x40` by `0x1402765d9-0x1402765f0` [stormworks64-settings-binding.asm]. This report does not claim to have traced every setting-copy operation or identified the global branch flag `0x140ceb6ff` by name.
+
+## Do the recovered formulas receive a dt?
+
+The solver timestep is computed inside the physics worker after the component pass. It is not forwarded from that worker into `F_FLUID`, the electric update, or the modular-engine component/group updates. Their recovered increments already describe a normal component update.
+
+- `F_FLUID 0x1403ef860` is reached through the component slot above. The scoop constructs bias and factor, then calls `0x1402ec710` with those quantities; they are not time arguments. The port routine computes demand, clamps the allocated move, and transfers amounts directly. Its full body is retained in `stormworks64-port-exchange.asm` and `pseudocode/0x1402ec710.c`.
+- The radiator multiplies its airflow term by the fixed relaxation coefficient at `0x1403f3c4f`, `f3 0f 59 35 c1 bc 7b 00`, then passes that fraction to the interpolation helper at `0x1403f3c68`, `e8 43 c8 4f 00`. There is no additional elapsed-time multiplier in that operation [stormworks64-radiator-relaxation.asm; cooling-model.md].
+- The motor passes the computed charge request to `0x1402eeca0` at `0x140400a20`, `e8 7b e2 ee ff`. This helper consumes the node pointer and request, applies battery availability, and returns the available fraction. It does not scale the request by a dt [stormworks64-electric-draw.asm, stormworks64-electric-update.asm].
+- The generator deposits `Q` charge per component update and sets its output to `60*Q` at `0x140400d8e`, `f3 0f 59 05 ca f9 7a 00`. This independently fits charge per nominal simulated second. It does not identify that charge unit as joules or the output as watts.
+
+This is not a full semantic reconstruction of every argument accepted by `F_FLUID`. For example, the dispatcher forwards a per-vehicle scalar from a parallel list at `0x140549782` to stack argument 7 at `0x1405498b3` [D]. Its meaning is not established here. It is not obtained from the physics worker's elapsed or substep calculation, and the recovered scoop and heat-exchange formulas do not use it as a dt. A decompiler's unnamed float parameter alone is not evidence of a timestep.
+
+## Server and resource corroboration
+
+The server hashes were independently verified:
+
+| File | SHA-256 |
+|---|---|
+| `server64.exe` | `b261e81eb8a4e5bb84782e521212dcc94151fc2c2b5940bcff5aabef85bbe20f` |
+| `server.exe` | `9efa034560840a0e020e06f35441c5f92d46a22a3e67d37d62bffb0b9aaff82e` |
+
+In `server64.exe`, `0x1404e9cac`, bytes `f3 0f 5e 0d a4 ed 4b 00`, divides the tick count by 60 at `0x1409a8a58`. `0x1404e9cb6` loads the fallback 1/60, and `0x1404e9cd8`, `ff 50 60`, calls the physics world. The matching 32-bit worker starts at `0x8c6680`; `0x8c66b7`, `f3 0f 5e 0d 78 b8 d0 00`, divides by 60 at `0xd0b878`, and `0x8c66f1`, `ff 50 30`, makes the 32-bit virtual call. Both pass a maximum of 1000 substeps [server64-physics-worker.asm, server-physics-worker.asm]. These are matching worker routines; the full server component call graphs were not separately reconstructed.
+
+The bounded search in `tools/derived.py` covered 3278 text resource files in `rom/` and `sdk/`. `derived.txt` retains the search pattern, matches and source hashes. The shipped weapons AI script provides useful independent corroboration:
+
+- `rom/data/missions/dlc_weapons_ai/script.lua:2086-2087` increments `g_tick_counter` once in `onTick`.
+- Its `isTickID` at lines 2431-2432 tests `(g_tick_counter + id) % rate == 0`.
+- At lines 932-938, it sets the interval to 60 ticks and applies `ISLAND_CAPTURE_AMOUNT_PER_SECOND * vehicle_tick_rate / 60`.
+
+This is resource evidence that the shipped mission code treats 60 ordinary ticks as a second. It does not replace the native call-chain evidence. `rom/data/realtime_values/general_debug.txt:173` contains `mp_physics_update_tick_limit 6`; its name and value alone do not make it the solver or component frequency. No tick-setting override was recovered from the searched SDK text.
+
+The embedded microcontroller documentation explicitly separates `onTick` from `onDraw`: `0x140af1140` says tick runs once per logic tick; `0x140af1270` says drawing can happen multiple times for multiple monitors. These strings, plus the worker and component call chain, distinguish rendering from the simulation interval [tables.txt].
+
+## Per-second conversions
+
+These conversions preserve the assumptions of the earlier reports. They do not fix unknown fluid capacity weights, flow restrictions, charge units or shaft units.
+
+| Existing formula | Conversion at 60 component updates per simulated second |
+|---|---|
+| Scoop cap `1/15` amount/update | `4` amount/s. Under air-scoop.md's 600 readout-units/amount conversion, `2400` readout-units/s. The display's actual label still needs its own decode. |
+| Still sea-level scoop into pressure 0, `1/30` amount/update | `2` amount/s under the same lone-port, available-capacity assumptions. |
+| Unsaturated scoop at sea level and network pressure 1, `s/150` amount/update | `0.4*s` amount/s, reaching the cap at `s=10` under the earlier assumptions. |
+| Generator `Q` charge/update | `60*Q` internal charge/s, matching its output expression. |
+| Motor requested draw `R` per update | `60*R` requested internal charge/s at a fixed state. Actual draw remains supply-limited. |
+| Cylinder fuel `4e-6*voxels*RPS*throttle` amount/update | `0.00024*voxels*RPS*throttle` amount/s, before fuel, combustion and exhaust restrictions. |
+| Cylinder heat `0.024*voxels*RPS*throttle` amount·°C/update | `1.44*voxels*RPS*throttle` amount·°C/s with the same combustion assumptions. |
+| Clean coolant coupling `0.04*W*gap` heat/update | Instantaneous rate `2.4*W*gap` heat/s. Integrate the coupled recurrence for a changing gap. |
+| Radiator heat rejection `A*0.003*(1+f)*gap` heat/update | Instantaneous rate `0.18*A*(1+f)*gap` heat/s. |
+| Refresh every 16 component updates | Every `16/60 = 0.266667` simulated seconds. |
+
+For `gap_next = (1-k)*gap`, with fixed coefficients, fixed target and no other sources, `gap(t) = gap(0)*(1-k)^(60*t)` at tick boundaries. The exponential time constant is `-1/(60*ln(1-k))`. Using `60*k` as the fraction removed in one whole second is incorrect.
+
+| Recurrence | Residual after 60 updates | Time constant |
+|---|---|---|
+| Tank or ambient relaxation, `k=0.001` | `0.941736` | `16.6583 s` |
+| Passive radiator, `k=0.003` | `0.835044` | `5.54722 s` |
+| Radiator at maximum airflow/fan term, `k=0.009` | `0.581325` | `1.84351 s` |
+| Exchanger gap, exchange term alone, `k=0.03` | `0.160807` | `0.547180 s` |
+| Motor damping alone, multiplier `0.995` | `0.740261` | `3.32499 s` |
+
+Values are computed by `tools/derived.py` from the reported decimal coefficients. They describe isolated terms. Through-flow, ambient exchange and changing temperatures require stepping the complete model 60 times. The existing steady heat-balance radiator count is unchanged because the common factor of 60 cancels.
+
+## Issue #163 gap disposition
+
+All 18 `behavior.json` update-rate limitations are answered for normal active simulation. `native/update-rate/wiki-replacements.json` contains every quoted gap, its exact JSON pointer, family and proposed replacement. No wiki file was edited in this investigation.
+
+Shared replacement wording:
+
+> For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.
+
+| JSON pointer in `wiki/data/behavior.json` | Category or family |
+|---|---|
+| `/categories/5/limitations/1` | Fluids |
+| `/categories/6/limitations/1` | Heat exchange |
+| `/categories/11/limitations/1` | Modular engines |
+| `/families/0/limitations/1` | air-air-heat-exchanger |
+| `/families/1/limitations/1` | air-liquid-heat-exchanger |
+| `/families/10/limitations/1` | electric-fluid-radiator |
+| `/families/11/limitations/3` | electric-motor |
+| `/families/13/limitations/1` | fluid-tank |
+| `/families/14/limitations/1` | gas-tank |
+| `/families/16/limitations/2` | generator |
+| `/families/24/limitations/1` | liquid-liquid-heat-exchanger |
+| `/families/27/limitations/1` | modular-engine-clutch |
+| `/families/29/limitations/1` | modular-engine-cylinder |
+| `/families/41/limitations/1` | part-cryo-cooler |
+| `/families/48/limitations/0` | part-fluid-heat-sink |
+| `/families/79/limitations/1` | part-modular-engine-fluid-pump |
+| `/families/81/limitations/0` | part-modular-engine-starter |
+| `/families/145/limitations/0` | passive-fluid-radiator |
+
+The second quotation is source text, not JSON: `wiki/app/provenance/page.jsx`, `line:114` in the issue. Proposed replacement:
+
+> The recovered component formulas use a nominal 60 simulation updates per second for active vehicles. Per-update amounts can be converted to amounts per simulated second; relaxation fractions must be compounded over 60 updates. Exchanger compartment volumes are a separate question, so size advantages remain labeled as inferences until the volume evidence is reconciled.
+
+The update-rate part is answered. The volume part is outside this investigation; `cooling-model.md` already records some initializer volumes that the parent should reconcile before leaving the old volume limitation in place.
+
+This removes the time-unit blocker for issues #109 and #164, the fluids and heat categories #5 and #6, exchangers #19/#20/#38, radiators #26/#125, cryo cooling #51, tanks #29, motor/generator guidance #27/#32/#144, and modular-engine guidance #10/#40/#43/#66/#67. It does not close those issues' other gaps. In particular, a known cadence cannot supply a missing pump-throughput formula, shaft unit, exchanger weight or mesh-axis identification.
+
+## Confidence and limits
+
+Confidence is high for the normal component-to-simulation-time conversion. The evidence links actual component vtables to one update pass, fixes the scheduled count to 1, follows it into a tick-count/60 argument, resolves the physics virtual target, and identifies the accumulator consuming that argument. Matching server code and the shipped Lua conversion corroborate it.
+
+Wall-clock scheduling is a different question. The threaded logic wrapper at `0x140844ff1-0x140844ffb` busy-waits until an integer millisecond timer has advanced at least 16 ms [stormworks64-wall-clock-worker.asm]. `0x140174f60` derives that timer from nanoseconds divided by 1,000,000 [stormworks64-clock-ms.asm]. This is not a `dt=0.016` physics call and does not establish a 62.5 Hz simulation unit. The outer scheduler's complete pacing policy was not recovered. Report rates as per simulated second, and do not promise an exact wall-clock rate under overload, pause or network catch-up.
+
+Sleep/fast-forward and inactive vehicles are also outside the normal-rate conversion. The embedded addon documentation says `game_ticks` is normally 1 and can be 400 while sleeping [tables.txt]. That is not evidence that every component gets 400 calls. No such extrapolation is made here. The physics-detail flag's name, arbitrary rate override limits and all multiplayer synchronization paths remain untraced.
+
+No in-game measurement is needed to settle the nominal dt. If a future task needs wall-clock throughput, the minimal additional check is to count 3600 microcontroller `onTick` calls in an active vehicle and compare the interval with a stopwatch at full simulation speed, then repeat under load. That would measure real-time throughput, not change the recovered per-update formulas or establish sleeping behavior.
+
+## Reproduction
+
+GNU objdump 2.46.1 and Ghidra 12.1.4 were used. The scripts do not run the target. From the installation root:
+
+```bash
+python3 -I investigation/native/update-rate/tools/excerpt.py . /tmp/update-rate-reproduced
+python3 -I investigation/native/update-rate/tools/derived.py . > /tmp/update-rate-reproduced/derived.txt
+diff -ru investigation/native/update-rate/asm /tmp/update-rate-reproduced/asm
+diff -u investigation/native/update-rate/tables.txt /tmp/update-rate-reproduced/tables.txt
+diff -u investigation/native/update-rate/derived.txt /tmp/update-rate-reproduced/derived.txt
+```
+
+The excerpt script rejects a different executable hash. `tools/pe.py` maps addresses to original PE bytes, including 32-bit PE, and reads vtables and constants directly. No external Python packages are needed.
+
+The retained pseudocode was generated in a fresh temporary Ghidra project without auto-analysis. With `analyzeHeadless` on PATH and a suitable `JAVA_HOME`:
+
+```bash
+mkdir -p /tmp/update-rate-ghidra /tmp/update-rate-pseudocode
+GHIDRA_HEADLESS_MAXMEM=6G analyzeHeadless /tmp/update-rate-ghidra update-rate \
+  -import "$PWD/stormworks64.exe" -noanalysis \
+  -scriptPath "$PWD/investigation/native/update-rate/tools" \
+  -postScript DecompileAt.java /tmp/update-rate-pseudocode \
+  0x1405e3a80 0x140133ea0 0x140549240 0x1402eeca0 0x1404008a0 0x1402ec710
+GHIDRA_HEADLESS_MAXMEM=6G analyzeHeadless /tmp/update-rate-ghidra update-rate \
+  -process stormworks64.exe -noanalysis -readOnly \
+  -scriptPath "$PWD/investigation/native/update-rate/tools" \
+  -postScript DecompileAt.java /tmp/update-rate-pseudocode 0x14073f890 0x1405e8fb0
+```
+
+`DecompileAt.java` explicitly disassembles and creates each requested function. Decompiled text can depend on Ghidra's inferred types; verify claims against the retained instructions and original bytes. The large functions include compiler-generated chained unwind chunks, so `.pdata` chunk boundaries alone are not complete source-function boundaries.
+
+## Retained files
+
+`native/update-rate/SHA256SUMS` lists every retained evidence file and tool. The directory contains 18 assembly excerpts, 8 Ghidra pseudocode files, `tables.txt`, `derived.txt`, `issue-163.json`, `wiki-replacements.json`, and four tool files. Only this report, that directory and its two whitelist entries in the root `.gitignore` were written. No wiki or research source, commit, push or GitHub issue mutation is part of this investigation.

@@ -8,6 +8,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_COOLING_INPUTS, DEFAULT_NATIVE_COOLING_INPUTS, NATIVE_RADIATORS, estimateCooling, estimateNativeCooling,
 } from '@/lib/cooling.js';
+import { UPDATES_PER_SECOND, gapLeftAfter } from '@/lib/formulas.js';
 
 const FIELDS = [
   { key: 'ambient', group: 'measure', label: 'Ambient temperature', unit: '°C', hint: 'The air the radiators cool toward. Read it with a temperature sensor in the open.' },
@@ -518,15 +519,15 @@ function NativeCooling() {
       : `With ${planned} the steady model gives ${fixed(r.equilibrium)} °C, or ${fixed(r.designEquilibrium)} °C with the reserve.${r.designEquilibrium > 115 ? " Above 115 °C, damage is not simulated." : ""}`;
     summary = `${NATIVE_LABEL}: ${r.couplingLimited ? 'no radiator count is enough' : `at least ${r.requiredRadiators} ${name}${r.requiredRadiators === 1 ? '' : 's'}`} to hold ${fixed(v.targetTemp, 0)} °C with ${fixed(v.reservePercent, 0)}% reserve. ${verdictHead} ${settle ?? ''}`;
     const rows = [
-      ['Heat input', `${heat(r.heatRate)} per update`, 'Internal heat units (amount × °C)'],
-      ['Design heat with reserve', `${heat(r.designHeat)} per update`, `+${fixed(v.reservePercent, 0)}%`],
+      ['Heat input', `${heat(r.heatRate)} per update, ${heat(r.heatRate * UPDATES_PER_SECOND)} per simulated second`, 'Internal heat units (amount × °C)'],
+      ['Design heat with reserve', `${heat(r.designHeat)} per update, ${heat(r.designHeat * UPDATES_PER_SECOND)} per simulated second`, `+${fixed(v.reservePercent, 0)}%`],
       ['Engine heat capacity', fixed(r.engineCapacity, 0), '40 × cylinder voxels'],
       ['Shared coolant volume', `${heat(r.coolantVolume)} (${fixed(r.coolantVolume * 10, 0)} L)`, '0.01 × capacity + coolant manifolds'],
       ['Engine-to-coolant coupling', `${sig(r.couplingConductance)} per °C`, '0.04 × coolant volume, clean fresh water'],
       ['Coolant temperature at target', `${fixed(r.coolantAtTarget)} °C`, 'Engine at target, design heat'],
       ['Radiator volume', `${r.radiatorVolume} (${r.radiatorVolume * 10} L)`, radiator.title],
-      ['Radiator rate', `${sig(r.radiatorFraction)} of the gap per update`, '0.003 × (1 + fan term)'],
-      ['Planned removal at target', `${heat(r.plannedCapacity)} per update`, `${planned}, plus engine leak to ambient`],
+      ['Radiator rate', `${sig(r.radiatorFraction)} of the gap per update, ${sig(gapLeftAfter(r.radiatorFraction))} of it left after one simulated second`, '0.003 × (1 + fan term), compounded over 60 updates'],
+      ['Planned removal at target', `${heat(r.plannedCapacity)} per update, ${heat(r.plannedCapacity * UPDATES_PER_SECOND)} per simulated second`, `${planned}, plus engine leak to ambient`],
       ['Equilibrium', r.verdict === 'no-combustion' ? 'No heat' : `${fixed(r.equilibrium)} °C`, planned],
       ['Equilibrium with reserve', r.verdict === 'no-combustion' ? 'No heat' : `${fixed(r.designEquilibrium)} °C`, `+${fixed(v.reservePercent, 0)}% heat`],
     ];

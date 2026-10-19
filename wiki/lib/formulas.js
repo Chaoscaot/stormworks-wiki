@@ -2,6 +2,9 @@
 // Engine: investigation/native/behavior/pseudocode/0x140449670.c:230-244,300-312.
 // Exchanger: asm/water.asm:4480-4528, using the interpolation helper 0x1408f04b0.
 // Radiator: asm/water.asm:3540-3661. Speeds and capacities retain internal units.
+// Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
+// unloaded vehicles and real-time slowdown are outside this conversion.
+export const UPDATES_PER_SECOND = 60;
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 function finite(values) {
   if (!values.every(Number.isFinite)) throw new RangeError('Formula inputs must be finite numbers.');
@@ -34,6 +37,14 @@ export function radiatorRate({ airspeed, fanPower, enclosed }) {
   if (airspeed < 0 || fanPower < 0 || fanPower > 1) throw new RangeError('Use nonnegative airspeed and fan availability between zero and one.');
   const fan = clamp(Math.max(2 * fanPower, enclosed ? 0 : airspeed / 40), 0, 2);
   return { fan, multiplier: 1 + fan, fraction: 0.003 * (1 + fan) };
+}
+
+// Share of a gap left after `seconds` of simulated time when a constant fraction closes each update.
+// The fractions compound: 60 × fraction is not the share removed per second.
+export function gapLeftAfter(fraction, seconds = 1) {
+  finite([fraction, seconds]);
+  if (fraction < 0 || fraction > 1 || seconds < 0) throw new RangeError('Use a fraction from zero to one and nonnegative seconds.');
+  return (1 - fraction) ** (UPDATES_PER_SECOND * seconds);
 }
 
 export function exchangerTemperatures({ temperatureA, temperatureB, capacityA, capacityB, updates, ambient = 20, ambientLeak = false }) {
