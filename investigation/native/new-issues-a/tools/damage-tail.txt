@@ -1,0 +1,22 @@
+155-1. Whole-engine RPS-to-thrust relation and startup time remain open. The component arithmetic, pressure/temperature averaging and cached-speed traversal are recovered. They rule out a direct exhaust `constant*RPS*size` formula and a pressure-only ignition gate. List construction through ducts, multi-branch topology and complete phase scheduling are not reconstructed here, so the model cannot predict equilibrium pressure or RPS from a parts list.
+156-2. Afterburner external fuel flow remains open. The complete subtype-4 branch, fuel exchange helper, purge helper, constructor and initializer were inspected. They rule out an explicit jet-fuel debit proportional to pressure, RPS, enable state or thrust in that branch, and rule out replacing the native stored-fuel multiplier with a fixed 1.5. The port helper can redistribute liquid with the external network. Other external writers and a complete fluid-network operating point were not reconstructed, so this report does not claim that every connected afterburner arrangement consumes zero tank fuel.
+157-3. Pressure and temperature physical units remain open. Resource port names, save keys and arithmetic are traced, and the jet fields are separate from the ordinary fluid compartment. No conversion to pascals, atmospheres, kelvin or degrees Celsius appears in the traced jet paths. Ordinary fluid temperature units do not establish jet-temperature units. Calibration or a native UI/unit conversion outside these paths is still needed.
+158-4. SI torque, power and efficiency remain open. Mechanical port speed is RPS and submitted weight is 160. The solver weight, raw pressure and charge additions rule out treating the medium turbine's tooltip as a measured N m output. No physical energy balance or mass-flow rate was recovered.
+159:5. General damage, immersion and intake behavior are not a complete model here. Both intake definitions use subtype 0 and are retained in the update. The intake includes directional vehicle velocity, altitude, damage and water checks. Those paths were checked to avoid assigning the intake-only final damping block to every jet part. The complete intake force/damage behavior and overspeed damage propagation need a separate decode if an assembled-engine simulator is required.
+160-
+161-## Replacement wording for the recorded gaps
+162-
+163-For issue #7, replace "Jet simulation code was not decoded." with:
+--
+166-
+167-For issue #57, replace "There is no jet thrust graph because the full thrust formula is not verified." with:
+168-
+169:> The local exhaust formula is verified as 32*max(incoming_pressure-1000,0), scaled by altitude, spoiler, stored-fuel afterburner multiplier and a 100*S application cap. A graph against incoming internal pressure is supported. A universal RPS-to-thrust graph remains open because pressure depends on the connected engine network. The formula uses internal force units.
+170-
+171-For issue #147, replace its quoted limitation with:
+172-
+173:> Ignition requires internal RPS strictly above 0.5. Effective throttle u is clamped and limited by available jet fuel; consumption is 0.12*u*RPS L/s. The compressor transfers 0.2*(100*r0-(p_out-p_in)) pressure state and loses 0.0001 times that transfer in RPS after starter input and 0.99 drag. Combustion adds 1600*u*RPS pressure and 0.1*u*RPS internal temperature per update. Turbines halve incoming pressure, gain RPS from it, and produce internal electrical charge. The medium turbine mechanical port submits RPS and shaft weight 160, not a verified SI torque. Exhaust force depends on incoming pressure above 1000. Afterburners use stored jet fuel for a variable multiplier; no explicit jet-fuel debit appears in the exhaust branch, while external fluid exchange remains separate. Physical temperature/pressure units, complete assembled-engine behavior and SI efficiency remain open.
+174-
+175-These are proposed replacements only. No issue or wiki content was edited.
+176-
+177-## Reproduction

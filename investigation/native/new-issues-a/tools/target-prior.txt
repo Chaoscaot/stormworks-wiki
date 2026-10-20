@@ -1,0 +1,173 @@
+investigation/classic-engines.md-30-|---|---:|---:|---:|---:|---:|---:|
+investigation/classic-engines.md-31-| `engine.xml`, Small Engine | 20000 | 1 | 10 | 0.060000 | 0.102857 | 0.849231 |
+investigation/classic-engines.md-32-| `aircraft_engine.xml`, Medium Engine | 60000 | 3 | 30 | 0.180000 | 0.308571 | 2.547692 |
+investigation/classic-engines.md-33-| `engine_diesel.xml`, Large Engine | 200000 | 10 | 100 | 0.600000 | 1.028571 | 8.492308 |
+investigation/classic-engines.md:34:| `turbine.xml`, legacy Turbine Engine, hypothetical supplied state only | 100000 | 5 | 50 | 0.300000 | 0.514286 | 4.246154 |
+investigation/classic-engines.md-35-
+investigation/classic-engines.md-36-The turbine row is conditional. Its shipped definition has no fuel, air, exhaust or coolant ports and has `electric_magnitude=0`. It cannot maintain this fuel supply or use this starter in ordinary finite-fuel operation. See the turbine section. All F and m values are on line 2 of the named definitions. Complete source lines and SHA-256 values are retained in `tools/resources.txt`.
+investigation/classic-engines.md-37-
+investigation/classic-engines.md-38-Heating before cooling is 2.25, 4.5 and 9 degrees C per simulated second at 5, 10 and 20 RPS, for every size. It has no direct throttle, F or damage multiplier. Throttle changes heating indirectly by changing speed. A shaft driven by another component still heats this engine at zero throttle. The actual temperature change also includes coolant and ambient terms below.
+investigation/classic-engines.md-39-
+investigation/classic-engines.md-40-## Identity and retained evidence
+investigation/classic-engines.md-41-
+--
+investigation/classic-engines.md-148-The intake loop moves all 13 species proportionally by `u0*b`. Species 10 is removed from intake `+0x4cc` and added to exhaust species 4 at `+0x54c`, rather than exhaust species 10. The transfer instructions at `0x14034c04a..0x14034c066` retain this exception. Species 10 as oxygen and 4 as carbon dioxide is an inference corroborated by the exterior-air shares 21%, 0.04% in `air-scoop.md`. These indices should not be called the old generic "air" and "exhaust" fluids without qualification.
+investigation/classic-engines.md-149-
+investigation/classic-engines.md-150-At `0x14034c616`, bytes `f3 0f 59 9f e0 03 00 00`, q multiplies throttle. At `0x14034c626`, bytes `f3 41 0f 59 df`, effective throttle multiplies f. The subtraction at `0x14034c633`, bytes `f3 0f 5c c3`, and store at `0x14034c637`, bytes `f3 0f 11 87 f4 04 00 00`, consume only diesel at `+0x4f4 = fuel_compartment+0x10`. Jet fuel at compartment+0x14 does not substitute. Helper `0x1402ebdc0` then transfers up to 0.001 amount/update of non-diesel contamination to exhaust, explicitly skipping index 1. That is a purge, separate from consumed diesel.
+investigation/classic-engines.md-151-
+investigation/classic-engines.md:152:The two exhaust compartments average each species pair before their port exchanges. The initializer allocates all four non-coolant compartments with V=`0.004*voxel_count`: intake, fuel and both exhausts. The listed voxel counts are 27, 78, 440 and 63 for small, medium, large and legacy turbine. Native reads and multiplications are at `0x14034b68e..0x14034b6e8`, with 0.004 at `0x140baf924`. Counts are derived by counting shipped `<voxel>` elements, retained in the collector's tables.
+investigation/classic-engines.md-153-
+investigation/classic-engines.md-154-Fuel and air port calls use bias -10 and factor 1 at `0x14034bef9` and `0x14034c9f2`. Exhaust calls use bias +10 and factor 1 at `0x14034ca62` and `0x14034cac9`. These are calls to `0x1402ec710`, whose pressure/flow behavior is decoded in `fluid-transport.md`. Exact plumbing throughput depends on networks, competing ports, allocation and contents; the local fuel equation does not predict it alone.
+investigation/classic-engines.md-155-
+investigation/classic-engines.md-156-With `infinite_fuel` at settings+0x34 enabled, the branch at `0x14034be0c` skips the entire diesel, air and exhaust consumption/exchange section. Limiter, EMP, speed, starter, coolant, heating and overheat checks still run. This setting does not bypass the 2 RPS combustion threshold.
+investigation/classic-engines.md-157-
+investigation/classic-engines.md-158-## Temperature and cooling
+investigation/classic-engines.md-159-
+--
+investigation/classic-engines.md-200-For small, medium and large, m=1.2 and W=10,30,100 at Max Power 100%. Request per unit RPS deficit is 1.2, 3.6 and 12 internal charge units. From r=0 the first request is 6,18,60. Multiplying by 60 gives 360,1080,3600 internal charge units per simulated second only if that same 5 RPS deficit persists each update. These are not watts or a constant starter drain during an unloaded start. Above or at 5 RPS there is no positive request.
+investigation/classic-engines.md-201-
+investigation/classic-engines.md-202-The helper at `0x1402eeca0`, retained in `asm/electric-draw.asm`, returns the supplied fraction after EMP and pool limitations, or 1 under infinite electricity. It uses request and network charge, not an elapsed-time argument. `electricity.md` resolves the helper's EMP and availability fields. Because the classic update checks request>0 before calling it, m=0 prevents assistance even with infinite electricity.
+investigation/classic-engines.md-203-
+investigation/classic-engines.md:204:## Legacy turbine boundary
+investigation/classic-engines.md-205-
+investigation/classic-engines.md-206-`turbine.xml` is a type-5 self-contained component using the same factory, vtable and update as the diesels. It is different from `jet_engine_turbine_small.xml` and `jet_engine_turbine_medium.xml`, whose modular jet logic is at `0x140350f40`. The resource's tooltip alone does not establish a second classic turbine implementation.
+investigation/classic-engines.md-207-
+investigation/classic-engines.md-208-Observed shipped facts: F=100000, m=0, and exactly four ports, mechanical RPS, Starter, Throttle and Electric. It has no fluid port that could fill the internal diesel or intake compartment, and neither numeric output. The common constructor initializes those compartments empty. The finite-fuel supply gate therefore makes effective throttle zero in an ordinary positive-RPS state without some other mechanism changing the contents. The zero starter magnitude prevents positive starter request. It can receive shaft speed from another component and is subject to the common drag and thermal recurrence. With infinite fuel and externally supplied r>2, it can use the common throttle speed gain and W=50. Neither infinite-fuel nor infinite-electricity flags alone remove its missing starting assistance.
+investigation/classic-engines.md-209-
+investigation/classic-engines.md:210:Derived, not runtime validated: a new unmodified legacy turbine at rest does not self-start through this update and its shipped ports. The scan was bounded to both type-5 factory paths, constructor, initializer, complete virtual update, editor, port finder and shipped definition. Those paths rule out a turbine-specific jet-fuel branch, different classic speed law, port refill and nonzero electrical starter. Part availability, migration of old saves, other save-state writers and any hidden world mechanism that could populate its contents remain open. The hypothetical turbine figures above must carry that condition in any graph.
+investigation/classic-engines.md-211-
+investigation/classic-engines.md-212-## Graph model, confidence and remaining work
+investigation/classic-engines.md-213-
+investigation/classic-engines.md-214-`native/classic-engines/tools/model.py` provides `curve`, `requests`, `supply`, `pressure` and `thermal`. Its command line emits CSV at quarter-RPS intervals from 0 to 100. Inputs are engine size, throttle, Max Power fraction, limiter and damage. It returns local submitted speed, W, weighted net and combustion steps, fuel L/s, intake amount/update and heating C/s. Default curves assume unlimited local supply. The turbine command requires `--hypothetical-turbine-state` to prevent presenting an unstartable resource as a working diesel variant.
+investigation/classic-engines.md-215-
+investigation/classic-engines.md-216-```
+investigation/classic-engines.md-217-python3 -I investigation/native/classic-engines/tools/model.py --verify
+--
+investigation/classic-engines.md-226-
+investigation/classic-engines.md-227-- SI torque, watts and joules. The complete classic update, shaft submission and previously decoded weighted solver show W and a speed contribution. No conversion to N m or an SI inertia was found in those paths. A graph can show the internal weighted step honestly, not measured torque or power.
+investigation/classic-engines.md-228-- Exact temperature at a throttle alone. The update rules this out as a single-valued function: heating uses actual RPS, then both flowing coolant and ambient temperature. The conditional recurrence is recovered. Environmental sampler internals and full vehicle coolant/shaft histories are outside this local graph.
+investigation/classic-engines.md-229-- Additional overheat gate settings+0x4a. Both enable checks are retained. Named `vehicle_damage` at +2 was ruled out as a direct identification of +0x4a; the effective flag's producer remains untraced.
+investigation/classic-engines.md:230:- Legacy turbine availability and saved-state migration. The traced normal classic paths do not refill its missing ports or start its m=0 starter. Other state writers and old-save behavior were not exhaustively searched.
+investigation/classic-engines.md-231-- Negative or nonfinite RPS states. The exact signed factor is retained, including its pole. The positive-RPS graph cannot be extrapolated across that pole as an experimentally valid engine curve.
+investigation/classic-engines.md-232-- Modular jet compressor, combustor, thrust and turbine equations in #147. The distinct jet update was recognized from prior retained evidence, but this classic-engine pass did not decode those separate stages.
+investigation/classic-engines.md-233-
+investigation/classic-engines.md-234-## Replacement wording for issue #4
+investigation/classic-engines.md-235-
+investigation/classic-engines.md-236-Pointers are into `wiki/data/behavior.json`. These are proposed replacements for the parent task, not edits to wiki data.
+investigation/classic-engines.md-237-
+investigation/classic-engines.md-238-- `/categories/4/summary`: "Classic diesel engines share a recovered runtime model. At supplied throttle u and local speed r above 2 RPS, the undamaged submitted speed is 0.99*(r+0.1*u*(r+1)). engine_max_force scales shaft weight and diesel demand in small:medium:large ratios of 1:3:10. Heating before cooling is 0.0075*abs(r) C/update. The shaft model does not establish SI torque."
+investigation/classic-engines.md:239:- `/categories/4/limitations/0`: "The classic update is decoded at 0x14034ba00 for the identified build. Formulas assume active simulation at 60 updates/s; actual speed and temperature require shaft and coolant state. SI torque remains unresolved. The legacy turbine lacks fluid ports and has zero starter magnitude, so hypothetical supplied-state curves do not describe an ordinary self-starting turbine."
+investigation/classic-engines.md:240:- `/categories/4/sections/1/body`: "engine_max_force F is 20000, 60000 and 200000 for small, medium and large diesel engines, and 100000 for the legacy turbine. With Max Power fraction P the update submits shaft weight F*P/2000 and requests diesel proportional to F*P/20000. It also scales starter charge request. These are internal solver weights and charge quantities, not measured N m, watts or joules."
+investigation/classic-engines.md-241-- `/categories/4/sections/2/body`: "Let s=F*P/20000 and g(r)=1/(0.03*r+0.05)+0.4*r-6. Diesel consumption is 0.012*s*u*r*g(r) L/s, where u includes limiter, EMP, diesel, oxygen and intake/exhaust pressure reductions. Undamaged combustion adds 0.1*u*(r+1) RPS before 0.99 drag, only above 2 RPS. Heating is 0.45*abs(r) C/s before coolant exchange and ambient relaxation; it is not directly proportional to throttle. Use the recovered recurrence for temperature and label a torque graph with internal weighted speed steps."
+investigation/classic-engines.md-242-
+investigation/classic-engines.md-243-## Other issue coverage
+investigation/classic-engines.md-244-
+investigation/classic-engines.md-245-#22: resolves the force-field-use limitation and positive-RPS speed, fuel and thermal curves for the three diesel sizes. Replaces "unknown curves" with explicit equations and bounds. Its `findings/*/detail` entries can describe F's solver-weight and fuel role. The warning against calling F measured SI torque remains justified. Its legacy-turbine entry needs the supplied-state and startup caveat.
+investigation/classic-engines.md-246-
+investigation/classic-engines.md-247-#143: supplies the missing consumption formula, 115 C overheat threshold, exact damage cadence, starter request and local shaft contribution. Confirms separate hot/cold coolant ports and their common 100 L compartment. Does not establish physical thermal efficiency; internal heating/fuel arithmetic is not a thermodynamic efficiency measurement. The additional +0x4a damage gate remains named by address.
+--
+investigation/jet-engines.md-5-## Results
+investigation/jet-engines.md-6-
+investigation/jet-engines.md-7-The modular jet update is recovered at `0x140350f40..0x1403540f5`. Combustion starts above 0.5 internal RPS, burns `0.12*effective_throttle*RPS` L/s, adds `1600*effective_throttle*RPS` to outgoing pressure and `0.1*effective_throttle*RPS` to outgoing temperature each update. The compressor's signed pressure transfer and corresponding speed load are recovered. Turbines halve incoming pressure and, when undamaged, add `0.0000375*incoming_pressure` to local RPS before electrical generation and shaft exchange. The medium turbine submits RPS with shaft weight 160.
+investigation/jet-engines.md-8-
+investigation/jet-engines.md:9:Exhaust force before application limits is `32*max(incoming_pressure-1000,0)*altitude_factor*spoiler_factor*afterburner_factor`. This supports a pressure-to-thrust graph. It does not establish a universal RPS-to-thrust graph for an assembled jet. The afterburner multiplier is `1+500*stored_jet_fuel_amount` when enabled with positive liquid contents. No explicit jet-fuel consumption occurs in the exhaust branch. External fuel-port exchange is a separate flow.
+investigation/jet-engines.md-10-
+investigation/jet-engines.md-11-Confidence is high for these local finite-value arithmetic paths and port mappings. Pressure, temperature, electrical magnitude and force retain internal units where no physical calibration was established. Whole-engine steady state, connection-list construction, physical temperature units and SI efficiency remain open.
+investigation/jet-engines.md-12-
+investigation/jet-engines.md-13-## Component identification
+investigation/jet-engines.md-14-
+investigation/jet-engines.md-15-The Jet engines category in `wiki/data/behavior.json` and the matching families in `wiki/data/families.json` identify 14 `jet_engine*.xml` definitions. Each has component type 34. Definition `jet_engine_component_type` is read at definition+0xed4:
+investigation/jet-engines.md-16-
+investigation/jet-engines.md-17-- 0: small and large intakes.
+investigation/jet-engines.md-18-- 1: compressor.
+investigation/jet-engines.md-19-- 2: combustion chamber.
+investigation/jet-engines.md-20-- 3: small and medium turbines.
+investigation/jet-engines.md:21:- 4: basic, rotating and afterburner exhausts.
+investigation/jet-engines.md-22-- 5: straight, angle, diagonal, T and cross ducts.
+investigation/jet-engines.md-23-
+investigation/jet-engines.md-24-`tools/resources.txt` retains selected numbered resource lines, definition attributes, family IDs and each resource SHA-256. The legacy `turbine.xml` is type 5, uses classic update `0x14034ba00`, and must not supply modular jet coefficients. See the existing [classic-engine investigation](classic-engines.md).
+investigation/jet-engines.md-25-
+investigation/jet-engines.md-26-Factory table entry 34 at `0x14045e92c` has bytes `1c e3 45 00`, selecting case `0x14045e31c`. Its call at `0x14045e32d`, bytes `e8 de 18 ef ff`, invokes constructor `0x14034fc10`. At `0x14034fc29`, bytes `48 8d 05 90 8b 83 00`, the constructor installs vtable `0x140b887c0`. RTTI names `c_scene_vehicle_component_jet_engine`. Slot +0x358 at `0x140b88b18` contains `40 0f 35 40 01 00 00 00`, pointing to the update. Dispatcher `0x1405498d6`, bytes `41 ff 92 58 03 00 00`, invokes this slot. Slot +0x360 points to post-update speed averaging `0x140355110`.
+investigation/jet-engines.md-27-
+investigation/jet-engines.md-28-State names also have native evidence. Serializer `0x140350020` pairs +0x1cc with string `air_in` at `0x140b62f70`, +0x1d0 with `air_out` at `0x140b62f68`, +0x1d4 with `temp_in` at `0x140b62f88`, and +0x1d8 with `temp_out` at `0x140b62f78`. Initializer `0x140350a50` finds the numbered numeric outputs. The update copies outgoing pressure to +0x2a0, outgoing temperature to +0x2d8, and local speed to +0x310 for subtypes 1 through 4. These match the shipped Air Pressure, Temperature and RPS ports. Subtype 0 uses its second numeric output for RPS.
+--
+investigation/jet-engines.md-87-
+investigation/jet-engines.md-88-```
+investigation/jet-engines.md-89-a = clamp(1 - altitude*1.5/40000, 0, 1)
+investigation/jet-engines.md-90-b = 1
+investigation/jet-engines.md:91:if afterburner_enabled and min(total_liquid_amount,0.001) > 0:
+investigation/jet-engines.md-92-    b = 1 + 0.5*jet_fuel_amount/0.001
+investigation/jet-engines.md-93-s = clamp(1-spoiler,0,1)
+investigation/jet-engines.md-94-F_raw = 32*max(p_in-1000,0)*a*b*s
+investigation/jet-engines.md-95-```
+investigation/jet-engines.md-96-
+investigation/jet-engines.md-97-The scalar multiplies the exhaust direction transformed through the part orientation and vehicle orientation. Rotating exhausts change that direction. The three exhaust definitions use the same coefficient. No exhaust-size or `engine_max_force` multiplier appears in the force arithmetic. Internal RPS enters pressure generation upstream; it is not directly multiplied in the exhaust force expression. The branch copies pressure and temperature to the downstream state, then clears its incoming pressure when pressure exceeds 1000. This order matters for a connected network.
+investigation/jet-engines.md-98-
+investigation/jet-engines.md:99:The afterburner expression above is observed arithmetic, including its unbounded fuel-amount ratio. It is not replaced with an assumed 1.5 multiplier. The full update contains no explicit jet-fuel debit in subtype 4. Helper `0x1402ebdc0` skips liquid index 2, jet fuel, and purges other liquids. Fluid-port exchange can still move liquid into or out of the local buffer. A steady afterburner fuel-flow prediction remains open pending a complete external fluid-network model. The exhaust branch has no infinite-fuel availability bypass; unlike the chamber, it still tests stored liquid contents.
+investigation/jet-engines.md-100-
+investigation/jet-engines.md-101-## Network exchange and startup
+investigation/jet-engines.md-102-
+investigation/jet-engines.md-103-`0x1403555a0` implements pressure and temperature exchange. The list at +0x420, count +0x430, supplies neighbors' incoming values. The list at +0x408, count +0x418, supplies neighbors' outgoing values. It first computes
+investigation/jet-engines.md-104-
+investigation/jet-engines.md-105-```
+investigation/jet-engines.md-106-p_out = (old_p_out + sum(next_neighbor.p_in))/(next_count+1)
+--
+investigation/jet-engines.md-116-A fully supplied compressor requests 0.1 internal electrical charge per enabled update at `0x14035379e`, not its definition's zero `electric_magnitude`. Helper `0x1402eeca0` returns the fraction supplied. For an ordinary finite-electricity connection this fraction is `min(group_charge,0.1*A)/0.1`, with `A=max((300-node_timer)/300,0)*node_availability`. It subtracts the supplied charge. Infinite electricity returns 1; no connection returns 0. See the retained helper and the existing [electricity investigation](electricity.md) for group semantics. With full supply, draw is 6 internal charge/s and starter addition is 0.01 RPS/update before drag and pressure load. These are not watts or shaft torque.
+investigation/jet-engines.md-117-
+investigation/jet-engines.md-118-At rest, with zero local incoming and outgoing pressure and full starter supply, one compressor update gives `r0=0.0099`, `q=0.198`, `r_local=0.0098802`, `p_in=-0.198`, and `p_out=0.198`. Network averaging changes the next state. This is not a claimed complete engine startup time.
+investigation/jet-engines.md-119-
+investigation/jet-engines.md:120:The chamber gate at `0x1403533a6` compares RPS to 0.5. A separate damage path checks RPS above 200 under the engine-overheat and vehicle-damage settings. It is not an ignition-pressure gate. The chamber's fuel buffer capacity is initialized to 0.4 liquid amount, 4 L, at `0x140350ba3`. Both chamber and exhaust exchange with the fuel port through `0x1402ec710` using pressure bias -10 and throttle parameter 1. That is fluid transport, separate from the chamber's combustion debit. The full world fluid network and overspeed damage propagation are not modeled here.
+investigation/jet-engines.md-121-
+investigation/jet-engines.md-122-## Force application and units
+investigation/jet-engines.md-123-
+investigation/jet-engines.md-124-Force helper `0x1401a7c70` divides the vector by update argument 7, `S`, limits its length to 100 and multiplies back. For positive finite S, `F_applied=min(F_raw,100*S)` in the unidirectional case above. This is an additional cap, not another jet-size multiplier. S is a grouped vehicle application scale, not proven equal to body mass for all assemblies. The global force-application gate must also be enabled. The rotating exhaust's electrical pivot can change force direction and lever arm without changing the pressure coefficient.
+investigation/jet-engines.md-125-
+investigation/jet-engines.md-126-The helper queues RTTI `event_set_impulse_threshold@mm_physics_scene`, vtable `0x140b62280`. Handler `0x1401a17b0` calls `0x14019a370`, which adds the vector to Bullet's total-force accumulator. Despite the event name, this is force, not a per-update impulse. Do not multiply the force by 60. The corresponding impulse for one nominal update is force/60. The force handler and accumulator are retained. The existing [control-surface investigation](control-surfaces.md) independently documents the application scale and force accumulator.
+investigation/jet-engines.md-127-
+--
+investigation/jet-engines.md-135-- Fuel demand at `0x14035330a`, `f3 44 0f 59 0d 91 c5 85 00`, multiplies RPS by 0.0002. Ignition comparison at `0x1403533a6`, `0f 2f 05 0f c9 85 00`, compares with 0.5. Jet-fuel debit is stored at `0x1403533f8`, `f3 0f 11 8f cc 03 00 00`.
+investigation/jet-engines.md-136-- Heat at `0x140353424`, `f3 0f 59 0d a4 c6 85 00`, multiplies effective throttle times RPS by 0.1. Pressure at `0x140353434`, `f3 0f 59 35 2c d4 85 00`, multiplies by 1600.
+investigation/jet-engines.md-137-- Turbine gain at `0x140352fb0`, `f3 0f 59 1d dc c8 85 00`, multiplies half-pressure by 0.000075. Shaft weight at `0x140353182`, `c7 87 90 03 00 00 00 00 20 43`, writes float 160. Submission at `0x14035318c`, `f3 0f 11 87 94 03 00 00`, writes RPS.
+investigation/jet-engines.md-138-- Exhaust coefficient at `0x140351e5f`, `f3 0f 10 05 ad e8 85 00`, loads 32. Threshold 1000 is loaded at `0x140351e09`, `f3 0f 10 0d 4b ea 85 00`. The altitude terms at `0x140351e22` and `0x140351e2a` read doubles 1.5 and 40000.
+investigation/jet-engines.md:139:- Afterburner fuel ratio at `0x140351eb3`, `f3 41 0f 5e d3`, divides the stored jet-fuel amount by 0.001; `0x140351eb8`, `f3 0f 59 15 fc dd 85 00`, multiplies by 0.5 before adding 1. The purge call uses excluded liquid index 2 at `0x140351de8`, `41 b8 02 00 00 00`.
+investigation/jet-engines.md-140-
+investigation/jet-engines.md-141-`tools/constants.json` retains both float and double interpretations and eight bytes at each referenced address. For example, 1600 at `0x140bb0868` starts `00 00 c8 44`; 0.0002 at `0x140baf8a4` starts `17 b7 51 39`; 32 at `0x140bb0714` starts `00 00 00 42`. Decimal coefficients in the equations are rounded descriptions of single-precision constants. The Python model uses Python floating point, not an instruction-exact binary32 emulator.
+investigation/jet-engines.md-142-
+investigation/jet-engines.md-143-## Worked examples and graph model
+investigation/jet-engines.md-144-
+investigation/jet-engines.md-145-`tools/model.py` implements the local compressor, chamber, turbine and exhaust equations. It can emit fuel-versus-RPS or force-versus-incoming-pressure CSV, and optionally PNG or SVG plots through matplotlib. It keeps pressure and RPS as separate inputs. `tools/examples.json` retains calculated examples, not runtime measurements.
+investigation/jet-engines.md-146-
+investigation/jet-engines.md-147-At r=20, full effective throttle and adequate jet fuel, a chamber consumes 0.004 amount/update, 0.04 L/update or 2.4 L/s. With incoming pressure and temperature zero it sets outgoing pressure to 32000 and temperature to 2. At r=0.5 it consumes zero and does not heat. With only 0.001 amount available at r=20, effective throttle becomes 0.25 and that update consumes the remaining 0.01 L.
+investigation/jet-engines.md-148-
+investigation/jet-engines.md-149-An undamaged turbine at r=20 and incoming pressure 32000 first reaches r0=21.2. Its electrical fraction is 0.00212, electrical addition is 0.0011236 charge/update or 0.067416 charge/s, and it submits r=21.155056. The medium turbine uses shaft weight 160 and can then receive a different network RPS. Outgoing pressure is 16000. These are individual local states, not a solved steady chain.
+investigation/jet-engines.md-150-
+investigation/jet-engines.md:151:An exhaust at incoming pressure 16000, sea level and zero spoiler computes 480000 internal force. With S=1000, the helper limits application to 100000. Half spoiler gives 240000 before the cap. An enabled afterburner with 0.001 stored jet-fuel amount gives multiplier 1.5 and force 720000 before the cap. With 0.4 stored amount, the observed multiplier is 201 and raw force is 96480000. The latter illustrates why assuming a universal 1.5 multiplier would misrepresent the recovered branch; it does not establish a steady externally supplied fuel flow or measured thrust.
+investigation/jet-engines.md-152-
+investigation/jet-engines.md-153-## Remaining questions and bounded exclusions
+investigation/jet-engines.md-154-
+investigation/jet-engines.md-155-1. Whole-engine RPS-to-thrust relation and startup time remain open. The component arithmetic, pressure/temperature averaging and cached-speed traversal are recovered. They rule out a direct exhaust `constant*RPS*size` formula and a pressure-only ignition gate. List construction through ducts, multi-branch topology and complete phase scheduling are not reconstructed here, so the model cannot predict equilibrium pressure or RPS from a parts list.
+investigation/jet-engines.md:156:2. Afterburner external fuel flow remains open. The complete subtype-4 branch, fuel exchange helper, purge helper, constructor and initializer were inspected. They rule out an explicit jet-fuel debit proportional to pressure, RPS, enable state or thrust in that branch, and rule out replacing the native stored-fuel multiplier with a fixed 1.5. The port helper can redistribute liquid with the external network. Other external writers and a complete fluid-network operating point were not reconstructed, so this report does not claim that every connected afterburner arrangement consumes zero tank fuel.
+investigation/jet-engines.md-157-3. Pressure and temperature physical units remain open. Resource port names, save keys and arithmetic are traced, and the jet fields are separate from the ordinary fluid compartment. No conversion to pascals, atmospheres, kelvin or degrees Celsius appears in the traced jet paths. Ordinary fluid temperature units do not establish jet-temperature units. Calibration or a native UI/unit conversion outside these paths is still needed.
+investigation/jet-engines.md-158-4. SI torque, power and efficiency remain open. Mechanical port speed is RPS and submitted weight is 160. The solver weight, raw pressure and charge additions rule out treating the medium turbine's tooltip as a measured N m output. No physical energy balance or mass-flow rate was recovered.
+investigation/jet-engines.md:159:5. General damage, immersion and intake behavior are not a complete model here. Both intake definitions use subtype 0 and are retained in the update. The intake includes directional vehicle velocity, altitude, damage and water checks. Those paths were checked to avoid assigning the intake-only final damping block to every jet part. The complete intake force/damage behavior and overspeed damage propagation need a separate decode if an assembled-engine simulator is required.
+investigation/jet-engines.md-160-
+investigation/jet-engines.md-161-## Replacement wording for the recorded gaps
+investigation/jet-engines.md-162-
+investigation/jet-engines.md-163-For issue #7, replace "Jet simulation code was not decoded." with:
+investigation/jet-engines.md-164-
+investigation/jet-engines.md-165-> The modular jet component update is decoded for executable SHA-256 f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699. Compressor pressure/load, RPS-gated combustion, fuel consumption, temperature increments, turbine RPS/shaft weight, and pressure-based exhaust force are recovered. Whole-engine steady state through ducts and branches, physical pressure/temperature units and SI efficiency remain open. See investigation/jet-engines.md.
+investigation/jet-engines.md-166-
+investigation/jet-engines.md-167-For issue #57, replace "There is no jet thrust graph because the full thrust formula is not verified." with:
+investigation/jet-engines.md-168-
+investigation/jet-engines.md:169:> The local exhaust formula is verified as 32*max(incoming_pressure-1000,0), scaled by altitude, spoiler, stored-fuel afterburner multiplier and a 100*S application cap. A graph against incoming internal pressure is supported. A universal RPS-to-thrust graph remains open because pressure depends on the connected engine network. The formula uses internal force units.
+investigation/jet-engines.md-170-
+investigation/jet-engines.md-171-For issue #147, replace its quoted limitation with:
+investigation/jet-engines.md-172-
+investigation/jet-engines.md:173:> Ignition requires internal RPS strictly above 0.5. Effective throttle u is clamped and limited by available jet fuel; consumption is 0.12*u*RPS L/s. The compressor transfers 0.2*(100*r0-(p_out-p_in)) pressure state and loses 0.0001 times that transfer in RPS after starter input and 0.99 drag. Combustion adds 1600*u*RPS pressure and 0.1*u*RPS internal temperature per update. Turbines halve incoming pressure, gain RPS from it, and produce internal electrical charge. The medium turbine mechanical port submits RPS and shaft weight 160, not a verified SI torque. Exhaust force depends on incoming pressure above 1000. Afterburners use stored jet fuel for a variable multiplier; no explicit jet-fuel debit appears in the exhaust branch, while external fluid exchange remains separate. Physical temperature/pressure units, complete assembled-engine behavior and SI efficiency remain open.
+investigation/jet-engines.md-174-
+investigation/jet-engines.md-175-These are proposed replacements only. No issue or wiki content was edited.
+investigation/jet-engines.md-176-
+investigation/jet-engines.md-177-## Reproduction
+investigation/jet-engines.md-178-
+investigation/jet-engines.md-179-```
+investigation/jet-engines.md-180-sha256sum stormworks64.exe

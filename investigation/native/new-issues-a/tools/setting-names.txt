@@ -1,0 +1,766 @@
+0x140ae3a40 Returns the data of the first seat of the specified name or voxel position found on the specified vehicle.
+0x140ae3cc0 DATA, is_success = server.getVehicleSeat(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae3d30 DATA, is_success = server.getVehicleSeat(vehicle_id, seat_name)
+0x140ae3eb0 Returns the state of the first button of the specified name or voxel position found on the specified vehicle.
+0x140ae4040 DATA, is_success = server.getVehicleButton(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae40c0 DATA, is_success = server.getVehicleButton(vehicle_id, button_name)
+0x140ae4120 Returns the voxel position of the first sign of the specified name or voxel position found on the specified vehicle.
+0x140ae43d0 DATA, is_success = server.getVehicleSign(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae4430 DATA, is_success = server.getVehicleSign(vehicle_id, sign_name)
+0x140ae4480 Returns the value of the first dial of the specified name or voxel position found on the specified vehicle.
+0x140ae4500 Cut the contents of the selection grid from your vehicle. Logic links to other parts of your vehicle will be preserved the first time you paste.
+0x140ae4640 DATA, is_success = server.getVehicleDial(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae46e0 DATA, is_success = server.getVehicleDial(vehicle_id, dial_name)
+0x140ae4750 Returns the resource data of the first hopper of the specified name or voxel position found on the specified vehicle.
+0x140ae48c0 DATA, is_success = server.getVehicleHopper(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae4920 DATA, is_success = server.getVehicleHopper(vehicle_id, hopper_name)
+0x140ae4980 Returns the data of the first battery of the specified name or voxel position found on the specified vehicle.
+0x140ae49f0 Paste the contents of the selection grid onto your vehicle. Pasted components will have their own bodies and must be merged to attach them to your vehicle.
+0x140ae51d0 DATA, is_success = server.getVehicleBattery(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae5400 DATA, is_success = server.getVehicleBattery(vehicle_id, battery_name)
+0x140ae5448 Save the current selection grid as a new vehicle.
+0x140ae5480 Returns the data of the first weapon component of the specified name or voxel position found on the specified vehicle.
+0x140ae5600 DATA, is_success = server.getVehicleWeapon(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae5668 DATA, is_success = server.getVehicleWeapon(vehicle_id, name)
+0x140ae56d0 Returns the data of the first rope anchor component of the specified name or voxel position found on the specified vehicle.
+0x140ae5840 DATA, is_success = server.getVehicleRopeHook(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae58a8 DATA, is_success = server.getVehicleRopeHook(vehicle_id, name)
+0x140ae5900 Applies a set fluid action to the first tank of the specified name or voxel position found on the specified vehicle. Fluid of the same state(gas or liquid) as the target type will be cleared when this function is triggered, therefore to fully clear a tank call this function twice, one for gases and one for liquids. Stormworks uses Centi-Litres behind the scenes and as such values here should reflect that (10x Litres).
+0x140ae5fe0 Override the inputs to the first seat of the specified name or voxel position found on the specified vehicle. A seated player will prevent overrides.
+0x140ae61b8 Use pipes with Advanced Vehicle difficulty
+0x140ae61f0 server.setVehicleTank(vehicle_id, tank_name, amount, FLUID_TYPE)
+0x140ae6231 server.setVehicleTank(vehicle_id, voxel_x, voxel_y, voxel_z, amount, FLUID_TYPE)
+0x140ae62a0 server.setVehicleSeat(vehicle_id, voxel_x, voxel_y, voxel_z, axis_w, axis_d, axis_up, axis_right, button1, button2, button3, button4, button5, button6, trigger)
+0x140ae6370 server.setVehicleSeat(vehicle_id, seat_name, axis_w, axis_d, axis_up, axis_right, button1, button2, button3, button4, button5, button6, trigger)
+0x140ae6420 server.pressVehicleButton(vehicle_id, button_name)
+0x140ae6480 Applies a press action to the first button of the specified name or voxel position found on the specified vehicle.
+0x140ae6560 Applies a set number action to the first keypad of the specified name or voxel position found on the specified vehicle.
+0x140ae65f0 server.pressVehicleButton(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140ae6680 server.setVehicleKeypad(vehicle_id, voxel_x, voxel_y, voxel_z, value, (value2))
+0x140ae66e0 server.setVehicleKeypad(vehicle_id, keypad_name, value, (value2))
+0x140ae6740 server.setVehicleHopper(vehicle_id, hopper_name, amount, RESOURCE_TYPE)
+0x140ae68d0 Sets the number of a specific type of resource object inside a hopper of the specified name or voxel position found on the specified vehicle.
+0x140ae6960 Toggle visibility of the vehicle's centre of mass.
+0x140ae69a0 Applies a set charge action to the first battery of the specified name or voxel position found on the specified vehicle. 0 to 1 range.
+0x140ae6a40 server.setVehicleHopper(vehicle_id, voxel_x, voxel_y, voxel_z, amount, RESOURCE_TYPE)
+0x140ae6af0 server.setVehicleBattery(vehicle_id, voxel_x, voxel_y, voxel_z, amount)
+0x140ae6b50 server.setVehicleBattery(vehicle_id, battery_name, amount)
+0x140ae6bd8 server.setVehicleWeapon(vehicle_id, name, amount)
+0x140ae6c20 Applies a set ammo action to the first weapon component of the specified name or voxel position found on the specified vehicle. 0 to 1 range.
+0x140ae6ce0 Spawns a rope between two rope anchors on the specified vehicles at the provided rope hook component voxel positions. Length will be clamped to at least the distance between voxels. Length of 0 will spawn the rope at the clamped minimum. Currently does not fully support pulleys second rope slot.
+0x140ae6e20 server.setVehicleWeapon(vehicle_id, voxel_x, voxel_y, voxel_z, amount)
+0x140ae6ea0 Get the number of burning surfaces on a specified vehicle.
+0x140ae6ef0 server.spawnVehicleRope(vehicle_id_1, voxel_x_1, voxel_y_1, voxel_z_1, vehicle_id_2, voxel_x_2, voxel_y_2, voxel_z_2, length, ROPE_TYPE)
+0x140ae7040 Set the default block tooltip of a vehicle to display some text. Blocks with unique tooltips (e.g. buttons) will override this tooltip.
+0x140ae70e0 surface_count, is_success = server.getVehicleFireCount(vehicle_id)
+0x140ae7150 Applies impact damage to a vehicle at the specified voxel location. Damage maxiumum is 100. Radius is in meters. Negative damage values will instead repair the area.
+0x140ae7208 is_success = server.setVehicleTooltip(vehicle_id, text)
+0x140ae7250 Returns whether the specified vehicle has finished loading and is simulating.
+0x140ae7420 is_success = server.addDamage(vehicle_id, damage, voxel_x, voxel_y, voxel_z, radius)
+0x140ae7480 Returns whether the specified vehicle is loading, simulating or unloading.
+0x140ae7510 is_simulating, is_success = server.getVehicleSimulating(vehicle_id)
+0x140ae7560 Discard any changes and start a new vehicle. This will refund any money spent.
+0x140ae75b0 Sets a vehicle's global transponder to active. (All vehicles have a global transponder that can be active even if a vehicle is not loaded).
+0x140ae7640 Spawn your vehicle in the world.
+0x140ae7668 is_local, is_success = server.getVehicleLocal(vehicle_id)
+0x140ae76a8 Save your vehicle for later.
+0x140ae76d0 Sets a vehicle to be editable by players. If a vehicle is spawned by a script it will not have a parent workbench until edited by one (Edit vehicle in zone).
+0x140ae7770 Load a saved vehicle. You will need enough inventory and money to fully construct a loaded vehicle.
+0x140ae77e0 is_success = server.setVehicleTransponder(vehicle_id, is_active)
+0x140ae7830 Sets a vehicle to be invulnerable to damage.
+0x140ae7860 Upload your vehicle to the Steam Workshop, or update a previous upload.
+0x140ae78b0 is_success = server.setVehicleEditable(vehicle_id, is_editable)
+0x140ae78f8 Sets a vehicle to show on the map.
+0x140ae79e0 is_success = server.setVehicleInvulnerable(vehicle_id, is_invulnerable)
+0x140ae7ae0 is_success = server.setVehicleShowOnMap(vehicle_id, is_show_on_map)
+0x140ae7ce8 Erase components from your vehicle.
+0x140ae8010 Move your vehicle within the bounds of the edit grid.
+0x140ae8402 ["vehicle"] = target vehicle id,
+0x140ae8470 Merge two vehicle bodies. Different bodies are denoted by different colors. Click on a body to select it, then click an adjacent one to merge them.
+0x140ae85a0 Select parts of your vehicle to cut, copy, paste, rotate, flip and move them around. Export a selection as a new vehicle, or import a saved subassembly to place on your vehicle.
+0x140ae86d0 server.setAITargetVehicle(object_id, target_vehicle_id)
+0x140ae8710 Create and edit microcontrollers to build compact logic circuits for your vehicle.
+0x140ae8770 Sets the target vehicle for an AI. Different AIs use this data for their unique tasks.
+0x140ae87e0 Characters and vehicles can be assigned to teams. Characters with AI enabled can be set to target certain teams, which will allow a character with handheld weapons equipped to automatically shoot at the targeted teams.
+0x140ae8a00 Your saved vehicles.
+0x140ae8a60 Some basic vehicles to get you started.
+0x140ae8aa0 Vehicles you've subscribed to on the Steam Workshop.
+0x140ae8af0 Upload a new vehicle to the steam workshop, or select one of your existing workshop vehicles to edit and overwrite it
+0x140ae8b78 Preset subassemblies to paste onto your vehicles.
+0x140ae8bc8 Vehicle Type
+0x140ae8c08 VEHICLE NAME
+0x140ae8c80 Vehicle Functionality
+0x140ae8cd8 server.setAIVehicleTeam(vehicle_id, team)
+0x140ae8e50 Set team value for a vehicle. 0 to 29.
+0x140ae9b53 "third_person_vehicle",
+0x140ae9b6c "vehicle_damage",
+0x140ae9b7f "player_damage",
+0x140ae9b91 "npc_damage",
+0x140ae9bbb "teleport_vehicle",
+0x140ae9c12 "map_show_vehicles",
+0x140ae9cc7 "engine_overheating",
+0x140ae9cfb "cleanup_vehicle",
+0x140ae9d31 "vehicle_spawning",
+0x140aebc30 Vehicle Button
+0x140aed412 if(object["type"] == "vehicle")
+0x140aed43e server.despawnVehicle(id, true)
+0x140aee368 NEW VEHICLE
+0x140aee5e8 Press ### to show/hide vehicle
+0x140aee730 Remove Vehicle from Zone
+0x140aee790 Create Vehicle
+0x140aee7e8 Edit Vehicle in Zone
+0x140aee830 Too Many Vehicles in Zone
+0x140af0990 graphics/shaders/opaque_damaged
+0x140af0ed0 Lua scripting gives you the tools to create advanced logic components using the Lua scripting language. Stormworks provides a number of functions to allow your script to interface with your vehicle's logic system, as well as drawing to in-game monitors.
+0x140af2a71 - When your vehicle despawns and respawns, your script will be executed 'fresh' and any state stored within the script will be lost. We recommend keeping your script as stateless as possible, and making use of existing logic components (e.g. memory register) to store values that you wish to persist.
+0x140af3ee8 Heavy Land Vehicles
+0x140af3f18 Land Vehicles
+0x140af4288 Arctic Land Vehicles
+0x140af46d8 Keep Vehicle Active
+0x140af4a50 Put out this forest fire that will cause major environmental damage.
+0x140af4cb0 Vehicle editing is disabled by server settings.
+0x140af6400 There is already a vehicle in the edit zone, are you sure you would like to spawn this vehicle?
+0x140af6470 Spawn Vehicle
+0x140af64a0 Cleanup Vehicle
+0x140af66a0 Third Person Vehicle
+0x140af90d0 Vehicles
+0x140afd298 Show/Hide Vehicle (Selection Grid)
+0x140afe560 vehicle_parent_component_id
+0x140afe590 object or vehicle is null
+0x140afe5c0 vehicle_ids
+0x140afe618 local vehicle or scene vehicle is null
+0x140b006d8 spawn vehicle
+0x140b01da8 Cannot upload modded vehicles.
+0x140b01fb0 The vehicle you are trying to load is missing a component definition, ensure your save has the required mods enabled.
+0x140b049e0 Destroy Vehicles
+0x140b04ce0 Assign the vehicle to the selected group
+0x140b04de0 Delete the group and return its vehicles to the default group
+0x140b06320 <1>(F2) <0>Debug Vehicle Physics
+0x140b06470 graphics/ui/vehicle_thumbnail_d.txtr
+0x140b06a48 Renamed vehicle from "
+0x140b06e78 graphics/ui/vehicle_thumbnail_advanced_d.txtr
+0x140b072a8 data/backups/vehicles
+0x140b07718 Your vehicle was exported to 
+0x140b077b8 vehicle.xml
+0x140b07808 This vehicle does not have a description yet.
+0x140b07848 data/vehicles/tmp/autosave.xml
+0x140b07878 data/vehicles/tmp/autosave.png
+0x140b078c8 data/vehicles/tmp/autosave/
+0x140b08bc0 action_editor_spawn_vehicle
+0x140b08c00 action_editor_show_hide_vehicle
+0x140b08c58 vehicle_id
+0x140b08d30 attachment_vehicle_seat
+0x140b08d90 attachment_vehicle_handle_left
+0x140b08de0 attachment_vehicle_ladder
+0x140b08e58 attachment_vehicle_handle_right
+0x140b08ec0 attachment_vehicle_scope
+0x140b09f18 server_to_client_set_vehicle_data
+0x140b09fc0 client_to_server_request_spawn_vehicle
+0x140b0a150 repair_vehicle
+0x140b0a1b0 set_vehicle_button_float_input
+0x140b0a1e0 use_vehicle_button
+0x140b0a548 get_vehicle_data
+0x140b0a6c0 teleport_vehicle
+0x140b0a6e0 edit_vehicle
+0x140b0a730 clear_all_vehicles
+0x140b0a768 debug_spawn_vehicle
+0x140b0a8b8 get_vehicle_state
+0x140b0ab48 vehicle_%u/
+0x140b0ac88 use_vehicle_inventory
+0x140b0b748 map_vehicle_pressed
+0x140b0b7d0 damage_player
+0x140b0b8c0 damage_raycast
+0x140b0c2d8 vehicles: 
+0x140b0c358 set_vehicle_hopper_level
+0x140b0c378 set_vehicle_tank_level
+0x140b0c3a0 set_vehicle_gun
+0x140b0c3b8 set_vehicle_battery_level
+0x140b0c438 add_vehicle
+0x140b0c480 set_initial_vehicle_state
+0x140b0c4a8 remove_vehicle
+0x140b0c4c8 sync_vehicle_physics
+0x140b0c4e8 delta_update_vehicle_state
+0x140b0c6a8 add_vehicle_damage
+0x140b0c6c8 add_vehicle_physics_contact
+0x140b0c6f0 add_map_vehicle
+0x140b0cbb0 purchase_fuel_from_vehicle
+0x140b0cbd8 update_map_vehicle
+0x140b0cc10 remove_map_vehicle
+0x140b0d4f0 damage_character
+0x140b0d580 damage_fish
+0x140b0d9d0 set_vehicle_body_motion_state
+0x140b0da20 set_dynamic_motion_state_grounded_vehicle
+0x140b0e490 set_map_vehicle_popup
+0x140b0e4b8 set_vehicle_data
+0x140b0e4e0 set_vehicle_tooltip
+0x140b0e538 set_vehicle_team
+0x140b0ec58 vehicle_weapon_detonate
+0x140b0ef88 offset_vehicle
+0x140b10310 engine_overheating
+0x140b10410 cleanup_vehicle
+0x140b10460 third_person_vehicle
+0x140b104c8 player_damage
+0x140b104f0 vehicle_damage
+0x140b10538 npc_damage
+0x140b10808 map_show_vehicles
+0x140b114b0 vehicle control
+0x140b47cf8 vehicle_groups
+0x140b47fb8 fov_first_person_vehicle
+0x140b48078 editor_autosave_slot_vehicle
+0x140b48318 vehicle_inventory_id
+0x140b4b718 audio/fx4/overheat.ogg
+0x140b52c68 vehicle_spawning
+0x140b538d0 vehicle_linear_damping
+0x140b53918 vehicle_friction
+0x140b53930 vehicle_angular_damping
+0x140b555c8 default_vehicle
+0x140b555e8 is_invisible_vehicle
+0x140b55600 spawned_static_vehicle_id
+0x140b556c8 default vehicle
+0x140b55770 is invisible vehicle
+0x140b567e8 vehicle spawn
+0x140b59cc8 exhaust_damage_1.xml
+0x140b59cf0 exhaust_damage_1_strip.xml
+0x140b59d28 exhaust_damage_1_splash.xml
+0x140b59dc0 vehicle_impact_smoke.xml
+0x140b59e18 vehicle_damage.xml
+0x140b5a580 vehicle_impact_splash.xml
+0x140b5ade8 vehicle_global_id
+0x140b5b188 vehicle_constraints
+0x140b5b840 vehicle mission
+0x140b5fc30 Vehicle Control
+0x140b5fd28 vehicle_control
+0x140b605d4 damage
+0x140b65080 Adds a custom slider that will be seen on the microcontroller's property panel when placed on a vehicle.
+0x140b650f0 Adds a custom dropdown list that will be seen on the microcontroller's property panel when placed on a vehicle.
+0x140b65f70 Adds a custom on/off toggle that will be seen on the microcontroller's property panel when placed on a vehicle.
+0x140b66000 Adds a custom number input that will be seen on the microcontroller's property panel when placed on a vehicle.
+0x140b670e0 Displays a number on this microcontroller's tooltip when it is looked at by the player on a spawned vehicle.
+0x140b67180 Displays an on/off signal on this microcontroller's tooltip when it is looked at by the player on a spawned vehicle.
+0x140b67eb0 Adds a custom text input that will be seen on the microcontroller's property panel when placed on a vehicle, for showing player-defined text within a lua script.
+0x140b69c50 damage_counter
+0x140b6fd40 destroy_vehicles
+0x140b6fd58 property_ammo_damage
+0x140b6fe18 ammo_damage
+0x140b76128 vehicle_tool_welder
+0x140b76140 vehicle_tool_interact
+0x140b76ea0 research_land_vehicles
+0x140b771b8 research_heavy_land_vehicles
+0x140b77d18 research_arctic_land_vehicles
+0x140b7c180 vehicle
+0x140b7c268 vehicle_state
+0x140b7c3b0 /vehicles/
+0x140b7c3e0 /vehicle_groups/
+0x140b87250 pseudo_damaged
+0x140b878a0 bomb_vehicle_id
+0x140b87a90 fire_vehicle_parent_id
+0x140b87ef8 vehicle_group_id
+0x140b88038 is_render_vehicle
+0x140b88170 vehicles
+0x140b881b8 vehicle_save
+0x140b881d8 vehicle_counter
+0x140b881e8 vehicle_tick
+0x140b881f8 vehicle_data
+0x140b88230 vehicle_group_data
+0x140b8a4d9 You can change a component's rotation by hovering over different adjacent surfaces in the vehicle.
+0x140b8b690 Press [$[action_use_seat]] to exit your vehicle.
+0x140b8bec0 Your boat was damaged in a recent storm. You will need to use a workbench to fix it.
+0x140b8bf30 This is the vehicle editor, where you can fix your boat.
+0x140b8bf88 VEHICLE EDITOR
+0x140b8bfb0 You can rotate the camera around in the vehicle editor by holding the RIGHT MOUSE BUTTON while dragging, or by holding [shift] and LEFT MOUSE BUTTON.
+0x140b8c0b0 You can pan the camera around in the vehicle editor by dragging while holding 
+0x140b8fd90 Ice cannot be picked up but can be moved using vehicles. Its size and type can be set in the properties window.
+0x140b90f50 spawnVehicleSavefile
+0x140b90f78 spawnAddonVehicle
+0x140b90fd8 despawnVehicle
+0x140b91080 spawnVehicle
+0x140b911f0 getVehiclePos
+0x140b916b8 despawnVehicleGroup
+0x140b91840 setVehiclePos
+0x140b91890 resetVehicleState
+0x140b91a48 setVehiclePosSafe
+0x140b91ab0 moveVehicle
+0x140b91c28 moveVehicleSafe
+0x140b91c48 getVehiclesByName
+0x140b91c80 getVehicleData
+0x140b91ca0 getVehicleGroup
+0x140b91cd8 getVehicleComponents
+0x140b91d08 setVehicleInvulnerable
+0x140b91d48 setVehicleEditable
+0x140b91d70 cleanVehicles
+0x140b91da8 setVehicleShowOnMap
+0x140b92318 getCharacterVehicle
+0x140b92330 VEHICLE BUTTONS
+0x140b92430 VEHICLE BUTTON
+0x140b927fd  Any vehicles used in your addon have been included as part of the upload. Players will not need to separately subscribe to any of these vehicles.
+0x140b93048 [no vehicle button set]
+0x140b93080 addDamage
+0x140b931a0 Loading vehicles...
+0x140b93200 setVehicleTooltip
+0x140b93220 getVehicleFireCount
+0x140b93750 getVehicleSimulating
+0x140b938e0 setVehicleTransponder
+0x140b93900 getVehicleLocal
+0x140b93a60 Vehicle
+0x140b93bc0 spawnVehicleRope
+0x140b93c20 getVehicleSeat
+0x140b93c40 setVehicleSeat
+0x140b93c60 pressVehicleButton
+0x140b93c88 getVehicleSign
+0x140b93c98 SAVE VEHICLE
+0x140b93ca8 setVehicleKeypad
+0x140b93cc8 getVehicleButton
+0x140b93ce8 setVehicleTank
+0x140b93d18 getVehicleDial
+0x140b93d30 setVehicleBattery
+0x140b93d60 getVehicleTank
+0x140b93da0 setVehicleHopper
+0x140b93dc8 getVehicleBattery
+0x140b93e20 setVehicleWeapon
+0x140b93e48 getVehicleHopper
+0x140b93e80 getVehicleRopeHook
+0x140b93ea8 getVehicleWeapon
+0x140b94230 setAITargetVehicle
+0x140b94348 setAIVehicleTeam
+0x140b943a0 Are you sure you want to take this vehicle back to the workbench?
+0x140b9472f This will cause all spawned objects and vehicles created by this mission to be removed from the world.
+0x140b94920 Survival difficulty. Advanced vehicle mechanics. Transmission pipes. Injuries and death. No starting vehicles.
+0x140b949b0 Recommended difficulty for new players. No vehicle or character damage. No advanced vehicle mechanics.
+0x140b94aa0 Survival difficulty with reduced starting money, locked to first person view, no fast travel or vehicle teleporting, limited fuel.
+0x140b94fd8 setVehicleMove
+0x140b94ff8 data/vehicles/
+0x140b95328 Vehicle Foam
+0x140b956c8 First Person Vehicle
+0x140b95e20 Vehicle Camera Mode
+0x140b95e70 getVehicleFire
+0x140b967c8 onVehicleSpawn
+0x140b967f0 onVehicleUnload
+0x140b96848 onVehicleLoad
+0x140b969c8 onVehicleTeleport
+0x140b96a98 onVehicleDespawn
+0x140b96b10 onVehicleDamaged
+0x140b987b0 You can set a vehicle to be static in the properties window. Static vehicles are fixed in place, making them useful for adding buildings or cranes to missions.
+0x140b98868 ADD VEHICLE
+0x140b98880 Vehicle buttons allow your mission to interact with a named button on a vehicle. You must parent the button to a vehicle, and set the 'button display name' in the properties window to be the name of a button on the parent vehicle.
+0x140b98970 ADD VEHICLE BUTTON
+0x140b98e48 Parent to Vehicle
+0x140b98e98 Replace Vehicle File
+0x140b99078 vehicle_parent_id
+0x140b99398 vehicle_parent_transform
+0x140b99610 vehicle_file_name
+0x140b997c0 vehicle_is_static
+0x140b997e8 vehicle_file_store
+0x140b99830 vehicle_is_invulnerable
+0x140b998c8 vehicle_is_editable
+0x140b998f0 vehicle_is_transponder_active
+0x140b99ad0 vehicle_is_show_on_map
+0x140b99c58 vehicle_is_component_modded
+0x140b99c90 vehicle_is_modded
+0x140b99d38 vehicle_button_name
+0x140b9a040 vehiclebutton
+0x140b9a208 vehicle_%u.xml
+0x140b9a368 UPLOAD NEW VEHICLE
+0x140b9a3c0 OVERWRITE EXISTING VEHICLE
+0x140b9a3e0 Share your vehicle with other players on the Steam Workshop.
+0x140b9a550 global_vehicle_id
+0x140b9a590 Overwrite your vehicle and publish your changes to the Steam Workshop.
+0x140b9a5d8 vehicle_button_position
+0x140b9a640 parent_vehicle_id
+0x140b9aa08 Enter a name for this vehicle
+0x140b9aba8 Enter file name to export vehicle model to
+0x140b9abe8 Are you sure you want to delete this vehicle?
+0x140b9ac28 DELETE VEHICLE
+0x140b9ac60 Are you sure you want to overwrite this vehicle?
+0x140b9aca8 OVERWRITE VEHICLE
+0x140b9ae50 Are you sure you want to clear this vehicle? This cannot be undone.
+0x140b9aea8 CLEAR VEHICLE
+0x140b9aeb8 UPLOAD VEHICLE
+0x140b9aed8 Are you sure you want to overwrite this workshop vehicle?
+0x140b9af18 ERROR LOADING VEHICLE
+0x140b9af50 Are you sure you want to upload this vehicle to the workshop?
+0x140b9afd0 A vehicle has loaded that was created in a modified version of the game. This is not supported and may cause low framerate.
+0x140b9b0d0 Performance Warning: A vehicle has loaded that contains a large number of physics shapes.
+0x140b9b130 The vehicle you are trying to load is too large for this edit area.
+0x140b9b175 You will need to purchase an island with a larger workbench to load this vehicle. Check the map screen for bases for sale.
+0x140b9b1f0 Performance Warning: A vehicle has loaded that contains a large number of physics bodies.
+0x140b9b270 Performance Warning: A vehicle has loaded that contains a large number of monitors.
+0x140b9b2c8 The vehicle file you are trying to load could not be found.
+0x140b9b310 Performance Warning: A vehicle has loaded that contains a large number of lights.
+0x140b9b370 The vehicle you are trying to load is too large for this edit area.
+0x140b9b3c0 A vehicle has loaded with a large file size (>14MB) and may impact performance or fail to load correctly.
+0x140b9b490 Buoyancy Generation Failed: A vehicle has loaded with invalid buoyancy. Please ensure you do not have intersecting doors and turret rings.
+0x140b9b520 Your vehicle has failed to upload to the Steam workshop.
+0x140b9b5b0 A vehicle has loaded with a large file size (>10MB) and may impact performance.
+0x140b9b600 Your workshop vehicle has failed to update.
+0x140b9b710 The updated microcontroller could not be added to your vehicle.
+0x140b9b850 Please give your vehicle a descriptive name.
+0x140b9b880 Your vehicle is too small to be uploaded to the workshop.
+0x140b9b8f0 You are missing some components in this vehicle, they have been removed:
+0x140b9ba30 This vehicle was built with the 'Advanced Vehicles' difficulty option disabled.
+0x140b9ba81 You are currently playing with Advanced Vehicles enabled, so this vehicle may not function correctly or at all without modification.
+0x140b9bb20 This vehicle was built with the 'Advanced Vehicles' difficulty option enabled.
+0x140b9bb70 You are currently playing with Advanced Vehicles disabled, so this vehicle may not function correctly or at all without modification.
+0x140b9bc10 Some components have been updated and no longer fit on this vehicle. You will still be able to edit this vehicle but these components have been removed:
+0x140b9bd68 VEHICLE UPLOAD COMPLETE
+0x140b9bf40 Your vehicle was successfully uploaded to the Steam workshop.
+0x140b9bf7f We recommend heading to your vehicle's workshop page to add a description and screenshots.
+0x140b9bff0 VEHICLE UPDATE COMPLETE
+0x140b9c130 Your vehicle was updated successfully.
+0x140b9c158 You can customise the changelog for this update by heading to your vehicle's workshop page to let your subscribers know what's new.
+0x140b9d150 template_vehicle.png
+0x140b9d170 Overwrite your microcontroller and publish your changes to the Steam Workshop. Players will need to replace any copies of your microcontroller that they have placed on their vehicle in order to use your updated version.
+0x140b9d310 Return to the vehicle editor.
+0x140b9d3c8 Save your microcontroller for use in your vehicles.
+0x140b9dbe8 data/vehicles/tmp/
+0x140b9de88 data/preset_vehicles_advanced/
+0x140b9e098 data/backups/vehicles/
+0x140b9e100 Enter Vehicle Name Here
+0x140b9e350 Multi-vehicle
+0x140b9f1b8 First Person Vehicle Only
+0x140b9f258 Advanced Vehicles
+0x140b9f2a8 Camera is locked to first person in vehicles.
+0x140b9f300 Vehicle Damage
+0x140b9f4d8 Player Damage
+0x140b9f548 Vehicles can be damaged by the environment.
+0x140b9f7f0 NPC Damage
+0x140b9fec8 Teleport Vehicles
+0x140b9fee8 Megalodons will stalk and attack your vehicles.
+0x140b9ff38 Teleport vehicles back to the workbench from the map.
+0x140ba01e0 Vehicles spawn with no fuel and must be refilled from fuel tanks around the world (only applies to advanced vehicles).
+0x140ba3360 function onPlayerSit(peer_id, vehicle_id, seat_name)
+0x140ba3448 function onPlayerUnsit(peer_id, vehicle_id, seat_name)
+0x140ba34c8 function onCharacterSit(object_id, vehicle_id, seat_name)
+0x140ba3568 function onCharacterUnsit(object_id, vehicle_id, seat_name)
+0x140ba36f0 function onCreatureSit(object_id, vehicle_id, seat_name)
+0x140ba3790 function onCreatureUnsit(object_id, vehicle_id, seat_name)
+0x140ba3d40 onGroupSpawn is called when a vehicle group is spawned. If group is spawned by a script peer_id will be -1. All vehicles in a group must still load locally so they can begin simulating for players. Cost is currently only calculated for player spawned vehicle groups. x, y, z are the group's spawn coordinates in world space.
+0x140ba3e90 function onVehicleSpawn(vehicle_id, peer_id, x, y, z, group_cost, group_id)
+0x140ba3ef0 onVehicleSpawn is called when a vehicle is spawned. If vehicle is spawned by a script peer_id will be -1. Spawned vehicles must still load locally so they can begin simulating for players. Cost is currently only calculated for player spawned vehicle groups. x, y, z are the group's spawn coordinates in world space. For physics-accurate sub-grid transform values the vehicles must be loaded to initialize their physics which then acts as their new base transform; Until the physics is created unloaded vehicles always treat their group origin as their position.
+0x140ba41d0 function onVehicleDespawn(vehicle_id, peer_id)
+0x140ba4210 onVehicleDespawn is called when a vehicle is despawned. If vehicle is despawned by a script peer_id will be -1.
+0x140ba4290 function onVehicleLoad(vehicle_id)
+0x140ba42c0 onVehicleLoad is called when a vehicle has loaded and is ready to simulate.
+0x140ba4318 function onVehicleUnload(vehicle_id)
+0x140ba4350 onVehicleUnload is called when a vehicle has unloaded and is no longer simulating.
+0x140ba43b0 function onVehicleTeleport(vehicle_id, peer_id, x, y, z)
+0x140ba4400 onVehicleTeleport is called when a vehicle is teleported or returned to workbench. If vehicle is teleported by a script peer_id will be -1. x,y,z are the destination coordinates in world space.
+0x140ba4640 function onButtonPress(vehicle_id, peer_id, button_name, is_pressed)
+0x140ba46a0 onButtonPress is called when a button is interacted with (still triggers on locked buttons). To get a button's current state please use getVehicleButton()
+0x140ba4890 function onSpawnAddonComponent(object_id/vehicle_id, component_name, TYPE_STRING, addon_index)
+0x140ba49a0 onSpawnAddonComponent is called when a vehicle or object is spawned by a script. addon_index is the internal index of the addon the object was spawned from (see mission functions below)
+0x140ba4a70 onVehicleDamaged is called when a vehicle is damaged or repaired. Damage amount will be negative if the component is repaired. The voxel parameters refer to the voxel position on the vehicle that sustained the damage relative to the origin of the vehicle. body_index is 0 for the main vehicle body, checking this parameter may be helpful for vehicles with sub bodies such as missiles that should be ignored.
+0x140ba4c53 "vehicle",
+0x140ba4d40 function onVehicleDamaged(vehicle_id, damage_amount, voxel_x, voxel_y, voxel_z, body_index)
+0x140ba5620 Called when an oil spill is updated, with the change (positive or negative) and the resulting total oil amount. Vehicle id is -1 for script command or oil tick updates.
+0x140ba5768 function onOilSpill(tile_x, tile_y, delta, total, vehicle_id)
+0x140ba6116 ["parent_vehicle_id"] = parent_vehicle_id,
+0x140ba6a10 Get table of component(object/vehicle) data for the specified component at the specified location at the specified addon_index. Returns nil if the component cannot be found.
+0x140ba6ad0 Spawn the component(object/vehicle) at the specified component index at the specified location at the specified addon_index. Optional parent_vehicle_id param for fire and zone components.
+0x140ba7140 ["vehicle_parent_component_id"] = vehicle parent component id,
+0x140ba72dc ["id"] = object_id/main_vehicle_id 
+0x140ba7302 ["object_id"] = object_id/main_vehicle_id 
+0x140ba732d         ["group_id"] = object_id/vehicle_id 
+0x140ba735a         ["vehicle_ids"] = { [i] = vehicle_id }
+0x140ba73b0 COMPONENT, is_success = server.spawnAddonComponent(transform_matrix, addon_index, location_index, component_index, [parent_vehicle_id])
+0x140ba7820 Clean All Vehicles
+0x140ba7a98 Vehicle Cleanup
+0x140ba7b88 Vehicle Spawning
+0x140ba7c40 Add a map marker for the specified peer(s). x, z represent the worldspace location of the marker, since the map is 2D a y coordinate is not required. If POSITION_TYPE is set to 1 or 2 (vehicle or object) then the marker will track the object/vehicle of object_id/vehicle_id and offset the position by parent_local_x, parent_local_z. Custom color defaults to red (0-255).
+0x140ba7e00 server.addMapObject(peer_id, ui_id, POSITION_TYPE, MARKER_TYPE, x, z, parent_local_x, parent_local_z, vehicle_id, object_id, label, radius, hover_label, r, g, b, a)
+0x140ba7ea8 Map Vehicles
+0x140ba7ec0 server.addMapObject(peer_id, ui_id, POSITION_TYPE, MARKER_TYPE, x, z, parent_local_x, parent_local_z, vehicle_id, object_id, label, radius, hover_label)
+0x140ba7fb8 Engine Overheating
+0x140ba7fef 1 = vehicle,
+0x140ba8a00 server.setPopup(peer_id, ui_id, name, is_show, text, x, y, z, render_distance, [vehicle_parent_id], [object_parent_id])
+0x140ba8a90 Creates a popup to the world/screen with the specified UI ID for the specified peer(s). If render distance is set to 0 then the popup will always render. Optionally Parent to a vehicle or Object, with x,y,z acting as a relative position.
+0x140ba9b71 63 = vehicle_flare,
+0x140ba9bc3 68 = vehicle_flare,
+0x140ba9cc0 object_id, is_success = server.spawnFire(transform_matrix, fire_size, fire_magnitude, is_lit, is_explosive, parent_vehicle_id, explosion_magnitude)
+0x140ba9fd0 Spawn a world fire at the specified world position matrix. parent_vehicle_id should be 0 if the fire should not move relative to a vehicle. Fires will slowly grow until they reach 1 magnitude.
+0x140bac8c6 Returning to the addon editor will despawn all vehicles and objects associated with the mission.
+0x140bacb18 server.setSeated(object_id, vehicle_id, seat_name)
+0x140bacb80 Sets the target character (or sit-able creature) to be seated in the first seat with the specified name found on the specified vehicle. Aliases: setCharacterSeated, setCreatureSeated
+0x140bacc50 server.setSeated(object_id, vehicle_id, x, y, z)
+0x140bacca0 Sets the target character (or sit-able creature) to be seated in the seat with the specified voxel position found on the specified vehicle. Aliases: setCharacterSeated, setCreatureSeated
+0x140bace60 Get the current vehicle_id for a specified character object.
+0x140bad090 vehicle_id, is_success = server.getCharacterVehicle(object_id)
+0x140bad7f0 Spawns a vehicle component from a specific addon. See getLocationComponentData() for info on how to get component_id. group_vehicles is a table listing all vehicle ids in this group.
+0x140bad9c0 Spawns a vehicle from local appdata using its file name. group_vehicles is a table listing all vehicle ids in this group.
+0x140badb90 vehicle_id, is_success, group_vehicles, group_id = server.spawnAddonVehicle(transform_matrix, addon_index, component_id)
+0x140badc40 Sets a vehicle to despawn when out of a player's range. If is_instant the vehicle will instantly despawn no matter the player's proximity.
+0x140badce0 vehicle_id, is_success, group_vehicles, group_id = server.spawnVehicle(transform_matrix, save_name)
+0x140badd50 Sets a all vehicles in a vehicle group to despawn when out of a player's range. If is_instant the vehicles will instantly despawn no matter the player's proximity.
+0x140bade08 is_success = server.despawnVehicle(vehicle_id, is_instant)
+0x140bade50 Gets the world position of the center of a vehicle's main body. Optionally passing a voxel position will return the world position of the specified voxel on the vehicle.
+0x140badf08 is_success = server.despawnVehicleGroup(group_id, is_instant)
+0x140badfb0 transform_matrix, is_success = server.getVehiclePos(vehicle_id, [voxel_x, voxel_y, voxel_z])
+0x140bae020 Teleports the specified vehicle to the target world position. The vehicle is unloaded and reloaded.
+0x140bae0f0 Teleports the specified vehicle to the target world position. The vehicle is unloaded and reloaded. The vehicle is displaced by other vehicles at the arrival point.
+0x140bae1b0 is_success = server.setVehiclePos(vehicle_id, transform_matrix)
+0x140bae340 Teleports all vehicles in the group to the target world position. The vehicle is unloaded and reloaded.
+0x140bae3c0 is_success, result_matrix = server.setVehiclePosSafe(vehicle_id, transform_matrix)
+0x140bae430 Teleports all vehicles in the group to the target world position. The vehicle is unloaded and reloaded. The vehicle is displaced by other vehicles that are not in the group at the arrival point.
+0x140bae568 Moves the specified vehicle to the target world position.
+0x140bae620 Moves the specified vehicle to the target world position. The vehicle is displaced by other vehicles at the arrival point.
+0x140bae6a8 is_success = server.moveVehicle(vehicle_id, transform_matrix)
+0x140bae950 Moves all vehicles in the group to the target world position.
+0x140bae9a0 is_success, result_matrix = server.moveVehicleSafe(vehicle_id, transform_matrix)
+0x140baea10 Moves all vehicles in the group to the target world position. The vehicle is displaced by other vehicles that are not in the group at the arrival point.
+0x140baeb00 Checks if a zone of size xyz is clear of vehicles at the provided transform.
+0x140baebc0 Reloads the vehicle as if spawning from a workbench, refreshing damage and inventories etc.
+0x140baec78 Cleans up all player spawned vehicles.
+0x140baecb0 is_success = server.resetVehicleState(vehicle_id)
+0x140baed28 server.cleanVehicles()
+0x140baed68 Returns a table of vehicle ids in the vehicle group.
+0x140baee20 Returns a table of vehicle ids that match the name set by a map-icon-block.
+0x140baee80 { [i] = vehicle_id }, is_success = server.getVehicleGroup(group_id)
+0x140baeed0 Gets general data for a vehicle.
+0x140baef10 { [i] = vehicle_id }, is_success = server.getVehiclesByName(name)
+0x140baef90 Gets advanced data for a LOADED vehicle. Including a list of attached character objects.
+0x140baf000 VEHICLE_DATA, is_success = server.getVehicleData(vehicle_id)
+0x140baf03e VEHICLE_DATA = {
+0x140baf086 ["group_id"] = vehicle_group_id,
+0x140baf3a0 LOADED_VEHICLE_DATA, is_success = server.getVehicleComponents(vehicle_id)
+0x140baf3eb LOADED_VEHICLE_DATA = {
+0x140baf600 Returns the value of the first tank of the specified name or voxel position found on the specified vehicle. Stormworks uses Centi-Litres behind the scenes and as such values here will reflect that (10x Litres).
+0x140baf6f0 VEHICLE_COMPONENT_DATA = { 
+0x140baf790 DATA, is_success = server.getVehicleTank(vehicle_id, voxel_x, voxel_y, voxel_z)
+0x140baf7f0 DATA, is_success = server.getVehicleTank(vehicle_id, tank_name)
+0x140cc5cd8 .?AUc_scene_vehicle_component_dynamic_base@@
+0x140cc5ef0 .?AU?$c_ui_element_selector@W4e_ai_type@c_scene_vehicle_component_seat@@@@
+0x140cc6060 .?AU?$c_vehicle_logic_slot_input@Uc_vehicle_logic_data_composite@@@@
+0x140cc6250 .?AUc_game_state_vehicle_editor@@
+0x140cc62e0 .?AU?$c_ui_element_selector@W4e_projectile_damage@@@@
+0x140cc6368 .?AUc_ui_vehicle_editor_load_vehicle_view@@
+0x140cc6470 .?AUc_scene_vehicle_component_lua_base@@
+0x140cc6720 .?AUc_ui_vehicle_editor_save_microprocessor_view@@
+0x140cc67a8 .?AUc_vehicle_slot_base@@
+0x140cc67d8 .?AUc_scene_vehicle_component_nuclear@@
+0x140cc6888 .?AUc_scene_vehicle_component_flag@@
+0x140cc6e30 .?AU?$c_ui_element_dropdown_list@W4e_radar_sweep_mode@c_scene_vehicle_component_radar@@@@
+0x140cc6ea0 .?AUc_scene_vehicle_component_block@@
+0x140cc6f30 .?AUlist_box@?$c_ui_element_dropdown_list@W4e_radar_sweep_mode@c_scene_vehicle_component_radar@@@@
+0x140cc7710 .?AUc_ui_vehicle_editor_workshop_chooser_view@@
+0x140cc7790 .?AUc_client_to_server_request_get_vehicle_state@@
+0x140cc7810 .?AUc_server_to_client_event_damage_character@@
+0x140cc7fe0 .?AUc_scene_vehicle_component_light_dynamic@@
+0x140cc8020 .?AU?$c_ui_element_selector@W4e_control_mode@c_scene_vehicle_component_seat@@@@
+0x140cc80f0 .?AUc_ui_vehicle_editor_settings_box@@
+0x140cc8380 .?AUc_ui_vehicle_editor_logic_tooltip_content@@
+0x140cc8480 .?AU?$c_ui_properties_element_dropdown_list@W4e_instrument_type@c_scene_vehicle_component_composite@@@@
+0x140cc8500 .?AUlist_tab@c_ui_vehicle_editor_save_microprocessor_view@@
+0x140cc8b10 .?AUc_server_to_client_event_sync_vehicle_physics@@
+0x140cc8e80 .?AUtab_logic@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140cc9480 .?AUc_vehicle_logic_slot@@
+0x140cc9558 .?AUc_scene_vehicle_component_train@@
+0x140cc97a0 .?AUc_scene_vehicle_component_composite@@
+0x140cc9850 .?AUc_scene_vehicle_component_gyro@@
+0x140cc9bf8 .?AUc_vehicle_logic_slot_output_composite@@
+0x140cc9d28 .?AUc_vehicle_logic_slot_input_video@@
+0x140cc9d90 .?AUc_scene_vehicle_component_door@@
+0x140cc9e10 .?AUc_event_game_to_logic_debug_add_damage_raycast@@
+0x140cca768 .?AUc_scene_vehicle_component_oil_rig@@
+0x140ccaa18 .?AUc_ui_vehicle_editor_slideout_toolshelf@@
+0x140ccabb0 .?AUc_scene_vehicle_component_microprocessor@@
+0x140ccac40 .?AUlist_box@?$c_ui_element_dropdown_list@W4e_tire_type@c_scene_vehicle_component_wheel_advanced@@@@
+0x140ccad10 .?AUc_server_to_client_event_delta_update_vehicle_state@@
+0x140ccad60 .?AUlogic_node_button@designer@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140ccadc0 .?AUc_vehicle_logic_slot_input_audio@@
+0x140ccae30 .?AUc_ui_vehicle_editor_microprocessor_design_view@@
+0x140ccaf00 .?AU?$c_ui_properties_element_selector@W4e_component_flare_color@c_scene_vehicle_component_flare_launcher@@@@
+0x140ccb468 .?AUc_vehicle_local_container_base@@
+0x140ccb4e0 .?AUc_scene_vehicle_component_rope_hook@@
+0x140ccb588 .?AUc_scene_vehicle_component_data_logger@@
+0x140ccb998 .?AUc_scene_vehicle_component_winch@@
+0x140ccbb40 .?AU?$c_vehicle_logic_slot_output@M@@
+0x140ccbbb0 .?AUlist_item@?$c_ui_element_dropdown_list@W4e_radar_sweep_mode@c_scene_vehicle_component_radar@@@@
+0x140ccbc30 .?AUc_ui_vehicle_editor_selection_grid_toolshelf_on_clipboard@@
+0x140ccc1e0 .?AU?$c_vehicle_logic_slot_input@Uc_vehicle_logic_data_video@@@@
+0x140ccc330 .?AUc_server_to_client_event_extinguish_vehicle_body_fire@@
+0x140ccc3d0 .?AU?$c_vehicle_logic_slot_input@Uc_vehicle_logic_data_audio@@@@
+0x140ccc4c0 .?AUc_scene_vehicle_component_stabilizer@@
+0x140ccc628 .?AUc_scene_vehicle_component_basic_dynamic@@
+0x140ccc8a8 .?AUc_vehicle_logic_slot_input_composite@@
+0x140ccccd0 .?AUc_ui_vehicle_editor_measurements@@
+0x140cccfe0 .?AUc_network_message_server_to_client_set_vehicle_data@@
+0x140ccd2e0 .?AUsection_plane_toolshelf@c_ui_vehicle_editor_settings_box@@
+0x140ccd400 .?AUc_scene_vehicle_component_seat@@
+0x140ccd4c0 .?AUtab@c_ui_vehicle_editor_load_microprocessor_view@@
+0x140ccd5b0 .?AUc_server_to_client_event_update_map_vehicle@@
+0x140ccd840 .?AUtag_button@c_ui_vehicle_editor_workshop_view@@
+0x140ccdc08 .?AUc_scene_vehicle_component_torque@@
+0x140ccde30 .?AUc_ui_vehicle_editor_symmetry_tool_tooltip@@
+0x140ccdf38 .?AUc_client_to_server_request_edit_vehicle@@
+0x140cce150 .?AUc_server_to_client_event_set_vehicle_tooltip@@
+0x140cce440 .?AUc_scene_object_construction_info_vehicle_component@@
+0x140cce810 .?AUc_scene_vehicle_component_ski@@
+0x140cceea8 .?AUc_ui_vehicle_editor_paint_button@@
+0x140ccf0b0 .?AUc_scene_vehicle_component_transmission_line@@
+0x140ccf1f0 .?AUc_server_to_client_event_vehicle_weapon_detonate@@
+0x140ccf408 .?AUc_scene_vehicle_component_extended_base@@
+0x140ccf480 .?AUlogic_toolshelf@c_ui_vehicle_editor_toolshelf_logic_mode@@
+0x140ccf6f0 .?AUc_scene_vehicle_component_sonar@@
+0x140ccf7d0 .?AUc_scene_vehicle_component_handle@@
+0x140ccf880 .?AUc_server_to_client_event_remove_map_vehicle@@
+0x140ccfcb8 .?AUc_server_to_client_event_set_vehicle_gun@@
+0x140cd00c8 .?AUc_ui_vehicle_editor_paint_box@@
+0x140cd0140 .?AU?$c_ui_element_selector@W4e_component_flare_color@c_scene_vehicle_component_flare_launcher@@@@
+0x140cd0238 .?AUc_scene_vehicle_component_wheel_advanced@@
+0x140cd0280 .?AU?$c_ui_properties_element_selector@W4e_ai_type@c_scene_vehicle_component_seat@@@@
+0x140cd02f0 .?AUc_server_to_client_event_add_vehicle_physics_contact@@
+0x140cd04f0 .?AUc_scene_vehicle_component_buoyancy@@
+0x140cd0830 .?AUc_vehicle_editor_rotation_labels@@
+0x140cd0900 .?AU?$c_vehicle_logic_slot_output@Uc_vehicle_logic_data_audio@@@@
+0x140cd0d88 .?AUc_scene_vehicle_component_parachute@@
+0x140cd0e90 .?AUc_server_to_client_event_repair_vehicle@@
+0x140cd1040 .?AU?$c_ui_element_selector@W4e_component_flare_type@c_scene_vehicle_component_flare_launcher@@@@
+0x140cd11c0 .?AUc_ui_vehicle_editor_selection_grid_toolshelf_make_selection@@
+0x140cd1220 .?AUc_event_game_to_logic_debug_set_vehicle_render_mode@@
+0x140cd12b8 .?AUc_server_to_client_event_remove_vehicle@@
+0x140cd15f8 .?AUc_scene_vehicle_component_logic_gate@@
+0x140cd1690 .?AUc_client_to_server_request_debug_spawn_vehicle@@
+0x140cd1738 .?AUc_scene_vehicle_component_scope@@
+0x140cd18b8 .?AUc_scene_vehicle_component_fish_finder@@
+0x140cd1968 .?AUc_scene_vehicle_component_rudder@@
+0x140cd1a10 .?AU?$c_ui_properties_element_selector@W4e_gear_ratio@c_scene_vehicle_component_multibody@@@@
+0x140cd1b40 .?AUc_ui_vehicle_editor_microprocessor_selection_toolbar@@
+0x140cd1d00 .?AUc_client_to_server_request_damage_raycast@@
+0x140cd1df0 .?AU?$c_ui_properties_element_dropdown_list@W4e_radar_sweep_mode@c_scene_vehicle_component_radar@@@@
+0x140cd20a0 .?AUc_server_to_client_event_set_initial_vehicle_state@@
+0x140cd2140 .?AU?$c_ui_element_dropdown_list@W4e_instrument_type@c_scene_vehicle_component_composite@@@@
+0x140cd23f0 .?AUlist_box@?$c_ui_element_dropdown_list@W4e_instrument_type@c_scene_vehicle_component_composite@@@@
+0x140cd27d8 .?AUc_scene_vehicle_component_connector@@
+0x140cd2b60 .?AUc_scene_vehicle_component_heater@@
+0x140cd2e58 .?AUc_vehicle_logic_slot_output_bool@@
+0x140cd31f8 .?AUc_scene_vehicle_component_rx@@
+0x140cd32a0 .?AUsettings_box@c_ui_vehicle_editor_settings_box@@
+0x140cd3440 .?AUc_ui_vehicle_editor_load_microprocessor_view@@
+0x140cd3678 .?AUvehicles_tab@c_ui_playlist_script_editor@@
+0x140cd36f0 .?AU?$c_ui_element_selector@W4e_gear_ratio@c_scene_vehicle_component_multibody@@@@
+0x140cd3800 .?AUc_ui_vehicle_editor_interface@@
+0x140cd39a8 .?AUc_scene_vehicle_component_inventory@@
+0x140cd3b38 .?AUc_scene_vehicle_component_modular_engine@@
+0x140cd3e40 .?AUc_server_to_client_event_set_vehicle_tank_level@@
+0x140cd3ff0 .?AUc_client_to_server_request_damage_player@@
+0x140cd4258 .?AUthreaded_tick_task@c_scene_vehicle_body@@
+0x140cd4760 .?AUc_client_to_server_request_repair_vehicle@@
+0x140cd4890 .?AUworkshop_list_item@c_ui_vehicle_editor_workshop_chooser_view@@
+0x140cd4970 .?AU?$c_ui_element_selector@W4e_hotkey_mode@c_scene_vehicle_component_seat@@@@
+0x140cd49d0 .?AUc_server_to_client_event_set_vehicle_team@@
+0x140cd4b20 .?AUc_ui_vehicle_editor_top_toolbar@@
+0x140cd4da0 .?AU?$c_ui_properties_element_selector@W4e_color_mode@c_scene_vehicle_component_composite@@@@
+0x140cd4e10 .?AUc_scene_vehicle_component_button@@
+0x140cd4f10 .?AUlist_item@?$c_ui_element_dropdown_list@W4e_instrument_type@c_scene_vehicle_component_composite@@@@
+0x140cd5128 .?AUc_scene_vehicle_component_door_custom@@
+0x140cd5170 .?AU?$c_ui_properties_element_selector@W4e_gear_ratio@c_scene_vehicle_component_torque@@@@
+0x140cd5380 .?AUdesigner@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140cd5420 .?AUmicroprocessor@designer@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140cd5480 .?AUc_vehicle_editor_rotation_labels_ui@@
+0x140cd5630 .?AUtab_properties@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140cd56d8 .?AUc_scene_vehicle_component_electric@@
+0x140cd5720 .?AUc_client_to_server_request_use_vehicle_inventory@@
+0x140cd57a8 .?AUc_scene_vehicle_component_tool@@
+0x140cd5830 .?AUselection_grid_toolshelf@c_ui_vehicle_editor_selection_grid_toolshelf_make_selection@@
+0x140cd58e8 .?AUc_scene_vehicle_component_base@@
+0x140cd60a0 .?AUc_server_to_client_event_use_vehicle_inventory@@
+0x140cd62a0 .?AUc_scene_vehicle_component_engine@@
+0x140cd64e8 .?AUc_ui_vehicle_editor_toolshelf_logic_mode@@
+0x140cd6760 .?AUc_network_message_client_to_server_request_spawn_vehicle@@
+0x140cd67b0 .?AU?$c_ui_properties_element_selector@W4e_hotkey_mode@c_scene_vehicle_component_seat@@@@
+0x140cd69b0 .?AUc_material_opaque_damaged@@
+0x140cd6a60 .?AUc_client_to_server_request_clear_all_vehicles@@
+0x140cd7000 .?AUc_scene_vehicle_component_door_manual_sliding@@
+0x140cd7278 .?AUc_scene_vehicle_component_lua@@
+0x140cd72b0 .?AUlogic_node_list_entry@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140cd7340 .?AUselection_grid_toolshelf@c_ui_vehicle_editor_selection_grid_toolshelf_on_clipboard@@
+0x140cd74a0 .?AUsymmetry_toolshelf@c_ui_vehicle_editor_settings_box@@
+0x140cd7850 .?AUc_server_to_client_event_set_map_vehicle_popup@@
+0x140cd7a18 .?AUc_scene_vehicle_component_door_manual@@
+0x140cd7e38 .?AUc_server_to_client_event_add_vehicle@@
+0x140cd8018 .?AUc_scene_vehicle_component_monitor@@
+0x140cd8290 .?AUc_ui_mission_editor_load_vehicle_view@@
+0x140cd8420 .?AUc_client_to_server_request_teleport_vehicle@@
+0x140cd84a0 .?AUc_vehicle_rope_slot@@
+0x140cd84d0 .?AUc_scene_vehicle_component_steam@@
+0x140cd85c0 .?AUc_scene_vehicle_component_flare_launcher@@
+0x140cd8630 .?AUtab@c_ui_vehicle_editor_save_microprocessor_view@@
+0x140cd86e0 .?AUc_server_to_client_event_set_vehicle_body_motion_state@@
+0x140cd87c8 .?AUc_ui_vehicle_component_data_table@@
+0x140cd8ba0 .?AUc_scene_vehicle_component_force_emitter@@
+0x140cd8ca0 .?AUc_vehicle_local_container@@
+0x140cd9148 .?AUc_ui_vehicle_editor_logic_tool_tooltip@@
+0x140cd96e8 .?AUc_scene_vehicle_component_jet_engine@@
+0x140cd9728 .?AUc_scene_vehicle_component_solid_rocket@@
+0x140cd9800 .?AU?$c_ui_properties_element_selector@W4e_component_flare_type@c_scene_vehicle_component_flare_launcher@@@@
+0x140cd98c0 .?AUc_scene_vehicle_component_wheel@@
+0x140cd9e58 .?AUc_scene_vehicle_component_light@@
+0x140cd9e90 .?AUc_vehicle_logic_slot_output_video@@
+0x140cd9f70 .?AUc_server_to_client_event_set_vehicle_battery_level@@
+0x140cda378 .?AU?$c_vehicle_logic_slot_output@_N@@
+0x140cda470 .?AUinstrument_data_ui@c_scene_vehicle_component_composite@@
+0x140cda4c0 .?AUc_vehicle_logic_slot_input_f32@@
+0x140cda5e8 .?AUc_ui_vehicle_editor_loading_screen@@
+0x140cda8f0 .?AUlist_item@?$c_ui_element_dropdown_list@W4e_tire_type@c_scene_vehicle_component_wheel_advanced@@@@
+0x140cdad80 .?AU?$c_vehicle_logic_slot_input@M@@
+0x140cdb180 .?AUc_scene_vehicle_component_sign@@
+0x140cdb1c0 .?AUc_server_to_client_event_set_dynamic_motion_state_grounded_vehicle@@
+0x140cdb468 .?AUc_ui_vehicle_editor_basic_tool_tooltip@@
+0x140cdb4a8 .?AUc_ui_vehicle_editor_bottom_toolbar@@
+0x140cdb5a8 .?AUc_vehicle_torque_slot@@
+0x140cdb5e0 .?AUc_client_to_server_request_set_vehicle_button_float_input@@
+0x140cdb8e0 .?AUc_scene_vehicle_component_basic@@
+0x140cdbea8 .?AUc_scene_vehicle_component_fire@@
+0x140cdc200 .?AUc_ui_mission_editor_toolbar_set_vehicle_parent@@
+0x140cdc4e0 .?AUc_server_to_client_event_set_vehicle_data@@
+0x140cdc650 .?AUc_server_to_client_event_use_vehicle_button@@
+0x140cdc6a0 .?AUwarning_text@designer@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140cdc730 .?AUc_scene_vehicle_component_weapon@@
+0x140cdc958 .?AUc_scene_vehicle_component_metadata@@
+0x140cdcaa0 .?AUc_ui_vehicle_editor_save_vehicle_view@@
+0x140cdcdb0 .?AU?$c_vehicle_logic_slot_output@Uc_vehicle_logic_data_video@@@@
+0x140cdcf30 .?AUc_vehicle_local_thread_task_load@@
+0x140cdd050 .?AUc_scene_vehicle_component_friction_block@@
+0x140cdd510 .?AUc_scene_vehicle_component_water@@
+0x140cdd550 .?AUc_ui_vehicle_editor_microprocessor_toolbar@@
+0x140cdd5a0 .?AUtab@c_ui_vehicle_editor_load_vehicle_view@@
+0x140cddaa8 .?AUc_scene_vehicle_component_magall@@
+0x140cddb60 .?AUc_client_to_server_request_extinguish_vehicle_body_fire@@
+0x140cddd60 .?AUc_scene_vehicle_component_ladder@@
+0x140cddeb8 .?AUc_vehicle_fluid_slot@@
+0x140cddf60 .?AU?$c_ui_element_dropdown_list@W4e_tire_type@c_scene_vehicle_component_wheel_advanced@@@@
+0x140cde040 .?AUc_scene_vehicle_component_door_dock@@
+0x140cde370 .?AUc_client_to_server_request_use_vehicle_button@@
+0x140cde738 .?AUc_vehicle_logic_slot_input_bool@@
+0x140cde770 .?AUc_server_to_client_event_set_vehicle_hopper_level@@
+0x140cde8c0 .?AUc_scene_vehicle_component_multibody@@
+0x140cde900 .?AUc_server_to_client_event_purchase_fuel_from_vehicle@@
+0x140cdedc0 .?AUpaint_box@c_ui_vehicle_editor_paint_box@@
+0x140cdee40 .?AUsymbol_editor@tab_symbol@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140cdef20 .?AU?$c_ui_element_selector@W4e_color_mode@c_scene_vehicle_component_composite@@@@
+0x140cdf2a0 .?AUc_server_to_client_event_set_vehicle_button_float_input@@
+0x140cdf4e0 .?AUc_server_to_client_event_offset_vehicle@@
+0x140cdf6b8 .?AUc_ui_vehicle_component_data_entry@@
+0x140cdfd58 .?AUc_scene_vehicle_component_indicator@@
+0x140cdff58 .?AU?$c_vehicle_logic_slot_input@_N@@
+0x140ce0110 .?AUc_server_to_client_event_add_vehicle_damage@@
+0x140ce0360 .?AUc_client_to_server_request_get_vehicle_data@@
+0x140ce0418 .?AUc_vehicle_electric_slot@@
+0x140ce0480 .?AUc_client_to_server_request_map_vehicle_pressed@@
+0x140ce0690 .?AUc_ui_vehicle_editor_microprocessor_component_toolbar@@
+0x140ce07e0 .?AUtab_symbol@c_ui_vehicle_editor_microprocessor_design_view@@
+0x140ce0a80 .?AUc_ui_vehicle_editor_microprocessor_workshop_view@@
+0x140ce0b20 .?AUc_scene_vehicle_component_radar@@
+0x140ce0f18 .?AUc_scene_vehicle_component_lobster_pot@@
+0x140ce0f58 .?AUc_server_to_client_event_add_map_vehicle@@
+0x140ce0fe0 .?AU?$c_vehicle_logic_slot_output@Uc_vehicle_logic_data_composite@@@@
+0x140ce1038 .?AUc_vehicle_logic_slot_output_f32@@
+0x140ce10d0 .?AUc_server_to_client_event_damage_fish@@
+0x140ce1160 .?AUc_scene_vehicle_component_camera@@
+0x140ce1420 .?AU?$c_ui_properties_element_selector@W4e_projectile_damage@@@@
+0x140ce1508 .?AUc_ui_vehicle_editor_workshop_view@@
+0x140ce15e0 .?AU?$c_ui_properties_element_dropdown_list@W4e_tire_type@c_scene_vehicle_component_wheel_advanced@@@@
+0x140ce1698 .?AUc_vehicle_logic_slot_output_audio@@
+0x140ce1888 .?AUc_scene_vehicle_component_pump@@
+0x140ce1900 .?AU?$c_ui_properties_element_selector@W4e_control_mode@c_scene_vehicle_component_seat@@@@
+0x140ce19f0 .?AU?$c_ui_element_selector@W4e_gear_ratio@c_scene_vehicle_component_torque@@@@
+0x140ce1d20 .?AUc_event_game_to_logic_debug_spawn_vehicle@@

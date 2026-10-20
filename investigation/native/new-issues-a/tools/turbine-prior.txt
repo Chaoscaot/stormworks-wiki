@@ -1,0 +1,105 @@
+32-| `aircraft_engine.xml`, Medium Engine | 60000 | 3 | 30 | 0.180000 | 0.308571 | 2.547692 |
+33-| `engine_diesel.xml`, Large Engine | 200000 | 10 | 100 | 0.600000 | 1.028571 | 8.492308 |
+34:| `turbine.xml`, legacy Turbine Engine, hypothetical supplied state only | 100000 | 5 | 50 | 0.300000 | 0.514286 | 4.246154 |
+35-
+36-The turbine row is conditional. Its shipped definition has no fuel, air, exhaust or coolant ports and has `electric_magnitude=0`. It cannot maintain this fuel supply or use this starter in ordinary finite-fuel operation. See the turbine section. All F and m values are on line 2 of the named definitions. Complete source lines and SHA-256 values are retained in `tools/resources.txt`.
+37-
+38-Heating before cooling is 2.25, 4.5 and 9 degrees C per simulated second at 5, 10 and 20 RPS, for every size. It has no direct throttle, F or damage multiplier. Throttle changes heating indirectly by changing speed. A shaft driven by another component still heats this engine at zero throttle. The actual temperature change also includes coolant and ambient terms below.
+39-
+40-## Identity and retained evidence
+41-
+42-`native/classic-engines/asm/` contains original executable addresses and instruction bytes, collected with GNU objdump. `pseudocode/` contains targeted Ghidra 12.1.4 output. `tools/collect.py` rejects a different executable hash, regenerates the assembly, constants, vtable tables and numbered resource lines, and reads no running process. `SHA256SUMS` uses paths relative to the repository root.
+43-
+44-The definition serializer binds `engine_max_force` to definition `+0x874`:
+--
+66-| `+0x228` | Received group speed |
+67-| `+0x3c0` | Electrical node EMP counter |
+68:| `+0x3d4` | Electrical availability fraction before EMP attenuation |
+69-| `+0x3e0`, `+0x3e4` | Effective throttle and local RPS |
+70-| `+0x3f8`, `+0x3fc` | Max Power fraction and RPS limiter |
+71-| `+0x40d` | Starter flag used this update |
+72-| `+0x410`, `+0x448` | Engine temperature and overheat counter |
+73-| `+0x44c` | Coolant compartment |
+74-| `+0x498`, `+0x4e4` | Intake-air and fuel compartments |
+75-| `+0x530`, `+0x57c` | Two exhaust compartments |
+76-
+77-Constructor defaults are Max Power 1, limiter 20 RPS, local speed 0 and engine temperature 20 C. The decisive stores are `0x14034aa75`, bytes `c7 87 f8 03 00 00 00 00 80 3f`; `0x14034aa7f`, bytes `c7 87 fc 03 00 00 00 00 a0 41`; and `0x14034aaa1`, bytes `c7 87 10 04 00 00 00 00 a0 41`.
+78-
+--
+133-```
+134-
+135:The diesel availability snapshot is taken before this update's fuel-port exchange. Air and exhaust snapshots precede their port exchange. New fuel can therefore arrive after the availability fraction was calculated. Above formulas are a snapshot model, not a complete pipe-network simulation.
+136-
+137-The ratio and pressure gates are at `0x14034be6c..0x14034c018`. The native positive-comparison branches map NaN supply ratios to zero. The graph model restricts nominal curves to nonnegative RPS, with its supply helper documented separately for positive r and P. The signed native g formula has a pole at r = -5/3 RPS. Reverse-driven singular and nonfinite states were not characterized as gameplay behavior.
+138-
+139-For pure gases `P=60*A/V`. For mixtures, `asm/pressure.asm` implements:
+140-
+141-```
+142-P = 60*(L+G)/V                                             V <= 8
+143-P = 7.5*(G*min(1,8/(V-L)) + max(L*4/(60*V), L-V+8))         V > 8
+144-```
+145-
+--
+150-At `0x14034c616`, bytes `f3 0f 59 9f e0 03 00 00`, q multiplies throttle. At `0x14034c626`, bytes `f3 41 0f 59 df`, effective throttle multiplies f. The subtraction at `0x14034c633`, bytes `f3 0f 5c c3`, and store at `0x14034c637`, bytes `f3 0f 11 87 f4 04 00 00`, consume only diesel at `+0x4f4 = fuel_compartment+0x10`. Jet fuel at compartment+0x14 does not substitute. Helper `0x1402ebdc0` then transfers up to 0.001 amount/update of non-diesel contamination to exhaust, explicitly skipping index 1. That is a purge, separate from consumed diesel.
+151-
+152:The two exhaust compartments average each species pair before their port exchanges. The initializer allocates all four non-coolant compartments with V=`0.004*voxel_count`: intake, fuel and both exhausts. The listed voxel counts are 27, 78, 440 and 63 for small, medium, large and legacy turbine. Native reads and multiplications are at `0x14034b68e..0x14034b6e8`, with 0.004 at `0x140baf924`. Counts are derived by counting shipped `<voxel>` elements, retained in the collector's tables.
+153-
+154-Fuel and air port calls use bias -10 and factor 1 at `0x14034bef9` and `0x14034c9f2`. Exhaust calls use bias +10 and factor 1 at `0x14034ca62` and `0x14034cac9`. These are calls to `0x1402ec710`, whose pressure/flow behavior is decoded in `fluid-transport.md`. Exact plumbing throughput depends on networks, competing ports, allocation and contents; the local fuel equation does not predict it alone.
+155-
+156-With `infinite_fuel` at settings+0x34 enabled, the branch at `0x14034be0c` skips the entire diesel, air and exhaust consumption/exchange section. Limiter, EMP, speed, starter, coolant, heating and overheat checks still run. This setting does not bypass the 2 RPS combustion threshold.
+157-
+158-## Temperature and cooling
+159-
+160-The coolant state starts with volume 10, fresh water 10 and temperature 20 C, hence 100 L of fresh water for every size. Initializer stores are `0x14034b670`, bytes `c7 87 8c 04 00 00 00 00 20 41`, total=10; `0x14034b67a`, bytes `c7 87 58 04 00 00 00 00 20 41`, fresh water=10; and `0x14034b684`, bytes `c7 87 54 04 00 00 00 00 20 41`, volume=10. The part's voxel count does not size this coolant compartment.
+161-
+162-For one update, with Te the engine temperature, Tc the coolant temperature after port flow exchange, x the fraction of current coolant contents counted as liquid, and Ta the filtered surrounding-temperature sample:
+--
+196-```
+197-
+198:`0x14034d37f..0x14034d3cf` implements this before combustion speed gain. The draw call is `0x14034d3be`, bytes `e8 dd 18 fa ff`, target `0x1402eeca0`. Full electrical availability can bring the local speed to 5 in one update before drag. Starting is still subject to shaft loading after the submitted speed is mixed with the shaft group.
+199-
+200-For small, medium and large, m=1.2 and W=10,30,100 at Max Power 100%. Request per unit RPS deficit is 1.2, 3.6 and 12 internal charge units. From r=0 the first request is 6,18,60. Multiplying by 60 gives 360,1080,3600 internal charge units per simulated second only if that same 5 RPS deficit persists each update. These are not watts or a constant starter drain during an unloaded start. Above or at 5 RPS there is no positive request.
+201-
+202:The helper at `0x1402eeca0`, retained in `asm/electric-draw.asm`, returns the supplied fraction after EMP and pool limitations, or 1 under infinite electricity. It uses request and network charge, not an elapsed-time argument. `electricity.md` resolves the helper's EMP and availability fields. Because the classic update checks request>0 before calling it, m=0 prevents assistance even with infinite electricity.
+203-
+204:## Legacy turbine boundary
+205-
+206-`turbine.xml` is a type-5 self-contained component using the same factory, vtable and update as the diesels. It is different from `jet_engine_turbine_small.xml` and `jet_engine_turbine_medium.xml`, whose modular jet logic is at `0x140350f40`. The resource's tooltip alone does not establish a second classic turbine implementation.
+207-
+208-Observed shipped facts: F=100000, m=0, and exactly four ports, mechanical RPS, Starter, Throttle and Electric. It has no fluid port that could fill the internal diesel or intake compartment, and neither numeric output. The common constructor initializes those compartments empty. The finite-fuel supply gate therefore makes effective throttle zero in an ordinary positive-RPS state without some other mechanism changing the contents. The zero starter magnitude prevents positive starter request. It can receive shaft speed from another component and is subject to the common drag and thermal recurrence. With infinite fuel and externally supplied r>2, it can use the common throttle speed gain and W=50. Neither infinite-fuel nor infinite-electricity flags alone remove its missing starting assistance.
+209-
+210:Derived, not runtime validated: a new unmodified legacy turbine at rest does not self-start through this update and its shipped ports. The scan was bounded to both type-5 factory paths, constructor, initializer, complete virtual update, editor, port finder and shipped definition. Those paths rule out a turbine-specific jet-fuel branch, different classic speed law, port refill and nonzero electrical starter. Part availability, migration of old saves, other save-state writers and any hidden world mechanism that could populate its contents remain open. The hypothetical turbine figures above must carry that condition in any graph.
+211-
+212-## Graph model, confidence and remaining work
+213-
+214-`native/classic-engines/tools/model.py` provides `curve`, `requests`, `supply`, `pressure` and `thermal`. Its command line emits CSV at quarter-RPS intervals from 0 to 100. Inputs are engine size, throttle, Max Power fraction, limiter and damage. It returns local submitted speed, W, weighted net and combustion steps, fuel L/s, intake amount/update and heating C/s. Default curves assume unlimited local supply. The turbine command requires `--hypothetical-turbine-state` to prevent presenting an unstartable resource as a working diesel variant.
+215-
+216-```
+217-python3 -I investigation/native/classic-engines/tools/model.py --verify
+218-python3 -I investigation/native/classic-engines/tools/model.py --engine large --throttle 0.5 --limit 100
+219-```
+220-
+--
+228-- Exact temperature at a throttle alone. The update rules this out as a single-valued function: heating uses actual RPS, then both flowing coolant and ambient temperature. The conditional recurrence is recovered. Environmental sampler internals and full vehicle coolant/shaft histories are outside this local graph.
+229-- Additional overheat gate settings+0x4a. Both enable checks are retained. Named `vehicle_damage` at +2 was ruled out as a direct identification of +0x4a; the effective flag's producer remains untraced.
+230:- Legacy turbine availability and saved-state migration. The traced normal classic paths do not refill its missing ports or start its m=0 starter. Other state writers and old-save behavior were not exhaustively searched.
+231-- Negative or nonfinite RPS states. The exact signed factor is retained, including its pole. The positive-RPS graph cannot be extrapolated across that pole as an experimentally valid engine curve.
+232-- Modular jet compressor, combustor, thrust and turbine equations in #147. The distinct jet update was recognized from prior retained evidence, but this classic-engine pass did not decode those separate stages.
+233-
+234-## Replacement wording for issue #4
+235-
+236-Pointers are into `wiki/data/behavior.json`. These are proposed replacements for the parent task, not edits to wiki data.
+237-
+238-- `/categories/4/summary`: "Classic diesel engines share a recovered runtime model. At supplied throttle u and local speed r above 2 RPS, the undamaged submitted speed is 0.99*(r+0.1*u*(r+1)). engine_max_force scales shaft weight and diesel demand in small:medium:large ratios of 1:3:10. Heating before cooling is 0.0075*abs(r) C/update. The shaft model does not establish SI torque."
+239:- `/categories/4/limitations/0`: "The classic update is decoded at 0x14034ba00 for the identified build. Formulas assume active simulation at 60 updates/s; actual speed and temperature require shaft and coolant state. SI torque remains unresolved. The legacy turbine lacks fluid ports and has zero starter magnitude, so hypothetical supplied-state curves do not describe an ordinary self-starting turbine."
+240:- `/categories/4/sections/1/body`: "engine_max_force F is 20000, 60000 and 200000 for small, medium and large diesel engines, and 100000 for the legacy turbine. With Max Power fraction P the update submits shaft weight F*P/2000 and requests diesel proportional to F*P/20000. It also scales starter charge request. These are internal solver weights and charge quantities, not measured N m, watts or joules."
+241-- `/categories/4/sections/2/body`: "Let s=F*P/20000 and g(r)=1/(0.03*r+0.05)+0.4*r-6. Diesel consumption is 0.012*s*u*r*g(r) L/s, where u includes limiter, EMP, diesel, oxygen and intake/exhaust pressure reductions. Undamaged combustion adds 0.1*u*(r+1) RPS before 0.99 drag, only above 2 RPS. Heating is 0.45*abs(r) C/s before coolant exchange and ambient relaxation; it is not directly proportional to throttle. Use the recovered recurrence for temperature and label a torque graph with internal weighted speed steps."
+242-
+243-## Other issue coverage
+244-
+245-#22: resolves the force-field-use limitation and positive-RPS speed, fuel and thermal curves for the three diesel sizes. Replaces "unknown curves" with explicit equations and bounds. Its `findings/*/detail` entries can describe F's solver-weight and fuel role. The warning against calling F measured SI torque remains justified. Its legacy-turbine entry needs the supplied-state and startup caveat.
+246-
+247-#143: supplies the missing consumption formula, 115 C overheat threshold, exact damage cadence, starter request and local shaft contribution. Confirms separate hot/cold coolant ports and their common 100 L compartment. Does not establish physical thermal efficiency; internal heating/fuel arithmetic is not a thermodynamic efficiency measurement. The additional +0x4a damage gate remains named by address.
+248-
+249-#147: does not resolve the modular jet ignition, compressor, thrust or fuel equations. It resolves a terminology ambiguity: the type-5 `turbine.xml` resource and its 100000 field must not be used as evidence for modular jet turbine parts. The earlier electrical report's `0x140350f40` turbine-generator branch belongs to that different update.
+250-

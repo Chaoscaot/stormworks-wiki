@@ -5010,6 +5010,8 @@ def engines(B, E):
     t_mag = E.attr("turbine", "electric_magnitude", "Starter charge factor; 0 makes the classic starter request 0.")
     t_ports = [E.port("turbine", label) for label in ("RPS", "Starter", "Throttle", "Electric")]
     t_tip = E.tooltip("turbine")
+    na = new_issues_native(E)
+    t_dep = [na[k] for k in ("dp_flags", "dp_bind", "dp_name", "dp_str", "dp_cat", "dp_res", "dp_veh", "dp_avail")]
     t_weight = E.derived("Legacy turbine shaft weight", "50", "100000 × 1 ÷ 2000 at Max Power 100 %. Diesel demand at the same scale would be 5 times the small diesel's, but the shipped turbine has no fuel port." + " Report: %s." % CE_REPORT,
                          [turbine, f["w_div"]])
     ports = [E.port("engine", label) for label in ("Throttle", "Starter", "RPS", "Fuel", "Air", "In Coolant", "Out Coolant", "Exhaust", "Temperature")] + [E.port("engine", "RPS", 1)]
@@ -5052,8 +5054,9 @@ def engines(B, E):
                "engine_max_force (20000, 60000, 200000) scales shaft weight and diesel use in the ratio 1 : 3 : 10. Heating before cooling is 0.0075 × |r| °C per update for every size.",
                [controls, variants, curves, shaft, cooling, starter,
                 section("Legacy turbine",
-                        "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0; see its own article.")],
-               forces + mags + [turbine, t_mag, t_weight] + ports + every,
+                        "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0. "
+                        "It is marked Deprecated and left out of the component catalog; see its own article.")],
+               forces + mags + [turbine, t_mag, t_weight] + ports + every + [na["dp_avail"]],
                open_limits)
     B.family("diesel-engine",
              "Small, medium and large diesel engines share one update: shaft weight 10, 30 and 100 and diesel use in the ratio 1 : 3 : 10 at the same RPS and throttle, with %s L/s at 10 RPS and full throttle." % C["fuel_and"][10],
@@ -5061,18 +5064,24 @@ def engines(B, E):
              forces + mags + ports + [turbine] + every,
              open_limits)
     B.family("part-turbine",
-             "A legacy classic engine: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
+             "A deprecated classic engine left out of the component catalog: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
              [section("How the update works",
                       "turbine.xml has component type 5, so the game builds it with the same constructor and update as the diesel engines, not the jet update. engine_max_force 100000 gives shaft weight W = 50 at Max Power 100 %. "
                       "Throttle is clamped to 0 to 1, although the tooltip describes -1 to 1, and the RPS Limiter, 0.99 retention, heating and overheat rules match the diesels."),
               section("Why it does not run on its own",
-                      "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments, which start empty, so the supply gate holds the effective throttle at 0. electric_magnitude 0 makes the starter request 0, even with infinite electricity. "
+                      "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments: the constructor clears them and the current serializer does not save them, so the supply gate holds the effective throttle at 0. "
+                      "Only the coolant compartment starts filled, with 100 L of fresh water. electric_magnitude 0 makes the starter request 0, even with infinite electricity. "
                       "Derived from the traced paths, not tested in game: a new turbine at rest does not start itself. With infinite_fuel on and its shaft spun above 2 RPS by another component, it gains speed like a diesel with W = 50."),
               section("Shaft and load",
-                      "It still exchanges speed with its shaft group at weight 50, so on a shared shaft it adds 0.99 retention like any classic engine and heats at 0.0075 × |r| °C per update.")],
-             [turbine, t_mag, t_weight, t_tip] + t_ports + C["identity"] + C["speed"] + [f["inf_fuel"], f["f_force"], f["gate"], f["heat"], f["heat_s"], f["s_target"], f["starter"]],
-             ["Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
-              "Part availability in current game modes was not established.", TICK])
+                      "It still exchanges speed with its shaft group at weight 50, so on a shared shaft it adds 0.99 retention like any classic engine and heats at 0.0075 × |r| °C per update."),
+              section("Availability",
+                      "turbine.xml carries definition flags 537133056, which include the Deprecated bit. The game appends \" (Deprecated)\" to the name of every part with that bit, "
+                      "and leaves such parts out of the component catalog rebuild, the research and catalog state and the component list for existing vehicles. "
+                      "None of these tests checks career or creative mode, so the Turbine Engine cannot be picked from the normal component catalog in any mode.")],
+             [turbine, t_mag, t_weight, t_tip] + t_ports + C["identity"] + C["speed"] + [f["inf_fuel"], f["f_force"], f["gate"], f["heat"], f["heat_s"], f["s_target"], f["starter"], f["coolant"]]
+             + t_dep + [na["cc_intake"], na["cc_fuel"]],
+             ["Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, whether loading an older vehicle or a special spawning path can still place one, "
+              "and whether an indirect world, editor or script writer fills its private compartments, was not traced.", TICK])
 
 
 # propulsion pass; files under investigation/native/propulsion/, report investigation/propulsion.md.
@@ -5684,10 +5693,12 @@ def jet_engines(B, E):
                 "of an assembled engine and its startup time are not predicted from a parts list.")
     open_units = "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units."
     FC_ = force_cap(E)["refs"]
-    open_ab = ("Writes to the exhaust's fuel buffer from code outside its update, initializer, pre-update and the two liquid helpers were not traced; the zero fuel burn covers those paths. "
+    open_ab = ("Writes to the exhaust's fuel buffer through escaped pointers, generic copies or computed addresses were not traced, so an indirect writer elsewhere is not ruled out. "
                "Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.")
     lo = leftovers_native(E)
+    na = new_issues_native(E)
     ab_fuel = [lo[k] for k in ("ab_bias", "ab_move", "ab_skip", "ab_zero")]
+    overspeed = [na[k] for k in ("o_gate", "o_latch", "o_req", "o_max", "o_slot", "o_cap", "o_reset", "o_effect")]
     static = "Static decompilation of one build; the game was not run."
     local = ("Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its "
              "duct network; the Jet engines category lists that and the unit questions as open.")
@@ -5743,21 +5754,27 @@ def jet_engines(B, E):
                       "Above 0.5 RPS: outgoing pressure = incoming + 1600 × u × RPS and outgoing temperature = incoming + 0.1 × u × RPS, in internal units; the incoming pressure is then cleared. "
                       "At 20 RPS and full throttle from zero that is 32000 and 2 in one update."),
               section("Overspeed",
-                      "With the engine_overheating and vehicle_damage settings both on, a chamber above 200 RPS sets a one-time flag and passes its damage + 1 to a damage routine.")],
-             J["chamber"] + J["identity"] + rate + weather_native(E)["vd"] + [kind("jet_engine_combustion_chamber"), T("jet_engine_combustion_chamber"),
+                      "With the engine_overheating and vehicle_damage settings both on, a chamber above 200 internal RPS sets a one-time latch and requests its own damage + 1. "
+                      "A routine passes that request through the connected jet parts in both directions, and each part keeps the larger of its own damage and the request, capped at 50. "
+                      "An undamaged chamber therefore raises itself and every jet part joined to it to at least 1 damage on its first overspeed.",
+                      "In the jet update, any damage stops a turbine from turning pressure into RPS, so 1 is enough. Existing speed and the pressure already in the engine are not cleared, and the chamber keeps burning fuel and adding pressure, "
+                      "so the engine is not shut down at once; it loses the turbines' pressure-driven speed gain. The branch also queues visual effects, but it makes no area damage and does not reset engine speed.",
+                      "Repairing a turbine to 0 damage restores its gain. Repairing the chamber to 0 clears the latch, so the next overspeed damages again; it does not repair the other parts.")],
+             J["chamber"] + J["identity"] + rate + weather_native(E)["vd"] + overspeed + [f["t_dmg"], kind("jet_engine_combustion_chamber"), T("jet_engine_combustion_chamber"),
                                                      P("jet_engine_combustion_chamber", "Fuel"), P("jet_engine_combustion_chamber", "Throttle")],
-             [local, units, "The effect of the overspeed damage on the engine was not traced.", TICK])
+             [local, units, "The overspeed branch's visual and sound effects and the repair tool's rate are outside this decode.", TICK])
     B.family("jet-turbine",
              "Takes half of the incoming pressure, gains 0.0000375 × pressure RPS when undamaged and charges its Electric connection; the medium turbine also joins a shaft with weight 160.",
              [section("Pressure to RPS",
-                      "After averaging, a turbine passes on half of its incoming pressure and keeps the other half's effect as speed: r0 = r + 0.0000375 × p_in. A damaged turbine gains nothing."),
+                      "After averaging, a turbine passes on half of its incoming pressure and keeps the other half's effect as speed: r0 = r + 0.0000375 × p_in. A turbine with any damage gains nothing. "
+                      "A chamber overspeed is one source of that damage; repairing the turbine to 0 damage restores the gain."),
               section("Electricity",
                       "Generator fraction k = min(r0 ÷ 10000, 0.02), reaching 0.02 at 200 RPS. Each update the Electric connection receives |r0| × 0.025 × k charge and the turbine keeps (1 - k) × r0. "
                       "At 20 RPS and incoming pressure 32000 that is 0.0011236 charge per update and a submitted speed of 21.155056 RPS. Both sizes use electric_magnitude 0.025."),
               section("Shaft",
                       "Only the medium turbine has the RPS power connection. It submits its speed with weight 160 to the shaft's weighted average and takes back max(shaft RPS, 0). "
                       "An electric motor can therefore spin it up, and props or generators can load it. 160 is a solver weight, not a torque in N m.")],
-             J["turbine"] + J["identity"] + rate + [kind("jet_engine_turbine_small"), kind("jet_engine_turbine_medium"),
+             J["turbine"] + J["identity"] + rate + [na["o_req"], na["o_max"], na["o_effect"]] + [kind("jet_engine_turbine_small"), kind("jet_engine_turbine_medium"),
                                                      E.attr("jet_engine_turbine_small", "electric_magnitude", "Turbine charge factor read at 0x140352ff7."),
                                                      T("jet_engine_turbine_medium"), P("jet_engine_turbine_medium", "RPS"), P("jet_engine_turbine_small", "Electric")],
              [local, units + " The shaft weight 160 is a solver weight, not a torque in N m.", TICK])
@@ -5785,10 +5802,12 @@ def jet_engines(B, E):
                       "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. "
                       "A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.",
                       "So the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. "
-                      "The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn."),
+                      "The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn.",
+                      "Outside the update, the constructor empties the buffer and the jet serializer saves the Fuel port state but not the buffer. "
+                      "A whole-executable search for stores to the buffer's jet fuel found no other debit of the afterburner's fuel."),
               section("Force units and limit", cap_body),
               section("Example", example + " An enabled afterburner holding 0.01 L gives 720000 before the cap.")],
-             ex_common + J["afterburner"] + [J["f"]["x_port"], J["f"]["x_purge"]] + ab_fuel + [kind("jet_engine_exhaust_afterburner"), T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel"),
+             ex_common + J["afterburner"] + [J["f"]["x_port"], J["f"]["x_purge"]] + ab_fuel + [na["ab_ctor"], na["ab_save"], na["ab_scan"]] + [kind("jet_engine_exhaust_afterburner"), T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel"),
                                              P("jet_engine_exhaust_afterburner", "Afterburner")],
              ex_limits[:2] + [open_ab, TICK])
     B.family("part-jet-engine-exhaust-rotating",
@@ -8100,8 +8119,7 @@ def sensors_and_radio(B, E):
                         "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; "
                         "the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; "
                         "the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. "
-                        "For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); "
-                        "how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; "
+                        "For radios: how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; "
                         "payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.")],
                list(rx.values()) + list(rx_t.values()) + list(radar.values()) + [E.tooltip("radar"), E.tooltip("sonar_advanced")] +
                radar_core + sonar_core + locator + noise + [rate] + radio + legacy_core + fov_core,
@@ -8709,21 +8727,32 @@ def more_families(B, E):
                      "Both ends apply their own gain, so two directional antennas each %s degrees off reach 0.25 of the aligned strength." % (
                          _num(round(half, 2)), _num(round(aim, 2)), _num(round(half, 2))),
                      [rf[k] for k in RADIO_DIRECTIONAL])
+    na = new_issues_native(E)
+    space = [na[k] for k in ("sp_query", "sp_copy", "sp_server", "sp_setup", "sp_recv", "sp_recv2", "sp_lua")]
+    space.append(E.derived("Directional Space DLC gate", "gain 0 unless the Space DLC is owned and enabled",
+                           "The gate 0x1402645f0 returns true only when byte 0x140cfa458, the Steam ownership result, and byte 0x140cfa459, Space DLC enabled in the current session, are both nonzero; "
+                           "the dlcSpace Lua callback tests the same pair. Every store that sets the second byte requires ownership or copies it, and the server and session writers also require mask & 4. When the gate fails the directional gain is 0." + " Report: %s." % NA_REPORT,
+                           [rf["d_gate"]] + space))
     for fid, bid in (("part-rx-directional", "rx_directional"), ("part-rx-directional-large", "rx_directional_large")):
         r = float(A(bid, "rx_range", "")["value"])
         reach = E.derived("%s pair reach" % E.block(bid)["name"], "%s m" % _num(2 * r),
                           "Two of these at full power and y = 0 with gains of 1: R = %s + %s = %s m." % (_num(r), _num(r), _num(2 * r)),
                           [A(bid, "rx_range", ""), rf["sum"], rf["strength"]])
-        simple(fid, "Directional link with rx_range %s; must be aimed at the target antenna. By inference its gain falls to 0 about %s degrees off axis." % (A(bid, "rx_range", "")["value"], _num(round(aim, 2))),
+        simple(fid, "Directional link with rx_range %s that needs the Space DLC owned and enabled; must be aimed at the target antenna. By inference its gain falls to 0 about %s degrees off axis." % (A(bid, "rx_range", "")["value"], _num(round(aim, 2))),
                [("Setup and interactions", "Steer with Target Yaw and Target Pitch (pitch at most 0.1 turns). Transmit Mode defaults to receive. It carries audio, composite and video."),
                 ("Range and aim",
                  ["It uses the shared radio receive routine: strength (1 − d ÷ R) × g_r × g_t, with R the sum of both antennas' rx_range at full power and sea level, %s m for two of these. "
                   "Height, power and submersion change R as for every radio." % _num(2 * r),
                   "Each directional end has its own gain, clamp((v · w − 0.99875) × 800), from its aim direction v and the direction w to the other antenna. Inference, reading v · w as cos θ: the gain is 1 only exactly on axis, 0.5 at %s degrees and 0 from %s degrees. "
-                  "The gain is also 0 unless a global gate check passes." % (_num(round(half, 2)), _num(round(aim, 2)))])],
+                  "The gain is also 0 unless the Space DLC gate below passes." % (_num(round(half, 2)), _num(round(aim, 2)))]),
+                ("Space DLC",
+                 ["Each directional end passes its gain through a gate that tests two flags: whether this copy of the game owns the Space DLC, and whether the Space DLC is enabled in the current session. "
+                  "At startup the game asks Steam about the DLC and stores the answer in both. Session setup, joining and server state then set the second flag only when the DLC is owned and the session's DLC mask has its Space value 4, and clear it otherwise. "
+                  "A server cannot enable the DLC for a player who does not own it, and owning it does not enable it in a session that has Space turned off.",
+                  "Without the Space DLC owned and enabled, directional antenna gain is 0, so the received strength is 0 however well the antenna is aimed. The range figures above assume the gate passes."])],
                [T(bid), A(bid, "rx_range", "Equals the tooltip range in metres."), P(bid, "Target Pitch"), P(bid, "Signal Strength"),
-                A(bid, "flags", "Definition flags; bit 0x80000000 sets record flag 32, the directional branch.")] + rcore + [rf[k] for k in RADIO_DIRECTIONAL] + [cone, reach],
-               ["What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes."])
+                A(bid, "flags", "Definition flags; bit 0x80000000 sets record flag 32, the directional branch.")] + rcore + [rf[k] for k in RADIO_DIRECTIONAL] + [cone, reach] + space,
+               ["The gate reads the game's own Steam ownership result; how Steam licenses the DLC is outside the executable."])
     vr = float(A("rx_video_r", "rx_range", "")["value"]) + float(A("rx_video_x", "rx_range", "")["value"])
     vreach = E.derived("Video link reach", "%s m" % _num(vr),
                        "Video receiver and transmitter at full power and y = 0: R = %s + %s = %s m; strength 0.5 at %s m." % (
@@ -9980,9 +10009,12 @@ def small_parts(B, E):
                       "Over 600 reactions, %s simulated seconds, that is %s L and %s L of gas, %s L of water and 600 charge. These are ceilings: thin gas supply or a full water buffer skips reactions." % (
                           ups, _g(o2 * 600 * ups, 4), _g(h2 * 600 * ups, 4), _g(water * 10 * ups, 4), _g(one * ups), _g(600 / ups), _g(o2 * 600 * 600, 4), _g(h2 * 600 * 600, 4), _g(water * 10 * 600, 4))),
               section("Electrical output",
-                      "The cell does not check battery demand. It deposits the charge whenever it reacts, and with no electrical network attached the charge is dropped while the gases are still used.")],
-             cellf + R + [T("hydrogen_fuel_cell"), T("electrolyser"), A("hydrogen_fuel_cell", "water_component_type", "Selects case 34 of the fluid update.")],
-             [SP_STATIC, "The reaction case runs only while the global guard 0x1402645f0 passes: two game-wide flags at 0x140cfa458 and 0x140cfa459, which the electrolyser case and the directional antennas check too. What the flags mean is tracked as open on the directional antenna pages.", TICK])
+                      "The cell does not check battery demand. It deposits the charge whenever it reacts, and with no electrical network attached the charge is dropped while the gases are still used."),
+              section("Space DLC",
+                      "The reaction runs only when the Space DLC is owned and enabled in the current session, the same gate the electrolyser and the directional antennas use. Without it the cell makes no water or charge.")],
+             cellf + R + [T("hydrogen_fuel_cell"), T("electrolyser"), A("hydrogen_fuel_cell", "water_component_type", "Selects case 34 of the fluid update.")]
+             + [new_issues_native(E)[k] for k in ("sp_query", "sp_copy", "sp_server", "sp_setup", "sp_lua")],
+             [SP_STATIC, TICK])
 
     # Laser point sensor.
     den, gate, cone, edge, sx = S["laser"]
@@ -10970,6 +11002,166 @@ def leftovers_native(E):
                              "right × forward = −up, so these axes have the opposite handedness to the R basis. Algebra from the decoded instructions, not a runtime check." + rep,
                              [t["ms_frame"], t["ms_az"], t["ms_el"]])
     E.leftovers = t
+    return t
+
+
+# Space DLC gate, jet overspeed damage, afterburner buffer and deprecated parts; files under investigation/native/new-issues-a/.
+NA_REPORT = "investigation/new-issues-a.md"
+_NA = "new-issues-a/"
+F_SPACE_QUERY = 0x140278580     # startup: Steam ownership query for the Space DLC
+F_SERVER_DLC = 0x1405E85E0     # server state application: DLC mask to the effective DLC bytes
+F_SESSION_SETUP = 0x14083C6B0  # session setup: selected DLC checkboxes
+F_SESSION_RECV = 0x1408421F0   # received session state
+F_SESSION_RECV2 = 0x14085A130  # second received session state handler
+F_LUA_GLOBALS = 0x140599990    # Lua global registration, dlcSpace among them
+F_JET_DAMAGE = 0x140355450     # jet graph damage propagation
+F_JET_SET_DAMAGE = 0x140350C00  # jet vtable slot +0x20: damage setter (leaf)
+F_DEF_NAME = 0x14031CC90       # definition display name
+F_CATALOG = 0x1407757D0        # component catalog rebuild
+F_RESEARCH = 0x14077B430       # research and catalog state
+F_VEHICLE_LIST = 0x1407D1528   # chained unwind chunk of 0x1407d14f0: existing-vehicle component list
+JET_VTABLE = 0x140B887C0
+FLAGS_NAME = 0x140B47D48       # "flags", bound by the definition serializer
+NA_ASM = {
+    F_SPACE_QUERY: ("asm/1402795d8.asm", "0x140278580.c"), F_SERVER_DLC: ("asm/1405e85e0.asm", "0x1405e85e0.c"),
+    F_SESSION_SETUP: ("asm/14083c6b0.asm", "0x14083c6b0.c"), F_SESSION_RECV: ("asm/1408421f0.asm", "0x1408421f0.c"),
+    F_SESSION_RECV2: ("asm/14085a130.asm", "0x14085a130.c"), F_LUA_GLOBALS: ("asm/space-binding.asm", "0x1405b4f20.c"),
+    F_JET: ("asm/140350f40.asm", "0x140350f40.c"), F_JET_DAMAGE: ("asm/140355450.asm", None),
+    F_JET_SET_DAMAGE: ("tools/selected-instructions.txt", "0x140350c00.c"), F_JET_CTOR: ("tools/jet-ctor-buffer-asm.txt", "0x14034fc10.c"),
+    F_JET_SAVE: ("asm/jet-serialization.asm", "0x140350020.c"), F_DEFSER: ("asm/definition-flags-loader.asm", None),
+    F_DEF_NAME: ("asm/14031cc90.asm", "0x14031cc90.c"), F_CATALOG: ("asm/deprecation-tests.asm", "0x1407757d0.c"),
+    F_RESEARCH: ("asm/deprecation-tests.asm", "0x14077b430.c"), F_VEHICLE_LIST: ("tools/deprecated-combined-tests.txt", "0x1407d14f0.c"),
+    F_CE_CTOR: ("asm/14034a7d0.asm", "0x14034a7d0.c"),
+}
+# objdump text, optionally behind grep line prefixes, or "0xADDRESS bytes | text" rows.
+_NA_ROW = re.compile(r"(?:\d+[-:])?\s*([0-9a-f]+):\t((?:[0-9a-f]{2} )*[0-9a-f]{2})|0x([0-9a-f]+) ((?:[0-9a-f]{2} )*[0-9a-f]{2}) \|")
+
+
+def _na_cite(E, func, address, hexbytes, key=None):
+    """Point WHERE at the new-issues-a listing lines of the cited bytes, after checking that the listing shows the same bytes."""
+    listing, pseudo = NA_ASM[func]
+    cache = E.__dict__.setdefault("na_asm", {})
+    if listing not in cache:
+        rows = []
+        for i, line in enumerate((E.root / "investigation/native" / _NA / listing).read_text().splitlines(), 1):
+            m = _NA_ROW.match(line)
+            if m:
+                at, raw = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
+                rows.append((int(at, 16), bytes.fromhex(raw.replace(" ", "")), i))
+        cache[listing] = rows
+    rows = cache[listing]
+    i = next((k for k, r in enumerate(rows) if r[0] == address), None)
+    if i is None:
+        raise ValueError("Retained listing %s lacks %#x" % (listing, address))
+    want, got, j = bytes.fromhex(hexbytes), b"", i
+    while len(got) < len(want) and j < len(rows) and rows[j][0] == address + len(got):
+        got += rows[j][1]
+        j += 1
+    if not got.startswith(want):
+        raise ValueError("Retained listing %s shows other bytes at %#x" % (listing, address))
+    lines = "L%d" % rows[i][2] if j - 1 == i else "L%d-L%d" % (rows[i][2], rows[j - 1][2])
+    where = "../" + _NA + listing + ":" + lines + ("; ../" + _NA + "pseudocode/" + pseudo if pseudo else "")
+    k = (func, address if key is None else key)
+    if WHERE.get(k, where) != where:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+    WHERE[k] = where
+
+
+def new_issues_native(E):
+    """Space DLC gate of directional antennas, jet overspeed damage, the afterburner buffer and the deprecated Turbine Engine, verified once and shared."""
+    if hasattr(E, "new_issues"):
+        return E.new_issues
+    if not (E.root / NA_REPORT).is_file():
+        raise ValueError("Report missing: " + NA_REPORT)
+    rep = " Report: %s." % NA_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        _na_cite(E, func, address, hexbytes)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def string(func, address, ref, hexbytes, expected, label, detail):
+        _na_cite(E, func, ref, hexbytes, key=address)
+        return E.string(func, address, expected, label, detail + rep)
+
+    t = {}
+    # Space DLC bytes tested by the directional gate 0x1402645f0.
+    t["sp_query"] = code(F_SPACE_QUERY, 0x1402795D0, "ba925d2400", "Space DLC ownership query", "Steam app id 0x245d92",
+                         "Startup passes this app id to slot +0x38 of the Steam Apps interface (call at 0x1402795d5) and stores the boolean result in byte 0x140cfa458 (0x1402795d8), the first byte the directional gate tests. "
+                         "This is the only writer of that byte. Both gate bytes lie in the zero-filled tail of the data section, so they read false until the query runs.")
+    t["sp_copy"] = code(F_SPACE_QUERY, 0x1402795F8, "88055b0ea800", "Space DLC session byte at startup", "copy of the ownership result",
+                        "Startup copies the same query result into byte 0x140cfa459, the second byte the gate tests. Session initialization copies ownership into it again (0x1408363d0).")
+    t["sp_server"] = code(F_SERVER_DLC, 0x1405E8651, "a804", "Server DLC mask, Space bit", "mask & 4",
+                          "Applying a server's state loads its DLC mask (server+0xbbbc0, 0x1405e8606), which the server saves and sends under the name dlc. "
+                          "When the ownership byte 0x140cfa458 is set (test at 0x1405e8641), byte 0x140cfa459 is set (0x1405e864a) and kept only if mask & 4 is nonzero; otherwise it is cleared (0x1405e8655).")
+    t["sp_setup"] = code(F_SESSION_SETUP, 0x14083CBD3, "c6057fd84b0001", "Session setup Space DLC byte", "set when owned and Space selected",
+                         "Session setup clears byte 0x140cfa459 while it rebuilds the selected DLC state (0x14083c8d6). It then sets it only when the ownership byte is set (test at 0x14083cbc8) and the Space value 4 of the selected mask is set (0x14083cbd1), and clears it otherwise (0x14083cbdc).")
+    t["sp_recv"] = code(F_SESSION_RECV, 0x1408428BD, "c605957b4b0001", "Received session Space DLC byte", "set when owned and the received mask & 4",
+                        "Received session state applies the same rule to the mask in the event payload: ownership test at 0x1408428b2, mask test at 0x1408428bb, clear at 0x1408428c6. "
+                        "A received mask cannot set the byte without local ownership.")
+    t["sp_recv2"] = code(F_SESSION_RECV2, 0x14085A251, "c60501024a0001", "Second received session Space DLC byte", "set when owned and the received mask & 4",
+                         "A second received-state handler repeats the rule: ownership test at 0x14085a246, mask test at 0x14085a24f, clear at 0x14085a25a.")
+    t["sp_lua"] = string(F_LUA_GLOBALS, 0x140B94420, 0x14059AC23, "488d05f6975f00488985600a0000488d05e8a20100", "dlcSpace", "Lua dlcSpace name",
+                         "The Lua global registration pairs this name with the callback 0x1405b4f20 (lea at 0x14059ac31), which returns true only when both 0x140cfa458 and 0x140cfa459 are nonzero, "
+                         "the same pair the directional gate tests. This names the two bytes as Space DLC ownership and Space DLC enabled.")
+    # Jet chamber overspeed and the damage it passes on.
+    t["o_gate"] = code(F_JET, 0x140353511, "44387835", "Chamber overspeed setting tests", "settings+0x35 and settings+0x4a",
+                       "The overspeed branch reads the settings (call 0x140294520 at 0x14035350c) and skips unless engine_overheating at settings+0x35 is on, then reads them again and skips unless vehicle_damage at settings+0x4a is on (0x140353520).")
+    t["o_latch"] = code(F_JET, 0x140353543, "4438bfd9040000", "Chamber overspeed latch", "once while component+0x4d9 is clear",
+                        "Above 200 internal RPS (compare at 0x14035353a, jbe at 0x14035353d) the branch continues only while the byte at +0x4d9 is 0 and then sets it to 1 (0x140353550). "
+                        "It stays set until the damage setter receives 0.")
+    t["o_req"] = code(F_JET, 0x140353567, "41ffc0", "Chamber overspeed damage request", "chamber damage + 1",
+                      "Loads the chamber's integer damage (component+8, 0x140353563), adds 1 and passes it to the jet graph routine 0x140355450 (call at 0x140353571). "
+                      "The branch also queues a particle record (0x140302bb0) and an effect instance (0x140288f70); it makes no area damage call and does not reset engine speed.")
+    t["o_max"] = code(F_JET_DAMAGE, 0x1403554B6, "0f475108", "Jet damage propagation", "max(part damage, request)",
+                      "For each part it visits the routine compares the part's damage with the request (0x1403554ac), keeps the larger and passes it to the part's damage setter, vtable slot +0x20 (call at 0x1403554ba). "
+                      "It records visited parts and recurses through both jet neighbour lists, so every jet part joined to the chamber gets at least the request and none is lowered. "
+                      "Ghidra's pseudocode drops this maximum; the instructions are used instead.")
+    WHERE[(F_JET_CTOR, JET_VTABLE + 0x20)] = "../" + _NA + "tools/typed-slots.txt:L3"
+    t["o_slot"] = E.record(F_JET_CTOR, JET_VTABLE, 0x20, "000c354001000000", "Jet damage setter slot", "0x140350c00",
+                           "Slot +0x20 of the jet vtable 0x140b887c0, which the constructor installs, points to the damage setter 0x140350c00." + rep)
+    t["o_cap"] = code(F_JET_SET_DAMAGE, 0x140350C0A, "b832000000", "Jet damage cap", "50",
+                      "The setter stores min(request, 50) as the part's damage at component+8 (cmovb at 0x140350c18, store at 0x140350c1b) and marks the part changed (0x140350c0f).")
+    t["o_reset"] = code(F_JET_SET_DAMAGE, 0x140350C04, "8891d9040000", "Overspeed latch reset", "latch cleared only when damage is set to 0",
+                        "The setter tests the request (0x140350c00) and clears the overspeed latch at +0x4d9 only when it is 0. Repairing the chamber to 0 damage therefore rearms its overspeed trigger.")
+    t["o_effect"] = E.derived("Overspeed effect on the engine", "turbines with any damage stop gaining pressure-driven RPS",
+                              "The first overspeed of an undamaged chamber requests damage 1 and gives it to every jet part joined to it. "
+                              "A turbine with nonzero damage skips its pressure-to-RPS step (test at 0x140352fa7), so 1 is enough; more damage adds nothing to that effect, and the cap of 50 is not an efficiency scale. "
+                              "Existing speed and pressure are not cleared and the chamber still burns fuel and adds pressure. Repairing a turbine to 0 restores its gain; repairing only the chamber leaves the other parts' damage in place." + rep,
+                              [t["o_req"], t["o_max"], t["o_cap"], t["o_reset"]])
+    # Afterburner buffer outside the update.
+    t["ab_ctor"] = code(F_JET_CTOR, 0x14034FEA0, "4889aec8030000", "Jet fuel buffer at construction", "0",
+                        "The constructor's 8-byte zero store at component+0x3c8 covers the jet fuel member, +0x14 of the private liquid container at +0x3b8, so a new part's buffer holds no jet fuel.")
+    t["ab_save"] = code(F_JET_SAVE, 0x1403501B8, "488d8630030000", "Jet serializer saves the Fuel port state", "component+0x330, not the buffer at +0x3b8",
+                        "The serializer passes the fluid-port state to 0x140901d50 (call at 0x1403501d1) and never passes the private container at +0x3b8 to a serializer, so the buffer's stored jet fuel is not saved with the vehicle.")
+    t["ab_scan"] = E.derived("Other writers of the afterburner buffer", "no further jet-fuel debit found",
+                             "A whole-executable scan of direct stores at the buffer's jet-fuel offset, grouped by owning function (tools/direct-jet-fuel-writers.txt, tools/direct-writer-primary.txt, tools/buffer-all-offsets.txt under investigation/native/new-issues-a), "
+                             "finds the chamber debit at 0x1403533f8 and same-offset stores in other object types, none of them a debit of the exhaust's buffer. "
+                             "A matching offset alone does not make a store an afterburner writer." + rep,
+                             [t["ab_ctor"], t["ab_save"]])
+    # Deprecated Turbine Engine and its private compartments.
+    t["dp_bind"] = string(F_DEFSER, FLAGS_NAME, 0x140316B26, "4c8d8eb80200004c896424204c8d050f128300", "flags", "Definition flags binding",
+                          "The definition serializer reads the flags attribute into definition+0x2b8 (lea r9 at 0x140316b26).")
+    t["dp_name"] = code(F_DEF_NAME, 0x14031CD63, "48f7c100000020", "Deprecated name test", "flags bit 0x20000000",
+                        "The display-name routine reads definition+0x2b8 (0x14031cd5d) and, with this bit set, appends the literal \" (Deprecated)\".")
+    t["dp_str"] = string(F_DEF_NAME, 0x140B5FAE8, 0x14031CD8E, "488d15532d8400", " (Deprecated)", "Deprecated name suffix",
+                         "Appended to the display name of a definition whose flags carry bit 0x20000000.")
+    t["dp_cat"] = code(F_CATALOG, 0x140775856, "48a900000020", "Catalog rebuild skips deprecated parts", "bit 0x20000000 set: skipped",
+                       "The component catalog rebuild jumps past a definition with this bit (ja at 0x14077585c) before it inserts it into its category lists. The test does not depend on a career or creative switch.")
+    t["dp_res"] = code(F_RESEARCH, 0x14077B4A8, "48a900000020", "Research and catalog state skips deprecated parts", "bit 0x20000000 set: skipped",
+                       "The research and catalog state routine skips a definition with this bit (ja at 0x14077b4ae), with no game-mode test on that path.")
+    t["dp_veh"] = code(F_VEHICLE_LIST, 0x1407D159A, "48a900000020", "Existing-vehicle component list skips deprecated parts", "bit 0x20000000 set: skipped",
+                       "The component list for existing vehicles, a chunk of 0x1407d14f0, skips a definition with this bit.")
+    t["dp_flags"] = E.attr("turbine", "flags", "537133056 is 0x20040000, so it carries the Deprecated bit 0x20000000; the 0x40000 bit is not interpreted here." + rep)
+    t["dp_avail"] = E.derived("Turbine Engine availability", "Deprecated; left out of the normal component catalog in every mode",
+                              "turbine.xml has the Deprecated bit, so the game shows it as \"Turbine Engine (Deprecated)\" and the catalog rebuild, the research and catalog state and the existing-vehicle component list all skip it, with no career or creative test. "
+                              "Loading an older vehicle that contains one and special spawning paths are separate routes." + rep,
+                              [t["dp_flags"], t["dp_name"], t["dp_cat"], t["dp_res"], t["dp_veh"]])
+    t["cc_intake"] = code(F_CE_CTOR, 0x14034AB45, "4889b798040000", "Classic engine constructor clears intake state", "0",
+                          "The classic engine constructor stores zero to the private intake container at component+0x498; the fuel container is cleared at 0x14034abae.")
+    t["cc_fuel"] = code(F_CE_CTOR, 0x14034ABAE, "4889b7f4040000", "Classic engine constructor clears fuel state", "0",
+                        "Zeroes the private fuel species at component+0x4f4. The engine serializer 0x14034e570 saves port state and engine values but passes neither private container to a serializer, "
+                        "so on the current construction and save path these containers start empty.")
+    E.new_issues = t
     return t
 
 

@@ -207,7 +207,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/12/sections/10/body",
-        "text": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
+        "text": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -622,19 +622,6 @@
     ]
   },
   {
-    "key": "family:part-jet-engine-combustion-chamber",
-    "title": "Jet Combustion Chamber: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-jet-engine-combustion-chamber",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/121/limitations/2",
-        "text": "The effect of the overspeed damage on the engine was not traced.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:part-jet-engine-exhaust-afterburner",
     "title": "Jet Exhaust Afterburner: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-jet-engine-exhaust-afterburner",
@@ -642,7 +629,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/123/limitations/2",
-        "text": "Writes to the exhaust's fuel buffer from code outside its update, initializer, pre-update and the two liquid helpers were not traced; the zero fuel burn covers those paths. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
+        "text": "Writes to the exhaust's fuel buffer through escaped pointers, generic copies or computed addresses were not traced, so an indirect writer elsewhere is not ruled out. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -700,32 +687,6 @@
     ]
   },
   {
-    "key": "family:part-rx-directional",
-    "title": "RX Directional: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-directional",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/203/limitations/0",
-        "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-rx-directional-large",
-    "title": "RX Directional (Large): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-directional-large",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/204/limitations/0",
-        "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:part-transponder-locator",
     "title": "Transponder Locator: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-transponder-locator",
@@ -746,13 +707,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/241/limitations/0",
-        "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/241/limitations/1",
-        "text": "Part availability in current game modes was not established.",
+        "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, whether loading an older vehicle or a special spawning path can still place one, and whether an indirect world, editor or script writer fills its private compartments, was not traced.",
         "scope": "Practical behavior guidance"
       }
     ]

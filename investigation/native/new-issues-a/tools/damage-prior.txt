@@ -1,0 +1,69 @@
+2-
+3-Target `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`, verified 2026-10-20. Static analysis only. All addresses use preferred image base `0x140000000` and apply only to this build. The game was not run. Issues [#7](https://github.com/Chaoscaot/stormworks-wiki/issues/7), [#57](https://github.com/Chaoscaot/stormworks-wiki/issues/57) and [#147](https://github.com/Chaoscaot/stormworks-wiki/issues/147) were read first. Their bodies are retained under `native/jet-engines/tools/`. No wiki, extractor, existing investigation, commit, push or GitHub state was changed.
+4-
+5-## Results
+6-
+7:The modular jet update is recovered at `0x140350f40..0x1403540f5`. Combustion starts above 0.5 internal RPS, burns `0.12*effective_throttle*RPS` L/s, adds `1600*effective_throttle*RPS` to outgoing pressure and `0.1*effective_throttle*RPS` to outgoing temperature each update. The compressor's signed pressure transfer and corresponding speed load are recovered. Turbines halve incoming pressure and, when undamaged, add `0.0000375*incoming_pressure` to local RPS before electrical generation and shaft exchange. The medium turbine submits RPS with shaft weight 160.
+8-
+9-Exhaust force before application limits is `32*max(incoming_pressure-1000,0)*altitude_factor*spoiler_factor*afterburner_factor`. This supports a pressure-to-thrust graph. It does not establish a universal RPS-to-thrust graph for an assembled jet. The afterburner multiplier is `1+500*stored_jet_fuel_amount` when enabled with positive liquid contents. No explicit jet-fuel consumption occurs in the exhaust branch. External fuel-port exchange is a separate flow.
+10-
+11-Confidence is high for these local finite-value arithmetic paths and port mappings. Pressure, temperature, electrical magnitude and force retain internal units where no physical calibration was established. Whole-engine steady state, connection-list construction, physical temperature units and SI efficiency remain open.
+12-
+13-## Component identification
+14-
+15-The Jet engines category in `wiki/data/behavior.json` and the matching families in `wiki/data/families.json` identify 14 `jet_engine*.xml` definitions. Each has component type 34. Definition `jet_engine_component_type` is read at definition+0xed4:
+--
+69-
+70-Turbine, subtype 3, after neighbor exchange:
+71-
+72-```
+73-q = 0.5*p_in
+74:r0 = r + 0.000075*q     when component damage integer +8 is zero
+75-r0 = r                  otherwise
+76-k = min(r0/10000,0.02)
+77-electrical_add = abs(r0)*electric_magnitude*k
+78-r_local = (1-k)*r0
+79-p_out = p_in-q
+80-p_in *= 0.5
+81-t_out = t_in
+82-```
+--
+115-
+116-A fully supplied compressor requests 0.1 internal electrical charge per enabled update at `0x14035379e`, not its definition's zero `electric_magnitude`. Helper `0x1402eeca0` returns the fraction supplied. For an ordinary finite-electricity connection this fraction is `min(group_charge,0.1*A)/0.1`, with `A=max((300-node_timer)/300,0)*node_availability`. It subtracts the supplied charge. Infinite electricity returns 1; no connection returns 0. See the retained helper and the existing [electricity investigation](electricity.md) for group semantics. With full supply, draw is 6 internal charge/s and starter addition is 0.01 RPS/update before drag and pressure load. These are not watts or shaft torque.
+117-
+118-At rest, with zero local incoming and outgoing pressure and full starter supply, one compressor update gives `r0=0.0099`, `q=0.198`, `r_local=0.0098802`, `p_in=-0.198`, and `p_out=0.198`. Network averaging changes the next state. This is not a claimed complete engine startup time.
+119-
+120:The chamber gate at `0x1403533a6` compares RPS to 0.5. A separate damage path checks RPS above 200 under the engine-overheat and vehicle-damage settings. It is not an ignition-pressure gate. The chamber's fuel buffer capacity is initialized to 0.4 liquid amount, 4 L, at `0x140350ba3`. Both chamber and exhaust exchange with the fuel port through `0x1402ec710` using pressure bias -10 and throttle parameter 1. That is fluid transport, separate from the chamber's combustion debit. The full world fluid network and overspeed damage propagation are not modeled here.
+121-
+122-## Force application and units
+123-
+124-Force helper `0x1401a7c70` divides the vector by update argument 7, `S`, limits its length to 100 and multiplies back. For positive finite S, `F_applied=min(F_raw,100*S)` in the unidirectional case above. This is an additional cap, not another jet-size multiplier. S is a grouped vehicle application scale, not proven equal to body mass for all assemblies. The global force-application gate must also be enabled. The rotating exhaust's electrical pivot can change force direction and lever arm without changing the pressure coefficient.
+125-
+126-The helper queues RTTI `event_set_impulse_threshold@mm_physics_scene`, vtable `0x140b62280`. Handler `0x1401a17b0` calls `0x14019a370`, which adds the vector to Bullet's total-force accumulator. Despite the event name, this is force, not a per-update impulse. Do not multiply the force by 60. The corresponding impulse for one nominal update is force/60. The force handler and accumulator are retained. The existing [control-surface investigation](control-surfaces.md) independently documents the application scale and force accumulator.
+127-
+128-Use 60 updates per simulated second, as established in [update-rate.md](update-rate.md). Liquid conversion is 10 L/amount. The fuel scalar therefore has a verified L/s conversion. Heating input `0.1*u*r` per update is `6*u*r` internal temperature units/s before transport, not a prediction of temperature rise in a complete engine. Electrical generation is `60*abs(r0)*0.025*k` internal charge/s when connected and positive. Shaft weight 160 is a solver weight, not 160 N m. Native numeric outputs establish RPS, pressure and temperature field identities, but neither pressure nor temperature receives a recovered SI calibration in this investigation. An SI thermal or propulsive efficiency cannot be calculated from these internal quantities alone.
+--
+144-
+145-`tools/model.py` implements the local compressor, chamber, turbine and exhaust equations. It can emit fuel-versus-RPS or force-versus-incoming-pressure CSV, and optionally PNG or SVG plots through matplotlib. It keeps pressure and RPS as separate inputs. `tools/examples.json` retains calculated examples, not runtime measurements.
+146-
+147-At r=20, full effective throttle and adequate jet fuel, a chamber consumes 0.004 amount/update, 0.04 L/update or 2.4 L/s. With incoming pressure and temperature zero it sets outgoing pressure to 32000 and temperature to 2. At r=0.5 it consumes zero and does not heat. With only 0.001 amount available at r=20, effective throttle becomes 0.25 and that update consumes the remaining 0.01 L.
+148-
+149:An undamaged turbine at r=20 and incoming pressure 32000 first reaches r0=21.2. Its electrical fraction is 0.00212, electrical addition is 0.0011236 charge/update or 0.067416 charge/s, and it submits r=21.155056. The medium turbine uses shaft weight 160 and can then receive a different network RPS. Outgoing pressure is 16000. These are individual local states, not a solved steady chain.
+150-
+151-An exhaust at incoming pressure 16000, sea level and zero spoiler computes 480000 internal force. With S=1000, the helper limits application to 100000. Half spoiler gives 240000 before the cap. An enabled afterburner with 0.001 stored jet-fuel amount gives multiplier 1.5 and force 720000 before the cap. With 0.4 stored amount, the observed multiplier is 201 and raw force is 96480000. The latter illustrates why assuming a universal 1.5 multiplier would misrepresent the recovered branch; it does not establish a steady externally supplied fuel flow or measured thrust.
+152-
+153-## Remaining questions and bounded exclusions
+154-
+155-1. Whole-engine RPS-to-thrust relation and startup time remain open. The component arithmetic, pressure/temperature averaging and cached-speed traversal are recovered. They rule out a direct exhaust `constant*RPS*size` formula and a pressure-only ignition gate. List construction through ducts, multi-branch topology and complete phase scheduling are not reconstructed here, so the model cannot predict equilibrium pressure or RPS from a parts list.
+156-2. Afterburner external fuel flow remains open. The complete subtype-4 branch, fuel exchange helper, purge helper, constructor and initializer were inspected. They rule out an explicit jet-fuel debit proportional to pressure, RPS, enable state or thrust in that branch, and rule out replacing the native stored-fuel multiplier with a fixed 1.5. The port helper can redistribute liquid with the external network. Other external writers and a complete fluid-network operating point were not reconstructed, so this report does not claim that every connected afterburner arrangement consumes zero tank fuel.
+157-3. Pressure and temperature physical units remain open. Resource port names, save keys and arithmetic are traced, and the jet fields are separate from the ordinary fluid compartment. No conversion to pascals, atmospheres, kelvin or degrees Celsius appears in the traced jet paths. Ordinary fluid temperature units do not establish jet-temperature units. Calibration or a native UI/unit conversion outside these paths is still needed.
+158-4. SI torque, power and efficiency remain open. Mechanical port speed is RPS and submitted weight is 160. The solver weight, raw pressure and charge additions rule out treating the medium turbine's tooltip as a measured N m output. No physical energy balance or mass-flow rate was recovered.
+159:5. General damage, immersion and intake behavior are not a complete model here. Both intake definitions use subtype 0 and are retained in the update. The intake includes directional vehicle velocity, altitude, damage and water checks. Those paths were checked to avoid assigning the intake-only final damping block to every jet part. The complete intake force/damage behavior and overspeed damage propagation need a separate decode if an assembled-engine simulator is required.
+160-
+161-## Replacement wording for the recorded gaps
+162-
+163-For issue #7, replace "Jet simulation code was not decoded." with:
+164-
+165-> The modular jet component update is decoded for executable SHA-256 f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699. Compressor pressure/load, RPS-gated combustion, fuel consumption, temperature increments, turbine RPS/shaft weight, and pressure-based exhaust force are recovered. Whole-engine steady state through ducts and branches, physical pressure/temperature units and SI efficiency remain open. See investigation/jet-engines.md.
+166-
+167-For issue #57, replace "There is no jet thrust graph because the full thrust formula is not verified." with:

@@ -1203,7 +1203,7 @@
         },
         {
           "title": "Legacy turbine",
-          "body": "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0; see its own article."
+          "body": "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0. It is marked Deprecated and left out of the component catalog; see its own article."
         }
       ],
       "limitations": [
@@ -4075,7 +4075,7 @@
         },
         {
           "title": "Open questions",
-          "body": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game."
+          "body": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game."
         }
       ],
       "limitations": [
@@ -31821,7 +31821,7 @@
       "sections": [
         {
           "title": "Pressure to RPS",
-          "body": "After averaging, a turbine passes on half of its incoming pressure and keeps the other half's effect as speed: r0 = r + 0.0000375 × p_in. A damaged turbine gains nothing."
+          "body": "After averaging, a turbine passes on half of its incoming pressure and keeps the other half's effect as speed: r0 = r + 0.0000375 × p_in. A turbine with any damage gains nothing. A chamber overspeed is one source of that damage; repairing the turbine to 0 damage restores the gain."
         },
         {
           "title": "Electricity",
@@ -32072,6 +32072,42 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Chamber overspeed damage request",
+          "value": "chamber damage + 1",
+          "detail": "Loads the chamber's integer damage (component+8, 0x140353563), adds 1 and passes it to the jet graph routine 0x140355450 (call at 0x140353571). The branch also queues a particle record (0x140302bb0) and an effect instance (0x140288f70); it makes no area damage call and does not reset engine speed. Report: investigation/new-issues-a.md. Function 0x140350f40-0x1403540f6; instruction bytes 41ffc0 at 0x140353567. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/140350f40.asm:L2281; ../new-issues-a/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353567",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353567"
+          }
+        },
+        {
+          "label": "Jet damage propagation",
+          "value": "max(part damage, request)",
+          "detail": "For each part it visits the routine compares the part's damage with the request (0x1403554ac), keeps the larger and passes it to the part's damage setter, vtable slot +0x20 (call at 0x1403554ba). It records visited parts and recurses through both jet neighbour lists, so every jet part joined to the chamber gets at least the request and none is lowered. Ghidra's pseudocode drops this maximum; the instructions are used instead. Report: investigation/new-issues-a.md. Function 0x140355450-0x14035559e; instruction bytes 0f475108 at 0x1403554b6. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/140355450.asm:L30. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140355450@0x1403554b6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403554b6"
+          }
+        },
+        {
+          "label": "Overspeed effect on the engine",
+          "value": "turbines with any damage stop gaining pressure-driven RPS",
+          "detail": "The first overspeed of an undamaged chamber requests damage 1 and gives it to every jet part joined to it. A turbine with nonzero damage skips its pressure-to-RPS step (test at 0x140352fa7), so 1 is enough; more damage adds nothing to that effect, and the cap of 50 is not an efficiency scale. Existing speed and pressure are not cleared and the chamber still burns fuel and adds pressure. Repairing a turbine to 0 restores its gain; repairing only the chamber leaves the other parts' damage in place. Report: investigation/new-issues-a.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353567, native:stormworks64.exe:f9206d85c82f:0x140355450@0x1403554b6, native:stormworks64.exe:f9206d85c82f:0x140350c00@0x140350c0a, native:stormworks64.exe:f9206d85c82f:0x140350c00@0x140350c04.",
+          "evidenceId": "derived:13d76d6bb636",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353567"
           }
         },
         {
@@ -32407,12 +32443,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353567"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403537dc"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140355205"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403554b6"
         },
         {
           "path": "stormworks64.exe",
@@ -65462,6 +65508,10 @@
         {
           "title": "Electrical output",
           "body": "The cell does not check battery demand. It deposits the charge whenever it reacts, and with no electrical network attached the charge is dropped while the gases are still used."
+        },
+        {
+          "title": "Space DLC",
+          "body": "The reaction runs only when the Space DLC is owned and enabled in the current session, the same gate the electrolyser and the directional antennas use. Without it the cell makes no water or charge."
         }
       ],
       "findings": [
@@ -65707,11 +65757,70 @@
             "lineStart": 2,
             "lineEnd": 2
           }
+        },
+        {
+          "label": "Space DLC ownership query",
+          "value": "Steam app id 0x245d92",
+          "detail": "Startup passes this app id to slot +0x38 of the Steam Apps interface (call at 0x1402795d5) and stores the boolean result in byte 0x140cfa458 (0x1402795d8), the first byte the directional gate tests. This is the only writer of that byte. Both gate bytes lie in the zero-filled tail of the data section, so they read false until the query runs. Report: investigation/new-issues-a.md. Function 0x140278580-0x14027968a; instruction bytes ba925d2400 at 0x1402795d0. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1402795d8.asm:L967; ../new-issues-a/pseudocode/0x140278580.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795d0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402795d0"
+          }
+        },
+        {
+          "label": "Space DLC session byte at startup",
+          "value": "copy of the ownership result",
+          "detail": "Startup copies the same query result into byte 0x140cfa459, the second byte the gate tests. Session initialization copies ownership into it again (0x1408363d0). Report: investigation/new-issues-a.md. Function 0x140278580-0x14027968a; instruction bytes 88055b0ea800 at 0x1402795f8. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1402795d8.asm:L974; ../new-issues-a/pseudocode/0x140278580.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795f8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402795f8"
+          }
+        },
+        {
+          "label": "Server DLC mask, Space bit",
+          "value": "mask & 4",
+          "detail": "Applying a server's state loads its DLC mask (server+0xbbbc0, 0x1405e8606), which the server saves and sends under the name dlc. When the ownership byte 0x140cfa458 is set (test at 0x1405e8641), byte 0x140cfa459 is set (0x1405e864a) and kept only if mask & 4 is nonzero; otherwise it is cleared (0x1405e8655). Report: investigation/new-issues-a.md. Function 0x1405e85e0-0x1405e8822; instruction bytes a804 at 0x1405e8651. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1405e85e0.asm:L29; ../new-issues-a/pseudocode/0x1405e85e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e85e0@0x1405e8651",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e8651"
+          }
+        },
+        {
+          "label": "Session setup Space DLC byte",
+          "value": "set when owned and Space selected",
+          "detail": "Session setup clears byte 0x140cfa459 while it rebuilds the selected DLC state (0x14083c8d6). It then sets it only when the ownership byte is set (test at 0x14083cbc8) and the Space value 4 of the selected mask is set (0x14083cbd1), and clears it otherwise (0x14083cbdc). Report: investigation/new-issues-a.md. Function 0x14083c6b0-0x140841ebc; instruction bytes c6057fd84b0001 at 0x14083cbd3. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14083c6b0.asm:L286; ../new-issues-a/pseudocode/0x14083c6b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14083c6b0@0x14083cbd3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14083cbd3"
+          }
+        },
+        {
+          "label": "Lua dlcSpace name",
+          "value": "dlcSpace",
+          "detail": "The Lua global registration pairs this name with the callback 0x1405b4f20 (lea at 0x14059ac31), which returns true only when both 0x140cfa458 and 0x140cfa459 are nonzero, the same pair the directional gate tests. This names the two bytes as Space DLC ownership and Space DLC enabled. Report: investigation/new-issues-a.md. Function 0x140599990-0x14059b276; it references the string 'dlcSpace' at 0x140b94420. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/space-binding.asm:L4-L6; ../new-issues-a/pseudocode/0x1405b4f20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140599990@0x140b94420",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b94420"
+          }
         }
       ],
       "limitations": [
         "Static analysis of one build. Charge is in the game's internal electrical units, as on the Electricity pages; fluid amounts are stored amounts, 10 L of liquid or 600 L of expanded gas per amount.",
-        "The reaction case runs only while the global guard 0x1402645f0 passes: two game-wide flags at 0x140cfa458 and 0x140cfa459, which the electrolyser case and the directional antennas check too. What the flags mean is tracked as open on the directional antenna pages.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -65737,6 +65846,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402645f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402795d0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402795f8"
         },
         {
           "path": "stormworks64.exe",
@@ -65796,6 +65915,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e8651"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405ebd5c"
         },
         {
@@ -65807,6 +65931,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14083cbd3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b94420"
         }
       ]
     },
@@ -65934,7 +66068,7 @@
         },
         {
           "title": "Overspeed",
-          "body": "With the engine_overheating and vehicle_damage settings both on, a chamber above 200 RPS sets a one-time flag and passes its damage + 1 to a damage routine."
+          "body": "With the engine_overheating and vehicle_damage settings both on, a chamber above 200 internal RPS sets a one-time latch and requests its own damage + 1. A routine passes that request through the connected jet parts in both directions, and each part keeps the larger of its own damage and the request, capped at 50. An undamaged chamber therefore raises itself and every jet part joined to it to at least 1 damage on its first overspeed.\n\nIn the jet update, any damage stops a turbine from turning pressure into RPS, so 1 is enough. Existing speed and the pressure already in the engine are not cleared, and the chamber keeps burning fuel and adding pressure, so the engine is not shut down at once; it loses the turbines' pressure-driven speed gain. The branch also queues visual effects, but it makes no area damage and does not reset engine speed.\n\nRepairing a turbine to 0 damage restores its gain. Repairing the chamber to 0 clears the latch, so the next overspeed damages again; it does not repair the other parts."
         }
       ],
       "findings": [
@@ -66203,6 +66337,114 @@
           }
         },
         {
+          "label": "Chamber overspeed setting tests",
+          "value": "settings+0x35 and settings+0x4a",
+          "detail": "The overspeed branch reads the settings (call 0x140294520 at 0x14035350c) and skips unless engine_overheating at settings+0x35 is on, then reads them again and skips unless vehicle_damage at settings+0x4a is on (0x140353520). Report: investigation/new-issues-a.md. Function 0x140350f40-0x1403540f6; instruction bytes 44387835 at 0x140353511. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/140350f40.asm:L2263; ../new-issues-a/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353511",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353511"
+          }
+        },
+        {
+          "label": "Chamber overspeed latch",
+          "value": "once while component+0x4d9 is clear",
+          "detail": "Above 200 internal RPS (compare at 0x14035353a, jbe at 0x14035353d) the branch continues only while the byte at +0x4d9 is 0 and then sets it to 1 (0x140353550). It stays set until the damage setter receives 0. Report: investigation/new-issues-a.md. Function 0x140350f40-0x1403540f6; instruction bytes 4438bfd9040000 at 0x140353543. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/140350f40.asm:L2274; ../new-issues-a/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353543",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353543"
+          }
+        },
+        {
+          "label": "Chamber overspeed damage request",
+          "value": "chamber damage + 1",
+          "detail": "Loads the chamber's integer damage (component+8, 0x140353563), adds 1 and passes it to the jet graph routine 0x140355450 (call at 0x140353571). The branch also queues a particle record (0x140302bb0) and an effect instance (0x140288f70); it makes no area damage call and does not reset engine speed. Report: investigation/new-issues-a.md. Function 0x140350f40-0x1403540f6; instruction bytes 41ffc0 at 0x140353567. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/140350f40.asm:L2281; ../new-issues-a/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353567",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353567"
+          }
+        },
+        {
+          "label": "Jet damage propagation",
+          "value": "max(part damage, request)",
+          "detail": "For each part it visits the routine compares the part's damage with the request (0x1403554ac), keeps the larger and passes it to the part's damage setter, vtable slot +0x20 (call at 0x1403554ba). It records visited parts and recurses through both jet neighbour lists, so every jet part joined to the chamber gets at least the request and none is lowered. Ghidra's pseudocode drops this maximum; the instructions are used instead. Report: investigation/new-issues-a.md. Function 0x140355450-0x14035559e; instruction bytes 0f475108 at 0x1403554b6. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/140355450.asm:L30. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140355450@0x1403554b6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403554b6"
+          }
+        },
+        {
+          "label": "Jet damage setter slot",
+          "value": "0x140350c00",
+          "detail": "Slot +0x20 of the jet vtable 0x140b887c0, which the constructor installs, points to the damage setter 0x140350c00. Report: investigation/new-issues-a.md. Function 0x14034fc10-0x140350013; it addresses the table at 0x140b887c0; row bytes 000c354001000000 at 0x140b887e0. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/tools/typed-slots.txt:L3. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034fc10@0x140b887e0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b887e0"
+          }
+        },
+        {
+          "label": "Jet damage cap",
+          "value": "50",
+          "detail": "The setter stores min(request, 50) as the part's damage at component+8 (cmovb at 0x140350c18, store at 0x140350c1b) and marks the part changed (0x140350c0f). Report: investigation/new-issues-a.md. Function 0x140350c00-0x140350c20; instruction bytes b832000000 at 0x140350c0a. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/tools/selected-instructions.txt:L10; ../new-issues-a/pseudocode/0x140350c00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350c00@0x140350c0a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140350c0a"
+          }
+        },
+        {
+          "label": "Overspeed latch reset",
+          "value": "latch cleared only when damage is set to 0",
+          "detail": "The setter tests the request (0x140350c00) and clears the overspeed latch at +0x4d9 only when it is 0. Repairing the chamber to 0 damage therefore rearms its overspeed trigger. Report: investigation/new-issues-a.md. Function 0x140350c00-0x140350c20; instruction bytes 8891d9040000 at 0x140350c04. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/tools/selected-instructions.txt:L9; ../new-issues-a/pseudocode/0x140350c00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350c00@0x140350c04",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140350c04"
+          }
+        },
+        {
+          "label": "Overspeed effect on the engine",
+          "value": "turbines with any damage stop gaining pressure-driven RPS",
+          "detail": "The first overspeed of an undamaged chamber requests damage 1 and gives it to every jet part joined to it. A turbine with nonzero damage skips its pressure-to-RPS step (test at 0x140352fa7), so 1 is enough; more damage adds nothing to that effect, and the cap of 50 is not an efficiency scale. Existing speed and pressure are not cleared and the chamber still burns fuel and adds pressure. Repairing a turbine to 0 restores its gain; repairing only the chamber leaves the other parts' damage in place. Report: investigation/new-issues-a.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353567, native:stormworks64.exe:f9206d85c82f:0x140355450@0x1403554b6, native:stormworks64.exe:f9206d85c82f:0x140350c00@0x140350c0a, native:stormworks64.exe:f9206d85c82f:0x140350c00@0x140350c04.",
+          "evidenceId": "derived:13d76d6bb636",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353567"
+          }
+        },
+        {
+          "label": "Turbine damage test",
+          "value": "damage == 0",
+          "detail": "Only an undamaged turbine (component+8 equal to 0) gains speed from the captured pressure. Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes 44397f08 at 0x140352fa7. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L1782-L1789; ../jet-engines/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140352fa7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140352fa7"
+          }
+        },
+        {
           "label": "Jet Combustion Chamber · jet_engine_component_type",
           "value": "2",
           "detail": "jet_engine_combustion_chamber: definition attribute jet_engine_component_type. Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).",
@@ -66330,7 +66572,7 @@
       "limitations": [
         "Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its duct network; the Jet engines category lists that and the unit questions as open.",
         "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons.",
-        "The effect of the overspeed damage on the engine was not traced.",
+        "The overspeed branch's visual and sound effects and the repair tool's rate are outside this decode.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -66386,6 +66628,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140350c04"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140350c0a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140352fa7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14035330a"
         },
         {
@@ -66421,7 +66678,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353511"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140353532"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353543"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353567"
         },
         {
           "path": "stormworks64.exe",
@@ -66432,6 +66704,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140355205"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403554b6"
         },
         {
           "path": "stormworks64.exe",
@@ -66482,6 +66759,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b62f70"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b887e0"
         }
       ]
     },
@@ -66962,7 +67244,7 @@
         },
         {
           "title": "Fuel",
-          "body": "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.\n\nSo the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn."
+          "body": "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.\n\nSo the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn.\n\nOutside the update, the constructor empties the buffer and the jet serializer saves the Fuel port state but not the buffer. A whole-executable search for stores to the buffer's jet fuel found no other debit of the afterburner's fuel."
         },
         {
           "title": "Force units and limit",
@@ -67431,6 +67713,42 @@
           }
         },
         {
+          "label": "Jet fuel buffer at construction",
+          "value": "0",
+          "detail": "The constructor's 8-byte zero store at component+0x3c8 covers the jet fuel member, +0x14 of the private liquid container at +0x3b8, so a new part's buffer holds no jet fuel. Report: investigation/new-issues-a.md. Function 0x14034fc10-0x140350013; instruction bytes 4889aec8030000 at 0x14034fea0. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/tools/jet-ctor-buffer-asm.txt:L9; ../new-issues-a/pseudocode/0x14034fc10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034fc10@0x14034fea0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034fea0"
+          }
+        },
+        {
+          "label": "Jet serializer saves the Fuel port state",
+          "value": "component+0x330, not the buffer at +0x3b8",
+          "detail": "The serializer passes the fluid-port state to 0x140901d50 (call at 0x1403501d1) and never passes the private container at +0x3b8 to a serializer, so the buffer's stored jet fuel is not saved with the vehicle. Report: investigation/new-issues-a.md. Function 0x1403500f4-0x14035055b; instruction bytes 488d8630030000 at 0x1403501b8. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/jet-serialization.asm:L100; ../new-issues-a/pseudocode/0x140350020.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403500f4@0x1403501b8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403501b8"
+          }
+        },
+        {
+          "label": "Other writers of the afterburner buffer",
+          "value": "no further jet-fuel debit found",
+          "detail": "A whole-executable scan of direct stores at the buffer's jet-fuel offset, grouped by owning function (tools/direct-jet-fuel-writers.txt, tools/direct-writer-primary.txt, tools/buffer-all-offsets.txt under investigation/native/new-issues-a), finds the chamber debit at 0x1403533f8 and same-offset stores in other object types, none of them a debit of the exhaust's buffer. A matching offset alone does not make a store an afterburner writer. Report: investigation/new-issues-a.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14034fc10@0x14034fea0, native:stormworks64.exe:f9206d85c82f:0x1403500f4@0x1403501b8.",
+          "evidenceId": "derived:26dda732a67b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034fea0"
+          }
+        },
+        {
           "label": "Jet Exhaust Afterburner · jet_engine_component_type",
           "value": "4",
           "detail": "jet_engine_exhaust_afterburner: definition attribute jet_engine_component_type. Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).",
@@ -67558,7 +67876,7 @@
       "limitations": [
         "Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its duct network; the Jet engines category lists that and the unit questions as open.",
         "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons.",
-        "Writes to the exhaust's fuel buffer from code outside its update, initializer, pre-update and the two liquid helpers were not traced; the zero fuel burn covers those paths. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
+        "Writes to the exhaust's fuel buffer through escaped pointers, generic copies or computed addresses were not traced, so an indirect writer elsewhere is not ruled out. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -67620,6 +67938,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034fc29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034fea0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403501b8"
         },
         {
           "path": "stormworks64.exe",
@@ -115146,7 +115474,7 @@
     },
     {
       "id": "part-rx-directional",
-      "summary": "Directional link with rx_range 8000000; must be aimed at the target antenna. By inference its gain falls to 0 about 2.87 degrees off axis.",
+      "summary": "Directional link with rx_range 8000000 that needs the Space DLC owned and enabled; must be aimed at the target antenna. By inference its gain falls to 0 about 2.87 degrees off axis.",
       "sections": [
         {
           "title": "Setup and interactions",
@@ -115154,7 +115482,11 @@
         },
         {
           "title": "Range and aim",
-          "body": "It uses the shared radio receive routine: strength (1 − d ÷ R) × g_r × g_t, with R the sum of both antennas' rx_range at full power and sea level, 16000000 m for two of these. Height, power and submersion change R as for every radio.\n\nEach directional end has its own gain, clamp((v · w − 0.99875) × 800), from its aim direction v and the direction w to the other antenna. Inference, reading v · w as cos θ: the gain is 1 only exactly on axis, 0.5 at 2.03 degrees and 0 from 2.87 degrees. The gain is also 0 unless a global gate check passes."
+          "body": "It uses the shared radio receive routine: strength (1 − d ÷ R) × g_r × g_t, with R the sum of both antennas' rx_range at full power and sea level, 16000000 m for two of these. Height, power and submersion change R as for every radio.\n\nEach directional end has its own gain, clamp((v · w − 0.99875) × 800), from its aim direction v and the direction w to the other antenna. Inference, reading v · w as cos θ: the gain is 1 only exactly on axis, 0.5 at 2.03 degrees and 0 from 2.87 degrees. The gain is also 0 unless the Space DLC gate below passes."
+        },
+        {
+          "title": "Space DLC",
+          "body": "Each directional end passes its gain through a gate that tests two flags: whether this copy of the game owns the Space DLC, and whether the Space DLC is enabled in the current session. At startup the game asks Steam about the DLC and stores the answer in both. Session setup, joining and server state then set the second flag only when the DLC is owned and the session's DLC mask has its Space value 4, and clear it otherwise. A server cannot enable the DLC for a player who does not own it, and owning it does not enable it in a session that has Space turned off.\n\nWithout the Space DLC owned and enabled, directional antenna gain is 0, so the received strength is 0 however well the antenna is aimed. The range figures above assume the gate passes."
         }
       ],
       "findings": [
@@ -115679,10 +116011,106 @@
             "lineStart": 2,
             "lineEnd": 2
           }
+        },
+        {
+          "label": "Space DLC ownership query",
+          "value": "Steam app id 0x245d92",
+          "detail": "Startup passes this app id to slot +0x38 of the Steam Apps interface (call at 0x1402795d5) and stores the boolean result in byte 0x140cfa458 (0x1402795d8), the first byte the directional gate tests. This is the only writer of that byte. Both gate bytes lie in the zero-filled tail of the data section, so they read false until the query runs. Report: investigation/new-issues-a.md. Function 0x140278580-0x14027968a; instruction bytes ba925d2400 at 0x1402795d0. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1402795d8.asm:L967; ../new-issues-a/pseudocode/0x140278580.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795d0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402795d0"
+          }
+        },
+        {
+          "label": "Space DLC session byte at startup",
+          "value": "copy of the ownership result",
+          "detail": "Startup copies the same query result into byte 0x140cfa459, the second byte the gate tests. Session initialization copies ownership into it again (0x1408363d0). Report: investigation/new-issues-a.md. Function 0x140278580-0x14027968a; instruction bytes 88055b0ea800 at 0x1402795f8. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1402795d8.asm:L974; ../new-issues-a/pseudocode/0x140278580.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795f8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402795f8"
+          }
+        },
+        {
+          "label": "Server DLC mask, Space bit",
+          "value": "mask & 4",
+          "detail": "Applying a server's state loads its DLC mask (server+0xbbbc0, 0x1405e8606), which the server saves and sends under the name dlc. When the ownership byte 0x140cfa458 is set (test at 0x1405e8641), byte 0x140cfa459 is set (0x1405e864a) and kept only if mask & 4 is nonzero; otherwise it is cleared (0x1405e8655). Report: investigation/new-issues-a.md. Function 0x1405e85e0-0x1405e8822; instruction bytes a804 at 0x1405e8651. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1405e85e0.asm:L29; ../new-issues-a/pseudocode/0x1405e85e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e85e0@0x1405e8651",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e8651"
+          }
+        },
+        {
+          "label": "Session setup Space DLC byte",
+          "value": "set when owned and Space selected",
+          "detail": "Session setup clears byte 0x140cfa459 while it rebuilds the selected DLC state (0x14083c8d6). It then sets it only when the ownership byte is set (test at 0x14083cbc8) and the Space value 4 of the selected mask is set (0x14083cbd1), and clears it otherwise (0x14083cbdc). Report: investigation/new-issues-a.md. Function 0x14083c6b0-0x140841ebc; instruction bytes c6057fd84b0001 at 0x14083cbd3. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14083c6b0.asm:L286; ../new-issues-a/pseudocode/0x14083c6b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14083c6b0@0x14083cbd3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14083cbd3"
+          }
+        },
+        {
+          "label": "Received session Space DLC byte",
+          "value": "set when owned and the received mask & 4",
+          "detail": "Received session state applies the same rule to the mask in the event payload: ownership test at 0x1408428b2, mask test at 0x1408428bb, clear at 0x1408428c6. A received mask cannot set the byte without local ownership. Report: investigation/new-issues-a.md. Function 0x1408421f0-0x1408437f8; instruction bytes c605957b4b0001 at 0x1408428bd. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1408421f0.asm:L393; ../new-issues-a/pseudocode/0x1408421f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408421f0@0x1408428bd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408428bd"
+          }
+        },
+        {
+          "label": "Second received session Space DLC byte",
+          "value": "set when owned and the received mask & 4",
+          "detail": "A second received-state handler repeats the rule: ownership test at 0x14085a246, mask test at 0x14085a24f, clear at 0x14085a25a. Report: investigation/new-issues-a.md. Function 0x14085a130-0x14085aea8; instruction bytes c60501024a0001 at 0x14085a251. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14085a130.asm:L73; ../new-issues-a/pseudocode/0x14085a130.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14085a130@0x14085a251",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14085a251"
+          }
+        },
+        {
+          "label": "Lua dlcSpace name",
+          "value": "dlcSpace",
+          "detail": "The Lua global registration pairs this name with the callback 0x1405b4f20 (lea at 0x14059ac31), which returns true only when both 0x140cfa458 and 0x140cfa459 are nonzero, the same pair the directional gate tests. This names the two bytes as Space DLC ownership and Space DLC enabled. Report: investigation/new-issues-a.md. Function 0x140599990-0x14059b276; it references the string 'dlcSpace' at 0x140b94420. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/space-binding.asm:L4-L6; ../new-issues-a/pseudocode/0x1405b4f20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140599990@0x140b94420",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b94420"
+          }
+        },
+        {
+          "label": "Directional Space DLC gate",
+          "value": "gain 0 unless the Space DLC is owned and enabled",
+          "detail": "The gate 0x1402645f0 returns true only when byte 0x140cfa458, the Steam ownership result, and byte 0x140cfa459, Space DLC enabled in the current session, are both nonzero; the dlcSpace Lua callback tests the same pair. Every store that sets the second byte requires ownership or copies it, and the server and session writers also require mask & 4. When the gate fails the directional gain is 0. Report: investigation/new-issues-a.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402645f0@0x1402645f0, native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795d0, native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795f8, native:stormworks64.exe:f9206d85c82f:0x1405e85e0@0x1405e8651, native:stormworks64.exe:f9206d85c82f:0x14083c6b0@0x14083cbd3, native:stormworks64.exe:f9206d85c82f:0x1408421f0@0x1408428bd, native:stormworks64.exe:f9206d85c82f:0x14085a130@0x14085a251, native:stormworks64.exe:f9206d85c82f:0x140599990@0x140b94420.",
+          "evidenceId": "derived:679b37453a5b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402645f0"
+          }
         }
       ],
       "limitations": [
-        "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes."
+        "The gate reads the game's own Steam ownership result; how Steam licenses the DLC is outside the executable."
       ],
       "sources": [
         {
@@ -115713,6 +116141,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402645f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402795d0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402795f8"
         },
         {
           "path": "stormworks64.exe",
@@ -115877,13 +116315,38 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e8651"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14083cbd3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408428bd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14085a251"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d598"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b94420"
         }
       ]
     },
     {
       "id": "part-rx-directional-large",
-      "summary": "Directional link with rx_range 10000000; must be aimed at the target antenna. By inference its gain falls to 0 about 2.87 degrees off axis.",
+      "summary": "Directional link with rx_range 10000000 that needs the Space DLC owned and enabled; must be aimed at the target antenna. By inference its gain falls to 0 about 2.87 degrees off axis.",
       "sections": [
         {
           "title": "Setup and interactions",
@@ -115891,7 +116354,11 @@
         },
         {
           "title": "Range and aim",
-          "body": "It uses the shared radio receive routine: strength (1 − d ÷ R) × g_r × g_t, with R the sum of both antennas' rx_range at full power and sea level, 20000000 m for two of these. Height, power and submersion change R as for every radio.\n\nEach directional end has its own gain, clamp((v · w − 0.99875) × 800), from its aim direction v and the direction w to the other antenna. Inference, reading v · w as cos θ: the gain is 1 only exactly on axis, 0.5 at 2.03 degrees and 0 from 2.87 degrees. The gain is also 0 unless a global gate check passes."
+          "body": "It uses the shared radio receive routine: strength (1 − d ÷ R) × g_r × g_t, with R the sum of both antennas' rx_range at full power and sea level, 20000000 m for two of these. Height, power and submersion change R as for every radio.\n\nEach directional end has its own gain, clamp((v · w − 0.99875) × 800), from its aim direction v and the direction w to the other antenna. Inference, reading v · w as cos θ: the gain is 1 only exactly on axis, 0.5 at 2.03 degrees and 0 from 2.87 degrees. The gain is also 0 unless the Space DLC gate below passes."
+        },
+        {
+          "title": "Space DLC",
+          "body": "Each directional end passes its gain through a gate that tests two flags: whether this copy of the game owns the Space DLC, and whether the Space DLC is enabled in the current session. At startup the game asks Steam about the DLC and stores the answer in both. Session setup, joining and server state then set the second flag only when the DLC is owned and the session's DLC mask has its Space value 4, and clear it otherwise. A server cannot enable the DLC for a player who does not own it, and owning it does not enable it in a session that has Space turned off.\n\nWithout the Space DLC owned and enabled, directional antenna gain is 0, so the received strength is 0 however well the antenna is aimed. The range figures above assume the gate passes."
         }
       ],
       "findings": [
@@ -116416,10 +116883,106 @@
             "lineStart": 2,
             "lineEnd": 2
           }
+        },
+        {
+          "label": "Space DLC ownership query",
+          "value": "Steam app id 0x245d92",
+          "detail": "Startup passes this app id to slot +0x38 of the Steam Apps interface (call at 0x1402795d5) and stores the boolean result in byte 0x140cfa458 (0x1402795d8), the first byte the directional gate tests. This is the only writer of that byte. Both gate bytes lie in the zero-filled tail of the data section, so they read false until the query runs. Report: investigation/new-issues-a.md. Function 0x140278580-0x14027968a; instruction bytes ba925d2400 at 0x1402795d0. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1402795d8.asm:L967; ../new-issues-a/pseudocode/0x140278580.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795d0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402795d0"
+          }
+        },
+        {
+          "label": "Space DLC session byte at startup",
+          "value": "copy of the ownership result",
+          "detail": "Startup copies the same query result into byte 0x140cfa459, the second byte the gate tests. Session initialization copies ownership into it again (0x1408363d0). Report: investigation/new-issues-a.md. Function 0x140278580-0x14027968a; instruction bytes 88055b0ea800 at 0x1402795f8. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1402795d8.asm:L974; ../new-issues-a/pseudocode/0x140278580.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795f8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402795f8"
+          }
+        },
+        {
+          "label": "Server DLC mask, Space bit",
+          "value": "mask & 4",
+          "detail": "Applying a server's state loads its DLC mask (server+0xbbbc0, 0x1405e8606), which the server saves and sends under the name dlc. When the ownership byte 0x140cfa458 is set (test at 0x1405e8641), byte 0x140cfa459 is set (0x1405e864a) and kept only if mask & 4 is nonzero; otherwise it is cleared (0x1405e8655). Report: investigation/new-issues-a.md. Function 0x1405e85e0-0x1405e8822; instruction bytes a804 at 0x1405e8651. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1405e85e0.asm:L29; ../new-issues-a/pseudocode/0x1405e85e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e85e0@0x1405e8651",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e8651"
+          }
+        },
+        {
+          "label": "Session setup Space DLC byte",
+          "value": "set when owned and Space selected",
+          "detail": "Session setup clears byte 0x140cfa459 while it rebuilds the selected DLC state (0x14083c8d6). It then sets it only when the ownership byte is set (test at 0x14083cbc8) and the Space value 4 of the selected mask is set (0x14083cbd1), and clears it otherwise (0x14083cbdc). Report: investigation/new-issues-a.md. Function 0x14083c6b0-0x140841ebc; instruction bytes c6057fd84b0001 at 0x14083cbd3. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14083c6b0.asm:L286; ../new-issues-a/pseudocode/0x14083c6b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14083c6b0@0x14083cbd3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14083cbd3"
+          }
+        },
+        {
+          "label": "Received session Space DLC byte",
+          "value": "set when owned and the received mask & 4",
+          "detail": "Received session state applies the same rule to the mask in the event payload: ownership test at 0x1408428b2, mask test at 0x1408428bb, clear at 0x1408428c6. A received mask cannot set the byte without local ownership. Report: investigation/new-issues-a.md. Function 0x1408421f0-0x1408437f8; instruction bytes c605957b4b0001 at 0x1408428bd. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/1408421f0.asm:L393; ../new-issues-a/pseudocode/0x1408421f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408421f0@0x1408428bd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408428bd"
+          }
+        },
+        {
+          "label": "Second received session Space DLC byte",
+          "value": "set when owned and the received mask & 4",
+          "detail": "A second received-state handler repeats the rule: ownership test at 0x14085a246, mask test at 0x14085a24f, clear at 0x14085a25a. Report: investigation/new-issues-a.md. Function 0x14085a130-0x14085aea8; instruction bytes c60501024a0001 at 0x14085a251. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14085a130.asm:L73; ../new-issues-a/pseudocode/0x14085a130.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14085a130@0x14085a251",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14085a251"
+          }
+        },
+        {
+          "label": "Lua dlcSpace name",
+          "value": "dlcSpace",
+          "detail": "The Lua global registration pairs this name with the callback 0x1405b4f20 (lea at 0x14059ac31), which returns true only when both 0x140cfa458 and 0x140cfa459 are nonzero, the same pair the directional gate tests. This names the two bytes as Space DLC ownership and Space DLC enabled. Report: investigation/new-issues-a.md. Function 0x140599990-0x14059b276; it references the string 'dlcSpace' at 0x140b94420. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/space-binding.asm:L4-L6; ../new-issues-a/pseudocode/0x1405b4f20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140599990@0x140b94420",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b94420"
+          }
+        },
+        {
+          "label": "Directional Space DLC gate",
+          "value": "gain 0 unless the Space DLC is owned and enabled",
+          "detail": "The gate 0x1402645f0 returns true only when byte 0x140cfa458, the Steam ownership result, and byte 0x140cfa459, Space DLC enabled in the current session, are both nonzero; the dlcSpace Lua callback tests the same pair. Every store that sets the second byte requires ownership or copies it, and the server and session writers also require mask & 4. When the gate fails the directional gain is 0. Report: investigation/new-issues-a.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402645f0@0x1402645f0, native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795d0, native:stormworks64.exe:f9206d85c82f:0x140278580@0x1402795f8, native:stormworks64.exe:f9206d85c82f:0x1405e85e0@0x1405e8651, native:stormworks64.exe:f9206d85c82f:0x14083c6b0@0x14083cbd3, native:stormworks64.exe:f9206d85c82f:0x1408421f0@0x1408428bd, native:stormworks64.exe:f9206d85c82f:0x14085a130@0x14085a251, native:stormworks64.exe:f9206d85c82f:0x140599990@0x140b94420.",
+          "evidenceId": "derived:679b37453a5b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402645f0"
+          }
         }
       ],
       "limitations": [
-        "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes."
+        "The gate reads the game's own Steam ownership result; how Steam licenses the DLC is outside the executable."
       ],
       "sources": [
         {
@@ -116450,6 +117013,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402645f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402795d0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402795f8"
         },
         {
           "path": "stormworks64.exe",
@@ -116614,7 +117187,32 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e8651"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14083cbd3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408428bd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14085a251"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d598"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b94420"
         }
       ]
     },
@@ -132979,7 +133577,7 @@
     },
     {
       "id": "part-turbine",
-      "summary": "A legacy classic engine: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
+      "summary": "A deprecated classic engine left out of the component catalog: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
       "sections": [
         {
           "title": "How the update works",
@@ -132987,11 +133585,15 @@
         },
         {
           "title": "Why it does not run on its own",
-          "body": "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments, which start empty, so the supply gate holds the effective throttle at 0. electric_magnitude 0 makes the starter request 0, even with infinite electricity. Derived from the traced paths, not tested in game: a new turbine at rest does not start itself. With infinite_fuel on and its shaft spun above 2 RPS by another component, it gains speed like a diesel with W = 50."
+          "body": "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments: the constructor clears them and the current serializer does not save them, so the supply gate holds the effective throttle at 0. Only the coolant compartment starts filled, with 100 L of fresh water. electric_magnitude 0 makes the starter request 0, even with infinite electricity. Derived from the traced paths, not tested in game: a new turbine at rest does not start itself. With infinite_fuel on and its shaft spun above 2 RPS by another component, it gains speed like a diesel with W = 50."
         },
         {
           "title": "Shaft and load",
           "body": "It still exchanges speed with its shaft group at weight 50, so on a shared shaft it adds 0.99 retention like any classic engine and heats at 0.0075 × |r| °C per update."
+        },
+        {
+          "title": "Availability",
+          "body": "turbine.xml carries definition flags 537133056, which include the Deprecated bit. The game appends \" (Deprecated)\" to the name of every part with that bit, and leaves such parts out of the component catalog rebuild, the research and catalog state and the component list for existing vehicles. None of these tests checks career or creative mode, so the Turbine Engine cannot be picked from the normal component catalog in any mode."
         }
       ],
       "findings": [
@@ -133581,6 +134183,140 @@
           }
         },
         {
+          "label": "Coolant at start",
+          "value": "10 amount of fresh water, 100 L",
+          "detail": "The initializer stores 10 to the coolant compartment's fresh water here, its total at 0x14034b670 and its volume at 0x14034b684: 100 L at 10 L per amount, for every size. The voxel count does not size it. Report: investigation/classic-engines.md. Function 0x14034b440-0x14034b715; instruction bytes c7875804000000002041 at 0x14034b67a. Interpretation rests on retained output investigation/native/behavior/../classic-engines/asm/init.asm:L127-L129; ../classic-engines/pseudocode/0x14034b440.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034b440@0x14034b67a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034b67a"
+          }
+        },
+        {
+          "label": "Turbine Engine · flags",
+          "value": "537133056",
+          "detail": "turbine: definition attribute flags. 537133056 is 0x20040000, so it carries the Deprecated bit 0x20000000; the 0x40000 bit is not interpreted here. Report: investigation/new-issues-a.md.",
+          "evidenceId": "resource:rom/data/definitions/turbine.xml:05da7e8efbf9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/turbine.xml",
+            "sha256": "05da7e8efbf9dc32b613b2887f26b268769b0fca850612ca7e694a415720f8e5",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Definition flags binding",
+          "value": "flags",
+          "detail": "The definition serializer reads the flags attribute into definition+0x2b8 (lea r9 at 0x140316b26). Report: investigation/new-issues-a.md. Function 0x1403168d0-0x1403182dd; it references the string 'flags' at 0x140b47d48. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/definition-flags-loader.asm:L10-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b47d48",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b47d48"
+          }
+        },
+        {
+          "label": "Deprecated name test",
+          "value": "flags bit 0x20000000",
+          "detail": "The display-name routine reads definition+0x2b8 (0x14031cd5d) and, with this bit set, appends the literal \" (Deprecated)\". Report: investigation/new-issues-a.md. Function 0x14031cc90-0x14031ced8; instruction bytes 48f7c100000020 at 0x14031cd63. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14031cc90.asm:L53; ../new-issues-a/pseudocode/0x14031cc90.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14031cc90@0x14031cd63",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14031cd63"
+          }
+        },
+        {
+          "label": "Deprecated name suffix",
+          "value": " (Deprecated)",
+          "detail": "Appended to the display name of a definition whose flags carry bit 0x20000000. Report: investigation/new-issues-a.md. Function 0x14031cc90-0x14031ced8; it references the string ' (Deprecated)' at 0x140b5fae8. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14031cc90.asm:L63; ../new-issues-a/pseudocode/0x14031cc90.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14031cc90@0x140b5fae8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b5fae8"
+          }
+        },
+        {
+          "label": "Catalog rebuild skips deprecated parts",
+          "value": "bit 0x20000000 set: skipped",
+          "detail": "The component catalog rebuild jumps past a definition with this bit (ja at 0x14077585c) before it inserts it into its category lists. The test does not depend on a career or creative switch. Report: investigation/new-issues-a.md. Function 0x1407757d0-0x140775a1e; instruction bytes 48a900000020 at 0x140775856. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/deprecation-tests.asm:L12; ../new-issues-a/pseudocode/0x1407757d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407757d0@0x140775856",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140775856"
+          }
+        },
+        {
+          "label": "Research and catalog state skips deprecated parts",
+          "value": "bit 0x20000000 set: skipped",
+          "detail": "The research and catalog state routine skips a definition with this bit (ja at 0x14077b4ae), with no game-mode test on that path. Report: investigation/new-issues-a.md. Function 0x14077b430-0x14077b6a9; instruction bytes 48a900000020 at 0x14077b4a8. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/deprecation-tests.asm:L20; ../new-issues-a/pseudocode/0x14077b430.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14077b430@0x14077b4a8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14077b4a8"
+          }
+        },
+        {
+          "label": "Existing-vehicle component list skips deprecated parts",
+          "value": "bit 0x20000000 set: skipped",
+          "detail": "The component list for existing vehicles, a chunk of 0x1407d14f0, skips a definition with this bit. Report: investigation/new-issues-a.md. Function 0x1407d1528-0x1407d15de; instruction bytes 48a900000020 at 0x1407d159a. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/tools/deprecated-combined-tests.txt:L56; ../new-issues-a/pseudocode/0x1407d14f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407d1528@0x1407d159a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407d159a"
+          }
+        },
+        {
+          "label": "Turbine Engine availability",
+          "value": "Deprecated; left out of the normal component catalog in every mode",
+          "detail": "turbine.xml has the Deprecated bit, so the game shows it as \"Turbine Engine (Deprecated)\" and the catalog rebuild, the research and catalog state and the existing-vehicle component list all skip it, with no career or creative test. Loading an older vehicle that contains one and special spawning paths are separate routes. Report: investigation/new-issues-a.md. Inputs: resource:rom/data/definitions/turbine.xml:05da7e8efbf9:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14031cc90@0x14031cd63, native:stormworks64.exe:f9206d85c82f:0x1407757d0@0x140775856, native:stormworks64.exe:f9206d85c82f:0x14077b430@0x14077b4a8, native:stormworks64.exe:f9206d85c82f:0x1407d1528@0x1407d159a.",
+          "evidenceId": "derived:964d81060ef2",
+          "status": "derived",
+          "source": {
+            "path": "rom/data/definitions/turbine.xml",
+            "sha256": "05da7e8efbf9dc32b613b2887f26b268769b0fca850612ca7e694a415720f8e5",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Classic engine constructor clears intake state",
+          "value": "0",
+          "detail": "The classic engine constructor stores zero to the private intake container at component+0x498; the fuel container is cleared at 0x14034abae. Report: investigation/new-issues-a.md. Function 0x14034a7d0-0x14034acd2; instruction bytes 4889b798040000 at 0x14034ab45. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14034a7d0.asm:L152; ../new-issues-a/pseudocode/0x14034a7d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034a7d0@0x14034ab45",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034ab45"
+          }
+        },
+        {
+          "label": "Classic engine constructor clears fuel state",
+          "value": "0",
+          "detail": "Zeroes the private fuel species at component+0x4f4. The engine serializer 0x14034e570 saves port state and engine values but passes neither private container to a serializer, so on the current construction and save path these containers start empty. Report: investigation/new-issues-a.md. Function 0x14034a7d0-0x14034acd2; instruction bytes 4889b7f4040000 at 0x14034abae. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/14034a7d0.asm:L168; ../new-issues-a/pseudocode/0x14034a7d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034a7d0@0x14034abae",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034abae"
+          }
+        },
+        {
           "label": "Scene update call",
           "value": "call 0x1405e8fb0",
           "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -133654,8 +134390,7 @@
         }
       ],
       "limitations": [
-        "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
-        "Part availability in current game modes was not established.",
+        "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, whether loading an older vehicle or a special spawning path can still place one, and whether an indirect world, editor or script writer fills its private compartments, was not traced.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -133714,6 +134449,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14031cd63"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034a7e5"
         },
         {
@@ -133730,6 +134470,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034aaa1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034ab45"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034abae"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034b67a"
         },
         {
           "path": "stormworks64.exe",
@@ -133889,7 +134644,32 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140775856"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14077b4a8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407d159a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b47d48"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5c190"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b5fae8"
         },
         {
           "path": "stormworks64.exe",
@@ -160281,12 +161061,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8761,
+    "findingCount": 8808,
     "findingsByStatus": {
-      "derived": 736,
-      "observed": 8025
+      "derived": 742,
+      "observed": 8066
     },
-    "nativeFindingCount": 6367,
+    "nativeFindingCount": 6412,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -160337,9 +161117,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 424,
-      "native": 1423,
-      "resource": 2660
+      "derived": 428,
+      "native": 1447,
+      "resource": 2661
     }
   }
 }

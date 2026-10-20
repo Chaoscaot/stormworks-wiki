@@ -1,0 +1,94 @@
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-22-  uVar1 = *(uint *)(lVar3 + 0xbb748);
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-23-  uVar13 = 0;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-24-  for (uVar12 = uVar13; uVar12 != uVar1; uVar12 = uVar12 + 1) {
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-25-    lVar4 = *(longlong *)
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-26-             (*(longlong *)(lVar3 + 0xbb738) +
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-27-             ((ulonglong)(*(int *)(lVar3 + 0xbb744) + uVar12) %
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-28-             (ulonglong)*(uint *)(lVar3 + 0xbb740)) * 8);
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-29-    uVar5 = *(ulonglong *)(lVar4 + 0x2b8);
+investigation/native/new-issues-a/pseudocode/0x14077b430.c:30:    if (((((uVar5 & 0x80) == 0) && ((uVar5 & 0x800) == 0)) && ((uVar5 & 0x20000000) == 0)) &&
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-31-       (*(char *)(lVar4 + 0x40) == '\0')) {
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-32-      *(undefined1 *)(lVar4 + 0x270) = 0;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-33-    }
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-34-  }
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-35-  if (*(int *)(param_2 + 0x20) != 0) {
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-36-    do {
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-37-      iVar2 = *(int *)(lVar3 + 0xbb748);
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-38-      for (iVar11 = 0; iVar11 != iVar2; iVar11 = iVar11 + 1) {
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-39-        lVar4 = *(longlong *)
+--
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-65-      if (iVar11 == iVar2) {
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-66-        return;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-67-      }
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-68-      plVar7 = *(longlong **)
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-69-                (*(longlong *)(lVar3 + 0xbb738) +
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-70-                ((ulonglong)(uint)(*(int *)(lVar3 + 0xbb744) + iVar11) %
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-71-                (ulonglong)*(uint *)(lVar3 + 0xbb740)) * 8);
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-72-      if (((plVar7 == (longlong *)*plVar7) && ((char)plVar7[0x4e] != '\0')) &&
+investigation/native/new-issues-a/pseudocode/0x14077b430.c:73:         (((plVar7[0x57] & 0x800U) == 0 && ((plVar7[0x57] & 0x20000000U) == 0)))) break;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-74-LAB_14077b684:
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-75-      iVar11 = iVar11 + 1;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-76-    }
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-77-    lStack_40 = 0;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-78-    uStack_38 = (ulonglong)*(uint *)(plVar7 + 0x52);
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-79-    FUN_14017cbb0(&lStack_40,*(uint *)(plVar7 + 0x52) + 1);
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-80-    lVar4 = lStack_40;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-81-    iVar9 = (int)uStack_38;
+investigation/native/new-issues-a/pseudocode/0x14077b430.c-82-    FUN_14099d3b0(lStack_40,plVar7[0x51],(uStack_38 & 0xffffffff) + 1);
+--
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-65-        lVar14 = lVar14 + -1;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-66-      } while (lVar14 != 0);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-67-      iVar9 = *(int *)(lVar3 + 0xbb778);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-68-      for (; iVar15 != iVar9; iVar15 = iVar15 + 1) {
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-69-        lVar14 = *(longlong *)
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-70-                  (*(longlong *)(lVar3 + 0xbb768) +
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-71-                  ((ulonglong)(uint)(*(int *)(lVar3 + 0xbb774) + iVar15) %
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-72-                  (ulonglong)*(uint *)(lVar3 + 0xbb770)) * 8);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c:73:        if ((*(uint *)(lVar14 + 0x2b8) & 0x20000000) == 0) {
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-74-          lVar4 = lVar3 + 0xbb670 + (longlong)*(int *)(lVar14 + 0x2a8) * 0x18;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-75-          uVar13 = *(uint *)(lVar4 + 0x120);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-76-          uVar1 = *(uint *)(lVar4 + 0x118);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-77-          if (uVar13 == uVar1) {
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-78-            FUN_1408de0b0(lVar4 + 0x110);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-79-            uVar13 = *(uint *)(lVar4 + 0x120);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-80-            uVar1 = *(uint *)(lVar4 + 0x118);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-81-          }
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-82-          *(uint *)(lVar4 + 0x120) = uVar13 + 1;
+--
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-88-      }
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-89-      return;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-90-    }
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-91-    lVar14 = *(longlong *)
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-92-              (*(longlong *)(lVar3 + 0xbb738) +
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-93-              ((ulonglong)(uint)(*(int *)(lVar3 + 0xbb744) + iVar9) %
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-94-              (ulonglong)*(uint *)(lVar3 + 0xbb740)) * 8);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-95-    uVar16 = *(ulonglong *)(lVar14 + 0x2b8);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c:96:    if ((((uVar16 & 0x80) == 0) && ((uVar16 & 0x800) == 0)) && ((uVar16 & 0x20000000) == 0)) {
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-97-      pcStack_60 = (char *)0x0;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-98-      uStack_58 = (ulonglong)*(uint *)(lVar14 + 0x290);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-99-      FUN_14017cbb0(&pcStack_60,*(uint *)(lVar14 + 0x290) + 1,(longlong *)(lVar3 + 0xbb738),param_4,
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-100-                    uVar18);
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-101-      uVar16 = uStack_58;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-102-      pcVar5 = pcStack_60;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-103-      iVar6 = (int)uStack_58;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-104-      uVar17 = uStack_58 & 0xffffffff;
+investigation/native/new-issues-a/pseudocode/0x1407757d0.c-105-      FUN_14099d3b0(pcStack_60,*(undefined8 *)(lVar14 + 0x288),uVar17 + 1);
+--
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-31-      iVar11 = 0;
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-32-      for (iVar10 = iVar11; iVar10 != iVar1; iVar10 = iVar10 + 1) {
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-33-        plVar4 = *(longlong **)
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-34-                  (*(longlong *)
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-35-                    (*(longlong *)(lVar3 + 0x3f0) +
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-36-                    ((ulonglong)(uint)(*(int *)(lVar3 + 0x3fc) + iVar10) %
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-37-                    (ulonglong)*(uint *)(lVar3 + 0x3f8)) * 8) + 0x58);
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-38-        uVar5 = plVar4[0x57];
+investigation/native/new-issues-a/pseudocode/0x140780be0.c:39:        if (((uVar5 & 0x800) == 0) && ((uVar5 & 0x20000000) == 0)) {
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-40-          lVar9 = *plVar4;
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-41-          lVar8 = FUN_140294520();
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-42-          if (*(char *)(lVar8 + 8) == '\0') {
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-43-            *(int *)(*param_1 + 0xbbb28) = *(int *)(*param_1 + 0xbbb28) + *(int *)(lVar9 + 0x2b4);
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-44-          }
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-45-        }
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-46-      }
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-47-      lVar9 = *param_1;
+investigation/native/new-issues-a/pseudocode/0x140780be0.c-48-      lVar9 = FUN_1405745e0(*(longlong *)(lVar9 + 0x64b0) + 400 +

@@ -1,0 +1,92 @@
+0x140ae7150 Applies impact damage to a vehicle at the specified voxel location. Damage maxiumum is 100. Radius is in meters. Negative damage values will instead repair the area.
+0x140ae7420 is_success = server.addDamage(vehicle_id, damage, voxel_x, voxel_y, voxel_z, radius)
+0x140ae7830 Sets a vehicle to be invulnerable to damage.
+0x140ae9930 [Requires Search and Destroy DLC to be enabled] Spawn an explosion at the specified world position matrix.
+0x140ae9b6c "vehicle_damage",
+0x140ae9b7f "player_damage",
+0x140ae9b91 "npc_damage",
+0x140aeacb0 coal, uranium, diesel, jet_fuel, solid_propellant = server.getTileInventory(transform_matrix)
+0x140aead70 server.setTileInventory(transform_matrix, coal, uranium, diesel, jet_fuel, solid_propellant)
+0x140aec720 is_enabled = server.dlcWeapons()
+0x140aec760 Returns true if the server has the Search and Destroy DLC active.
+0x140aec908 is_enabled = server.dlcArid()
+0x140aeca70 Returns true if the server has the Industrial Frontier DLC active.
+0x140aecac0 is_enabled = server.dlcSpace()
+0x140aecaf8 Returns true if the server has the Space DLC active.
+0x140af0990 graphics/shaders/opaque_damaged
+0x140af4a50 Put out this forest fire that will cause major environmental damage.
+0x140af76f0 Search and Destroy DLC
+0x140af7768 Industrial Frontier DLC
+0x140b00088 Space DLC
+0x140b000b0 multibody torque joint (deprecated)
+0x140b00110 spawner(deprecated)
+0x140b010b0 Requires Search and Destroy DLC
+0x140b01140 Requires Space DLC
+0x140b01168 Requires Industrial Frontier DLC
+0x140b05780 ", "is_dlc_weapon_claim":"
+0x140b057d8 ", "is_dlc_arid_claim":"
+0x140b05808 ", "is_dlc_weapon_api":"
+0x140b05838 ", "is_dlc_space_claim":"
+0x140b05868 ", "is_dlc_arid_api":"
+0x140b058c0 ", "is_dlc_space_api":"
+0x140b07c98 wind_turbine
+0x140b0a250 DLC Depot
+0x140b0b7d0 damage_player
+0x140b0b8c0 damage_raycast
+0x140b0c6a8 add_vehicle_damage
+0x140b0d4f0 damage_character
+0x140b0d580 damage_fish
+0x140b104c8 player_damage
+0x140b104f0 vehicle_damage
+0x140b10538 npc_damage
+0x140b11818 is deprecated
+0x140b3e718 filter deprecated
+0x140b59cc8 exhaust_damage_1.xml
+0x140b59cf0 exhaust_damage_1_strip.xml
+0x140b59d28 exhaust_damage_1_splash.xml
+0x140b59e18 vehicle_damage.xml
+0x140b5b510 *DEPRECATED* sleep
+0x140b5fae8  (Deprecated)
+0x140b605d4 damage
+0x140b69c50 damage_counter
+0x140b6fd58 property_ammo_damage
+0x140b6fe18 ammo_damage
+0x140b6fe91 Weapons DLC Disabled or Missing
+0x140b6fec0 Weapons DLC Disabled or Missing
+0x140b74670 turbine
+0x140b74948 jet_engine_turbine_small
+0x140b74a28 jet_engine_turbine_medium
+0x140b7aa30 steam_turbine
+0x140b87250 pseudo_damaged
+0x140b896a0 You are missing a required DLC
+0x140b8a140 wind turbine
+0x140b8bec0 Your boat was damaged in a recent storm. You will need to use a workbench to fix it.
+0x140b8ccc0 data/tiles/wind_turbine.xml
+0x140b8db00 Large offshore wind turbine.
+0x140b8db40 Wind Turbine
+0x140b8dbf0 Multiple wind turbines atop a gentle hillside.
+0x140b93080 addDamage
+0x140b94390 dlcWeapons
+0x140b94420 dlcSpace
+0x140b94470 dlcArid
+0x140b949b0 Recommended difficulty for new players. No vehicle or character damage. No advanced vehicle mechanics.
+0x140b95010 DLC is not enabled
+0x140b96b10 onVehicleDamaged
+0x140b9f300 Vehicle Damage
+0x140b9f4d8 Player Damage
+0x140b9f548 Vehicles can be damaged by the environment.
+0x140b9f7f0 NPC Damage
+0x140ba4a70 onVehicleDamaged is called when a vehicle is damaged or repaired. Damage amount will be negative if the component is repaired. The voxel parameters refer to the voxel position on the vehicle that sustained the damage relative to the origin of the vehicle. body_index is 0 for the main vehicle body, checking this parameter may be helpful for vehicles with sub bodies such as missiles that should be ignored.
+0x140ba4d40 function onVehicleDamaged(vehicle_id, damage_amount, voxel_x, voxel_y, voxel_z, body_index)
+0x140baa5b0 [Requires Industrial Frontier DLC to be enabled] Spawn an animal/creature at the specified world postion.
+0x140baa630 [Requires Industrial Frontier DLC to be enabled] Set the next target position for a creature to path towards.
+0x140baebc0 Reloads the vehicle as if spawning from a workbench, refreshing damage and inventories etc.
+0x140cc62e0 .?AU?$c_ui_element_selector@W4e_projectile_damage@@@@
+0x140cc7810 .?AUc_server_to_client_event_damage_character@@
+0x140cc9e10 .?AUc_event_game_to_logic_debug_add_damage_raycast@@
+0x140cd1d00 .?AUc_client_to_server_request_damage_raycast@@
+0x140cd3ff0 .?AUc_client_to_server_request_damage_player@@
+0x140cd69b0 .?AUc_material_opaque_damaged@@
+0x140ce0110 .?AUc_server_to_client_event_add_vehicle_damage@@
+0x140ce10d0 .?AUc_server_to_client_event_damage_fish@@
+0x140ce1420 .?AU?$c_ui_properties_element_selector@W4e_projectile_damage@@@@
