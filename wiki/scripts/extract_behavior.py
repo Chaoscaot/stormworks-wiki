@@ -4176,6 +4176,455 @@ def winches(B, E):
                  [WINCH_OPEN, WINCH_STATIC])
 
 
+# connectors pass; files under investigation/native/connectors/, report investigation/connectors.md.
+CN_REPORT = "investigation/connectors.md"
+CN_DATA = "investigation/native/connectors/connectors.json"
+CN_EXAMPLES = "investigation/native/connectors/worked-examples.json"
+F_CN_CTOR = 0x1403D02C0       # connector constructor: search radius, snap parameter, ordnance default
+F_CN_RESET = 0x1403D06F0      # leaf reset helper: enable flag, inhibition counter, launch latch
+F_CN_SELECT = 0x1403D0EA0     # connector property editor: hardpoint ordnance selector on +0xb38
+F_CN_ATTACH = 0x1403D19F0     # attachment: constraint by connector_type, electrical and mechanical bridges
+F_CN_FORCE = 0x1403D4510      # attraction pass, connector vtable 0x140b50988 slot +0x360
+F_CN_SCENE = 0x14054C050      # scene connector pass: partner search, distance and sample tests, release
+F_CN_PAIR = 0x140547E0E       # chained chunk of the pairing routine 0x140547d10: attach call
+F_P2P_CTOR = 0x1408D55D0      # btPoint2PointConstraint constructor
+F_TYPED_CTOR = 0x14011F8A0    # constraint base constructor behind btFixedConstraint
+F_HINGE_CTOR = 0x14019F0B0    # btHingeConstraint constructor
+F_SOLVER_ROW = 0x14012E709    # chained chunk of the constraint solver: applied impulse writeback and break test
+F_FEEDBACK = 0x1401A3C82      # chained chunk of the constraint feedback publish 0x1401a3b60
+F_MAGALL = 0x1403DE190        # Mag All update, vtable 0x140ae5ab8 slot +0x358
+F_MAGALL_SETUP = 0x1403DDC50  # Mag All query shape setup
+CN_SLOTS = ((0x140B50CE0, F_CONNECTOR), (0x140B50CE8, F_CN_FORCE), (0x140AE5E10, F_MAGALL))
+CN_RTTI = ((0x140B50988, "c_scene_vehicle_component_connector"), (0x140AE5AB8, "c_scene_vehicle_component_magall"),
+           (0x140AE2BA0, "btPoint2PointConstraint"), (0x140AE2A48, "btFixedConstraint"), (0x140AE2B18, "btHingeConstraint"),
+           (0x140B8B228, "event_create_constraint_fixed@mm_physics_scene"), (0x140B6B6F0, "event_create_constraint_ball_socket@mm_physics_scene"),
+           (0x140B6AE50, "event_create_constraint_hinge@mm_physics_scene"), (0x140AE0F48, "btSphereShape"),
+           (0x140B82D30, "event_set_impulse@mm_physics_scene"))
+_CN = "connectors/asm/"
+CN_ASM = {
+    F_CN_CTOR: (_CN + "connector-constructor.asm", "1403d02c0.c"), F_CN_RESET: (_CN + "connector-reset-launch.asm", None),
+    F_CN_SELECT: (_CN + "ordnance-selector.asm", "1403d0ea0.c"), F_CN_ATTACH: (_CN + "connector-attach.asm", "1403d19f0.c"),
+    F_CONNECTOR: (_CN + "connector-update.asm", "1403d4130.c"), F_CN_FORCE: (_CN + "connector-attraction.asm", "1403d4510.c"),
+    F_CN_SCENE: (_CN + "scene-discovery.asm", "14054c050.c"), F_CN_PAIR: (_CN + "scene-attach.asm", "140547d10.c"),
+    F_P2P_CTOR: (_CN + "point-constraint-native.asm", "1408d55d0.c"), F_TYPED_CTOR: (_CN + "fixed-base-create.asm", "14011f8a0.c"),
+    F_HINGE_CTOR: (_CN + "hinge-constraint-native.asm", "14019f0b0.c"), F_SOLVER_ROW: (_CN + "solver-writeback.asm", "14012e4a0.c"),
+    F_FEEDBACK: (_CN + "feedback-publish.asm", "1401a3b60.c"), F_MAGALL: (_CN + "magall-update.asm", "1403de190.c"),
+    F_MAGALL_SETUP: (_CN + "magall-sensor.asm", "1403ddc50.c"), F_DEFSER: (_CN + "definition-binding.asm", None),
+}
+NO_PULL = 0x100000  # definition flag tested at 0x1403d47e9 (no pull) and 0x1403d41ea (release counter)
+MAGNETS = (("part-connector-small", "connector_small"), ("part-connector-hinge", "connector_hinge"), ("part-connector-large", "connector_large"))
+FLAGGED = (("part-connector-electric", "connector_electric"), ("part-connector-torque", "connector_torque"))
+HARDPOINTS = (("part-connector-hardpoint-a", "connector_hardpoint_a"), ("part-connector-hardpoint-b", "connector_hardpoint_b"),
+              ("part-connector-hardpoint-b-round", "connector_hardpoint_b_round"))
+CONNECTOR_OPEN = ("Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, "
+                  "the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.")
+CONNECTOR_STATIC = "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game."
+
+
+def connectors_native(E):
+    """Connector pairing, pull, joints, release, signal copies, hardpoint codes and the Mag All, verified once and shared."""
+    if hasattr(E, "conn"):
+        return E.conn
+    n = E.native
+    if not (E.root / CN_REPORT).is_file():
+        raise ValueError("Connector report missing: " + CN_REPORT)
+    for slot, target in CN_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Connector vtable slot %#x does not point to %#x" % (slot, target))
+    for vtable, name in CN_RTTI:
+        if _rtti(n, vtable) != name:
+            raise ValueError("RTTI at %#x is not %s" % (vtable, name))
+    rep = " Report: %s." % CN_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        _wheel_cite(E, func, address, hexbytes, table=CN_ASM)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=CN_ASM)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    def case(func, address, hexbytes, table, targets, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=CN_ASM)
+        return E.case_table(func, address, hexbytes, table, targets, label, detail + rep)
+
+    f = {}
+    # Definition field, constructor and the scene pass that pairs connectors.
+    lea = 0x140317BB2
+    if n.raw(lea, 7).hex() != "4c8d058f528400" or lea + 7 + struct.unpack("<i", n.raw(lea + 3, 4))[0] != 0x140B5CE48:
+        raise ValueError("magnet_force lea at %#x moved" % lea)
+    _wheel_cite(E, F_DEFSER, lea, "4c8d058f528400", key=0x140B5CE48, table=CN_ASM)
+    f["mf_name"] = E.string(F_DEFSER, 0x140B5CE48, "magnet_force", "magnet_force binding",
+                            "The definition loader passes definition+0xe8c (lea r9 at 0x140317ba5) with this name to its float reader. connector_type is bound to definition+0xe7c just before (0x140317b62)." + rep)
+    f["radius"] = code(F_CN_CTOR, 0x1403D05E6, "c7837409000000002041", "Connector search radius", "10 m",
+                       "The constructor stores 10 at component+0x974. The scene pass squares it (0x14054d43f) and looks for partner centres within it. It bounds the search only; the pull has its own 1 m cutoff.")
+    f["snap"] = code(F_CN_CTOR, 0x1403D05F0, "48c783780900000000803e", "Connector snap parameter", "0.25",
+                     "Stores 0.25 at component+0x978. The scene pass compares the squared centre distance with it directly or after squaring it, depending on the connector type.")
+    f["pair"] = code(F_CN_SCENE, 0x14054D3FC, "3b8a7c0e0000", "Connector partner type test", "same connector_type, or 7 with 8",
+                     "A candidate must have its enable flag set (+0x971, 0x14054d3c2), no link (+0x950, 0x14054d3cf), the same connector_type (definition+0xe7c) or the other half of a hardpoint pair, "
+                     "types 7 and 8 (0x14054d404-0x14054d417), and a different body (0x14054d435).")
+    f["scene_switch"] = case(F_CN_SCENE, 0x14054D455, "418b8c8e141d5500", 0x140551D14,
+                             [0x14054D462, 0x14054DF1C, 0x14054E2F3, 0x14054DF1C, 0x14054DF1C, 0x14054F7DC, 0x14054F7DC, 0x14054ED64, 0x14054ED64, 0x14054DF1C],
+                             "Pairing test by connector_type",
+                             "Type 0 (large) has its own branch, types 1, 3, 4 and 9 (small, fluid, electric, torque) share one, 2 (hinge) has its own, 7 and 8 (hardpoints) share one, and 5 and 6, the sliding connector, skip this pass.")
+    f["weight"] = code(F_CN_SCENE, 0x14054D4F1, "f30f5dfa410f2efc", "Pull body weight", "W = min(W_A, W_B), or the larger when that is 0",
+                       "Reads field +0x72c of both bodies (0x14054d4bc, 0x14054d4c8), takes the smaller and, when it is 0, the larger (0x14054d4fd-0x14054d507). The value is stored with each queued sample. It is the body's native weight field; no conversion to kilograms is applied.")
+    f["c_square"] = code(F_CN_SCENE, 0x14054DC71, "f3410f108778090000f30f59c0410f2fc10f864a1b0000", "Large and hinge centre test", "d² < 0.25²",
+                         "The large branch squares the snap parameter and accepts only a squared centre distance strictly below it: under 0.25 m. The hinge branch does the same at 0x14054eac7 and then tests two endpoint samples, (0, 0, -1) and (0, 0, 1) scaled by 0.25 m along its axis.")
+    f["c_direct"] = code(F_CN_SCENE, 0x14054E11D, "f3410f1087780900000f2fc70f86a8160000", "Point connector centre test", "d² < 0.25",
+                         "Small, fluid, electric and torque connectors compare the squared centre distance with the snap parameter itself, so they attach under 0.5 m; jbe rejects equality. This branch has no orientation test.")
+    f["c_hard"] = code(F_CN_SCENE, 0x14054F551, "f3410f108778090000410f2fc10f866e020000", "Hardpoint centre test", "d² < 0.25",
+                       "The hardpoint branch also compares the squared distance with 0.25 directly, under 0.5 m, then tests two axial samples, (0, 0, 1) and (0, 0, -1) from 0x14054efa2, with the definition's mirror flags applied.")
+    f["sample_k"] = op(F_CN_SCENE, 0x14054D2BA, "f3440f101dad286600", 0x140BAFB70, "Sample match factor",
+                       "Kept in xmm11 for the sample tests of the large, hinge and hardpoint branches.")
+    f["sample"] = code(F_CN_SCENE, 0x14054DCCC, "f30f59dbf3410f59db", "Sample match tolerance", "0.25² × 0.2",
+                       "Every sample of this connector must find a partner sample whose squared separation is below 0.25 squared times 0.2, 0.0125, a distance of 0.1118 m. It is a point match, not an angle limit.")
+    f["rim"] = code(F_CN_SCENE, 0x14054D6B2, "0f2805d7426600", "Large rim samples", "(0, 0, 1), (1, 0, 0), (0, 0, -1), (-1, 0, 0)",
+                    "The large branch stores 0x140bb1990 and 0x140bb1240 (0x14054d6ca) around a zero block, giving these four definition-space points; each is scaled by 0.25 m and offset by magnet_offset before the test.")
+    f["release"] = code(F_CN_SCENE, 0x14054C4B8, "4180bf71090000000f841d020000", "Connector enable test", "+0x971",
+                        "Each scene pass checks the connector's enable flag. While it is clear and a link exists (0x14054c6e3) the pass calls the scene release 0x140548050 (0x14054c72c), which detaches through 0x1403d1450.")
+    f["attach_call"] = code(F_CN_PAIR, 0x140547EBF, "e82c9be8ff", "Connector attach call", "call 0x1403d19f0",
+                            "A pair that passes the tests is attached by 0x1403d19f0.")
+    # Pull before attaching.
+    f["a_gate"] = code(F_CN_FORCE, 0x1403D47E9, "48a9000010000f873b0900004c39b6500900000f852e090000", "Pull gate", "flag 0x100000 clear and no link",
+                       "The pass runs only with the enable flag set (+0x971, 0x1403d47d2), definition flag 0x100000 clear and no link (+0x950). Electric, fluid and torque connectors and both hardpoint halves ship with that flag, so they get no pull, and an attached pair gets none.")
+    f["a_power"] = op(F_CN_FORCE, 0x1403D4828, "f30f100dc8bf7d00", 0x140BB07F8, "Pull supply factor",
+                      "Without infinite electricity (0x1403d4814) P = max(0, (300 - EMP) ÷ 300) × the node's charge fraction (+0x944, 0x1403d4844); with it P = 1.")
+    f["a_60"] = op(F_CN_FORCE, 0x1403D485A, "f3440f1035fdbe7d00", 0x140BB0760, "Pull coefficient", "Kept in xmm14 and multiplied into every sample's pull.")
+    f["a_cut"] = code(F_CN_FORCE, 0x1403D48F9, "440f2fe40f8603010000", "Pull cutoff", "|d|² < 1",
+                      "xmm12 holds 1 (0x140bafecc, loaded at 0x1403d4807). A sample pair 1 m or more apart adds nothing; the cutoff applies to each pair.")
+    f["a_law"] = code(F_CN_FORCE, 0x1403D4950, "f30f59988c0e0000f3410f59def3410f59ddf3410f58e4f30f5edc", "Pull law", "F = W × magnet_force × 60 × P × d ÷ (1 + |d|²)",
+                      "Multiplies the queued weight W by magnet_force (definition+0xe8c), 60 and P and divides by 1 + |d|², then scales the offset d to the partner sample by the result (0x1403d496b-0x1403d4973).")
+    f["a_gain"] = op(F_CN_FORCE, 0x1403D4A7F, "f3440f103d98b07d00", 0x140BAFB20, "Rim and endpoint sample gain",
+                     "The large connector's four rim samples and the hinge's two endpoint samples also multiply their pull by this (0x1403d4cd4); the centre sample has gain 1.")
+    f["a_event"] = code(F_CN_FORCE, 0x1403D49BF, "488d056ae37a00", "Pull submission", "event_set_impulse@mm_physics_scene",
+                        "Each nonzero pull is queued with vtable 0x140b82d30, whose handler 0x1401a16a0 calls the Bullet total-force accumulator 0x14019a370, the path wing forces take. It is a force, not a velocity change.")
+    # Joints.
+    f["j_switch"] = case(F_CN_ATTACH, 0x1403D1D03, "8b8c82fc403d00", 0x1403D40FC,
+                         [0x1403D1D0F, 0x1403D26CA, 0x1403D27FA, 0x1403D26CA, 0x1403D26CA, 0x1403D2EFD, 0x1403D4099, 0x1403D3678, 0x1403D3678, 0x1403D26CA],
+                         "Joint by connector_type",
+                         "The attach routine 0x1403d19f0-0x1403d4124 branches on connector_type. It never addresses definition+0xe8c, so magnet_force plays no part in the joint.")
+    f["j_large"] = code(F_CN_ATTACH, 0x1403D26B2, "e8d93bddff", "Large connector joint", "fixed",
+                        "Type 0 queues event_create_constraint_fixed (helper 0x1401a6290, vtable 0x140b8b228, handler 0x1401a0980): a btFixedConstraint.")
+    f["j_point"] = code(F_CN_ATTACH, 0x1403D2751, "488d05988f7900", "Point connector joint", "ball socket",
+                        "Types 1, 3, 4 and 9 install event_create_constraint_ball_socket (vtable 0x140b6b6f0, handler 0x1401a0a40): a btPoint2PointConstraint, which pins one point and leaves rotation free.")
+    f["j_hinge"] = code(F_CN_ATTACH, 0x1403D2EE5, "e8f63addff", "Hinge connector joint", "hinge",
+                        "Type 2 queues event_create_constraint_hinge (helper 0x1401a69e0, vtable 0x140b6ae50, handler 0x1401a0c30): a btHingeConstraint.")
+    f["j_hard"] = code(F_CN_ATTACH, 0x1403D4038, "e85322ddff", "Hardpoint joint", "fixed", "Types 7 and 8 use the same fixed-constraint helper 0x1401a6290.")
+    f["b_point"] = code(F_P2P_CTOR, 0x1408D56D1, "48b8ffffffffffffef7f48894718", "Point joint break threshold", "DBL_MAX",
+                        "The btPoint2PointConstraint constructor stores 0x7fefffffffffffff, the largest double, as the breaking impulse threshold (+0x18).")
+    f["b_fixed"] = code(F_TYPED_CTOR, 0x14011F8E1, "48b8ffffffffffffef7f48894118", "Fixed joint break threshold", "DBL_MAX",
+                        "The base constructor behind btFixedConstraint stores the same largest double at +0x18.")
+    f["b_hinge"] = code(F_HINGE_CTOR, 0x14019F184, "48b8ffffffffffffef7f48894318", "Hinge joint break threshold", "DBL_MAX",
+                        "The btHingeConstraint constructor stores the same largest double at +0x18.")
+    # Release, Launch and the per-update copies.
+    f["u_enable"] = code(F_CONNECTOR, 0x1403D4162, "0fb689b0010000488b4358888b71090000", "Connector enable flag", "first on/off input → +0x971",
+                         "Each update copies the first on/off input (+0x1b0: Magnet Toggle on magnets, Release Connector or Release on the others) to the enable flag. A component state above 0 clears it (0x1403d41d7).")
+    f["u_power"] = op(F_CONNECTOR, 0x1403D4214, "f30f100ddcc57d00", 0x140BB07F8, "Magnet supply gate",
+                      "For connectors without flag 0x100000 and without infinite electricity the update forms max(0, (300 - EMP) ÷ 300) × charge fraction and clears the enable flag when it is 0 (0x1403d424b).")
+    f["u_counter"] = code(F_CONNECTOR, 0x1403D41F6, "c7837c09000078000000", "Release inhibition counter", "120 updates",
+                          "For connectors with flag 0x100000 the update sets the enable flag (0x1403d4200), and an on Release input, or Launch on a hardpoint body, stores 120 at +0x97c each update it is held.")
+    f["u_count"] = code(F_CONNECTOR, 0x1403D4261, "c683710900000085c07408ffc889837c090000", "Inhibition countdown", "enable cleared, counter - 1",
+                        "While the counter is nonzero the enable flag is cleared and the counter drops by 1 per update, so the connector detaches and cannot attach again until 120 updates after the input goes off.")
+    f["u_launch"] = code(F_CONNECTOR, 0x1403D4197, "c6813c0b000001", "Launch latch", "attachment+0xb3c = 1",
+                         "When a hardpoint body (connector_type 7, 0x1403d4179) has Launch on (+0x1d0) and an attachment, it sets the attachment's latch, then sets its own release flag (0x1403d41ac), which starts the 120-update counter. The branch calls no other routine.")
+    f["u_launched"] = code(F_CONNECTOR, 0x1403D41B7, "0fb6833c0b0000", "Launched output", "latch → +0x1f0",
+                           "A type 8 attachment outputs its latch as its first on/off output, Launched; other connectors output whether they are linked (0x1403d41c0).")
+    f["u_reset"] = code(F_CN_RESET, 0x1403D06F0, "c6817109000000c7817c09000000000000c6813c0b000000", "Connector reset", "flag, counter and latch 0",
+                        "Detaching does not clear the latch; this reset helper does, together with the enable flag and the counter.")
+    f["u_onoff"] = code(F_CONNECTOR, 0x1403D4365, "0fb683d0010000888128020000", "On/off copy", "+0x1d0 → partner +0x228",
+                        "While linked, the second on/off input (On/Off Sent on the large connector) is copied to the partner's on/off output each update.")
+    f["u_number"] = code(F_CONNECTOR, 0x1403D4386, "660f6e83380b00000f5bc0", "Number copy", "+0x260 → partner +0x280; type 8 sends its ordnance code",
+                         "While linked, the number input at +0x260 (Number Sent on the large connector) is copied to the partner's number output (+0x280, 0x1403d439b). A type 8 attachment sends its ordnance code, converted to a float, instead, which the body outputs as Ordinance Type.")
+    f["u_comp"] = code(F_CONNECTOR, 0x1403D43B1, "8b83b80200004881c1580300008901", "Composite copy", "32 on/off bits and 32 numbers",
+                       "While linked, the composite on/off word (+0x2b8) and the 32 numbers at +0x2bc to +0x338 are copied to the partner's composite output (+0x358 onward) with movups each update. The copy has no buffer, scaling or averaging.")
+    f["u_video"] = code(F_CONNECTOR, 0x1403D4426, "e88556f1ff", "Video hand-over", "call 0x1402e9ab0",
+                        "While linked, the update passes this connector's video source (+0x410, 0x1403d43a3) to the partner's video output (+0x648) through this helper.")
+    # Electrical and mechanical bridges.
+    f["e_bridge"] = code(F_CN_ATTACH, 0x1403D27CF, "48898738090000", "Electric connector bridge", "self+0x938 = partner node+0x908",
+                         "For connector_type 4 (0x1403d27b8) each side's bridge points at the other's electric node, so the pool builder 0x1404c9d20 walks both networks as one charge pool. That walk applies no capacity or loss to the edge; battery and consumer limits still apply.")
+    f["h_bridge"] = code(F_CN_ATTACH, 0x1403D4059, "48898738090000", "Hardpoint electric bridge", "self+0x938 = partner node+0x908",
+                         "The hardpoint branch sets the same bridge after its fixed joint. The small, hinge and large branches do not run either setter.")
+    f["m_bridge"] = code(F_CN_ATTACH, 0x1403D4081, "c7474800247449", "Mechanical bridge parameter", "node+0x48 = 1000000",
+                         "The tail reached by the large (0x1403d26c5), torque (0x1403d27f5) and hardpoint branches sets this on the connector's mechanical node (+0x880) and links the two nodes (0x1403d4091) when both have a shaft port. "
+                         "The node's ratio field +0x44 starts at 1. The value is a graph-bridge parameter, not a power rating.")
+    # Mag All.
+    f["g_shape"] = code(F_MAGALL_SETUP, 0x1403DDEDA, "c7400808000000", "Mag All contact shape", "Bullet sphere",
+                        "The setup installs the btSphereShape vtable (0x140ae0f48, 0x1403dded0) and shape type 8, Bullet's sphere type.")
+    f["g_radius"] = code(F_MAGALL_SETUP, 0x1403DDEFD, "48ba000000000000c03f4889504048895060", "Mag All contact radius", "0.125 m",
+                         "Stores 0.125 as the sphere's radius (+0x40) and collision margin (+0x60). The sphere sits at the magnet offset (definition+0xe80 to +0xe88 scaled by 0.25, 0x1403ddcab-0x1403ddd75) and is registered with the physics scene (0x1401a6140).")
+    f["g_joint"] = code(F_MAGALL, 0x1403DE794, "488d0555cf7800", "Mag All joint", "ball socket",
+                        "From a contact record the update queues event_create_constraint_ball_socket (vtable 0x140b6b6f0) to the touched body; a second branch at 0x1403de99e does the same for a static body. "
+                        "The update computes no distance-based pull and never addresses definition+0xe8c, so magnet_force has no effect on it.")
+    f["g_solver"] = code(F_SOLVER_ROW, 0x14012E95A, "4a8b8401c800000048894238", "Joint applied impulse", "constraint+0x38",
+                         "The constraint solver stores each solved non-contact row's applied impulse here, overwriting it row by row, and compares its absolute value with the break threshold +0x18 at 0x14012e973. "
+                         "It is an impulse per solver step, not a force.")
+    f["g_feedback"] = code(F_FEEDBACK, 0x1401A3CA8, "f20f104038660f5ac0f30f114250", "Joint feedback publish", "link+0x50 = float(constraint+0x38)",
+                           "The feedback pass reads the double, narrows it to float and stores it in the link record. Nothing divides it by the time step on this path.")
+    f["g_stress"] = code(F_MAGALL, 0x1403DEAF7, "f30f1070500f54351d347d00f30f11b608020000", "Mag All Force output", "|link+0x50|",
+                         "The update reads the published impulse, clears its sign bit and writes the number output Force (+0x208). With no link Force is 0 (0x1403deb6b).")
+    f["g_break"] = op(F_MAGALL, 0x1403DEB45, "f3440f59058a1c7d00", 0x140BB07D8, "Mag All break threshold",
+                      "Multiplies the supply factor P, max(0, (300 - EMP) ÷ 300) × charge fraction or 1 with infinite electricity (0x1403deb10-0x1403deb41), by this. When Force is greater (comiss at 0x1403deb4e) the update releases through 0x1403debe0.")
+    f["g_cool"] = code(F_MAGALL, 0x1403DEB5F, "c786940300001e000000", "Mag All cooldown", "30 updates",
+                       "After a break it stores 30 at +0x394. The counter drops by 1 per update (0x1403deb7c) and blocks a new grab while nonzero (0x1403de590).")
+    # Hardpoint ordnance codes.
+    f["o_bind"] = code(F_CN_SELECT, 0x1403D0F0F, "4c8da7380b0000", "Ordnance selector field", "component+0xb38",
+                       "The connector property editor binds the hardpoint ordnance selector to component+0xb38, the value the update sends to the body.")
+    f["o_default"] = code(F_CN_CTOR, 0x1403D06A6, "c783380b000001000000", "Ordnance type default", "1",
+                          "The constructor sets the ordnance type to 1. The selector offers no 0, and no other meaning for 0 was found.")
+    for slot in ("c_square", "c_direct", "c_hard", "sample", "radius", "snap", "a_60", "a_cut", "a_gain", "sample_k", "g_radius", "g_break", "g_cool", "u_counter"):
+        if slot not in f:
+            raise ValueError("Missing connector finding " + slot)
+
+    # Values the figures use, read from the bytes above.
+    radius, snap = n.f32(0x1403D05EC), n.f32(0x1403D05F7)
+    k, coef, gain, cut = n.f32(0x140BAFB70), n.f32(0x140BB0760), n.f32(0x140BAFB20), n.f32(0x140BAFECC)
+    sphere = struct.unpack("<d", n.raw(0x1403DDEFF, 8))[0]
+    brk, cool, hold = n.f32(0x140BB07D8), struct.unpack("<I", n.raw(0x1403DEB65, 4))[0], struct.unpack("<I", n.raw(0x1403D41FC, 4))[0]
+    tol = math.sqrt(snap * snap * k)
+    near = lambda a, b: math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-9)
+    ups = update_rate(E)["ups"]
+
+    # Ordnance codes: label string, lea and code immediate in the selector.
+    data = json.loads((E.root / CN_DATA).read_bytes())
+    if data["target_sha256"] != EXE_SHA256:
+        raise ValueError("Connector figures were built for a different executable")
+    codes = []
+    for o in data["ordnance_types"]:
+        va, sva, raw = int(o["instruction_va"], 16), int(o["string_va"], 16), o["bytes"].replace(" ", "")
+        refs = n.references(F_CN_SELECT, sva)
+        if (n.cstring(sva) != o["label"] or len(refs) != 1 or n.raw(refs[0] - 3, 3).hex() != "488d15"
+                or raw != "41b8" + struct.pack("<I", o["code"]).hex() or not 0 < va - refs[0] < 0x40):
+            raise ValueError("Ordnance code %d differs from the selector bytes" % o["code"])
+        _wheel_cite(E, F_CN_SELECT, va, raw, table=CN_ASM)
+        codes.append(E.code(F_CN_SELECT, va, raw, "Ordnance type %d" % o["code"], o["label"],
+                            "The selector adds the option %r (string at %#x, lea at %#x) with code %d (mov r8d at %#x)." % (o["label"], sva, refs[0] - 3, o["code"], va) + rep))
+    if [o["code"] for o in data["ordnance_types"]] != list(range(1, 13)):
+        raise ValueError("Ordnance codes are no longer 1 to 12")
+
+    # connectors.json must agree with the bytes above and the shipped definitions.
+    joint = {0: "btFixedConstraint", 2: "btHingeConstraint", 7: "btFixedConstraint", 8: "btFixedConstraint"}
+    samples = {0: 4, 2: 2}
+    parts = {}
+    for d in data["parts"]:
+        bid = d["definition"].rsplit("/", 1)[1][:-4]
+        a = E.block(bid)["attributes"]
+        if (int(a["type"]) != d["component_type"] or int(a["connector_type"]) != d["connector_type"]
+                or float(a["magnet_force"]) != d["magnet_force"]):
+            raise ValueError("Connector definition %s differs from %s" % (bid, CN_DATA))
+        parts[bid] = d
+        t = d["connector_type"]
+        if d["component_type"] != 17 or t in (5, 6):
+            continue
+        center = snap if t in (0, 2) else math.sqrt(snap)
+        if (d["search_radius_m"] != radius or (int(a.get("flags", 0)) & NO_PULL == 0) != d.get("attraction_enabled_in_force_pass", True) or not near(d["snap_center_distance_strictly_less_than_m"], center)
+                or d["constraint"] != joint.get(t, "btPoint2PointConstraint") or d["holding_force_si"] is not None
+                or (d["alignment_sample_distance_strictly_less_than_m"] is None) != (t not in (0, 2, 7, 8))
+                or (t in (0, 2, 7, 8) and not near(d["alignment_sample_distance_strictly_less_than_m"], tol))
+                or not near(d["attraction_center_coefficient"], coef * d["magnet_force"]) or d["attraction_sample_cutoff_m"] != cut
+                or d["extra_attraction_samples"] != samples.get(t, 0) or (t in samples and not near(d["extra_attraction_sample_gain"], gain))):
+            raise ValueError("Connector figures for %s differ from the verified bytes" % bid)
+    types17 = sorted(b for b, blk in E.blocks.items() if blk["attributes"].get("type") in ("17", "27"))
+    if sorted(parts) != types17:
+        raise ValueError("Connector definitions in %s differ from the type 17 and 27 definitions" % CN_DATA)
+    m = parts["magall"]
+    if (m["component_type"] != 27 or m["constraint"] != "btPoint2PointConstraint" or m["break_cooldown_updates"] != cool
+            or m["stress_break_threshold"] != "%s * power_factor" % _g(brk) or m["stress_si_unit"] is not None
+            or m["definition_magnet_force_consumed_by_inspected_update"] or any(x != sphere for x in m["sensor_half_extents_m"])):
+        raise ValueError("Mag All figures differ from the verified bytes")
+    # The report and connectors.json describe the Mag All contact shape as a box with half extents 0.125; the setup bytes build a
+    # btSphereShape of radius 0.125 (shape type 8 at 0x1403ddeda, radius and margin at 0x1403ddefd). The wiki follows the bytes.
+    we = json.loads((E.root / CN_EXAMPLES).read_bytes())
+    pull = lambda mf, w=100.0, p=1.0, dist=0.5: coef * mf * p * w * dist / (1 + dist * dist)
+    for name, bid in (("small", "connector_small"), ("hinge", "connector_hinge"), ("large", "connector_large")):
+        if not near(we["center_attraction_delta_0_5m_W_100_power_1"][name][0], pull(parts[bid]["magnet_force"])):
+            raise ValueError("Worked pull example for %s differs" % name)
+    emp_p = max(0.0, (300 - 150) / 300) * 0.5
+    if (not near(we["small_same_sample_EMP_150_charge_0_5"][0], pull(parts["connector_small"]["magnet_force"], p=emp_p))
+            or not near(we["sample_tolerance_m"], tol) or we["magall_30_updates_at_60Hz_seconds"] != cool / ups
+            or we["hardpoint_120_updates_at_60Hz_seconds"] != hold / ups or not we["magall_power_1_breaks_at_stress_201"]
+            or we["magall_power_1_breaks_at_stress_200"] or not (51 > brk * emp_p)):
+        raise ValueError("Connector worked examples differ from the verified arithmetic")
+
+    # Figures per definition.
+    R = update_rate(E)["findings"]
+    twist = 2 * math.degrees(math.asin(tol / (2 * snap)))
+    fig = {}
+    for bid, d in parts.items():
+        t = d["connector_type"]
+        if d["component_type"] != 17 or t in (5, 6):
+            continue
+        nm, mf = E.block(bid)["name"], d["magnet_force"]
+        center = snap if t in (0, 2) else math.sqrt(snap)
+        text = "connector_type %d, magnet_force %s. Attaches when the centres are under %s m apart (d² < %s)" % (t, _g(mf), _g(center), _g(center * center))
+        if t in (0, 2, 7, 8):
+            text += " and each of its %d samples lies within %s m of a partner sample (0.25² × %s = %s)" % (4 if t == 0 else 2, _g(tol, 4), _g(k, 3), _g(tol * tol, 4))
+            if t in (0, 2):
+                text += "; with coincident centres that allows a tilt or twist of up to %s degrees, 2 × asin(%s ÷ %s)" % (_g(twist, 3), _g(tol, 4), _g(2 * snap))
+        text += ". Joint: %s, break threshold DBL_MAX." % joint.get(t, "btPoint2PointConstraint")
+        if d.get("attraction_enabled_in_force_pass", True):
+            text += (" Centre pull %s × W × P × d ÷ (1 + |d|²) for |d| under %s m (60 × %s)" % (_g(coef * mf), _g(cut), _g(mf))
+                     + (", plus %d samples at gain %s" % (samples[t], _g(gain, 3)) if t in samples else "")
+                     + ". At W = 100, P = 1 and d = 0.5 m the centre pull is %s" % _g(pull(mf))
+                     + (", and %s at P = %s (EMP 150, charge fraction 0.5)" % (_g(pull(mf, p=emp_p)), _g(emp_p)) if t == 1 else "") + ".")
+        else:
+            text += " Flag 0x100000: no pull; Release starts a %d-update detach, %s simulated seconds." % (hold, _g(hold / ups))
+        fig[bid] = E.derived("%s (%s) attachment" % (nm, bid), "under %s m%s" % (_g(center), ", samples within %s m" % _g(tol, 4) if t in (0, 2, 7, 8) else ""),
+                             text + " (investigation/native/connectors/connectors.json, worked-examples.json).",
+                             [E.attr(bid, "connector_type", "Selects the pairing test and joint."), E.attr(bid, "magnet_force", "Scales the pull before attaching."), E.attr(bid, "flags", "Bit 0x100000 removes the pull.")]
+                             + [f[x] for x in ("snap", "scene_switch", "j_switch")] + ([f["sample"], f["sample_k"]] if t in (0, 2, 7, 8) else []) + R[:1])
+    fig["magall"] = E.derived("Mag All break examples", "breaks above 200 × P; 30 updates before a new grab",
+                              "P = 1: Force 200 holds and 201 breaks. EMP 150 and charge fraction 0.5 give P = 0.25 and a threshold of %s, so 51 breaks. The cooldown is %d updates, %s simulated seconds at %d updates per second "
+                              "(investigation/native/connectors/worked-examples.json)." % (_g(brk * emp_p), cool, _g(cool / ups), ups),
+                              [f["g_break"], f["g_cool"], f["g_stress"]] + R[:1])
+    fig["release"] = E.derived("Connector release timing", "%d updates, %s simulated seconds" % (hold, _g(hold / ups)),
+                               "%d updates at %d updates per second after the Release or Launch input goes off; holding the input keeps restarting the count." % (hold, ups),
+                               [f["u_counter"], f["u_count"]] + R[:1])
+    common = [f[x] for x in ("mf_name", "radius", "snap", "pair", "scene_switch", "release", "attach_call", "u_enable", "j_switch")]
+    E.conn = {"f": f, "fig": fig, "codes": codes, "common": common, "tol": tol, "twist": twist, "hold": hold, "cool": cool,
+              "brk": brk, "sphere": sphere, "coef": coef, "gain": gain, "snap": snap, "radius": radius, "emp_p": emp_p, "pull": pull, "parts": parts}
+    return E.conn
+
+
+def connectors(B, E):
+    C = connectors_native(E)
+    f, fig, common = C["f"], C["fig"], C["common"]
+    A, P, T = E.attr, E.port, E.tooltip
+    R = update_rate(E)["findings"]
+    tol, twist, hold, ups = _g(C["tol"], 4), _g(C["twist"], 3), C["hold"], update_rate(E)["ups"]
+    breaks = [f["b_point"], f["b_fixed"], f["b_hinge"]]
+    pull = [f[x] for x in ("a_gate", "a_power", "a_60", "a_cut", "a_law", "a_gain", "a_event", "weight", "u_power")] + [surface_air(E)["f"]["accum"]]
+    copies = [f[x] for x in ("u_onoff", "u_number", "u_comp", "u_video")]
+    flagged = [f[x] for x in ("u_counter", "u_count", "a_gate")] + [fig["release"]]
+    limits = [CONNECTOR_OPEN, CONNECTOR_STATIC]
+    release = ("Release starts a %d-update count, %s simulated seconds. While it runs the connector cannot attach and the scene pass detaches it. "
+               "Holding Release keeps restarting the count, so it can attach again %d updates after the input goes off." % (hold, _g(hold / ups), hold))
+    signals = ("While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. "
+               "The copy has no buffer, scaling or averaging.")
+    for fid, bid in MAGNETS:
+        d, nm = C["parts"][bid], E.block(bid)["name"]
+        mf, t = d["magnet_force"], d["connector_type"]
+        joint, how = {1: ("point-to-point joint", "It pins the two centres together and leaves the parts free to turn."),
+                      2: ("hinge joint", "It keeps the two parts on one axis and lets them turn about it."),
+                      0: ("fixed joint", "It locks position and rotation.")}[t]
+        if t == 1:
+            attach = ("It looks for another Small Connector within 10 m and attaches when the two centres are under 0.5 m apart. There is no orientation test.")
+        elif t == 2:
+            attach = ("It looks for another Hinge Connector within 10 m. It attaches when the two centres are under 0.25 m apart and both of its endpoint samples, 0.25 m either side of the centre along the hinge axis, "
+                      "lie within %s m of an endpoint sample on the other connector. With coincident centres that allows the axes to differ by up to %s degrees; turning about the axis moves neither sample (inference from the sample geometry)." % (tol, twist))
+        else:
+            attach = ("It looks for another Large Connector within 10 m. It attaches when the two centres are under 0.25 m apart and each of its four rim samples, 0.25 m from the centre at quarter turns, "
+                      "lies within %s m of a rim sample on the other connector. With coincident centres that allows a twist of up to %s degrees from any quarter turn (inference from the sample geometry)." % (tol, twist))
+        attach += " Both connectors need Magnet Toggle on, usable electricity, no existing link and different bodies."
+        pull_text = ("Until it attaches, each update pulls toward the partner with F = 60 × %s × P × W × d ÷ (1 + |d|²) for the offset d between matching samples, and nothing once |d| reaches 1 m. "
+                     "P is 1 with infinite electricity and otherwise max(0, (300 - EMP) ÷ 300) × charge fraction. W is the smaller of the two bodies' native weight field, or the larger when the smaller is 0. " % _g(mf))
+        if t in (0, 2):
+            pull_text += "The %s also pull at gain 0.15 each. " % ("four rim samples" if t == 0 else "two endpoint samples")
+        pull_text += ("At W = 100, P = 1 and d = 0.5 m the centre pull is %s internal force units, the same path wing forces take. magnet_force sets this pull, so it is not a holding force." % _g(C["pull"](mf)))
+        if t == 1:
+            pull_text += " An EMP count of 150 with half charge gives P = %s and cuts that to %s." % (_g(C["emp_p"]), _g(C["pull"](mf, p=C["emp_p"])))
+        hold_text = ("Once attached the pull stops and a Bullet %s holds the parts. %s The attach routine never reads magnet_force, and the joint's break threshold is the largest double, "
+                     "so the joint itself has no finite holding limit. Turning Magnet Toggle off or running out of electricity clears the connector's enable flag, and the next scene pass detaches it." % (joint, how))
+        transfer = signals
+        extra = []
+        if t == 0:
+            transfer += (" The Large Connector also sends On/Off Sent to the partner's On/Off Received and Number Sent to its Number Received, links its RPS shaft node to the partner's when both have one, "
+                         "and exchanges fluid between the two Fluid ports with factor 0.5 and bias 0, like the Fluid Connector. The networks stay separate.")
+            N = fluid_network(E)
+            extra = [f["m_bridge"], N["c_half"], N["c_call"]] + [P(bid, x) for x in ("On/Off Sent", "Number Sent", "RPS", "Fluid")]
+        transfer += (" The Electric port powers the magnet. This connector does not run the direct pool bridge that Electric Connectors and hardpoints use, so the port label alone does not show that electricity crosses the link.")
+        B.family(fid,
+                 "Attaches to another %s whose centre is under %s m away%s, then holds with a %s. magnet_force %s scales only the pull before attaching." % (
+                     nm, "0.5" if t == 1 else "0.25", "" if t == 1 else " and whose samples line up", joint, _g(mf)),
+                 [section("Attaching", attach), section("Pull before attaching", pull_text), section("Holding and release", hold_text), section("Signals and transfers", transfer)],
+                 common + [fig[bid], f["c_direct"] if t == 1 else f["c_square"]] + ([f["sample"], f["sample_k"]] + ([f["rim"]] if t == 0 else []) if t != 1 else [])
+                 + pull + [f["j_large"] if t == 0 else f["j_hinge"] if t == 2 else f["j_point"]] + breaks + [f["u_power"]] + copies + extra
+                 + [T(bid), P(bid, "Magnet Toggle"), P(bid, "Electric"), A(bid, "magnet_force", "Scales the pull before attaching.")],
+                 limits)
+
+    # Electric and torque connectors: no pull, point joint, release counter.
+    for fid, bid in FLAGGED:
+        t = C["parts"][bid]["connector_type"]
+        nm = E.block(bid)["name"]
+        what = ("While linked, the two connectors' electric nodes point at each other, so the electrical pool builder treats both networks as one charge pool. "
+                "The pool walk adds no capacity or loss for this link; battery output and consumer limits still apply."
+                if t == 4 else
+                "While linked, the two connectors' shaft nodes are linked in the mechanical graph with a bridge parameter of 1000000 and a ratio field of 1. "
+                "That parameter is not a power or torque rating.")
+        B.family(fid,
+                 "Attaches to another %s whose centre is under 0.5 m away, with a point-to-point joint and no magnetic pull; Release detaches it and blocks reattaching for %d updates." % (nm, hold),
+                 [section("Attaching and release",
+                          "It looks for another %s within 10 m and attaches when the centres are under 0.5 m apart, with no orientation test. Its definition flag 0x100000 turns the magnetic pull off, so the parts must be brought that close. "
+                          "A Bullet point-to-point joint then pins the centres together and leaves the parts free to turn; its break threshold is the largest double, so the joint has no finite holding limit. " % nm + release),
+                  section("Transfers", what + " " + signals)],
+                 common + [fig[bid], f["c_direct"], f["j_point"], f["b_point"]] + flagged + copies
+                 + ([f["e_bridge"]] if t == 4 else [f["m_bridge"]]) + [T(bid), P(bid, "Release Connector"), A(bid, "flags", "Bit 0x100000 removes the pull.")] + R,
+                 limits + [TICK])
+
+    # The Fluid Connector entry comes from the fluid pass; add its attachment and release.
+    fam = B.families["part-connector-water"]
+    fam["sections"].append(section("Attaching and release",
+                                   "It looks for another Fluid Connector within 10 m and attaches when the centres are under 0.5 m apart, with no orientation test. Its definition flag 0x100000 turns the magnetic pull off. "
+                                   "A Bullet point-to-point joint then holds the centres together with no finite break threshold. " + release + " " + signals))
+    fam["findings"] = dedupe(fam["findings"] + common + [fig["connector_water"], f["c_direct"], f["j_point"], f["b_point"]] + flagged + copies
+                             + [P("connector_water", "Release Connector"), A("connector_water", "flags", "Bit 0x100000 removes the pull.")] + R)
+    fam["sources"] = sources_of(fam["findings"])
+    fam["limitations"] = limits + [TICK]
+
+    # Hardpoints.
+    table = "\n".join("- %d: %s" % (int(c["label"].split()[-1]), c["value"]) for c in C["codes"])
+    hard_attach = ("A body pairs only with an attachment, round or square, and an attachment only with a body. They attach when the centres are under 0.5 m apart and both axial samples, 0.25 m either side of the centre, "
+                   "lie within %s m of the partner's samples. There is no magnetic pull, so the parts must be placed that close. "
+                   "A Bullet fixed joint then locks position and rotation; its break threshold is the largest double, so the joint has no finite holding limit." % tol)
+    hard_transfer = ("Each side's electric node points at the other's, so both networks form one charge pool, with no capacity or loss for this link. The Fluid ports exchange with factor 0.5 and bias 0 in both directions; the networks stay separate. " + signals)
+    N = fluid_network(E)
+    hard = common + [f["c_hard"], f["sample"], f["sample_k"], f["j_hard"], f["b_fixed"], f["h_bridge"], f["u_launch"], f["u_launched"], f["u_reset"], f["u_number"],
+                     f["o_bind"], f["o_default"], N["c_half"], N["c_call"]] + flagged + copies + R
+    for fid, bid in HARDPOINTS:
+        body = bid == "connector_hardpoint_a"
+        if body:
+            B.family(fid,
+                     "Holds a hardpoint attachment on a fixed joint once their centres are under 0.5 m apart and line up. Release or Launch detaches it and blocks reattaching for %d updates; Ordinance Type reads the attachment's code from 1 to 12." % hold,
+                     [section("Attaching", hard_attach),
+                      section("Release and Launch",
+                              "Release and Launch both start a %d-update count, %s simulated seconds, during which the body cannot attach and the scene pass detaches it. Holding either input keeps restarting the count. "
+                              "Launch also sets a latch on the attached part, which that part outputs as Launched. The latch stays on after the parts separate until the component is reset. "
+                              "The Launch branch calls no firing, ignition, projectile or extra force routine, so anything the ordnance does after Launch has to come from its own logic reading Launched (inference from that branch)." % (hold, _g(hold / ups))),
+                      section("Ordnance type codes",
+                              "While attached, the body's Ordinance Type output carries the attachment's selected code as a number, copied each update. The codes are the editor's hardpoint classes, not the weapon ammunition types:\n\n" + table),
+                      section("Transfers", hard_transfer)],
+                     hard + C["codes"] + [fig[bid], T(bid), P(bid, "Ordinance Type"), P(bid, "Release"), P(bid, "Launch"), A(bid, "flags", "Bit 0x100000 removes the pull.")],
+                     limits + [TICK])
+        else:
+            nm = E.block(bid)["name"]
+            B.family(fid,
+                     "Hangs from a Hardpoint Connector Body on a fixed joint once their centres are under 0.5 m apart and line up, sends its ordnance type code, 1 to 12, to the body, and outputs Launched after the body's Launch.",
+                     [section("Attaching", hard_attach),
+                      section("Ordnance type and Launched",
+                              "Its ordnance type property defaults to 1. While attached it sends the code, as a number, to the body's Ordinance Type output each update. "
+                              "The codes are the editor's hardpoint classes, not the weapon ammunition types:\n\n" + table + "\n\n"
+                              "When the body's Launch goes on, this part's latch is set and Launched turns on. The body then detaches and cannot attach again until %d updates, %s simulated seconds, after Launch goes off. "
+                              "Launched stays on after the parts separate until the component is reset. The Launch branch fires, ignites and pushes nothing itself (inference: wire Launched to this vehicle's own engines, rockets or warheads)." % (hold, _g(hold / ups))),
+                      section("Transfers", hard_transfer)],
+                     hard + C["codes"] + [fig[bid], T(bid), P(bid, "Launched"), A(bid, "flags", "Bit 0x100000 removes the pull.")],
+                     limits + [TICK])
+
+    # Mag All.
+    g = [f[x] for x in ("g_shape", "g_radius", "g_joint", "g_solver", "g_feedback", "g_stress", "g_break", "g_cool")]
+    B.family("part-magall",
+             "Grabs what touches a 0.125 m contact sphere at its face, holds it with a point-to-point joint and lets go when Force, the joint's solver impulse, exceeds 200 × electrical supply.",
+             [section("Grabbing",
+                      "While Magnet Toggle is on, the Mag All keeps a Bullet contact sphere of radius 0.125 m at its magnet face. A body it touches, static or moving, is joined to it with a point-to-point joint. "
+                      "There is no pull from a distance, and its magnet_force field of 0.1 is never read by its update."),
+              section("Force and breaking",
+                      "Force reports the absolute applied impulse that the physics solver last computed for that joint, in internal units. It is an impulse per solver step and is not divided by the time step, so it is not a force in newtons. "
+                      "With no link Force is 0. The joint lets go when Force exceeds 200 × P, where P is 1 with infinite electricity and otherwise max(0, (300 - EMP) ÷ 300) × charge fraction. "
+                      "At full supply 200 holds and 201 breaks, as the tooltip's 200 suggests. At P = 0.25, from an EMP count of 150 and half charge, the threshold is 50. "
+                      "After a break it waits %d updates, %s simulated seconds, before it can grab again." % (C["cool"], _g(C["cool"] / ups)))],
+             g + [fig["magall"], f["a_event"], T("magall"), P("magall", "Force"), P("magall", "Magnet Toggle"), A("magall", "magnet_force", "Not read by the Mag All update.")] + R,
+             limits + [TICK])
+
+
 def fluid_links(B, E):
     """Hose, winch, pulley, connector, filter, manual pump, pipe and spawner entries from the fluid-network pass."""
     N, T = fluid_network(E), fluid_transport(E)
@@ -4218,7 +4667,7 @@ def fluid_links(B, E):
     simple("part-connector-water", "When attached, links its fluid network to the other connector's with bias 0, both directions and exchange factor 0.5; the two networks stay separate.",
            [("Operating conditions", "With an attached connector, a network on its Fluid port and the transfer flag set, each update calls the two-port solver between the two Fluid ports: bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. The connector holds no fluid and does not merge the networks, so each side keeps its own 40 L pipe pressure."),
             ("Setup and interactions", "Free flow in the tooltip means no bias and no species filter. The halved step limit still applies, so it is not unlimited flow.")],
-           [N["c_half"], N["c_call"], step, T["solver"][5], Tt("connector_water"), P("connector_water", "Fluid")], ["Attachment distance, holding force and release mechanics were not traced."])
+           [N["c_half"], N["c_call"], step, T["solver"][5], Tt("connector_water"), P("connector_water", "Fluid")])  # the connectors pass adds attachment, release and the limitations
     simple("part-water-pump-manual", "Hold either interact action to pump: bias 3, one-way, with a smoothed handle factor; at most 60 L/s at equal pressure.",
            [("Operating conditions", "Holding an interact action sets the handle target to 1, and a smoothing controller with duration 60 moves the factor h toward it. While h is above 0.01 the pump calls the two-port solver with bias pump_pressure = 3 and factor h, one-way, all species. Released, h falls back, and at or below 0.01 nothing moves. The pump holds no fluid; its ports connect straight to the pipe networks."),
             ("Flow", "At equal pressure between two pipe networks the bound is min(3, 20) ÷ 30 = 0.1 amount per update, 60 L/s at h = 1, against 200 L/s for the small electric pump. Backpressure, fill and other ports lower it, and backpressure cannot reverse it.")],
@@ -7552,9 +8001,6 @@ def more_families(B, E):
              "Height, power and submersion change R as for every radio. Inference from the receive routine: the video level is full out to half of R and fades to 0 at R." % _num(vr))],
            [T("rx_video_r"), A("rx_video_r", "rx_range", "Receiver range field."), A("rx_video_x", "rx_range", "Transmitter range field."), P("rx_video_r", "Signal Strength")] + rcore + [vreach], [])
 
-    simple("part-magall", "Sticks to most surfaces while on and breaks at a stress of 200.",
-           [("Operating conditions", "Force reports the current stress; keep it below 200 or the connection breaks. Its magnet_force field is 0.1.")],
-           [T("magall"), A("magall", "magnet_force", "Magnet configuration."), P("magall", "Force")], ["Stress unit unknown."])
     simple("part-parachute", "Deploys on signal, opens at 20 m/s, stalls below 5 m/s, and must be refolded at a workbench after use.",
            [("Operating conditions", "Hold Deploy on; it closes when the signal stops or it stalls. Size is set with the select tool.")],
            [T("parachute"), P("parachute", "Deploy")], [])
@@ -7648,11 +8094,6 @@ def extra_families(B, E):
                [A(b, "camera_fov_min", "Widest field of view configuration."), A(b, "camera_fov_max", "Narrowest field of view configuration."), P(b, "Field of View"),
                 E.derived("Camera FOV range if radians", "126° to 1.4°", "2.2 rad = 126.1°, 0.025 rad = 1.43°.", zoom)],
                ["The radian reading is an interpretation."])
-    mags = [(b, A(b, "magnet_force", "Magnet strength configuration.")) for b in ("connector_small", "connector_hinge", "connector_large")]
-    for b, m in mags:
-        simple("part-" + b.replace("_", "-"), "Magnetic connector; both sides must be switched on and close together. magnet_force %s." % m["value"],
-               [("Variant tradeoffs", "Magnet fields: small 0.100000, hinge 0.15, large 0.2. The large connector also passes RPS, electricity, fluid and number/on-off signals.")],
-               [x[1] for x in mags] + [T(b), T("connector_large")], ["Holding force unit unknown."])
     for fid, b in (("part-train-wheels", "train_wheels"), ("part-train-wheels-dynamic-x2", "train_wheels_dynamic_x2"), ("part-train-wheels-dynamic-x3", "train_wheels_dynamic_x3")):
         simple(fid, "Powered train bogie that can draw electricity from the rails and reports wheel slip.",
                [("Setup and interactions", "Electric receives energy from the rail lines. Watch Wheel Slip and ease torque or add brakes when it trips; slipping reduces torque.")],
@@ -8441,7 +8882,7 @@ def build(root):
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 winches, fluid_links, air_scoop, displays, logic):
+                 winches, fluid_links, connectors, air_scoop, displays, logic):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.
