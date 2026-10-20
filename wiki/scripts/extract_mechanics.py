@@ -40,6 +40,15 @@ FORCE_CAP = 'investigation/force-cap.md'
 NUCLEAR = 'investigation/nuclear.md'
 COMPOSITE = 'investigation/composite.md'
 COMPOSITE_DATA = 'investigation/native/composite/composite.json'
+WEATHER = 'investigation/weather.md'
+WEATHER_EXAMPLES = 'investigation/native/weather/tools/examples.json'
+# Every direct call to the surrounding-temperature routine 0x14030fd60, with the weather flag byte it
+# stores at [rsp+0x38] (the routine's eighth argument, forwarded to the air sampler).
+AMBIENT_CALLS = {0x14034ce9d: 1, 0x1403c82d3: 1, 0x1403f3977: 1, 0x1403f3c23: 1, 0x1403f4cd8: 1, 0x1403f500f: 1, 0x14040d3e6: 1,
+                 0x14040d772: 1, 0x14040ee18: 1, 0x14041e07f: 1, 0x14049d955: 1, 0x1404cbefa: 1, 0x1407638dd: 0}
+# Native lighting keyframe times: (store address, float32 bytes).
+LIGHT_KEYS = ((0x1405e165b, '8f c2 75 3e'), (0x1405e170a, '48 e1 9a 3e'), (0x1405e17cc, '48 e1 ba 3e'), (0x1405e188e, '00 00 00 3f'),
+              (0x1405e1950, 'b8 1e 25 3f'), (0x1405e19fb, 'b8 1e 35 3f'), (0x1405e1aad, 'b8 1e 45 3f'), (0x1405e1b83, '00 00 80 3f'))
 NUCLEAR_DATA = 'investigation/native/nuclear/nuclear.json'
 # Open items of the nuclear decode, keyed by nuclear.json "open". The nuclear parts pages point here,
 # so this is the one place the wiki lists them.
@@ -48,10 +57,10 @@ NUCLEAR_OPEN = {
     'global component order guarantee': 'whether assemblies and fuel rods update in the same order on every vehicle and loaded save',
     'radiation contamination persistence/decay and physical dose units': ('how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, '
                                                                           'the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading'),
-    'full downstream effects of gated damage event': 'what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments, and what the two game settings that gate it are',
+    'full downstream effects of gated damage event': 'what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments',
 }
 # Articles whose body numbers must all occur in their findings, as in extract_behavior.py.
-CHECKED = ('aerodynamics', 'buoyancy-water-drag', 'resource-storage', 'nuclear-reactor-components', 'composite-cable-interfaces')
+CHECKED = ('aerodynamics', 'buoyancy-water-drag', 'resource-storage', 'nuclear-reactor-components', 'composite-cable-interfaces', 'environment-hazards')
 NUMBER = re.compile(r'(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)')
 CACHE: dict[str, tuple[str, str]] = {}
 BINARY: dict = {}
@@ -440,6 +449,156 @@ def composite_native():
     ]
 
 
+def g2(x):
+    """Two-decimal reading of a worked example, without trailing zeros."""
+    return f'{x:.2f}'.rstrip('0').rstrip('.').replace('-', '−')
+
+
+def weather_native():
+    """Weather temperature, lighting keys, tornado and whirlpool vectors from the weather decode, re-read from the executable."""
+    if not (ROOT / WEATHER).is_file():
+        raise ValueError(f'Weather report missing: {WEATHER}')
+    f32 = lambda addr: struct.unpack('<f', exe_bytes(addr, 4))[0]
+    r = WEATHER
+    # Every direct call to the surrounding-temperature routine, and the flag byte each stores just before it.
+    b = binary()
+    va, size, raw = b['sections'][0]
+    text = b['data'][raw:raw + size]
+    calls = {b['base'] + va + m.start(): None for m in re.finditer(b'\xe8', text)
+             if m.start() + 5 <= len(text) and m.start() + 5 + struct.unpack_from('<i', text, m.start() + 1)[0] == 0x14030fd60 - b['base'] - va}
+    for c in calls:
+        window = exe_bytes(c - 0x60, 0x60)
+        at = window.rfind(bytes.fromhex('c6 44 24 38'))
+        calls[c] = window[at + 4] if at >= 0 else None
+    if calls != AMBIENT_CALLS:
+        raise ValueError(f'Calls to 0x14030fd60 or their weather flags changed: {sorted((hex(k), v) for k, v in calls.items())}')
+    flagged = sum(AMBIENT_CALLS.values())
+    # Worked examples from the native constants. k is the cubed rain/wind term; parts pass the flag, so wind counts as 0.1.
+    lo, lo_k, hi, hi_k = f32(0x140bb0f98), f32(0x140bb069c), f32(0x140bb0710), f32(0x140bb064c)
+    w_rain, w_wind, fixed = f32(0x140bafdd0), f32(0x140bafb70), f32(0x140bafad0)
+    lapse, km, floor = f32(0x140bb0554), f32(0x140bb085c), f32(0x140bb0fd0)
+    if (lo, lo_k, hi, hi_k, lapse, km, floor) != (-15, 15, 30, 10, 6.5, 1000, -270) or not (math.isclose(w_rain, 0.8, rel_tol=1e-6) and math.isclose(w_wind, 0.2, rel_tol=1e-6)):
+        raise ValueError('Air temperature constants moved')
+    k_dry, k_wet = (w_wind * fixed) ** 3, (w_rain + w_wind * fixed) ** 3
+    air = lambda W, k, y=0.0: max(floor, (lo - lo_k * k) + W * ((hi - hi_k * k) - (lo - lo_k * k)) - lapse * max(y, 0) / km)
+    water = lambda W, R, D: (1 - 4 * R) + W * ((8 - 5 * R) - (1 - 4 * R)) + 3 * (D / 1000) * (0.5 - W)
+    ex = json.loads((ROOT / WEATHER_EXAMPLES).read_text())
+    dry = [air(0.5, k_dry), air(0.55, k_dry), air(0.5, k_dry, 1000), air(0.55, k_dry, 1000)]
+    wat = [water(0, 0, 0), water(0, 0, 1000), water(1, 0, 0), water(1, 0, 1000)]
+    if (any(abs(x - ex[n]) > 0.001 for x, n in zip(dry, ('air_controlled_midnight', 'air_controlled_noon', 'air_controlled_midnight_1000m', 'air_controlled_noon_1000m')))
+            or any(abs(x - ex[n]) > 1e-9 for x, n in zip(wat, ('water_cold_0m', 'water_cold_1000m', 'water_warm_0m', 'water_warm_1000m')))):
+        raise ValueError(f'Weather worked examples differ from {WEATHER_EXAMPLES}')
+    season = lambda m: 0.5 + 0.5 * math.sin(m * f32(0x140bafd08) - f32(0x140bb0078))
+    w5 = [min(max(1 - 6 * abs(0.5 - 0.35) + 0.475 * season(5 + q) + 0.05 * (0.5 + 0.5 * math.sin(q * 2 * math.pi - math.pi / 2)), 0), 1) for q in (0, 0.5)]
+    if any(abs(air(w, k_dry) - ex[n]) > 0.001 for w, n in zip(w5, ('air_zero_texture_z0_month5_midnight', 'air_zero_texture_z0_month5_noon'))):
+        raise ValueError(f'Seasonal example differs from {WEATHER_EXAMPLES}')
+    hours = [round(24 * f32(a + 2), 2) for a, _ in LIGHT_KEYS]
+    if [round(h, 2) for h in ex['lighting_hours'][1:]] != hours:
+        raise ValueError(f'Lighting keys differ from {WEATHER_EXAMPLES}')
+    pool = ex['whirlpool_center_at_depressed_surface']
+    temperature = [
+        native('Weather update: texture time', 'scroll fraction t', 'The weather update 0x1402c0810 divides a time counter by 311040000 and keeps the remainder fraction t at weather+0xac. t scrolls the weather textures; it is separate from the time of day.',
+               '0x1402c086d', 'f3 0f 5e 05 43 01 8f 00', report=r, literals={'0x140bb09b8': 'c0 50 94 4d'}),
+        native('Weather update: season term', 'season = 0.5 + 0.5 × sin(0.5711987 × (month + q) − π/2)',
+               'Stored at weather+0xb0 (0x1402c08e2). 0.5711987 is about 2π ÷ 11. q is the fraction of the game day and month the saved month value; the day of the month and the year are not read. '
+               'The term peaks at month + q = 5.5 and is lowest at month + q = 0 or 11. It advances by 0.5711987 radians over each day and steps back at midnight unless the month changes (inference from the formula).',
+               '0x1402c08bd', 'f3 0f 59 05 43 f4 8e 00', report=r, literals={'0x140bafd08': '14 3a 12 3f', '0x140bb0078': 'db 0f c9 3f'}),
+        native('Weather update: time-of-day term', 'day = 0.5 + 0.5 × sin(2π × q − π/2)', 'Stored at weather+0xb4 (0x1402c0938): 0 at midnight, 1 at noon.',
+               '0x1402c091b', 'f3 0f 59 05 2d fc 8e 00', report=r, literals={'0x140bb0550': 'db 0f c9 40'}),
+        native('Regional sampler: map scale', 'x ÷ 256000, z ÷ 256000', 'The regional sampler 0x1402bf330 samples graphics/noise/weather_1.txtr and weather_2.txtr (loaded by 0x1402bf910) at X = 4 × (x ÷ 256000 + 0.5) and Z = 4 × (z ÷ 256000 + 0.5), '
+               'each at a fast offset (X − 1000t, Z + 100t) and a slow offset (X − 100t, Z + 10t), with wrapping and bilinear filtering of the RGB bytes ÷ 255.',
+               '0x1402bf3a7', 'f3 44 0f 5e 05 c8 15 8f 00', report=r, literals={'0x140bb0978': '00 00 7a 48', '0x140b57280': '67 72 61 70 68 69 63 73 2f 6e 6f 69 73 65 2f 77 65 61 74 68 65 72 5f 31 2e 74 78 74 72 00'}),
+        native('Regional sampler: climate band', 'W = clamp(1 − 6 × |z ÷ 256000 + 0.5 − 0.35| + a + 0.475 × season + 0.05 × day, 0, 1)',
+               'W is the warmth fraction both temperatures blend by. a is the product of the fast and slow red samples of weather_1. The Z term is highest at z = −38400 m and world X enters only through the textures (inference: a latitude-like band). '
+               'Multipliers 6 at 0x1402bf7b3, 0.05 at 0x1402bf7cd and 0.475 at 0x1402bf808.',
+               '0x1402bf780', 'f3 44 0f 5c 05 9f 04 8f 00', report=r,
+               literals={'0x140bafc28': '33 33 b3 3e', '0x1402bf7b3': 'f3 44 0f 59 05 84 0d 8f 00', '0x140bb0540': '00 00 c0 40', '0x140bafa40': 'cd cc 4c 3d', '0x140bafcb0': '33 33 f3 3e'}),
+        native('Regional sampler: rain and wind', 'R = clamp(5 × (g1 − 0.15), 0, 1), V = clamp(4 × g2, 0, 1)',
+               'g1 is the product of the two green samples of weather_1 and g2 that of weather_2 (×4 at 0x1402bf8af). The Lua weather table names these outputs rain and wind.',
+               '0x1402bf83b', 'f3 0f 5c 05 dd 02 8f 00 f3 0f 59 05 95 0c 8f 00', report=r,
+               literals={'0x140bafb20': '9a 99 19 3e', '0x140bb04e0': '00 00 a0 40', '0x1402bf8af': 'f3 0f 59 0d d1 0b 8f 00', '0x140bb0488': '00 00 80 40'}),
+        native('Air temperature: rain and wind weight', 'k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.2 × w)³',
+               'The air sampler 0x1402c16d0 tests its flag argument (0x1402c1769): with the flag set w = 0.1 (load at 0x1402c176d), otherwise w = clamp((V − 0.1) ÷ 0.9, 0, 1). The cube is two multiplies at 0x1402c17c3. '
+               f'With the flag set and no rain, k = {k_dry:.6f}; with R = 1, k = {k_wet:.6f}.',
+               '0x1402c1736', 'f3 0f 5c 1d 16 e5 8e 00', report=r,
+               literals={'0x140bafc54': 'cd cc cc 3e', '0x140bafd1c': '9a 99 19 3f', '0x1402c1769': '84 db 74 0a', '0x140bafad0': 'cd cc cc 3d', '0x140bafb70': 'cd cc 4c 3e', '0x140bafdd0': 'cd cc 4c 3f', '0x1402c17c3': 'f3 0f 59 c3 f3 0f 59 d8'}),
+        native('Air temperature', 'max(−270, lerp(−15 − 15k, 30 − 10k, W) − 6.5 × max(y, 0) ÷ 1000)',
+               'Endpoints −15 (0x1402c17cb) and 30 (0x1402c17b4), rain and wind cooling 15k and 10k, then 6.5 °C per 1000 m above world zero (multiply at 0x1402c180f) and a floor of −270 (0x1402c181b). '
+               f'Dry air runs from −15 °C at W = 0 to 30 °C at W = 1; with R = 1 the ends are {g2(air(0, k_wet))} and {g2(air(1, k_wet))} °C for a flagged call.',
+               '0x1402c1803', 'f3 0f 5e 25 51 f0 8e 00', report=r,
+               literals={'0x140bb0f98': '00 00 70 c1', '0x140bb069c': '00 00 70 41', '0x140bb0710': '00 00 f0 41', '0x140bb064c': '00 00 20 41', '0x140bb085c': '00 00 7a 44',
+                         '0x1402c180f': 'f3 0f 59 25 3d ed 8e 00', '0x140bb0554': '00 00 d0 40', '0x140bb0fd0': '00 00 87 c3'}),
+        native('Water temperature', 'lerp(1 − 4R, 8 − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W)',
+               'The water sampler 0x1402c15e0 takes D = max(−y, 0) metres below world zero, not below the local wave surface (min(y, 0) at 0x1402c168a, sign flip at 0x1402c1692). It has no depth clamp and no lower floor. '
+               'The depth term warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m.',
+               '0x1402c16b1', 'f3 0f 59 d9 f3 0f 58 de', report=r,
+               literals={'0x1402c164d': 'f3 0f 59 05 8b ee 8e 00', '0x140bb0600': '00 00 00 41', '0x140bb0488': '00 00 80 40', '0x1402c168a': 'f3 0f 5d d8', '0x140bb0390': '00 00 40 40', '0x140bafcbc': '00 00 00 3f'}),
+        native('Parts fix the wind term', f'{flagged} of {len(AMBIENT_CALLS)} calls pass the flag',
+               f'The surrounding-temperature routine forwards its eighth argument to the air sampler (0x14030fda5). Of the {len(AMBIENT_CALLS)} direct calls to it, the {flagged} from part updates '
+               '(among them the classic engine at 0x14034ce9d, radiators at 0x1403f3c23, exchangers at 0x1403f4cd8, nuclear parts at 0x14041e07f and the modular engine group at 0x1404cbefa) store 1, so wind never changes a part\'s sample; rain still does. '
+               'The call at 0x1407638dd stores 0; its caller was not identified.',
+               '0x14030fda5', '0f b6 84 24 18 01 00 00 88 44 24 20', report=r,
+               literals={'0x14034ce7a': 'c6 44 24 38 01', '0x1403f3bf3': 'c6 44 24 38 01', '0x1403f4ca8': 'c6 44 24 38 01', '0x14041e057': 'c6 44 24 38 01', '0x1407638ca': 'c6 44 24 38 00'}),
+        native('Air and water blend', 'Ta + clamp((h − y + 0.25) ÷ 24, 0, 1) × (Tw − Ta)',
+               'The blend 0x1403100a0 calls the water sampler (0x140310144) and the air sampler (0x14031015b) with h the wave-surface height and y the sample height: pure air from 0.25 m above the surface, pure water from 23.75 m below it. '
+               'Both samplers call the regional sampler directly (0x1402c1634, 0x1402c1728), not the full weather output 0x1402c1830 that adds custom weather and local hazard effects.',
+               '0x140310144', 'e8 97 14 fb ff', report=r, literals={'0x14031015b': 'e8 70 15 fb ff', '0x1402c1634': 'e8 f7 dc ff ff', '0x1402c1728': 'e8 03 dc ff ff'}),
+        native('Worked air examples', f'{g2(dry[0])} → {g2(dry[1])} °C at sea level, {g2(dry[2])} → {g2(dry[3])} °C at 1000 m',
+               'Derived from the constants above: a flagged call with no rain at a location where W = 0.5 at midnight; noon adds 0.05 to W. Without rain a part reads −15 + 45 × W to within 0.001 °C. '
+               f'With world z = 0, month 5, a = 0 and no rain, W is {w5[0]:.4f} at midnight and {w5[1]:.4f} at noon, giving {g2(air(w5[0], k_dry))} and {g2(air(w5[1], k_dry))} °C. Values depend on the texture samples, so they are not a forecast.',
+               '0x1402c17c3', 'f3 0f 59 c3 f3 0f 59 d8', status='inferred', report=r),
+        native('Worked water examples', f'W = 0: {g2(wat[0])} and {g2(wat[1])} °C; W = 1: {g2(wat[2])} and {g2(wat[3])} °C',
+               'Derived from the water equation with no rain, at world zero and 1000 m below it. At W = 0.5 the depth term is 0.',
+               '0x1402c16a5', 'f3 0f 59 1d e3 ec 8e 00', status='inferred', report=r),
+    ]
+    q_div = native('Lighting time of day', 'q = time ÷ (3600 × day_length)', 'The lighting update 0x1405e1e30 multiplies the day_length setting by 3600 (0x1405e1eb5) and divides the time of day by it, then calls the keyframe interpolator 0x1405e2a30 with q (0x1405e2039).',
+                   '0x1405e1ed4', 'f3 44 0f 5e f9', report=r, literals={'0x1405e1eb5': '44 69 00 10 0e 00 00', '0x1405e2039': 'e8 f2 09 00 00', '0x140b10088': '64 61 79 5f 6c 65 6e 67 74 68 00'})
+    lighting = [q_div] + [
+        native(f'Lighting key {i + 1}', f'q = {round(f32(a + 2), 4):g}, {24 * f32(a + 2):.2f} h',
+               'Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key.',
+               f'{a:#x}', 'c7 01 ' + v, report=r)
+        for i, (a, v) in enumerate(LIGHT_KEYS)]
+    tornado = [
+        native('Tornado far field', 'I × S × (−100 × a⁸ × (1 − u)² × e + 50 × a² × tangent)',
+               'Routine 0x1402be980 returns a wind vector the weather output adds to the wind. a = 1 − clamp(d ÷ R, 0, 1), d the horizontal distance from the tornado top and R its outer wind radius (division at 0x1402bea3f); a ≤ 0 returns 0 (0x1402bea6d). '
+               'u is the height fraction from base to top, e the horizontal unit vector from the axis and tangent e turned 90 degrees. The powers 2 and 8 are library calls (0x1402bec51, 0x1402bec64), with 100 and 50 loaded at 0x1402bec74 and 0x1402bec81.',
+               '0x1402bec56', 'f3 0f 10 0d a2 19 8f 00', report=r,
+               literals={'0x140bb0600': '00 00 00 41', '0x1402bec74': 'f3 44 0f 10 3d 13 1b 8f 00', '0x140bb0790': '00 00 c8 42', '0x1402bec81': 'f3 0f 10 0d b7 1a 8f 00', '0x140bb0740': '00 00 48 42',
+                         '0x1402bea3f': 'f3 0f 5e c1', '0x1402bec51': 'e8 ba af 6f 00', '0x1402bec64': 'e8 a7 af 6f 00'}),
+        native('Tornado core', 'gain = 12 × u³ + 10 ÷ (100 × u + 10)',
+               'Runs only between base and top height and when the squared horizontal distance from the base is below 2 × a broad-phase field (compare at 0x1402bedfb). gain scales the inner and outer core sizes; '
+               'the core adds 200 × radial × (1 − u) × e + 200 × bump × tangent + 100 × bump × (1 − u) upward, all × I × S, with bump peaking at 1 at the inner size (200 at 0x1402bef9c). The height power u³ is a library call at 0x1402bee11.',
+               '0x1402bee27', 'f3 0f 59 35 35 18 8f 00', report=r,
+               literals={'0x140bb0664': '00 00 40 41', '0x1402bee1c': 'f3 0f 10 25 28 18 8f 00', '0x1402bef9c': 'f3 0f 10 0d 34 18 8f 00', '0x140bb07d8': '00 00 48 43', '0x1402bee11': 'e8 fa ad 6f 00'}),
+        native('Tornado vector cap', 'F × min(1, 100 ÷ |F|)', 'Final scale by 100 ÷ length when the length exceeds 100. The cap applies to one tornado\'s vector, not to a vehicle\'s speed or to the sum of several tornadoes.',
+               '0x1402bf099', 'f3 44 0f 5e f8', report=r),
+        native('Tornado update', '0.0005 per update, 0.016 lifetime step', 'The tornado update 0x1402bd5a0 moves its active factor I by 0.0005 per update (0x1402bd63a, 0x1402bd660) and, while fully active, lowers its lifetime by 0.016 (0x1402bd6b0). '
+               'A damage branch reads the vehicle_damage setting (settings+0x4a, test at 0x1402bdb50).',
+               '0x1402bd63a', 'f3 0f 58 0d 96 22 8f 00', report=r,
+               literals={'0x140baf8d8': '6f 12 03 3a', '0x1402bd6b0': 'f3 0f 5c 05 c8 22 8f 00', '0x140baf980': '6f 12 83 3c', '0x1402bdb50': '80 78 4a 00'}),
+    ]
+    whirlpool = [
+        native('Whirlpool current', 'F = 50 × M × g × (n + tangent) for r < 200π',
+               'Event type 1 of the water sampler 0x1402bbbb0, with M the event magnitude and z = r ÷ 100 for horizontal distance r from the centre. h = 0.33 ÷ (z² + 0.33) − 0.033 (0.33 at 0x1402bc0a6, 0.033 at 0x1402bc104), '
+               'n = normalize(−e.x, −h, −e.z) (0x1402bc157) and g = sin(1 ÷ ((z ÷ 2)² + 0.35)) − 0.1 (0.35 at 0x1402bc0f4, sine at 0x1402bc118). 50 is loaded at 0x1402bbf8d.',
+               '0x1402bc121', 'f3 44 0f 5c 05 a6 39 8f 00', report=r,
+               literals={'0x140bafad0': 'cd cc cc 3d', '0x1402bc0a6': 'f3 0f 10 35 5a 3b 8f 00', '0x140bafc08': 'c3 f5 a8 3e', '0x1402bc104': 'f3 0f 5c 35 04 39 8f 00', '0x140bafa10': '03 2b 07 3d',
+                         '0x1402bc0f4': 'f3 0f 58 0d 2c 3b 8f 00', '0x140bafc28': '33 33 b3 3e', '0x1402bc118': 'e8 03 ab 71 00', '0x1402bc157': 'e8 54 96 eb ff', '0x1402bbf8d': 'f3 44 0f 10 15 aa 47 8f 00', '0x140bb0740': '00 00 48 42'}),
+        native('Whirlpool centre', 'H = −100 × M × h; F.y −= 500 × M × (0.01 ÷ (z² + 0.01) − 0.001) for r < 100π',
+               'Inside the inner region the surface drops by H metres (100 at 0x140bb03f0, read at 0x1402bc275) and a narrow downward term is added (0.01 at 0x1402bc29d, 0.001 at 0x1402bc2ad).',
+               '0x1402bc2b9', 'f3 0f 59 05 6f 45 8f 00', report=r,
+               literals={'0x140bb0830': '00 00 fa 43', '0x1402bc275': 'f2 0f 59 0d 73 41 8f 00', '0x140bb03f0': '00 00 00 00 00 00 59 40', '0x1402bc29d': 'f3 0f 10 05 b3 36 8f 00', '0x140baf958': '0a d7 23 3c', '0x1402bc2ad': 'f3 0f 5c 05 43 36 8f 00', '0x140baf8f8': '6f 12 83 3a'}),
+        native('Whirlpool depth falloff', 'F × clamp((y − (H − 100)) ÷ 100, 0, 1)',
+               'Full strength at the depressed surface, zero 100 m below it (subtract at 0x1402bc2da). '
+               f'At M = 1 and r = 0 the surface sits at {pool["height"]:.1f} m and the vector there is about ({pool["current"][0]:.2f}, {pool["current"][1]:.1f}, {pool["current"][2]:.2f}) in native units for the fallback direction; 100 m lower it is 0.',
+               '0x1402bc2da', 'f3 0f 5c 05 ae 44 8f 00', report=r, literals={'0x140bb0790': '00 00 c8 42'}),
+        native('Hazard Lua entry points', 'spawnWhirlpool 0x1405a4390, spawnTornado 0x1405a46e0',
+               'Both parse their arguments and dispatch through host virtual slots +0x1b0 and +0x1c8. They are not the natural spawn policy.',
+               '0x1405a44ae', 'ff 90 b0 01 00 00', report=r, literals={'0x1405a47ca': 'ff 90 c8 01 00 00'}),
+    ]
+    return dict(temperature=temperature, lighting=lighting, tornado=tornado, whirlpool=whirlpool, hours=hours,
+                wet=(g2(air(0, k_wet)), g2(air(1, k_wet))), flagged=flagged, calls=len(AMBIENT_CALLS))
+
 
 def lua(label, val, detail, path, needle, end=None, status='observed'):
     return finding(label, val, detail, cite(path, needle, end), status)
@@ -668,15 +827,60 @@ def build_articles():
              lua('Delivery checks and payout', 'distance < 200 and isInTransformArea', 'Adds saved reward to currency and marks delivered.', CARGO, 'if matrix.distance(cargo_vehicle_transform, delivery_zone_object.transform) < 200 then', 'cargo_package_object.state = STATE_DELIVERED'),
              lua('Expiration', {'loaded':'timer > life','unloaded':'timer / life > 0.5'}, 'Timer increments by delta_worldtime for STATE_DEFAULT packages.', CARGO, 'cargo_package_object.timer = cargo_package_object.timer + delta_worldtime', 'if cargo_package_object.timer / cargo_package_object.life > 0.5 then')],
             [lua_limit, 'Package probability and terminal eligibility are configured elsewhere. No claim is made that every cargo addon uses these rules or that source expressions prove wall-clock timing.'])
-    article('environment-hazards', 'Environment and hazard tuning', 'Environment',
-            'The realtime environment file lists lighting hours, tornado components and whirlpool force terms, but none of these names occurs in the executable.',
-            'The environment file places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19. Tornado and whirlpool tuning separate vertical, radial and tangential terms. '
-            f'A native search (investigation/config.md) found {len(env_present)} of the file\'s {len(env_names)} names in the executable, all atmosphere settings ({", ".join(env_present)}). None of the sunrise, sunset, tornado or whirlpool names occurs, as ASCII or UTF-16LE text. '
-            'The release parses the realtime_values directory into a registry, but no code that passes those entries to lighting or hazard simulation was found. These numbers are shipped tuning that nothing shows the simulation reads, and they say nothing about mission schedules or astronomical latitude.',
+    wx = weather_native()
+    keys = wx['hours']
+    article('environment-hazards', 'Weather temperature, lighting and hazards', 'Environment',
+            'Parts sample a weather temperature that blends air and water by depth: air follows a warmth fraction from world Z, scrolling weather textures, month and time of day, minus rain cooling and 6.5 °C per 1000 m of height. '
+            'The native lighting table and the tornado and whirlpool vectors are decoded; the realtime environment file\'s hour markers and force terms are not what the game uses.',
+            'Every part that samples its surroundings outside an enclosed compartment (heat exchangers, radiators, engines, fluid tanks, steam and nuclear parts) uses one weather routine. '
+            'It blends an air temperature Ta and a water temperature Tw by f = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so the sample is pure air from 0.25 m above the surface and pure water from 23.75 m below it.'
+            '\n\n'
+            'Both temperatures start from a regional sampler that returns a warmth fraction W and a rain value R, each 0 to 1. W = clamp(1 − 6 × |z ÷ 256000 + 0.5 − 0.35| + a + 0.475 × season + 0.05 × day, 0, 1). '
+            'The first term is a band along world Z, highest at z = −38400 m (inference: a latitude-like climate band). a is the product of two red samples of the noise texture weather_1.txtr, read at a fast and a slow scrolling offset; R comes from its green samples as clamp(5 × (g1 − 0.15), 0, 1). '
+            'World X enters only through the textures. day = 0.5 + 0.5 × sin(2π × q − π/2) is 0 at midnight and 1 at noon, with q the fraction of the game day. '
+            'season = 0.5 + 0.5 × sin(0.5711987 × (month + q) − π/2) peaks at month + q = 5.5. It reads the saved month and the fraction of the day but not the day of the month, so it advances over each day and steps back at midnight unless the month changes (inference from the formula).'
+            '\n\n'
+            'Air: Ta = max(−270, lerp(−15 − 15k, 30 − 10k, W) − 6.5 × max(y, 0) ÷ 1000), with k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.2 × w)³. '
+            f'Parts pass a flag that fixes w at 0.1, so wind never changes a part\'s sample ({wx["flagged"]} of the {wx["calls"]} calls found pass it). Dry air therefore runs from −15 °C at W = 0 to 30 °C at W = 1 at sea level, and heavy rain (R = 1) moves those ends to {wx["wet"][0]} and {wx["wet"][1]} °C. '
+            'Height above world zero costs 6.5 °C per 1000 m. '
+            'Water: Tw = lerp(1 − 4R, 8 − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero, not below the local wave surface. There is no depth clamp and no lower floor; depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m.'
+            '\n\n'
+            'Without rain a part reads −15 + 45 × W to within 0.001 °C. At a location where W = 0.5 at midnight, noon adds 0.05 to W and raises sea-level air from 7.5 to 9.75 °C; at 1000 m the same samples give 1 and 3.25 °C. '
+            'Dry water at W = 0 is 1 °C at the surface and 2.5 °C 1000 m down; at W = 1 it is 8 and 6.5 °C. These are conditional examples: W depends on the texture samples at the position, so no fixed temperature follows from the hour alone. '
+            'The samplers read the regional sampler directly, not the full weather output that adds custom weather and local hazard effects, so those additions do not enter these equations.'
+            '\n\n'
+            'Lighting: the update divides the time of day by 3600 × day_length and interpolates a native keyframe table linearly between the first key at or after q and the one before it. '
+            f'The keys sit at 0, {", ".join(f"{h:g}" for h in keys[:-1])} and {keys[-1]:g} h. '
+            'The environment file instead places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19; those names do not occur in the executable and are not the keys. '
+            'The keys are lighting keyframes, not astronomical or mission sunrise times.'
+            '\n\n'
+            'Table: Native lighting keys\n'
+            '| q | Hour | Role (inference from the record order) |\n'
+            '| --- | --- | --- |\n'
+            f'| 0.24 | {keys[0]:g} | dawn start |\n'
+            f'| 0.3025 | {keys[1]:g} | dawn middle |\n'
+            f'| 0.365 | {keys[2]:g} | dawn end |\n'
+            f'| 0.5 | {keys[3]:g} | noon |\n'
+            f'| 0.645 | {keys[4]:g} | dusk start |\n'
+            f'| 0.7075 | {keys[5]:g} | dusk middle |\n'
+            f'| 0.77 | {keys[6]:g} | dusk end |'
+            '\n\n'
+            'Tornado: each tornado adds a wind vector, capped at length 100, to the weather wind. Outside its core it is I × S × (−100 × a⁸ × (1 − u)² × e + 50 × a² × tangent), with a = 1 − clamp(d ÷ R, 0, 1) for horizontal distance d from the tornado top and outer radius R, '
+            'u the height fraction from base to top, e the outward horizontal direction and I and S its active factor and strength. The inward pull falls with the eighth power and the swirl with the square, and the pull vanishes at the top; there is no inverse-square law. '
+            'Inside the core, between base and top, gain = 12 × u³ + 10 ÷ (100 × u + 10) sizes the inner and outer core and the core adds radial, swirl and upward terms with coefficients 200, 200 and 100. '
+            'The active factor moves by 0.0005 per update, and a damage branch reads the vehicle_damage setting.'
+            '\n\n'
+            'Whirlpool: for horizontal distance r from the centre and z = r ÷ 100, the current inside r < 200π is 50 × M × g × (n + tangent), with h = 0.33 ÷ (z² + 0.33) − 0.033, n the normalized vector (−e.x, −h, −e.z) and g = sin(1 ÷ ((z ÷ 2)² + 0.35)) − 0.1. '
+            'Inside r < 100π the surface drops by 100 × M × h metres and a narrow downward term 500 × M × (0.01 ÷ (z² + 0.01) − 0.001) is added. The whole vector fades linearly from full strength at the depressed surface to 0 at 100 m below it. '
+            'The environment file\'s whirlpool forces, 400 vertical, 60 radial and 50 tangential, are not these coefficients. '
+            'These vectors are wind and current in native units, not forces on a vehicle: what a hull feels depends on the code that consumes them, its shape and its relative motion.',
             [config(n) for n in ['sunrise_start_hour','sunrise_hour','sunrise_end_hour','sunset_start_hour','sunset_hour','sunset_end_hour','tornado_base_radius_inner','tornado_base_radius_outer','tornado_wind_component_vertical','tornado_wind_component_radial','tornado_wind_component_tangential','whirlpool_vertical_force','whirlpool_radial_force','whirlpool_tangent_force']] +
             [absent([n for n in env_names if n.startswith(('sunrise_', 'sunset_', 'tornado_', 'whirlpool_'))], 'Lighting and hazard names', 'None of the sunrise, sunset, tornado or whirlpool names in the environment file occurs in the executable.'),
-             realtime_loader()],
-            [static_limit, 'Still not decoded: the release lighting interpolator and its actual hour boundaries, the native tornado and whirlpool force equations and falloff, hazard spawning, damage and safe distances. The realtime entries and their names give no basis for those mechanics.'])
+             realtime_loader()] + wx['temperature'] + wx['lighting'] + wx['tornado'] + wx['whirlpool'],
+            [native_limit,
+             'The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.',
+             'Natural tornado and whirlpool spawning, ocean-depth acceptance, magnitude choice and default tornado field values were not traced; the Lua spawn functions only dispatch to the host. '
+             'The complete hazard damage equations, their targets and lifetime units were not decoded, and the conversion of the tornado wind and whirlpool current vectors into forces on a vehicle was not traced, so no safe distance is given.'])
     article('jet-engines', 'Jet startup, turbines and afterburners', 'Engines',
             'Jet component descriptions separate electrical startup, combustion and exhaust controls.',
             'The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. The exhaust branch never subtracts jet fuel; its Fuel port exchanges with the pipe network separately.',

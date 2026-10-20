@@ -37,19 +37,7 @@
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/4/limitations/1",
-        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
         "pointer": "/categories/4/limitations/2",
-        "text": "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/4/limitations/3",
         "text": "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "scope": "Practical behavior guidance"
       }
@@ -371,26 +359,8 @@
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/limitations/1",
-        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
         "pointer": "/families/10/limitations/2",
-        "text": "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/limitations/3",
         "text": "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/findings/74/detail",
-        "text": "A second settings byte must also be nonzero. The option that sets it was not traced; vehicle_damage is bound at settings+2, so it is not this byte. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 80784a00 at 0x14034cfb1. Interpretation rests on retained output investigation/native/behavior/../classic-engines/asm/update.asm:L972-L978; ../classic-engines/asm/overheat-setting.asm; ../classic-engines/asm/vehicle-damage-setting.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -975,13 +945,19 @@
   },
   {
     "key": "mechanics:environment-hazards",
-    "title": "Environment and hazard tuning: resolve missing mechanics",
+    "title": "Weather temperature, lighting and hazards: resolve missing mechanics",
     "wiki": "https://sw-wiki.maxsp.de/mechanics/environment-hazards",
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/1",
-        "text": "Still not decoded: the release lighting interpolator and its actual hour boundaries, the native tornado and whirlpool force equations and falloff, hazard spawning, damage and safe distances. The realtime entries and their names give no basis for those mechanics.",
+        "text": "The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.",
+        "scope": "Shipped-resource mechanics article"
+      },
+      {
+        "file": "wiki/data/mechanics.json",
+        "pointer": "/articles/15/limitations/2",
+        "text": "Natural tornado and whirlpool spawning, ocean-depth acceptance, magnitude choice and default tornado field values were not traced; the Lua spawn functions only dispatch to the host. The complete hazard damage equations, their targets and lifetime units were not decoded, and the conversion of the tornado wind and whirlpool current vectors into forces on a vehicle was not traced, so no safe distance is given.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1046,7 +1022,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/19/limitations/2",
-        "text": "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range; whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments, and what the two game settings that gate it are. Temperatures, reaction and detector readings are internal game values.",
+        "text": "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range; whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments. Temperatures, reaction and detector readings are internal game values.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

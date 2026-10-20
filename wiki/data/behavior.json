@@ -1120,7 +1120,7 @@
         },
         {
           "title": "Cooling and overheating",
-          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
+          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. Outside a compartment that sample is the weather temperature: dry sea-level air from −15 °C to 30 °C depending on region, season and time of day, 6.5 °C colder per 1000 m of height, lower in rain, and water below the surface; the Weather temperature, lighting and hazards mechanics article gives the equations. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with the engine_overheating and vehicle_damage settings both on, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Turning off either setting stops overheat damage; the temperature still rises. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
         },
         {
           "title": "Starter",
@@ -1133,8 +1133,7 @@
       ],
       "limitations": [
         "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
-        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
-        "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
+        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The weather part of that sample depends on texture values at the engine's position; the Weather temperature, lighting and hazards mechanics article lists what of it remains open.",
         "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -1232,6 +1231,46 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401fd9de"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402925c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14029544c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c1658"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c16a5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c176d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17b4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c180f"
         },
         {
           "path": "stormworks64.exe",
@@ -1486,6 +1525,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4ca8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045ded8"
         },
         {
@@ -1517,6 +1561,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b104f0"
         },
         {
           "path": "stormworks64.exe",
@@ -1982,7 +2031,7 @@
         },
         {
           "title": "Surrounding temperature",
-          "body": "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."
+          "body": "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates.\n\nThe weather temperature comes from a warmth fraction W between 0 and 1 that depends on world Z, scrolling weather textures, the month and the time of day. Dry air is −15 + 45 × W °C at sea level, rain lowers it, and it falls by 6.5 °C per 1000 m above world zero. Water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero, cooler in rain, and changes by at most 1.5 °C per 1000 m of depth. Every exchanger, radiator and engine call passes a flag that keeps wind out of the sample. The Weather temperature, lighting and hazards mechanics article gives the full equations."
         },
         {
           "title": "Practical setup",
@@ -2090,6 +2139,36 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14019b5d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c1658"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c16a5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c176d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17b4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c180f"
         },
         {
           "path": "stormworks64.exe",
@@ -2220,6 +2299,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f4c98"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4ca8"
         },
         {
           "path": "stormworks64.exe",
@@ -3264,7 +3348,7 @@
         },
         {
           "title": "Heat, coolant and damage",
-          "body": "Burned fuel heats the shared manifold group by 6000 × burned fuel ÷ C, where C = 1 + 40 × the group's cylinder voxels; manifold extensions add nothing to C. Engine and coolant temperatures are in °C. Each group update the coolant moves k of the gap toward the engine and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. Clean water gives k = 0.04, fully scaled water 0.00032. Sea water above 100 °C builds scaling. Above 115 °C, with engine_overheating and a second settings flag on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field."
+          "body": "Burned fuel heats the shared manifold group by 6000 × burned fuel ÷ C, where C = 1 + 40 × the group's cylinder voxels; manifold extensions add nothing to C. Engine and coolant temperatures are in °C. Each group update the coolant moves k of the gap toward the engine and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. Clean water gives k = 0.04, fully scaled water 0.00032. Sea water above 100 °C builds scaling. Above 115 °C, with the engine_overheating and vehicle_damage settings both on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field."
         },
         {
           "title": "Pressure and units",
@@ -3392,6 +3476,16 @@
           "sha256": "257c333c451377f76d8ace8242ee260eb584bc1835b72a3892ce7e66fee9cba2",
           "lineStart": 2,
           "lineEnd": 2
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402925c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14029544c"
         },
         {
           "path": "stormworks64.exe",
@@ -3672,6 +3766,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b104f0"
         },
         {
           "path": "stormworks64.exe",
@@ -7695,6 +7794,90 @@
           }
         },
         {
+          "label": "Cold end of air temperature",
+          "value": "-15",
+          "detail": "Air temperature = lerp(this − 15k, 30 − 10k, W), with W the 0 to 1 warmth fraction of the regional sampler 0x1402bf330 and k the cubed rain and wind weight. Dry air (k near 0) is this many °C at W = 0. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f1005c5f78e00 at 0x1402c17cb address binary32 -15 (bytes 000070c1) at 0x140bb0f98. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L121; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17cb"
+          }
+        },
+        {
+          "label": "Warm end of air temperature",
+          "value": "30",
+          "detail": "The 30 in lerp(−15 − 15k, 30 − 10k, W): dry air at W = 1, so −15 + 45 × W without rain. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f101554ef8e00 at 0x1402c17b4 address binary32 30 (bytes 0000f041) at 0x140bb0710. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L116; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17b4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17b4"
+          }
+        },
+        {
+          "label": "Fixed wind term for flagged calls",
+          "value": "0.1",
+          "detail": "With the flag argument set (test at 0x1402c1769) the wind term is this instead of the sampled wind, so k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.02)³ depends on rain R only. Every part's sample passes the flag. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f10055be38e00 at 0x1402c176d address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L101; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c176d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c176d"
+          }
+        },
+        {
+          "label": "Air temperature fall with height",
+          "value": "6.5",
+          "detail": "Subtracts this × max(y, 0) ÷ 1000 (division at 0x1402c1803): °C per 1000 m above world zero. The result is floored at −270 (0x1402c181b). Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f59253ded8e00 at 0x1402c180f address binary32 6.5 (bytes 0000d040) at 0x140bb0554. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L134; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c180f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c180f"
+          }
+        },
+        {
+          "label": "Warm end of water temperature",
+          "value": "8",
+          "detail": "Water temperature = lerp(1 − 4R, this − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero. Dry water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f1025a0ef8e00 at 0x1402c1658 address binary32 8 (bytes 00000041) at 0x140bb0600. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L33; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c1658",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c1658"
+          }
+        },
+        {
+          "label": "Water depth gradient",
+          "value": "3",
+          "detail": "The 3 in 3 × (D ÷ 1000) × (0.5 − W): depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m. No depth clamp or floor follows. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f591de3ec8e00 at 0x1402c16a5 address binary32 3 (bytes 00004040) at 0x140bb0390. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L47; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c16a5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c16a5"
+          }
+        },
+        {
+          "label": "Exchanger weather flag",
+          "value": "1",
+          "detail": "The exchanger's surrounding-temperature call stores flag 1 as the routine's eighth argument, which 0x14030fd60 forwards to the air sampler (0x14030fda5). Radiators (0x1403f3bf3), engines (0x14034ce7a) and nuclear parts (0x14041e057) store the same 1. Report: investigation/weather.md. Function 0x1403ef860-0x1403f51f4; instruction bytes c644243801 at 0x1403f4ca8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L165. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4ca8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4ca8"
+          }
+        },
+        {
           "label": "Component updates per simulated second",
           "value": 60,
           "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
@@ -7888,6 +8071,36 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c1658"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c16a5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c176d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17b4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c180f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402eb600"
         },
         {
@@ -7979,6 +8192,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f4c47"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4ca8"
         },
         {
           "path": "stormworks64.exe",
@@ -8593,6 +8811,90 @@
           }
         },
         {
+          "label": "Cold end of air temperature",
+          "value": "-15",
+          "detail": "Air temperature = lerp(this − 15k, 30 − 10k, W), with W the 0 to 1 warmth fraction of the regional sampler 0x1402bf330 and k the cubed rain and wind weight. Dry air (k near 0) is this many °C at W = 0. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f1005c5f78e00 at 0x1402c17cb address binary32 -15 (bytes 000070c1) at 0x140bb0f98. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L121; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17cb"
+          }
+        },
+        {
+          "label": "Warm end of air temperature",
+          "value": "30",
+          "detail": "The 30 in lerp(−15 − 15k, 30 − 10k, W): dry air at W = 1, so −15 + 45 × W without rain. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f101554ef8e00 at 0x1402c17b4 address binary32 30 (bytes 0000f041) at 0x140bb0710. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L116; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17b4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17b4"
+          }
+        },
+        {
+          "label": "Fixed wind term for flagged calls",
+          "value": "0.1",
+          "detail": "With the flag argument set (test at 0x1402c1769) the wind term is this instead of the sampled wind, so k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.02)³ depends on rain R only. Every part's sample passes the flag. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f10055be38e00 at 0x1402c176d address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L101; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c176d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c176d"
+          }
+        },
+        {
+          "label": "Air temperature fall with height",
+          "value": "6.5",
+          "detail": "Subtracts this × max(y, 0) ÷ 1000 (division at 0x1402c1803): °C per 1000 m above world zero. The result is floored at −270 (0x1402c181b). Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f59253ded8e00 at 0x1402c180f address binary32 6.5 (bytes 0000d040) at 0x140bb0554. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L134; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c180f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c180f"
+          }
+        },
+        {
+          "label": "Warm end of water temperature",
+          "value": "8",
+          "detail": "Water temperature = lerp(1 − 4R, this − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero. Dry water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f1025a0ef8e00 at 0x1402c1658 address binary32 8 (bytes 00000041) at 0x140bb0600. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L33; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c1658",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c1658"
+          }
+        },
+        {
+          "label": "Water depth gradient",
+          "value": "3",
+          "detail": "The 3 in 3 × (D ÷ 1000) × (0.5 − W): depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m. No depth clamp or floor follows. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f591de3ec8e00 at 0x1402c16a5 address binary32 3 (bytes 00004040) at 0x140bb0390. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L47; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c16a5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c16a5"
+          }
+        },
+        {
+          "label": "Exchanger weather flag",
+          "value": "1",
+          "detail": "The exchanger's surrounding-temperature call stores flag 1 as the routine's eighth argument, which 0x14030fd60 forwards to the air sampler (0x14030fda5). Radiators (0x1403f3bf3), engines (0x14034ce7a) and nuclear parts (0x14041e057) store the same 1. Report: investigation/weather.md. Function 0x1403ef860-0x1403f51f4; instruction bytes c644243801 at 0x1403f4ca8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L165. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4ca8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4ca8"
+          }
+        },
+        {
           "label": "Component updates per simulated second",
           "value": 60,
           "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
@@ -9026,6 +9328,36 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c1658"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c16a5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c176d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17b4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c180f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402eb600"
         },
         {
@@ -9117,6 +9449,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f4c47"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4ca8"
         },
         {
           "path": "stormworks64.exe",
@@ -13748,7 +14085,7 @@
         },
         {
           "title": "Cooling and overheating",
-          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
+          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. Outside a compartment that sample is the weather temperature: dry sea-level air from −15 °C to 30 °C depending on region, season and time of day, 6.5 °C colder per 1000 m of height, lower in rain, and water below the surface; the Weather temperature, lighting and hazards mechanics article gives the equations. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with the engine_overheating and vehicle_damage settings both on, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Turning off either setting stops overheat damage; the temperature still rises. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
         },
         {
           "title": "Starter",
@@ -14664,9 +15001,9 @@
           }
         },
         {
-          "label": "Second overheat gate",
+          "label": "vehicle_damage test",
           "value": "settings+0x4a",
-          "detail": "A second settings byte must also be nonzero. The option that sets it was not traced; vehicle_damage is bound at settings+2, so it is not this byte. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 80784a00 at 0x14034cfb1. Interpretation rests on retained output investigation/native/behavior/../classic-engines/asm/update.asm:L972-L978; ../classic-engines/asm/overheat-setting.asm; ../classic-engines/asm/vehicle-damage-setting.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Second overheat gate: the vehicle_damage game setting. It is byte 2 of the difficulty settings, which start at settings+0x48, so overheat damage needs both engine_overheating and vehicle_damage on. The binding is decoded in investigation/weather.md and corrects the classic engine report's reading of this byte. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 80784a00 at 0x14034cfb1. Interpretation rests on retained output investigation/native/behavior/../classic-engines/asm/update.asm:L972-L978; ../classic-engines/asm/overheat-setting.asm; ../classic-engines/asm/vehicle-damage-setting.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034cfb1",
           "status": "observed",
           "source": {
@@ -14782,6 +15119,126 @@
             "sha256": "1da313dc8a469ea80609e2cf00f381e328c08b3c0882af1d5c0ee0c787c4ee34",
             "lineStart": 2,
             "lineEnd": 2
+          }
+        },
+        {
+          "label": "Cold end of air temperature",
+          "value": "-15",
+          "detail": "Air temperature = lerp(this − 15k, 30 − 10k, W), with W the 0 to 1 warmth fraction of the regional sampler 0x1402bf330 and k the cubed rain and wind weight. Dry air (k near 0) is this many °C at W = 0. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f1005c5f78e00 at 0x1402c17cb address binary32 -15 (bytes 000070c1) at 0x140bb0f98. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L121; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17cb"
+          }
+        },
+        {
+          "label": "Warm end of air temperature",
+          "value": "30",
+          "detail": "The 30 in lerp(−15 − 15k, 30 − 10k, W): dry air at W = 1, so −15 + 45 × W without rain. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f101554ef8e00 at 0x1402c17b4 address binary32 30 (bytes 0000f041) at 0x140bb0710. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L116; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17b4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17b4"
+          }
+        },
+        {
+          "label": "Fixed wind term for flagged calls",
+          "value": "0.1",
+          "detail": "With the flag argument set (test at 0x1402c1769) the wind term is this instead of the sampled wind, so k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.02)³ depends on rain R only. Every part's sample passes the flag. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f10055be38e00 at 0x1402c176d address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L101; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c176d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c176d"
+          }
+        },
+        {
+          "label": "Air temperature fall with height",
+          "value": "6.5",
+          "detail": "Subtracts this × max(y, 0) ÷ 1000 (division at 0x1402c1803): °C per 1000 m above world zero. The result is floored at −270 (0x1402c181b). Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f59253ded8e00 at 0x1402c180f address binary32 6.5 (bytes 0000d040) at 0x140bb0554. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L134; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c180f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c180f"
+          }
+        },
+        {
+          "label": "Warm end of water temperature",
+          "value": "8",
+          "detail": "Water temperature = lerp(1 − 4R, this − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero. Dry water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f1025a0ef8e00 at 0x1402c1658 address binary32 8 (bytes 00000041) at 0x140bb0600. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L33; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c1658",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c1658"
+          }
+        },
+        {
+          "label": "Water depth gradient",
+          "value": "3",
+          "detail": "The 3 in 3 × (D ÷ 1000) × (0.5 − W): depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m. No depth clamp or floor follows. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f591de3ec8e00 at 0x1402c16a5 address binary32 3 (bytes 00004040) at 0x140bb0390. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L47; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c16a5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c16a5"
+          }
+        },
+        {
+          "label": "Exchanger weather flag",
+          "value": "1",
+          "detail": "The exchanger's surrounding-temperature call stores flag 1 as the routine's eighth argument, which 0x14030fd60 forwards to the air sampler (0x14030fda5). Radiators (0x1403f3bf3), engines (0x14034ce7a) and nuclear parts (0x14041e057) store the same 1. Report: investigation/weather.md. Function 0x1403ef860-0x1403f51f4; instruction bytes c644243801 at 0x1403f4ca8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L165. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4ca8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4ca8"
+          }
+        },
+        {
+          "label": "Difficulty settings offset",
+          "value": "settings+0x48",
+          "detail": "Adds 0x48 to the global settings pointer and passes the result (0x140295450) to the wrapper that runs the difficulty settings serializer 0x140292480 (call at 0x1408f9f5d). So the serializer's local offsets are relative to settings+0x48. Report: investigation/weather.md. Function 0x140295420-0x140295b82; instruction bytes 4883c048 at 0x14029544c. Interpretation rests on retained output investigation/native/behavior/../weather/asm/0x140295420.asm:L20; ../weather/pseudocode/0x140295420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140295420@0x14029544c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14029544c"
+          }
+        },
+        {
+          "label": "vehicle_damage setting byte",
+          "value": "settings+0x4a",
+          "detail": "lea r9,[rdi+2] then lea r8,'vehicle_damage' (0x140b104f0) in the difficulty settings serializer; with the +0x48 base this is the byte at settings+0x4a that the overheat gates of classic engines, modular cylinders, jet chambers and nuclear parts test. Report: investigation/weather.md. Function 0x140292480-0x140292d5e; instruction bytes 4c8d4f024c8d051fdf8700 at 0x1402925c6. Interpretation rests on retained output investigation/native/behavior/../weather/asm/0x140292480.asm:L108-L109; ../weather/pseudocode/0x140292480.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140292480@0x1402925c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402925c6"
+          }
+        },
+        {
+          "label": "vehicle_damage setting name",
+          "value": "vehicle_damage",
+          "detail": "Name the difficulty settings serializer gives the byte at its offset 2. Report: investigation/weather.md. Function 0x140292480-0x140292d5e; it references the string 'vehicle_damage' at 0x140b104f0. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140292480@0x140b104f0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b104f0"
           }
         },
         {
@@ -15171,8 +15628,7 @@
       ],
       "limitations": [
         "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
-        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
-        "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
+        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The weather part of that sample depends on texture values at the engine's position; the Weather temperature, lighting and hazards mechanics article lists what of it remains open.",
         "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -15396,6 +15852,46 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401fd9de"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402925c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14029544c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c1658"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c16a5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c176d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17b4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c180f"
         },
         {
           "path": "stormworks64.exe",
@@ -15650,6 +16146,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4ca8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045ded8"
         },
         {
@@ -15681,6 +16182,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b104f0"
         },
         {
           "path": "stormworks64.exe",
@@ -17947,7 +18453,7 @@
         },
         {
           "title": "Surrounding temperature",
-          "body": "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it."
+          "body": "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it. The weather temperature follows the region, season, time of day, rain and height; the Heat exchange category summarizes it and the Weather temperature, lighting and hazards mechanics article gives the equations."
         }
       ],
       "findings": [
@@ -33665,6 +34171,90 @@
           }
         },
         {
+          "label": "Cold end of air temperature",
+          "value": "-15",
+          "detail": "Air temperature = lerp(this − 15k, 30 − 10k, W), with W the 0 to 1 warmth fraction of the regional sampler 0x1402bf330 and k the cubed rain and wind weight. Dry air (k near 0) is this many °C at W = 0. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f1005c5f78e00 at 0x1402c17cb address binary32 -15 (bytes 000070c1) at 0x140bb0f98. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L121; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17cb"
+          }
+        },
+        {
+          "label": "Warm end of air temperature",
+          "value": "30",
+          "detail": "The 30 in lerp(−15 − 15k, 30 − 10k, W): dry air at W = 1, so −15 + 45 × W without rain. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f101554ef8e00 at 0x1402c17b4 address binary32 30 (bytes 0000f041) at 0x140bb0710. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L116; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c17b4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17b4"
+          }
+        },
+        {
+          "label": "Fixed wind term for flagged calls",
+          "value": "0.1",
+          "detail": "With the flag argument set (test at 0x1402c1769) the wind term is this instead of the sampled wind, so k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.02)³ depends on rain R only. Every part's sample passes the flag. Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f10055be38e00 at 0x1402c176d address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L101; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c176d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c176d"
+          }
+        },
+        {
+          "label": "Air temperature fall with height",
+          "value": "6.5",
+          "detail": "Subtracts this × max(y, 0) ÷ 1000 (division at 0x1402c1803): °C per 1000 m above world zero. The result is floored at −270 (0x1402c181b). Report: investigation/weather.md. Function 0x1402c16d0-0x1402c1829; instruction bytes f30f59253ded8e00 at 0x1402c180f address binary32 6.5 (bytes 0000d040) at 0x140bb0554. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L134; ../weather/pseudocode/0x1402c16d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16d0@0x1402c180f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c180f"
+          }
+        },
+        {
+          "label": "Warm end of water temperature",
+          "value": "8",
+          "detail": "Water temperature = lerp(1 − 4R, this − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero. Dry water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f1025a0ef8e00 at 0x1402c1658 address binary32 8 (bytes 00000041) at 0x140bb0600. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L33; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c1658",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c1658"
+          }
+        },
+        {
+          "label": "Water depth gradient",
+          "value": "3",
+          "detail": "The 3 in 3 × (D ÷ 1000) × (0.5 − W): depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m. No depth clamp or floor follows. Report: investigation/weather.md. Function 0x1402c15e0-0x1402c16c7; instruction bytes f30f591de3ec8e00 at 0x1402c16a5 address binary32 3 (bytes 00004040) at 0x140bb0390. Interpretation rests on retained output investigation/native/behavior/../weather/asm/temperature-samplers.asm:L47; ../weather/pseudocode/0x1402c15e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c15e0@0x1402c16a5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c16a5"
+          }
+        },
+        {
+          "label": "Exchanger weather flag",
+          "value": "1",
+          "detail": "The exchanger's surrounding-temperature call stores flag 1 as the routine's eighth argument, which 0x14030fd60 forwards to the air sampler (0x14030fda5). Radiators (0x1403f3bf3), engines (0x14034ce7a) and nuclear parts (0x14041e057) store the same 1. Report: investigation/weather.md. Function 0x1403ef860-0x1403f51f4; instruction bytes c644243801 at 0x1403f4ca8. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L165. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4ca8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4ca8"
+          }
+        },
+        {
           "label": "Component updates per simulated second",
           "value": 60,
           "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
@@ -33820,6 +34410,36 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c1658"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c16a5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c176d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17b4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c17cb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402c180f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402eb600"
         },
         {
@@ -33911,6 +34531,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f4c47"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4ca8"
         },
         {
           "path": "stormworks64.exe",
@@ -37289,7 +37914,7 @@
         {
           "label": "Overheat damage threshold",
           "value": "115",
-          "detail": "When the manifold temperature in °C exceeds this, the engine_overheating setting is on and a further setting byte at offset 0x4a is set, the cylinder applies damage every 300 updates. Function 0x140449670-0x14044acc9; it reads binary32 115 (bytes 0000e642) at 0x140bb07a4. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140449670.c:L317-L330. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "When the manifold temperature in °C exceeds this and the engine_overheating and vehicle_damage settings (offsets 0x35 and 0x4a) are both on, the cylinder applies damage every 300 updates. Function 0x140449670-0x14044acc9; it reads binary32 115 (bytes 0000e642) at 0x140bb07a4. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140449670.c:L317-L330. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140449670@0x140bb07a4",
           "status": "observed",
           "source": {
@@ -64134,7 +64759,7 @@
         },
         {
           "title": "Overspeed",
-          "body": "With the engine_overheating setting and a second settings flag on, a chamber above 200 RPS sets a one-time flag and passes its damage + 1 to a damage routine."
+          "body": "With the engine_overheating and vehicle_damage settings both on, a chamber above 200 RPS sets a one-time flag and passes its damage + 1 to a damage routine."
         }
       ],
       "findings": [
@@ -64225,7 +64850,7 @@
         {
           "label": "Chamber overspeed check",
           "value": "200",
-          "detail": "With the engine_overheating setting (settings+0x35) and a second settings byte (+0x4a) on, a chamber whose local RPS exceeds this sets a one-time flag (+0x4d9) and calls 0x140355450 with damage + 1. Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f10359ed28500 at 0x140353532 address binary32 200 (bytes 00004843) at 0x140bb07d8. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L2038-L2051; ../jet-engines/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With the engine_overheating (settings+0x35) and vehicle_damage (settings+0x4a) settings on, a chamber whose local RPS exceeds this sets a one-time flag (+0x4d9) and calls 0x140355450 with damage + 1. Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f10359ed28500 at 0x140353532 address binary32 200 (bytes 00004843) at 0x140bb07d8. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L2038-L2051; ../jet-engines/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353532",
           "status": "observed",
           "source": {
@@ -64364,6 +64989,42 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Difficulty settings offset",
+          "value": "settings+0x48",
+          "detail": "Adds 0x48 to the global settings pointer and passes the result (0x140295450) to the wrapper that runs the difficulty settings serializer 0x140292480 (call at 0x1408f9f5d). So the serializer's local offsets are relative to settings+0x48. Report: investigation/weather.md. Function 0x140295420-0x140295b82; instruction bytes 4883c048 at 0x14029544c. Interpretation rests on retained output investigation/native/behavior/../weather/asm/0x140295420.asm:L20; ../weather/pseudocode/0x140295420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140295420@0x14029544c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14029544c"
+          }
+        },
+        {
+          "label": "vehicle_damage setting byte",
+          "value": "settings+0x4a",
+          "detail": "lea r9,[rdi+2] then lea r8,'vehicle_damage' (0x140b104f0) in the difficulty settings serializer; with the +0x48 base this is the byte at settings+0x4a that the overheat gates of classic engines, modular cylinders, jet chambers and nuclear parts test. Report: investigation/weather.md. Function 0x140292480-0x140292d5e; instruction bytes 4c8d4f024c8d051fdf8700 at 0x1402925c6. Interpretation rests on retained output investigation/native/behavior/../weather/asm/0x140292480.asm:L108-L109; ../weather/pseudocode/0x140292480.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140292480@0x1402925c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402925c6"
+          }
+        },
+        {
+          "label": "vehicle_damage setting name",
+          "value": "vehicle_damage",
+          "detail": "Name the difficulty settings serializer gives the byte at its offset 2. Report: investigation/weather.md. Function 0x140292480-0x140292d5e; it references the string 'vehicle_damage' at 0x140b104f0. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140292480@0x140b104f0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b104f0"
           }
         },
         {
@@ -64525,6 +65186,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402925c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14029544c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402ec242"
         },
         {
@@ -64626,6 +65297,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b104f0"
         },
         {
           "path": "stormworks64.exe",
@@ -75031,7 +75707,7 @@
         {
           "label": "Overheat damage threshold",
           "value": "115",
-          "detail": "When the manifold temperature in °C exceeds this, the engine_overheating setting is on and a further setting byte at offset 0x4a is set, the cylinder applies damage every 300 updates. Function 0x140449670-0x14044acc9; it reads binary32 115 (bytes 0000e642) at 0x140bb07a4. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140449670.c:L317-L330. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "When the manifold temperature in °C exceeds this and the engine_overheating and vehicle_damage settings (offsets 0x35 and 0x4a) are both on, the cylinder applies damage every 300 updates. Function 0x140449670-0x14044acc9; it reads binary32 115 (bytes 0000e642) at 0x140bb07a4. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140449670.c:L317-L330. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140449670@0x140bb07a4",
           "status": "observed",
           "source": {
@@ -126582,7 +127258,7 @@
         },
         {
           "title": "Damage",
-          "body": "When T is strictly above 1500 after heating, the first such update raises damage by 1 and then every 300 hot updates (5 simulated seconds) add 1 more, up to 50. Cooling does not reset that counter. Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second, and deposits 10 times that as persistent contamination at the rod. From damage 2 a one-time event runs when two game settings are on; its save flag is named fire. Nothing in the rod update explodes at 1500: the threshold only drives damage."
+          "body": "When T is strictly above 1500 after heating, the first such update raises damage by 1 and then every 300 hot updates (5 simulated seconds) add 1 more, up to 50. Cooling does not reset that counter. Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second, and deposits 10 times that as persistent contamination at the rod. From damage 2 a one-time event runs when the engine_overheating and vehicle_damage settings are both on; its save flag is named fire. Nothing in the rod update explodes at 1500: the threshold only drives damage."
         },
         {
           "title": "Radiation",
@@ -126833,7 +127509,7 @@
         {
           "label": "Damage event gate",
           "value": "damage ≥ 2, once",
-          "detail": "The one-time event runs only when the saved byte at +0x451 (serialized as fire) is 0, two game setting bytes at settings+0x35 and settings+0x4a are nonzero (0x14041e178, 0x14041e187) and damage is at least 2. It sets +0x451 and calls the event creator 0x140288f70 (0x14041e46c). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 41837e08020f821b030000 at 0x14041e191. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L316-L317; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The one-time event runs only when the saved byte at +0x451 (serialized as fire) is 0, the engine_overheating (settings+0x35) and vehicle_damage (settings+0x4a) settings are on (0x14041e178, 0x14041e187) and damage is at least 2. It sets +0x451 and calls the event creator 0x140288f70 (0x14041e46c). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 41837e08020f821b030000 at 0x14041e191. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L316-L317; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e191",
           "status": "observed",
           "source": {
@@ -127156,6 +127832,42 @@
             "lineStart": 2,
             "lineEnd": 2
           }
+        },
+        {
+          "label": "Difficulty settings offset",
+          "value": "settings+0x48",
+          "detail": "Adds 0x48 to the global settings pointer and passes the result (0x140295450) to the wrapper that runs the difficulty settings serializer 0x140292480 (call at 0x1408f9f5d). So the serializer's local offsets are relative to settings+0x48. Report: investigation/weather.md. Function 0x140295420-0x140295b82; instruction bytes 4883c048 at 0x14029544c. Interpretation rests on retained output investigation/native/behavior/../weather/asm/0x140295420.asm:L20; ../weather/pseudocode/0x140295420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140295420@0x14029544c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14029544c"
+          }
+        },
+        {
+          "label": "vehicle_damage setting byte",
+          "value": "settings+0x4a",
+          "detail": "lea r9,[rdi+2] then lea r8,'vehicle_damage' (0x140b104f0) in the difficulty settings serializer; with the +0x48 base this is the byte at settings+0x4a that the overheat gates of classic engines, modular cylinders, jet chambers and nuclear parts test. Report: investigation/weather.md. Function 0x140292480-0x140292d5e; instruction bytes 4c8d4f024c8d051fdf8700 at 0x1402925c6. Interpretation rests on retained output investigation/native/behavior/../weather/asm/0x140292480.asm:L108-L109; ../weather/pseudocode/0x140292480.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140292480@0x1402925c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402925c6"
+          }
+        },
+        {
+          "label": "vehicle_damage setting name",
+          "value": "vehicle_damage",
+          "detail": "Name the difficulty settings serializer gives the byte at its offset 2. Report: investigation/weather.md. Function 0x140292480-0x140292d5e; it references the string 'vehicle_damage' at 0x140b104f0. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140292480@0x140b104f0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b104f0"
+          }
         }
       ],
       "limitations": [
@@ -127181,6 +127893,16 @@
           "sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
           "lineStart": 86,
           "lineEnd": 86
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402925c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14029544c"
         },
         {
           "path": "stormworks64.exe",
@@ -127361,6 +128083,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b104f0"
         },
         {
           "path": "stormworks64.exe",
@@ -136842,7 +137569,7 @@
         },
         {
           "title": "Surrounding temperature",
-          "body": "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it."
+          "body": "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it. The weather temperature follows the region, season, time of day, rain and height; the Heat exchange category summarizes it and the Weather temperature, lighting and hazards mechanics article gives the equations."
         }
       ],
       "findings": [
@@ -157270,12 +157997,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8598,
+    "findingCount": 8635,
     "findingsByStatus": {
       "derived": 721,
-      "observed": 7877
+      "observed": 7914
     },
-    "nativeFindingCount": 6204,
+    "nativeFindingCount": 6241,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -157327,7 +158054,7 @@
     ],
     "evidenceUse": {
       "derived": 417,
-      "native": 1357,
+      "native": 1367,
       "resource": 2660
     }
   }

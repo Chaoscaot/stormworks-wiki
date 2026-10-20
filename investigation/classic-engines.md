@@ -260,3 +260,7 @@ sha256sum -c investigation/native/classic-engines/SHA256SUMS
 Compare reproduced `asm/`, `tools/constants.json`, `tools/tables.txt` and `tools/resources.txt` with the retained copies. `tools/verification.txt` records the result. Targeted Ghidra commands and provenance are retained in `tools/reproduce-ghidra.sh`. Pseudocode has guessed types and missing float arguments, notably the pressure helper; original instruction bytes are authoritative. The first imported classic update was reused from electrical-magnitude evidence, then regenerated in this investigation's own temporary project.
 
 Written files are this report; `investigation/native/classic-engines/asm/*.asm`; `pseudocode/*.c`; `tools/pe.py`, `DecompileAt.java`, `collect.py`, `model.py`, reproduction instructions, issue snapshots, constants, RTTI tables, resource lines and verification output; `SHA256SUMS`; and exactly two matching root `.gitignore` whitelist lines. No other task file is written.
+
+## Correction: the second overheat gate
+
+The settings byte at global `+0x4a` is `vehicle_damage`. `investigation/weather.md` traces it: the difficulty settings object sits at singleton `+0x48`, and its serializer binds `vehicle_damage` to field `+2` (`0x1402925c6`, name at `0x140b104f0`), which is global `+0x4a`. Overheat damage therefore needs both `engine_overheating` (`+0x35`) and `vehicle_damage` on. Earlier text in this report that ruled out `vehicle_damage` measured the field from the wrong base. Correction by the parent session.

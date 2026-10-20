@@ -2768,10 +2768,10 @@
     },
     {
       "id": "environment-hazards",
-      "title": "Environment and hazard tuning",
+      "title": "Weather temperature, lighting and hazards",
       "category": "Environment",
-      "summary": "The realtime environment file lists lighting hours, tornado components and whirlpool force terms, but none of these names occurs in the executable.",
-      "body": "The environment file places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19. Tornado and whirlpool tuning separate vertical, radial and tangential terms. A native search (investigation/config.md) found 4 of the file's 87 names in the executable, all atmosphere settings (atmosphere_color_adjust, atmosphere_density_falloff, atmosphere_pos, atmosphere_radius_inner_outer). None of the sunrise, sunset, tornado or whirlpool names occurs, as ASCII or UTF-16LE text. The release parses the realtime_values directory into a registry, but no code that passes those entries to lighting or hazard simulation was found. These numbers are shipped tuning that nothing shows the simulation reads, and they say nothing about mission schedules or astronomical latitude.",
+      "summary": "Parts sample a weather temperature that blends air and water by depth: air follows a warmth fraction from world Z, scrolling weather textures, month and time of day, minus rain cooling and 6.5 °C per 1000 m of height. The native lighting table and the tornado and whirlpool vectors are decoded; the realtime environment file's hour markers and force terms are not what the game uses.",
+      "body": "Every part that samples its surroundings outside an enclosed compartment (heat exchangers, radiators, engines, fluid tanks, steam and nuclear parts) uses one weather routine. It blends an air temperature Ta and a water temperature Tw by f = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so the sample is pure air from 0.25 m above the surface and pure water from 23.75 m below it.\n\nBoth temperatures start from a regional sampler that returns a warmth fraction W and a rain value R, each 0 to 1. W = clamp(1 − 6 × |z ÷ 256000 + 0.5 − 0.35| + a + 0.475 × season + 0.05 × day, 0, 1). The first term is a band along world Z, highest at z = −38400 m (inference: a latitude-like climate band). a is the product of two red samples of the noise texture weather_1.txtr, read at a fast and a slow scrolling offset; R comes from its green samples as clamp(5 × (g1 − 0.15), 0, 1). World X enters only through the textures. day = 0.5 + 0.5 × sin(2π × q − π/2) is 0 at midnight and 1 at noon, with q the fraction of the game day. season = 0.5 + 0.5 × sin(0.5711987 × (month + q) − π/2) peaks at month + q = 5.5. It reads the saved month and the fraction of the day but not the day of the month, so it advances over each day and steps back at midnight unless the month changes (inference from the formula).\n\nAir: Ta = max(−270, lerp(−15 − 15k, 30 − 10k, W) − 6.5 × max(y, 0) ÷ 1000), with k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.2 × w)³. Parts pass a flag that fixes w at 0.1, so wind never changes a part's sample (12 of the 13 calls found pass it). Dry air therefore runs from −15 °C at W = 0 to 30 °C at W = 1 at sea level, and heavy rain (R = 1) moves those ends to −23.27 and 24.49 °C. Height above world zero costs 6.5 °C per 1000 m. Water: Tw = lerp(1 − 4R, 8 − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero, not below the local wave surface. There is no depth clamp and no lower floor; depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m.\n\nWithout rain a part reads −15 + 45 × W to within 0.001 °C. At a location where W = 0.5 at midnight, noon adds 0.05 to W and raises sea-level air from 7.5 to 9.75 °C; at 1000 m the same samples give 1 and 3.25 °C. Dry water at W = 0 is 1 °C at the surface and 2.5 °C 1000 m down; at W = 1 it is 8 and 6.5 °C. These are conditional examples: W depends on the texture samples at the position, so no fixed temperature follows from the hour alone. The samplers read the regional sampler directly, not the full weather output that adds custom weather and local hazard effects, so those additions do not enter these equations.\n\nLighting: the update divides the time of day by 3600 × day_length and interpolates a native keyframe table linearly between the first key at or after q and the one before it. The keys sit at 0, 5.76, 7.26, 8.76, 12, 15.48, 16.98, 18.48 and 24 h. The environment file instead places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19; those names do not occur in the executable and are not the keys. The keys are lighting keyframes, not astronomical or mission sunrise times.\n\nTable: Native lighting keys\n| q | Hour | Role (inference from the record order) |\n| --- | --- | --- |\n| 0.24 | 5.76 | dawn start |\n| 0.3025 | 7.26 | dawn middle |\n| 0.365 | 8.76 | dawn end |\n| 0.5 | 12 | noon |\n| 0.645 | 15.48 | dusk start |\n| 0.7075 | 16.98 | dusk middle |\n| 0.77 | 18.48 | dusk end |\n\nTornado: each tornado adds a wind vector, capped at length 100, to the weather wind. Outside its core it is I × S × (−100 × a⁸ × (1 − u)² × e + 50 × a² × tangent), with a = 1 − clamp(d ÷ R, 0, 1) for horizontal distance d from the tornado top and outer radius R, u the height fraction from base to top, e the outward horizontal direction and I and S its active factor and strength. The inward pull falls with the eighth power and the swirl with the square, and the pull vanishes at the top; there is no inverse-square law. Inside the core, between base and top, gain = 12 × u³ + 10 ÷ (100 × u + 10) sizes the inner and outer core and the core adds radial, swirl and upward terms with coefficients 200, 200 and 100. The active factor moves by 0.0005 per update, and a damage branch reads the vehicle_damage setting.\n\nWhirlpool: for horizontal distance r from the centre and z = r ÷ 100, the current inside r < 200π is 50 × M × g × (n + tangent), with h = 0.33 ÷ (z² + 0.33) − 0.033, n the normalized vector (−e.x, −h, −e.z) and g = sin(1 ÷ ((z ÷ 2)² + 0.35)) − 0.1. Inside r < 100π the surface drops by 100 × M × h metres and a narrow downward term 500 × M × (0.01 ÷ (z² + 0.01) − 0.001) is added. The whole vector fades linearly from full strength at the depressed surface to 0 at 100 m below it. The environment file's whirlpool forces, 400 vertical, 60 radial and 50 tangential, are not these coefficients. These vectors are wind and current in native units, not forces on a vehicle: what a hull feels depends on the code that consumes them, its shape and its relative motion.",
       "findings": [
         {
           "label": "sunrise_start_hour",
@@ -2993,11 +2993,402 @@
           },
           "status": "observed",
           "evidenceType": "native-static"
+        },
+        {
+          "label": "Weather update: texture time",
+          "value": "scroll fraction t",
+          "detail": "The weather update 0x1402c0810 divides a time counter by 311040000 and keeps the remainder fraction t at weather+0xac. t scrolls the weather textures; it is separate from the time of day. Bytes f3 0f 5e 05 43 01 8f 00 at 0x1402c086d, literal c0 50 94 4d at 0x140bb09b8. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c086d",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c086d"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Weather update: season term",
+          "value": "season = 0.5 + 0.5 × sin(0.5711987 × (month + q) − π/2)",
+          "detail": "Stored at weather+0xb0 (0x1402c08e2). 0.5711987 is about 2π ÷ 11. q is the fraction of the game day and month the saved month value; the day of the month and the year are not read. The term peaks at month + q = 5.5 and is lowest at month + q = 0 or 11. It advances by 0.5711987 radians over each day and steps back at midnight unless the month changes (inference from the formula). Bytes f3 0f 59 05 43 f4 8e 00 at 0x1402c08bd, literal 14 3a 12 3f at 0x140bafd08, literal db 0f c9 3f at 0x140bb0078. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c08bd",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c08bd"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Weather update: time-of-day term",
+          "value": "day = 0.5 + 0.5 × sin(2π × q − π/2)",
+          "detail": "Stored at weather+0xb4 (0x1402c0938): 0 at midnight, 1 at noon. Bytes f3 0f 59 05 2d fc 8e 00 at 0x1402c091b, literal db 0f c9 40 at 0x140bb0550. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c091b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c091b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Regional sampler: map scale",
+          "value": "x ÷ 256000, z ÷ 256000",
+          "detail": "The regional sampler 0x1402bf330 samples graphics/noise/weather_1.txtr and weather_2.txtr (loaded by 0x1402bf910) at X = 4 × (x ÷ 256000 + 0.5) and Z = 4 × (z ÷ 256000 + 0.5), each at a fast offset (X − 1000t, Z + 100t) and a slow offset (X − 100t, Z + 10t), with wrapping and bilinear filtering of the RGB bytes ÷ 255. Bytes f3 44 0f 5e 05 c8 15 8f 00 at 0x1402bf3a7, literal 00 00 7a 48 at 0x140bb0978, literal 67 72 61 70 68 69 63 73 2f 6e 6f 69 73 65 2f 77 65 61 74 68 65 72 5f 31 2e 74 78 74 72 00 at 0x140b57280. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bf3a7",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bf3a7"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Regional sampler: climate band",
+          "value": "W = clamp(1 − 6 × |z ÷ 256000 + 0.5 − 0.35| + a + 0.475 × season + 0.05 × day, 0, 1)",
+          "detail": "W is the warmth fraction both temperatures blend by. a is the product of the fast and slow red samples of weather_1. The Z term is highest at z = −38400 m and world X enters only through the textures (inference: a latitude-like band). Multipliers 6 at 0x1402bf7b3, 0.05 at 0x1402bf7cd and 0.475 at 0x1402bf808. Bytes f3 44 0f 5c 05 9f 04 8f 00 at 0x1402bf780, literal 33 33 b3 3e at 0x140bafc28, literal f3 44 0f 59 05 84 0d 8f 00 at 0x1402bf7b3, literal 00 00 c0 40 at 0x140bb0540, literal cd cc 4c 3d at 0x140bafa40, literal 33 33 f3 3e at 0x140bafcb0. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bf780",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bf780"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Regional sampler: rain and wind",
+          "value": "R = clamp(5 × (g1 − 0.15), 0, 1), V = clamp(4 × g2, 0, 1)",
+          "detail": "g1 is the product of the two green samples of weather_1 and g2 that of weather_2 (×4 at 0x1402bf8af). The Lua weather table names these outputs rain and wind. Bytes f3 0f 5c 05 dd 02 8f 00 f3 0f 59 05 95 0c 8f 00 at 0x1402bf83b, literal 9a 99 19 3e at 0x140bafb20, literal 00 00 a0 40 at 0x140bb04e0, literal f3 0f 59 0d d1 0b 8f 00 at 0x1402bf8af, literal 00 00 80 40 at 0x140bb0488. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bf83b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bf83b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Air temperature: rain and wind weight",
+          "value": "k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.2 × w)³",
+          "detail": "The air sampler 0x1402c16d0 tests its flag argument (0x1402c1769): with the flag set w = 0.1 (load at 0x1402c176d), otherwise w = clamp((V − 0.1) ÷ 0.9, 0, 1). The cube is two multiplies at 0x1402c17c3. With the flag set and no rain, k = 0.000008; with R = 1, k = 0.551368. Bytes f3 0f 5c 1d 16 e5 8e 00 at 0x1402c1736, literal cd cc cc 3e at 0x140bafc54, literal 9a 99 19 3f at 0x140bafd1c, literal 84 db 74 0a at 0x1402c1769, literal cd cc cc 3d at 0x140bafad0, literal cd cc 4c 3e at 0x140bafb70, literal cd cc 4c 3f at 0x140bafdd0, literal f3 0f 59 c3 f3 0f 59 d8 at 0x1402c17c3. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c1736",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c1736"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Air temperature",
+          "value": "max(−270, lerp(−15 − 15k, 30 − 10k, W) − 6.5 × max(y, 0) ÷ 1000)",
+          "detail": "Endpoints −15 (0x1402c17cb) and 30 (0x1402c17b4), rain and wind cooling 15k and 10k, then 6.5 °C per 1000 m above world zero (multiply at 0x1402c180f) and a floor of −270 (0x1402c181b). Dry air runs from −15 °C at W = 0 to 30 °C at W = 1; with R = 1 the ends are −23.27 and 24.49 °C for a flagged call. Bytes f3 0f 5e 25 51 f0 8e 00 at 0x1402c1803, literal 00 00 70 c1 at 0x140bb0f98, literal 00 00 70 41 at 0x140bb069c, literal 00 00 f0 41 at 0x140bb0710, literal 00 00 20 41 at 0x140bb064c, literal 00 00 7a 44 at 0x140bb085c, literal f3 0f 59 25 3d ed 8e 00 at 0x1402c180f, literal 00 00 d0 40 at 0x140bb0554, literal 00 00 87 c3 at 0x140bb0fd0. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c1803",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c1803"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Water temperature",
+          "value": "lerp(1 − 4R, 8 − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W)",
+          "detail": "The water sampler 0x1402c15e0 takes D = max(−y, 0) metres below world zero, not below the local wave surface (min(y, 0) at 0x1402c168a, sign flip at 0x1402c1692). It has no depth clamp and no lower floor. The depth term warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m. Bytes f3 0f 59 d9 f3 0f 58 de at 0x1402c16b1, literal f3 0f 59 05 8b ee 8e 00 at 0x1402c164d, literal 00 00 00 41 at 0x140bb0600, literal 00 00 80 40 at 0x140bb0488, literal f3 0f 5d d8 at 0x1402c168a, literal 00 00 40 40 at 0x140bb0390, literal 00 00 00 3f at 0x140bafcbc. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16b1",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c16b1"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Parts fix the wind term",
+          "value": "12 of 13 calls pass the flag",
+          "detail": "The surrounding-temperature routine forwards its eighth argument to the air sampler (0x14030fda5). Of the 13 direct calls to it, the 12 from part updates (among them the classic engine at 0x14034ce9d, radiators at 0x1403f3c23, exchangers at 0x1403f4cd8, nuclear parts at 0x14041e07f and the modular engine group at 0x1404cbefa) store 1, so wind never changes a part's sample; rain still does. The call at 0x1407638dd stores 0; its caller was not identified. Bytes 0f b6 84 24 18 01 00 00 88 44 24 20 at 0x14030fda5, literal c6 44 24 38 01 at 0x14034ce7a, literal c6 44 24 38 01 at 0x1403f3bf3, literal c6 44 24 38 01 at 0x1403f4ca8, literal c6 44 24 38 01 at 0x14041e057, literal c6 44 24 38 00 at 0x1407638ca. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fda5",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fda5"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Air and water blend",
+          "value": "Ta + clamp((h − y + 0.25) ÷ 24, 0, 1) × (Tw − Ta)",
+          "detail": "The blend 0x1403100a0 calls the water sampler (0x140310144) and the air sampler (0x14031015b) with h the wave-surface height and y the sample height: pure air from 0.25 m above the surface, pure water from 23.75 m below it. Both samplers call the regional sampler directly (0x1402c1634, 0x1402c1728), not the full weather output 0x1402c1830 that adds custom weather and local hazard effects. Bytes e8 97 14 fb ff at 0x140310144, literal e8 70 15 fb ff at 0x14031015b, literal e8 f7 dc ff ff at 0x1402c1634, literal e8 03 dc ff ff at 0x1402c1728. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140310144",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140310144"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Worked air examples",
+          "value": "7.5 → 9.75 °C at sea level, 1 → 3.25 °C at 1000 m",
+          "detail": "Derived from the constants above: a flagged call with no rain at a location where W = 0.5 at midnight; noon adds 0.05 to W. Without rain a part reads −15 + 45 × W to within 0.001 °C. With world z = 0, month 5, a = 0 and no rain, W is 0.5654 at midnight and 0.6250 at noon, giving 10.44 and 13.12 °C. Values depend on the texture samples, so they are not a forecast. Bytes f3 0f 59 c3 f3 0f 59 d8 at 0x1402c17c3. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c17c3",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c17c3"
+          },
+          "status": "inferred",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Worked water examples",
+          "value": "W = 0: 1 and 2.5 °C; W = 1: 8 and 6.5 °C",
+          "detail": "Derived from the water equation with no rain, at world zero and 1000 m below it. At W = 0.5 the depth term is 0. Bytes f3 0f 59 1d e3 ec 8e 00 at 0x1402c16a5. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402c16a5",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402c16a5"
+          },
+          "status": "inferred",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting time of day",
+          "value": "q = time ÷ (3600 × day_length)",
+          "detail": "The lighting update 0x1405e1e30 multiplies the day_length setting by 3600 (0x1405e1eb5) and divides the time of day by it, then calls the keyframe interpolator 0x1405e2a30 with q (0x1405e2039). Bytes f3 44 0f 5e f9 at 0x1405e1ed4, literal 44 69 00 10 0e 00 00 at 0x1405e1eb5, literal e8 f2 09 00 00 at 0x1405e2039, literal 64 61 79 5f 6c 65 6e 67 74 68 00 at 0x140b10088. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e1ed4",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e1ed4"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 1",
+          "value": "q = 0.24, 5.76 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 8f c2 75 3e at 0x1405e165b. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e165b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e165b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 2",
+          "value": "q = 0.3025, 7.26 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 48 e1 9a 3e at 0x1405e170a. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e170a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e170a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 3",
+          "value": "q = 0.365, 8.76 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 48 e1 ba 3e at 0x1405e17cc. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e17cc",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e17cc"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 4",
+          "value": "q = 0.5, 12.00 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 00 00 00 3f at 0x1405e188e. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e188e",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e188e"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 5",
+          "value": "q = 0.645, 15.48 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 b8 1e 25 3f at 0x1405e1950. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e1950",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e1950"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 6",
+          "value": "q = 0.7075, 16.98 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 b8 1e 35 3f at 0x1405e19fb. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e19fb",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e19fb"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 7",
+          "value": "q = 0.77, 18.48 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 b8 1e 45 3f at 0x1405e1aad. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e1aad",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e1aad"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Lighting key 8",
+          "value": "q = 1, 24.00 h",
+          "detail": "Keyframe time stored by the lighting initializer 0x1405e12b0, nine records of stride 0x40 starting at q = 0. The interpolator takes the first key with q ≤ its time and blends linearly from the previous key. Bytes c7 01 00 00 80 3f at 0x1405e1b83. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e1b83",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e1b83"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tornado far field",
+          "value": "I × S × (−100 × a⁸ × (1 − u)² × e + 50 × a² × tangent)",
+          "detail": "Routine 0x1402be980 returns a wind vector the weather output adds to the wind. a = 1 − clamp(d ÷ R, 0, 1), d the horizontal distance from the tornado top and R its outer wind radius (division at 0x1402bea3f); a ≤ 0 returns 0 (0x1402bea6d). u is the height fraction from base to top, e the horizontal unit vector from the axis and tangent e turned 90 degrees. The powers 2 and 8 are library calls (0x1402bec51, 0x1402bec64), with 100 and 50 loaded at 0x1402bec74 and 0x1402bec81. Bytes f3 0f 10 0d a2 19 8f 00 at 0x1402bec56, literal 00 00 00 41 at 0x140bb0600, literal f3 44 0f 10 3d 13 1b 8f 00 at 0x1402bec74, literal 00 00 c8 42 at 0x140bb0790, literal f3 0f 10 0d b7 1a 8f 00 at 0x1402bec81, literal 00 00 48 42 at 0x140bb0740, literal f3 0f 5e c1 at 0x1402bea3f, literal e8 ba af 6f 00 at 0x1402bec51, literal e8 a7 af 6f 00 at 0x1402bec64. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bec56",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bec56"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tornado core",
+          "value": "gain = 12 × u³ + 10 ÷ (100 × u + 10)",
+          "detail": "Runs only between base and top height and when the squared horizontal distance from the base is below 2 × a broad-phase field (compare at 0x1402bedfb). gain scales the inner and outer core sizes; the core adds 200 × radial × (1 − u) × e + 200 × bump × tangent + 100 × bump × (1 − u) upward, all × I × S, with bump peaking at 1 at the inner size (200 at 0x1402bef9c). The height power u³ is a library call at 0x1402bee11. Bytes f3 0f 59 35 35 18 8f 00 at 0x1402bee27, literal 00 00 40 41 at 0x140bb0664, literal f3 0f 10 25 28 18 8f 00 at 0x1402bee1c, literal f3 0f 10 0d 34 18 8f 00 at 0x1402bef9c, literal 00 00 48 43 at 0x140bb07d8, literal e8 fa ad 6f 00 at 0x1402bee11. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bee27",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bee27"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tornado vector cap",
+          "value": "F × min(1, 100 ÷ |F|)",
+          "detail": "Final scale by 100 ÷ length when the length exceeds 100. The cap applies to one tornado's vector, not to a vehicle's speed or to the sum of several tornadoes. Bytes f3 44 0f 5e f8 at 0x1402bf099. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bf099",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bf099"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tornado update",
+          "value": "0.0005 per update, 0.016 lifetime step",
+          "detail": "The tornado update 0x1402bd5a0 moves its active factor I by 0.0005 per update (0x1402bd63a, 0x1402bd660) and, while fully active, lowers its lifetime by 0.016 (0x1402bd6b0). A damage branch reads the vehicle_damage setting (settings+0x4a, test at 0x1402bdb50). Bytes f3 0f 58 0d 96 22 8f 00 at 0x1402bd63a, literal 6f 12 03 3a at 0x140baf8d8, literal f3 0f 5c 05 c8 22 8f 00 at 0x1402bd6b0, literal 6f 12 83 3c at 0x140baf980, literal 80 78 4a 00 at 0x1402bdb50. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bd63a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bd63a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Whirlpool current",
+          "value": "F = 50 × M × g × (n + tangent) for r < 200π",
+          "detail": "Event type 1 of the water sampler 0x1402bbbb0, with M the event magnitude and z = r ÷ 100 for horizontal distance r from the centre. h = 0.33 ÷ (z² + 0.33) − 0.033 (0.33 at 0x1402bc0a6, 0.033 at 0x1402bc104), n = normalize(−e.x, −h, −e.z) (0x1402bc157) and g = sin(1 ÷ ((z ÷ 2)² + 0.35)) − 0.1 (0.35 at 0x1402bc0f4, sine at 0x1402bc118). 50 is loaded at 0x1402bbf8d. Bytes f3 44 0f 5c 05 a6 39 8f 00 at 0x1402bc121, literal cd cc cc 3d at 0x140bafad0, literal f3 0f 10 35 5a 3b 8f 00 at 0x1402bc0a6, literal c3 f5 a8 3e at 0x140bafc08, literal f3 0f 5c 35 04 39 8f 00 at 0x1402bc104, literal 03 2b 07 3d at 0x140bafa10, literal f3 0f 58 0d 2c 3b 8f 00 at 0x1402bc0f4, literal 33 33 b3 3e at 0x140bafc28, literal e8 03 ab 71 00 at 0x1402bc118, literal e8 54 96 eb ff at 0x1402bc157, literal f3 44 0f 10 15 aa 47 8f 00 at 0x1402bbf8d, literal 00 00 48 42 at 0x140bb0740. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bc121",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bc121"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Whirlpool centre",
+          "value": "H = −100 × M × h; F.y −= 500 × M × (0.01 ÷ (z² + 0.01) − 0.001) for r < 100π",
+          "detail": "Inside the inner region the surface drops by H metres (100 at 0x140bb03f0, read at 0x1402bc275) and a narrow downward term is added (0.01 at 0x1402bc29d, 0.001 at 0x1402bc2ad). Bytes f3 0f 59 05 6f 45 8f 00 at 0x1402bc2b9, literal 00 00 fa 43 at 0x140bb0830, literal f2 0f 59 0d 73 41 8f 00 at 0x1402bc275, literal 00 00 00 00 00 00 59 40 at 0x140bb03f0, literal f3 0f 10 05 b3 36 8f 00 at 0x1402bc29d, literal 0a d7 23 3c at 0x140baf958, literal f3 0f 5c 05 43 36 8f 00 at 0x1402bc2ad, literal 6f 12 83 3a at 0x140baf8f8. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bc2b9",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bc2b9"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Whirlpool depth falloff",
+          "value": "F × clamp((y − (H − 100)) ÷ 100, 0, 1)",
+          "detail": "Full strength at the depressed surface, zero 100 m below it (subtract at 0x1402bc2da). At M = 1 and r = 0 the surface sits at -96.7 m and the vector there is about (-6.49, -505.8, 9.03) in native units for the fallback direction; 100 m lower it is 0. Bytes f3 0f 5c 05 ae 44 8f 00 at 0x1402bc2da, literal 00 00 c8 42 at 0x140bb0790. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bc2da",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bc2da"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Hazard Lua entry points",
+          "value": "spawnWhirlpool 0x1405a4390, spawnTornado 0x1405a46e0",
+          "detail": "Both parse their arguments and dispatch through host virtual slots +0x1b0 and +0x1c8. They are not the natural spawn policy. Bytes ff 90 b0 01 00 00 at 0x1405a44ae, literal ff 90 c8 01 00 00 at 0x1405a47ca. Report: investigation/weather.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405a44ae",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405a44ae"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
-        "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Still not decoded: the release lighting interpolator and its actual hour boundaries, the native tornado and whirlpool force equations and falloff, hazard spawning, damage and safe distances. The realtime entries and their names give no basis for those mechanics."
+        "Native findings are static readings of this executable build. No game process was executed, and no value here was checked in play.",
+        "The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.",
+        "Natural tornado and whirlpool spawning, ocean-depth acceptance, magnitude choice and default tornado field values were not traced; the Lua spawn functions only dispatch to the host. The complete hazard damage equations, their targets and lifetime units were not decoded, and the conversion of the tornado wind and whirlpool current vectors into forces on a vehicle was not traced, so no safe distance is given."
       ]
     },
     {
@@ -4324,7 +4715,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range; whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments, and what the two game settings that gate it are. Temperatures, reaction and detector readings are internal game values."
+        "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range; whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments. Temperatures, reaction and detector readings are internal game values."
       ]
     },
     {
@@ -14329,7 +14720,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 431,
+    "findingCount": 461,
     "sourceCount": 73,
     "categories": [
       "Control",

@@ -941,6 +941,60 @@ WHERE.update({
 })
 
 
+# weather pass; files under investigation/native/weather/, report investigation/weather.md.
+WX_REPORT = "investigation/weather.md"
+WX_ARTICLE = "the Weather temperature, lighting and hazards mechanics article"
+F_WATER_T = 0x1402C15E0      # water weather temperature: regional and rain terms, signed depth gradient
+F_AIR_T = 0x1402C16D0        # air weather temperature: regional, rain and wind terms, 6.5 per 1000 m above zero
+F_SETTINGS_LOAD = 0x140295420  # save-state serializer: passes the difficulty settings (singleton+0x48) on
+F_DIFFICULTY = 0x140292480   # difficulty settings serializer: vehicle_damage at local+2
+_WX = "weather/asm/"
+WX_ASM = {F_WATER_T: (_WX + "temperature-samplers.asm", "0x1402c15e0.c"), F_AIR_T: (_WX + "temperature-samplers.asm", "0x1402c16d0.c"),
+          F_SETTINGS_LOAD: (_WX + "0x140295420.asm", "0x140295420.c"), F_DIFFICULTY: (_WX + "0x140292480.asm", "0x140292480.c"),
+          0x1403EF860: ("heat-exchangers/asm/exchange.asm", None)}
+
+
+def weather_native(E):
+    """Air and water weather temperatures and the vehicle_damage settings byte, verified once and shared."""
+    if hasattr(E, "weather"):
+        return E.weather
+    if not (E.root / WX_REPORT).is_file():
+        raise ValueError("Weather report missing: " + WX_REPORT)
+    rep = " Report: %s." % WX_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        _wheel_cite(E, func, address, hexbytes, table=WX_ASM)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=WX_ASM)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    w = {}
+    w["air_lo"] = op(F_AIR_T, 0x1402C17CB, "f30f1005c5f78e00", 0x140BB0F98, "Cold end of air temperature",
+                     "Air temperature = lerp(this − 15k, 30 − 10k, W), with W the 0 to 1 warmth fraction of the regional sampler 0x1402bf330 and k the cubed rain and wind weight. Dry air (k near 0) is this many °C at W = 0.")
+    w["air_hi"] = op(F_AIR_T, 0x1402C17B4, "f30f1015" "54ef8e00", 0x140BB0710, "Warm end of air temperature", "The 30 in lerp(−15 − 15k, 30 − 10k, W): dry air at W = 1, so −15 + 45 × W without rain.")
+    w["air_k"] = op(F_AIR_T, 0x1402C176D, "f30f10055be38e00", 0x140BAFAD0, "Fixed wind term for flagged calls",
+                    "With the flag argument set (test at 0x1402c1769) the wind term is this instead of the sampled wind, so k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.02)³ depends on rain R only. Every part's sample passes the flag.")
+    w["air_lapse"] = op(F_AIR_T, 0x1402C180F, "f30f59253ded8e00", 0x140BB0554, "Air temperature fall with height",
+                        "Subtracts this × max(y, 0) ÷ 1000 (division at 0x1402c1803): °C per 1000 m above world zero. The result is floored at −270 (0x1402c181b).")
+    w["water_hi"] = op(F_WATER_T, 0x1402C1658, "f30f1025a0ef8e00", 0x140BB0600, "Warm end of water temperature",
+                       "Water temperature = lerp(1 − 4R, this − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero. Dry water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero.")
+    w["water_depth"] = op(F_WATER_T, 0x1402C16A5, "f30f591de3ec8e00", 0x140BB0390, "Water depth gradient",
+                          "The 3 in 3 × (D ÷ 1000) × (0.5 − W): depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m. No depth clamp or floor follows.")
+    w["flag"] = code(0x1403EF860, 0x1403F4CA8, "c644243801", "Exchanger weather flag", "1",
+                     "The exchanger's surrounding-temperature call stores flag 1 as the routine's eighth argument, which 0x14030fd60 forwards to the air sampler (0x14030fda5). Radiators (0x1403f3bf3), engines (0x14034ce7a) and nuclear parts (0x14041e057) store the same 1.")
+    w["vd_nest"] = code(F_SETTINGS_LOAD, 0x14029544C, "4883c048", "Difficulty settings offset", "settings+0x48",
+                        "Adds 0x48 to the global settings pointer and passes the result (0x140295450) to the wrapper that runs the difficulty settings serializer 0x140292480 (call at 0x1408f9f5d). So the serializer's local offsets are relative to settings+0x48.")
+    w["vd_bind"] = code(F_DIFFICULTY, 0x1402925C6, "4c8d4f024c8d051fdf8700", "vehicle_damage setting byte", "settings+0x4a",
+                        "lea r9,[rdi+2] then lea r8,'vehicle_damage' (0x140b104f0) in the difficulty settings serializer; with the +0x48 base this is the byte at settings+0x4a that the overheat gates of classic engines, modular cylinders, jet chambers and nuclear parts test.")
+    w["vd_name"] = E.string(F_DIFFICULTY, 0x140B104F0, "vehicle_damage", "vehicle_damage setting name", "Name the difficulty settings serializer gives the byte at its offset 2." + rep)
+    w["temps"] = [w[k] for k in ("air_lo", "air_hi", "air_k", "air_lapse", "water_hi", "water_depth", "flag")]
+    w["vd"] = [w["vd_nest"], w["vd_bind"], w["vd_name"]]
+    E.weather = w
+    return w
+
+
 def exchanger_steady(qa, qb, xa, xb, tin_a, tin_b, ambient):
     """Steady emitted and stored temperatures of two mixed compartments with forward flow x ≥ 0.01 per update and fixed amounts.
 
@@ -1451,8 +1505,8 @@ def classic_engine(E):
     f["hot"] = op(F, 0x14034CF98, "0f2f0d05388600", 0x140BB07A4, "Overheat threshold",
                   "Above this engine temperature, with both overheat gates on, the update adds 1 damage (capped at 50) whenever the overheat counter is 0, then advances the counter modulo 300." + rep)
     f["hot_set"] = code(F, 0x14034CFA6, "80783500", "engine_overheating test", "settings+0x35", "First overheat gate: the engine_overheating game setting." + rep)
-    f["hot_set2"] = code(F, 0x14034CFB1, "80784a00", "Second overheat gate", "settings+0x4a",
-                         "A second settings byte must also be nonzero. The option that sets it was not traced; vehicle_damage is bound at settings+2, so it is not this byte." + rep)
+    f["hot_set2"] = code(F, 0x14034CFB1, "80784a00", "vehicle_damage test", "settings+0x4a",
+                         "Second overheat gate: the vehicle_damage game setting. It is byte 2 of the difficulty settings, which start at settings+0x48, so overheat damage needs both engine_overheating and vehicle_damage on. The binding is decoded in %s and corrects the classic engine report's reading of this byte." % WX_REPORT + rep)
     f["hot_cap"] = code(F, 0x14034CFC9, "b932000000", "Overheat damage cap", "50",
                         "New damage = min(damage + 1, 50), applied through the damage setter (vtable slot +0x20, 0x14034b720) at 0x14034cfd6." + rep)
     f["hot_period"] = code(F, 0x14034CFEB, "69c22c010000", "Overheat damage period", "300 updates",
@@ -1722,7 +1776,7 @@ def modular_native(E):
                     "Copies the manifold group temperature (+0xec) after this cylinder's heat to component+0x59c, the Temperature channel. Cylinders that share a group can report slightly different values within one update." + rep)
     f["hot35"] = code(F, 0x140449DFE, "40387035", "Overheat gate engine_overheating", "settings+0x35",
                       "Above 115 °C the cylinder needs this setting byte nonzero." + rep)
-    f["hot4a"] = code(F, 0x140449E09, "4038704a", "Second overheat gate", "settings+0x4a", "And this second settings byte nonzero." + rep)
+    f["hot4a"] = code(F, 0x140449E09, "4038704a", "Overheat gate vehicle_damage", "settings+0x4a", "And the vehicle_damage setting nonzero (difficulty settings+2, at settings+0x48 + 2)." + rep)
     f["hot_step"] = code(F, 0x140449E1C, "8b5708ffc2b9320000003bd10f47d1488bcfff5020", "Overheat damage step", "min(damage + 1, 50) via slot +0x20",
                          "When the cylinder timer (component+0x6d0) is 0 it calls the damage setter with damage + 1, capped at 50; the timer then advances modulo 300 (0x140449e43). A zero timer damages on the first hot update, then every 300 qualifying updates. Cooling below 115 °C pauses the timer without resetting it." + rep)
     # Damage field.
@@ -2215,7 +2269,7 @@ def jet_engine(E):
     f["b_press"] = op(F, 0x140353434, "f30f59352cd48500", 0x140BB0868, "Chamber pressure gain per throttle × RPS",
                       "Above the ignition speed: p_out = p_in + this × u × r, then p_in = 0 (store at 0x140353455). At or below it p_out = p_in. Internal pressure units." + rep)
     f["b_over"] = op(F, 0x140353532, "f30f10359ed28500", 0x140BB07D8, "Chamber overspeed check",
-                     "With the engine_overheating setting (settings+0x35) and a second settings byte (+0x4a) on, a chamber whose local RPS exceeds this sets a one-time flag (+0x4d9) and calls 0x140355450 with damage + 1." + rep)
+                     "With the engine_overheating (settings+0x35) and vehicle_damage (settings+0x4a) settings on, a chamber whose local RPS exceeds this sets a one-time flag (+0x4d9) and calls 0x140355450 with damage + 1." + rep)
     # Turbine (subtype 3).
     f["t_half"] = op(F, 0x140352F9B, "f30f103519cd8500", 0x140BAFCBC, "Turbine pressure capture share",
                      "After the averaging the turbine takes q = this × p_in: p_out = p_in - q, then p_in is halved. t_out = t_in." + rep)
@@ -2536,7 +2590,7 @@ def heat_exchange(B, E):
     vols = H["vol"]
     hx_core = [H["v_half"], H["v_b"], H["q_gas"], H["q_liquid"], H["q"], H["gate"], H["w_a"], H["lerp"], H["mutual"], H["filter"]]
     hx_ports = [H["pair"], H["ports"], H["b_out"]] + H["transport"]
-    hx_ambient = [H["sample"], H["ambient"], H["w_11"], H["w_12"], H["w_24"], H["enclosed"], H["local"], H["ramp_init"], H["retarget"], H["ramp"]]
+    hx_ambient = [H["sample"], H["ambient"], H["w_11"], H["w_12"], H["w_24"], H["enclosed"], H["local"], H["ramp_init"], H["retarget"], H["ramp"]] + weather_native(E)["temps"]
     every_vol = [v[1] for v in vols.values()]
     open_hx = "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks."
     B.category("Heat exchange",
@@ -2551,7 +2605,9 @@ def heat_exchange(B, E):
                 section("Per-second rates",
                         "Component updates run 60 times per simulated second. The fractions compound, so they are not multiplied by 60. With constant coefficients and nothing else acting, one simulated second leaves 0.161 of the gap between an exchanger's two compartments (time constant 0.547 s), 0.942 of a gap to fixed ambient through the leak alone (16.7 s), 0.835 of a passive radiator's gap to fixed ambient (5.55 s) and 0.581 at the full radiator multiplier of 3 (1.84 s). Through-flow and changing temperatures need the full model stepped 60 times per second."),
                 section("Surrounding temperature",
-                        "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."),
+                        "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates.",
+                        "The weather temperature comes from a warmth fraction W between 0 and 1 that depends on world Z, scrolling weather textures, the month and the time of day. Dry air is −15 + 45 × W °C at sea level, rain lowers it, and it falls by 6.5 °C per 1000 m above world zero. "
+                        "Water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero, cooler in rain, and changes by at most 1.5 °C per 1000 m of depth. Every exchanger, radiator and engine call passes a flag that keeps wind out of the sample. " + WX_ARTICLE[0].upper() + WX_ARTICLE[1:] + " gives the full equations."),
                 section("Practical setup",
                         "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts airflow as fan, reaching the maximum term at 80 m/s relative to the wind (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's.")],
                [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips + hx_core + hx_ports + hx_ambient + rad_x + every_vol + [N["law"], N["species_60"], N["t_content"]],
@@ -2616,7 +2672,8 @@ def heat_exchange(B, E):
                       "For one radiator fed at a fixed inlet temperature with flow q and stored water A, the outlet sits q ÷ (k × A + (1 + k) × q) of the way from ambient to the inlet, with k = 0.003 × (1 + fan). With 9 units of water, 200 L/s and a full fan that is 83.90 °C out for 100 °C in at 20 °C ambient, a 16.10 °C drop. The cooling capacity calculator's finite-flow mode steps whole loops.")
     surround = section("Surrounding temperature",
                        "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. "
-                       "Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it.")
+                       "Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it. "
+                       "The weather temperature follows the region, season, time of day, rain and height; the Heat exchange category summarizes it and " + WX_ARTICLE + " gives the equations.")
     open_rad = "The cooled quantity is a native amount × temperature unit; no conversion to joules or watts was recovered."
     elec = [rad, air, fan, rad_s, rad3_s, fan_draw, E.tooltip("fluid_radiator_electric"), E.port("fluid_radiator_electric", "Fan On/Off")] + vox[:2] + T["radiator"] + R + rad_x
     B.family("electric-fluid-radiator",
@@ -2673,7 +2730,7 @@ def modular_engines(B, E):
     afr_mul = E.const(F_ENGINE, 0x140BB064C, "Air:fuel ratio scale",
                       "Displayed air:fuel ratio = intake term × 10 × 60 ÷ fuel term.")
     hot = E.const(F_ENGINE, 0x140BB07A4, "Overheat damage threshold",
-                  "When the manifold temperature in °C exceeds this, the engine_overheating setting is on and a further setting byte at offset 0x4a is set, the cylinder applies damage every 300 updates.")
+                  "When the manifold temperature in °C exceeds this and the engine_overheating and vehicle_damage settings (offsets 0x35 and 0x4a) are both on, the cylinder applies damage every 300 updates.")
     heat = E.const(F_ENGINE, 0x140BB08A0, "Combustion heat gain",
                    "Manifold temperature += combustion × exhaust share × fuel term × this ÷ manifold heat capacity (offset 0xf0).")
     fixed = E.const(F_ENGINE, 0x140BAFFD8, "Infinite-fuel intake ratio",
@@ -2724,7 +2781,7 @@ def modular_engines(B, E):
     timed = [fuel_s, damage_s] + R
     crank = [m[x] for x in ("i0", "walk", "mask", "i_add", "f_add", "f_name", "f_default", "d_f", "d_i", "d_k", "d_r", "noop", "coast")] + [inertia]
     impulse = [m[x] for x in ("gate20", "i_read", "g_0", "g_d", "div", "r_store", "accept", "impulse", "example")]
-    thermal = [m[x] for x in ("c0", "reg", "c_40", "c_div", "hot35", "hot4a", "hot_step", "k", "k_s", "k_cube", "k_liq", "te", "tc", "sc", "sc_k", "k_ex")] + [heat, hot, damage_period, damage_s]
+    thermal = [m[x] for x in ("c0", "reg", "c_40", "c_div", "hot35", "hot4a", "hot_step", "k", "k_s", "k_cube", "k_liq", "te", "tc", "sc", "sc_k", "k_ex")] + [heat, hot, damage_period, damage_s] + weather_native(E)["vd"]
     damage = [m[x] for x in ("dmg_set", "dmg_ctor", "dmg_name", "dmg_load", "gate20", "hot_step")]
     telemetry = [m[x] for x in ("ch1", "ch2", "ch3")] + texts[:5]
     throttles = [m[x] for x in ("thr_fuel", "thr_air", "latch")]
@@ -2761,7 +2818,7 @@ def modular_engines(B, E):
                         "Burned fuel heats the shared manifold group by 6000 × burned fuel ÷ C, where C = 1 + 40 × the group's cylinder voxels; manifold extensions add nothing to C. Engine and coolant temperatures are in °C. "
                         "Each group update the coolant moves k of the gap toward the engine and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. "
                         "Clean water gives k = 0.04, fully scaled water 0.00032. Sea water above 100 °C builds scaling. "
-                        "Above 115 °C, with engine_overheating and a second settings flag on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field."),
+                        "Above 115 °C, with the engine_overheating and vehicle_damage settings both on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field."),
                 section("Pressure and units",
                         "Manifold and pipe pressures are in atmospheres, on the same law as the Tank Pressure output. The intake factor clamp(1 + 0.01 × mean air-manifold pressure, 1, 2) is 1.01 at 1 atm and reaches 2 at 100 atm. "
                         "Crank and accessory speeds are RPS and temperatures °C. Inertia weights, heat in amount × °C and electrical charge are internal units.")],
@@ -4906,7 +4963,7 @@ def engines(B, E):
     t_weight = E.derived("Legacy turbine shaft weight", "50", "100000 × 1 ÷ 2000 at Max Power 100 %. Diesel demand at the same scale would be 5 times the small diesel's, but the shipped turbine has no fuel port." + " Report: %s." % CE_REPORT,
                          [turbine, f["w_div"]])
     ports = [E.port("engine", label) for label in ("Throttle", "Starter", "RPS", "Fuel", "Air", "In Coolant", "Out Coolant", "Exhaust", "Temperature")] + [E.port("engine", "RPS", 1)]
-    every = C["identity"] + C["speed"] + C["supply"] + C["thermal"] + C["start"]
+    every = C["identity"] + C["speed"] + C["supply"] + C["thermal"] + C["start"] + weather_native(E)["temps"] + weather_native(E)["vd"]
     controls = section("Operating conditions",
                        "Throttle is clamped to 0 to 1; a negative value counts as 0, so the engine never drives backward. Above the RPS Limiter (default 20 RPS, editor range 5 to 100) the throttle is cut to 0. "
                        "That is a fuel cut, not a speed clamp: the engine can overshoot, and another component can spin the shaft faster. A damaged engine compares against 1.25 times the limit. "
@@ -4928,16 +4985,17 @@ def engines(B, E):
                     "Several engines on one shaft therefore pull it toward their submitted speeds in proportion to W. The RPS output shows the local speed entering the update, before this update's starter and combustion steps.")
     cooling = section("Cooling and overheating",
                       "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. "
-                      "The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. "
+                      "The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. "
+                      "Outside a compartment that sample is the weather temperature: dry sea-level air from −15 °C to 30 °C depending on region, season and time of day, 6.5 °C colder per 1000 m of height, lower in rain, and water below the surface; " + WX_ARTICLE + " gives the equations. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. "
                       "Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.",
-                      "Above 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. "
+                      "Above 115 °C, with the engine_overheating and vehicle_damage settings both on, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. "
+                      "Turning off either setting stops overheat damage; the temperature still rises. "
                       "Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue.")
     starter = section("Starter",
                       "While Starter is held the engine requests max(5 - r, 0) × W × electric_magnitude × 0.1 charge: 1.2, 3.6 and 12 per RPS below 5 for the small, medium and large engine, 6, 18 and 60 from rest. "
                       "It adds the supplied fraction of the deficit to its speed, so full supply lifts it to 5 RPS in one update before shaft mixing. A loaded shaft pulls it back, and above 5 RPS the starter asks for nothing.")
     open_limits = ["The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
-                   "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
-                   "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
+                   "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The weather part of that sample depends on texture values at the engine's position; %s lists what of it remains open." % WX_ARTICLE,
                    "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.", TICK]
     B.category("Engines",
                "Classic diesel engines share one recovered update. Above 2 RPS an undamaged engine with effective throttle u at local speed r submits 0.99 × (r + 0.1 × u × (r + 1)) RPS to its shaft. "
@@ -5633,8 +5691,8 @@ def jet_engines(B, E):
                       "Above 0.5 RPS: outgoing pressure = incoming + 1600 × u × RPS and outgoing temperature = incoming + 0.1 × u × RPS, in internal units; the incoming pressure is then cleared. "
                       "At 20 RPS and full throttle from zero that is 32000 and 2 in one update."),
               section("Overspeed",
-                      "With the engine_overheating setting and a second settings flag on, a chamber above 200 RPS sets a one-time flag and passes its damage + 1 to a damage routine.")],
-             J["chamber"] + J["identity"] + rate + [kind("jet_engine_combustion_chamber"), T("jet_engine_combustion_chamber"),
+                      "With the engine_overheating and vehicle_damage settings both on, a chamber above 200 RPS sets a one-time flag and passes its damage + 1 to a damage routine.")],
+             J["chamber"] + J["identity"] + rate + weather_native(E)["vd"] + [kind("jet_engine_combustion_chamber"), T("jet_engine_combustion_chamber"),
                                                      P("jet_engine_combustion_chamber", "Fuel"), P("jet_engine_combustion_chamber", "Throttle")],
              [local, units, "The effect of the overspeed damage on the engine was not traced.", TICK])
     B.family("jet-turbine",
@@ -10079,7 +10137,7 @@ def nuclear_native(E):
     f["r_setter"] = code(F_NU_DAMAGE, F_NU_DAMAGE, "83790800750d85d2740dc6815004000001", "Nuclear damage setter", "first damage marks pending processing",
                          "When an undamaged component receives a nonzero damage the setter sets the pending flag at +0x450, which the post-update hands to 0x140325680. It then stores min(value, 50) at +0x8 (0x14041dc20).")
     f["r_event"] = code(F_NUCLEAR, 0x14041E191, "41837e08020f821b030000", "Damage event gate", "damage ≥ 2, once",
-                        "The one-time event runs only when the saved byte at +0x451 (serialized as fire) is 0, two game setting bytes at settings+0x35 and settings+0x4a are nonzero (0x14041e178, 0x14041e187) and damage is at least 2. It sets +0x451 and calls the event creator 0x140288f70 (0x14041e46c).")
+                        "The one-time event runs only when the saved byte at +0x451 (serialized as fire) is 0, the engine_overheating (settings+0x35) and vehicle_damage (settings+0x4a) settings are on (0x14041e178, 0x14041e187) and damage is at least 2. It sets +0x451 and calls the event creator 0x140288f70 (0x14041e46c).")
     f["r_record"] = code(F_NUCLEAR, 0x14041E4A9, "c7401800004843c7401c00401c47", "Damage event world record", "200 and 40000",
                          "After the event call the rod writes its position and the binary32 values 200 (0x43480000) and 40000 (0x471c4000) into a new world record.")
     f["r_dloss"] = op(F_NUCLEAR, 0x14041E4D8, "f30f590db8137900", 0x140BAF898, "Damaged fuel loss",
@@ -10273,14 +10331,14 @@ def nuclear(B, E):
               section("Damage",
                       "When T is strictly above 1500 after heating, the first such update raises damage by 1 and then every 300 hot updates (5 simulated seconds) add 1 more, up to 50. Cooling does not reset that counter. "
                       "Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second, and deposits 10 times that as persistent contamination at the rod. "
-                      "From damage 2 a one-time event runs when two game settings are on; its save flag is named fire. Nothing in the rod update explodes at 1500: the threshold only drives damage."),
+                      "From damage 2 a one-time event runs when the engine_overheating and vehicle_damage settings are both on; its save flag is named fire. Nothing in the rod update explodes at 1500: the threshold only drives damage."),
               section("Radiation",
                       "While r is above 0.001 the rod is a live source of strength s = 0.1 × r at its position; at or below it the source is removed. A detector in the same compartment at distance d reads s × (1 − d ÷ (10 × s)) out to 10 × s metres, so the reach in metres equals r: "
                       "5 at the rod and 2.5 at 25 m for r = 50. In another compartment the reach drops by 200 m, so the live source does not reach it. Sources add, with linear falloff.")],
              ident + [f["names"][1], f["r_relax"], f["r_loose"], f["r_base"], f["r_cap"], f["r_heat"], f["r_fuel"], f["r_tick"], f["r_env"], f["temp0"], f["ramp0"], f["spawn"],
                       f["r_1500"], f["r_hit"], f["r_300"], f["r_setter"], f["r_event"], f["r_record"], f["r_dloss"], f["r_dep"], f["s_dep"], f["r_src"], f["r_strength"],
                       f["s_10"], f["s_200"], f["s_fall"], f["x_life"], f["x_temp"], f["x_damage"], f["x_radius"], f["a_k"], f["a_100"], h["ambient"], S["vox"]["steam_nuclear_fuel_rod"]] + R
-             + [T("steam_nuclear_fuel_rod"), A("steam_nuclear_fuel_rod", "nuclear_component_type", "Value 1, named fuel rod by the editor selector.")],
+             + [T("steam_nuclear_fuel_rod"), A("steam_nuclear_fuel_rod", "nuclear_component_type", "Value 1, named fuel rod by the editor selector.")] + weather_native(E)["vd"],
              [NU_STATIC, NU_POINTER, TICK])
 
     B.family("part-steam-nuclear-control-rod",
