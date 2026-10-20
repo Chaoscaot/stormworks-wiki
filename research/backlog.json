@@ -939,7 +939,19 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/2",
-        "text": "Natural tornado and whirlpool spawning, ocean-depth acceptance, magnitude choice and default tornado field values were not traced; the Lua spawn functions only dispatch to the host. The complete hazard damage equations, their targets and lifetime units were not decoded, and the conversion of the tornado wind and whirlpool current vectors into forces on a vehicle was not traced, so no safe distance is given.",
+        "text": "Final vehicle and character damage was not traced: the consumer of the tornado's server-side damage record, and any damage from whirlpool and tsunami water through collision, flooding or drowning. Meteor impact, blast and secondary tsunami, volcano eruption, lava, projectiles and heat, and forest fire ignition, spread, heat and damage were not decoded, so no meteor, volcano or fire radius is given.",
+        "scope": "Shipped-resource mechanics article"
+      },
+      {
+        "file": "wiki/data/mechanics.json",
+        "pointer": "/articles/15/limitations/3",
+        "text": "Whether native code schedules natural disasters besides the two addons was not established; the tornado initializer has a single network-handler caller, but other native, virtual or save-loading paths were not ruled out.",
+        "scope": "Shipped-resource mechanics article"
+      },
+      {
+        "file": "wiki/data/mechanics.json",
+        "pointer": "/articles/15/limitations/4",
+        "text": "The chain from hazard wind and current to body forces was not traced in full (the cached water grid, surface weights, torque application and character consumers), and safe distances from debris, projectiles, secondary events and collisions were not established.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

@@ -1,0 +1,990 @@
+[
+  {
+    "address": "0x140ae8f20",
+    "string": "is_success = server.spawnTsunami(transform_matrix, magnitude)",
+    "refs": [
+      "140658240:\t48 8d 15 d9 0c 49 00                            \tlea    rdx,[rip+0x490cd9]        # 0x140ae8f20"
+    ]
+  },
+  {
+    "address": "0x140ae90b0",
+    "string": "Attempts to spawn a tsunami epicentered at the target transform, only one tsunami/whirlpool can be active at a time; stronger events will override weaker ones. Magnitude ranges from 0-1.",
+    "refs": [
+      "1406581e4:\t48 8d 15 c5 0e 49 00                            \tlea    rdx,[rip+0x490ec5]        # 0x140ae90b0"
+    ]
+  },
+  {
+    "address": "0x140ae9180",
+    "string": "is_success = server.spawnWhirlpool(transform_matrix, magnitude)",
+    "refs": [
+      "140658356:\t48 8d 15 23 0e 49 00                            \tlea    rdx,[rip+0x490e23]        # 0x140ae9180"
+    ]
+  },
+  {
+    "address": "0x140ae91d0",
+    "string": "Attempts to spawn a whirlpool near to the target transform, can fail based on ocean depth, only one tsunami/whirlpool can be active at a time; stronger events will override weaker ones. Magnitude ranges from 0-1.",
+    "refs": [
+      "1406582fa:\t48 8d 15 cf 0e 49 00                            \tlea    rdx,[rip+0x490ecf]        # 0x140ae91d0"
+    ]
+  },
+  {
+    "address": "0x140ae92e0",
+    "string": "Cancels the active ocean gerstner wave event (tsunami or whirlpool).",
+    "refs": [
+      "140658403:\t48 8d 15 d6 0e 49 00                            \tlea    rdx,[rip+0x490ed6]        # 0x140ae92e0"
+    ]
+  },
+  {
+    "address": "0x140ae9338",
+    "string": "is_success = server.spawnTornado(transform_matrix)",
+    "refs": [
+      "140658568:\t48 8d 15 c9 0d 49 00                            \tlea    rdx,[rip+0x490dc9]        # 0x140ae9338"
+    ]
+  },
+  {
+    "address": "0x140ae9380",
+    "string": "Spawns a tornado at the target transform.",
+    "refs": [
+      "14065850c:\t48 8d 15 6d 0e 49 00                            \tlea    rdx,[rip+0x490e6d]        # 0x140ae9380"
+    ]
+  },
+  {
+    "address": "0x140ae93c0",
+    "string": "is_success = server.spawnMeteor(transform_matrix, magnitude, is_spawn_tsunami)",
+    "refs": [
+      "140658671:\t48 8d 15 48 0d 49 00                            \tlea    rdx,[rip+0x490d48]        # 0x140ae93c0"
+    ]
+  },
+  {
+    "address": "0x140ae9420",
+    "string": "Spawns a meteor to land at the target transform. Magnitude ranges from 0-1 and scales the main meteor up to 20x default size.",
+    "refs": [
+      "140658615:\t48 8d 15 04 0e 49 00                            \tlea    rdx,[rip+0x490e04]        # 0x140ae9420"
+    ]
+  },
+  {
+    "address": "0x140ae94b0",
+    "string": "is_success = server.spawnMeteorShower(transform_matrix, magnitude, is_spawn_tsunami)",
+    "refs": [
+      "14065877a:\t48 8d 15 2f 0d 49 00                            \tlea    rdx,[rip+0x490d2f]        # 0x140ae94b0"
+    ]
+  },
+  {
+    "address": "0x140ae9520",
+    "string": "Spawns a meteor to land at the target location, preceded by several smaller meteors. Magnitude ranges from 0-1 and scales the main meteor up to 20x default size, this magnitude also increases the number of secondary meteors spawned.",
+    "refs": [
+      "14065871e:\t48 8d 15 fb 0d 49 00                            \tlea    rdx,[rip+0x490dfb]        # 0x140ae9520"
+    ]
+  },
+  {
+    "address": "0x140ae9618",
+    "string": "is_success = server.spawnVolcano(transform_matrix)",
+    "refs": [
+      "140658883:\t48 8d 15 8e 0d 49 00                            \tlea    rdx,[rip+0x490d8e]        # 0x140ae9618"
+    ]
+  },
+  {
+    "address": "0x140ae9660",
+    "string": "Activates the closest volcano if the volcano tile is in simulation range.",
+    "refs": [
+      "140658827:\t48 8d 15 32 0e 49 00                            \tlea    rdx,[rip+0x490e32]        # 0x140ae9660"
+    ]
+  },
+  {
+    "address": "0x140ae96d0",
+    "string": "VOLCANOS = server.getVolcanos()",
+    "refs": [
+      "14065898c:\t48 8d 15 3d 0d 49 00                            \tlea    rdx,[rip+0x490d3d]        # 0x140ae96d0"
+    ]
+  },
+  {
+    "address": "0x140ae9710",
+    "string": "Get a list of volcano data.",
+    "refs": [
+      "140658930:\t48 8d 15 d9 0d 49 00                            \tlea    rdx,[rip+0x490dd9]        # 0x140ae9710"
+    ]
+  },
+  {
+    "address": "0x140aedf60",
+    "string": "tsunami",
+    "refs": [
+      "140665422:\t48 8d 15 37 8b 48 00                            \tlea    rdx,[rip+0x488b37]        # 0x140aedf60",
+      "140699a96:\t48 8d 15 c3 44 45 00                            \tlea    rdx,[rip+0x4544c3]        # 0x140aedf60",
+      "1407981f4:\t48 8d 15 65 5d 35 00                            \tlea    rdx,[rip+0x355d65]        # 0x140aedf60"
+    ]
+  },
+  {
+    "address": "0x140aeea68",
+    "string": "whirlpool_factor",
+    "refs": [
+      "140675408:\t48 8d 05 59 96 47 00                            \tlea    rax,[rip+0x479659]        # 0x140aeea68",
+      "140676cc1:\t48 8d 05 a0 7d 47 00                            \tlea    rax,[rip+0x477da0]        # 0x140aeea68",
+      "140677af1:\t48 8d 05 70 6f 47 00                            \tlea    rax,[rip+0x476f70]        # 0x140aeea68"
+    ]
+  },
+  {
+    "address": "0x140af5b68",
+    "string": "tornado_base_pos",
+    "refs": [
+      "14069031f:\t48 8d 05 42 58 46 00                            \tlea    rax,[rip+0x465842]        # 0x140af5b68"
+    ]
+  },
+  {
+    "address": "0x140af5b88",
+    "string": "graphics/shaders/tornado",
+    "refs": [
+      "140690140:\t48 8d 15 41 5a 46 00                            \tlea    rdx,[rip+0x465a41]        # 0x140af5b88"
+    ]
+  },
+  {
+    "address": "0x140af5bb8",
+    "string": "tornado_base_radius",
+    "refs": [
+      "140690375:\t48 8d 05 3c 58 46 00                            \tlea    rax,[rip+0x46583c]        # 0x140af5bb8"
+    ]
+  },
+  {
+    "address": "0x140af5be8",
+    "string": "tornado_top_pos",
+    "refs": [
+      "14069034a:\t48 8d 05 97 58 46 00                            \tlea    rax,[rip+0x465897]        # 0x140af5be8"
+    ]
+  },
+  {
+    "address": "0x140af5c48",
+    "string": "tornado_active_factor",
+    "refs": [
+      "1406903a0:\t48 8d 05 a1 58 46 00                            \tlea    rax,[rip+0x4658a1]        # 0x140af5c48"
+    ]
+  },
+  {
+    "address": "0x140af5e28",
+    "string": "volcano_height",
+    "refs": [
+      "1406909ab:\t48 8d 05 76 54 46 00                            \tlea    rax,[rip+0x465476]        # 0x140af5e28"
+    ]
+  },
+  {
+    "address": "0x140af96a8",
+    "string": "Cancel Whirlpool",
+    "refs": [
+      "1402003c3:\t4c 8d 05 de 92 8f 00                            \tlea    r8,[rip+0x8f92de]        # 0x140af96a8"
+    ]
+  },
+  {
+    "address": "0x140af96e0",
+    "string": "Spawn Whirlpool",
+    "refs": [
+      "1402003aa:\t4c 8d 05 2f 93 8f 00                            \tlea    r8,[rip+0x8f932f]        # 0x140af96e0"
+    ]
+  },
+  {
+    "address": "0x140af9710",
+    "string": "Cancel Tornado",
+    "refs": [
+      "1402003f5:\t4c 8d 05 14 93 8f 00                            \tlea    r8,[rip+0x8f9314]        # 0x140af9710"
+    ]
+  },
+  {
+    "address": "0x140af9748",
+    "string": "Spawn Tornado",
+    "refs": [
+      "1402003dc:\t4c 8d 05 65 93 8f 00                            \tlea    r8,[rip+0x8f9365]        # 0x140af9748"
+    ]
+  },
+  {
+    "address": "0x140af9780",
+    "string": "Spawn Meteor Shower",
+    "refs": [
+      "140200427:\t4c 8d 05 52 93 8f 00                            \tlea    r8,[rip+0x8f9352]        # 0x140af9780"
+    ]
+  },
+  {
+    "address": "0x140af97e0",
+    "string": "Spawn Meteor",
+    "refs": [
+      "14020040e:\t4c 8d 05 cb 93 8f 00                            \tlea    r8,[rip+0x8f93cb]        # 0x140af97e0"
+    ]
+  },
+  {
+    "address": "0x140afc958",
+    "string": "meshes/meteor_additive.mesh",
+    "refs": [
+      "1406b96f0:\t48 8d 15 61 32 44 00                            \tlea    rdx,[rip+0x443261]        # 0x140afc958"
+    ]
+  },
+  {
+    "address": "0x140afc988",
+    "string": "meshes/meteor_1.mesh",
+    "refs": [
+      "1406b96b6:\t48 8d 15 cb 32 44 00                            \tlea    rdx,[rip+0x4432cb]        # 0x140afc988"
+    ]
+  },
+  {
+    "address": "0x140afef40",
+    "string": "whirlpool",
+    "refs": [
+      "1407983a5:\t48 8d 15 94 6b 36 00                            \tlea    rdx,[rip+0x366b94]        # 0x140afef40"
+    ]
+  },
+  {
+    "address": "0x140afefb8",
+    "string": "meteor",
+    "refs": [
+      "140798986:\t48 8d 15 2b 66 36 00                            \tlea    rdx,[rip+0x36662b]        # 0x140afefb8",
+      "1407a9534:\t48 8d 15 7d 5a 35 00                            \tlea    rdx,[rip+0x355a7d]        # 0x140afefb8"
+    ]
+  },
+  {
+    "address": "0x140b05858",
+    "string": "Disasters",
+    "refs": [
+      "1407a94b3:\t48 8d 15 9e c3 35 00                            \tlea    rdx,[rip+0x35c39e]        # 0x140b05858"
+    ]
+  },
+  {
+    "address": "0x140b058b0",
+    "string": "despawn tornado",
+    "refs": [
+      "1407a95e0:\t48 8d 15 c9 c2 35 00                            \tlea    rdx,[rip+0x35c2c9]        # 0x140b058b0"
+    ]
+  },
+  {
+    "address": "0x140b058d8",
+    "string": "spawn tornado",
+    "refs": [
+      "1407a958a:\t48 8d 15 47 c3 35 00                            \tlea    rdx,[rip+0x35c347]        # 0x140b058d8"
+    ]
+  },
+  {
+    "address": "0x140b08ea0",
+    "string": "island_42_volcano_tile_12",
+    "refs": [
+      "14081977e:\t48 8d 15 1b f7 2e 00                            \tlea    rdx,[rip+0x2ef71b]        # 0x140b08ea0"
+    ]
+  },
+  {
+    "address": "0x140b08ee0",
+    "string": "island_42_volcano_tile_11",
+    "refs": [
+      "140819691:\t48 8d 15 48 f8 2e 00                            \tlea    rdx,[rip+0x2ef848]        # 0x140b08ee0"
+    ]
+  },
+  {
+    "address": "0x140b093b8",
+    "string": "island_42_volcano_tile_21",
+    "refs": [
+      "140819958:\t48 8d 15 59 fa 2e 00                            \tlea    rdx,[rip+0x2efa59]        # 0x140b093b8"
+    ]
+  },
+  {
+    "address": "0x140b093d8",
+    "string": "island_42_volcano_tile_13",
+    "refs": [
+      "14081986b:\t48 8d 15 66 fb 2e 00                            \tlea    rdx,[rip+0x2efb66]        # 0x140b093d8"
+    ]
+  },
+  {
+    "address": "0x140b09408",
+    "string": "island_42_volcano_tile_23",
+    "refs": [
+      "140819b1d:\t48 8d 15 e4 f8 2e 00                            \tlea    rdx,[rip+0x2ef8e4]        # 0x140b09408"
+    ]
+  },
+  {
+    "address": "0x140b09438",
+    "string": "island_42_volcano_tile_22",
+    "refs": [
+      "140819a3c:\t48 8d 15 f5 f9 2e 00                            \tlea    rdx,[rip+0x2ef9f5]        # 0x140b09438"
+    ]
+  },
+  {
+    "address": "0x140b09468",
+    "string": "island_42_volcano_tile_32",
+    "refs": [
+      "140819c19:\t48 8d 15 48 f8 2e 00                            \tlea    rdx,[rip+0x2ef848]        # 0x140b09468"
+    ]
+  },
+  {
+    "address": "0x140b09498",
+    "string": "island_42_volcano_tile_31",
+    "refs": [
+      "140819b9b:\t48 8d 15 f6 f8 2e 00                            \tlea    rdx,[rip+0x2ef8f6]        # 0x140b09498"
+    ]
+  },
+  {
+    "address": "0x140b09508",
+    "string": "island_42_volcano_tile_33",
+    "refs": [
+      "140819c97:\t48 8d 15 6a f8 2e 00                            \tlea    rdx,[rip+0x2ef86a]        # 0x140b09508"
+    ]
+  },
+  {
+    "address": "0x140b0b078",
+    "string": "spawn_tornado",
+    "refs": [
+      "1402365e3:\t48 8d 15 8e 4a 8d 00                            \tlea    rdx,[rip+0x8d4a8e]        # 0x140b0b078",
+      "1402388b1:\t48 8d 15 c0 27 8d 00                            \tlea    rdx,[rip+0x8d27c0]        # 0x140b0b078"
+    ]
+  },
+  {
+    "address": "0x140b0b090",
+    "string": "spawn_whirlpool",
+    "refs": [
+      "1402365ad:\t48 8d 15 dc 4a 8d 00                            \tlea    rdx,[rip+0x8d4adc]        # 0x140b0b090"
+    ]
+  },
+  {
+    "address": "0x140b0b0a0",
+    "string": "spawn_meteor",
+    "refs": [
+      "14023664f:\t48 8d 15 4a 4a 8d 00                            \tlea    rdx,[rip+0x8d4a4a]        # 0x140b0b0a0",
+      "14023891d:\t48 8d 15 7c 27 8d 00                            \tlea    rdx,[rip+0x8d277c]        # 0x140b0b0a0"
+    ]
+  },
+  {
+    "address": "0x140b0b0c0",
+    "string": "despawn_tornado",
+    "refs": [
+      "140236619:\t48 8d 15 a0 4a 8d 00                            \tlea    rdx,[rip+0x8d4aa0]        # 0x140b0b0c0",
+      "1402388e7:\t48 8d 15 d2 27 8d 00                            \tlea    rdx,[rip+0x8d27d2]        # 0x140b0b0c0"
+    ]
+  },
+  {
+    "address": "0x140b0d018",
+    "string": "s.Meteor",
+    "refs": [
+      "140845fcd:\t48 8d 15 44 70 2c 00                            \tlea    rdx,[rip+0x2c7044]        # 0x140b0d018"
+    ]
+  },
+  {
+    "address": "0x140b0d598",
+    "string": "meteor_impact",
+    "refs": [
+      "140238953:\t48 8d 15 3e 4c 8d 00                            \tlea    rdx,[rip+0x8d4c3e]        # 0x140b0d598"
+    ]
+  },
+  {
+    "address": "0x140b0d618",
+    "string": "spawn_volcano",
+    "refs": [
+      "140238989:\t48 8d 15 88 4c 8d 00                            \tlea    rdx,[rip+0x8d4c88]        # 0x140b0d618"
+    ]
+  },
+  {
+    "address": "0x140b436b8",
+    "string": "Add Volcano",
+    "refs": [
+      "14088248d:\t48 8d 15 24 12 2c 00                            \tlea    rdx,[rip+0x2c1224]        # 0x140b436b8"
+    ]
+  },
+  {
+    "address": "0x140b4b790",
+    "string": "audio/fx4/tornado.ogg",
+    "refs": [
+      "14027f202:\t48 8d 15 87 c5 8c 00                            \tlea    rdx,[rip+0x8cc587]        # 0x140b4b790"
+    ]
+  },
+  {
+    "address": "0x140b4b7d0",
+    "string": "audio/fx4/volcano_rumble.ogg",
+    "refs": [
+      "14027f2aa:\t48 8d 15 1f c5 8c 00                            \tlea    rdx,[rip+0x8cc51f]        # 0x140b4b7d0"
+    ]
+  },
+  {
+    "address": "0x140b4b7f0",
+    "string": "audio/fx4/volcano_ambience.ogg",
+    "refs": [
+      "14027f256:\t48 8d 15 93 c5 8c 00                            \tlea    rdx,[rip+0x8cc593]        # 0x140b4b7f0"
+    ]
+  },
+  {
+    "address": "0x140b4b810",
+    "string": "audio/fx4/meteor_loop.ogg",
+    "refs": [
+      "14027f352:\t48 8d 15 b7 c4 8c 00                            \tlea    rdx,[rip+0x8cc4b7]        # 0x140b4b810"
+    ]
+  },
+  {
+    "address": "0x140b4b830",
+    "string": "audio/fx4/volcano_flow.ogg",
+    "refs": [
+      "14027f2fe:\t48 8d 15 2b c5 8c 00                            \tlea    rdx,[rip+0x8cc52b]        # 0x140b4b830"
+    ]
+  },
+  {
+    "address": "0x140b56e58",
+    "string": "tsunami_magnitude",
+    "refs": [
+      "1402ba729:\t4c 8d 05 28 c7 89 00                            \tlea    r8,[rip+0x89c728]        # 0x140b56e58"
+    ]
+  },
+  {
+    "address": "0x140b56e70",
+    "string": "tsunami_origin",
+    "refs": [
+      "1402ba6b8:\t4c 8d 05 b1 c7 89 00                            \tlea    r8,[rip+0x89c7b1]        # 0x140b56e70"
+    ]
+  },
+  {
+    "address": "0x140b56fb0",
+    "string": "tsunami_offset",
+    "refs": [
+      "1402ba81d:\t4c 8d 05 8c c7 89 00                            \tlea    r8,[rip+0x89c78c]        # 0x140b56fb0"
+    ]
+  },
+  {
+    "address": "0x140b57100",
+    "string": "tsunami_scale",
+    "refs": [
+      "1402ba7a7:\t4c 8d 05 52 c9 89 00                            \tlea    r8,[rip+0x89c952]        # 0x140b57100"
+    ]
+  },
+  {
+    "address": "0x140b57110",
+    "string": "tsunami_state",
+    "refs": [
+      "1402ba8fc:\t4c 8d 05 0d c8 89 00                            \tlea    r8,[rip+0x89c80d]        # 0x140b57110"
+    ]
+  },
+  {
+    "address": "0x140b57120",
+    "string": "tsunami_lifetime",
+    "refs": [
+      "1402ba88e:\t4c 8d 05 8b c8 89 00                            \tlea    r8,[rip+0x89c88b]        # 0x140b57120"
+    ]
+  },
+  {
+    "address": "0x140b5713f",
+    "string": "@tsunami_type",
+    "refs": []
+  },
+  {
+    "address": "0x140b57150",
+    "string": "tsunami_base_time",
+    "refs": [
+      "1402ba96d:\t4c 8d 05 dc c7 89 00                            \tlea    r8,[rip+0x89c7dc]        # 0x140b57150"
+    ]
+  },
+  {
+    "address": "0x140b57300",
+    "string": "tornados",
+    "refs": [
+      "1408fc066:\t48 8d 35 93 b2 25 00                            \tlea    rsi,[rip+0x25b293]        # 0x140b57300"
+    ]
+  },
+  {
+    "address": "0x140b57320",
+    "string": "tornado",
+    "refs": [
+      "1407987c5:\t48 8d 15 54 eb 3b 00                            \tlea    rdx,[rip+0x3beb54]        # 0x140b57320",
+      "1408fc0e0:\t48 8d 35 39 b2 25 00                            \tlea    rsi,[rip+0x25b239]        # 0x140b57320",
+      "1408fc264:\t48 8d 35 b5 b0 25 00                            \tlea    rsi,[rip+0x25b0b5]        # 0x140b57320"
+    ]
+  },
+  {
+    "address": "0x140b5b0f8",
+    "string": "tsunami_impact",
+    "refs": [
+      "14030cbcb:\t4c 8d 05 26 e5 84 00                            \tlea    r8,[rip+0x84e526]        # 0x140b5b0f8"
+    ]
+  },
+  {
+    "address": "0x140b5b2f0",
+    "string": "meteors",
+    "refs": [
+      "1408fd9f6:\t48 8d 35 f3 d8 25 00                            \tlea    rsi,[rip+0x25d8f3]        # 0x140b5b2f0"
+    ]
+  },
+  {
+    "address": "0x140b80ef8",
+    "string": "meshes/volcano_rock_a.mesh",
+    "refs": [
+      "1404f662e:\t48 8d 15 c3 a8 68 00                            \tlea    rdx,[rip+0x68a8c3]        # 0x140b80ef8",
+      "1406de34b:\t48 8d 15 a6 2b 4a 00                            \tlea    rdx,[rip+0x4a2ba6]        # 0x140b80ef8"
+    ]
+  },
+  {
+    "address": "0x140b88508",
+    "string": "volcanos",
+    "refs": [
+      "14091411c:\t48 8d 35 e5 43 27 00                            \tlea    rsi,[rip+0x2743e5]        # 0x140b88508"
+    ]
+  },
+  {
+    "address": "0x140b88520",
+    "string": "volcano",
+    "refs": [
+      "1405868e8:\t48 8d 15 31 1c 60 00                            \tlea    rdx,[rip+0x601c31]        # 0x140b88520",
+      "1406e4d7e:\t48 8d 15 9b 37 4a 00                            \tlea    rdx,[rip+0x4a379b]        # 0x140b88520",
+      "1407a9636:\t48 8d 15 e3 ee 3d 00                            \tlea    rdx,[rip+0x3deee3]        # 0x140b88520",
+      "140914190:\t4c 8d 35 89 43 27 00                            \tlea    r14,[rip+0x274389]        # 0x140b88520",
+      "1409142e4:\t4c 8d 35 35 42 27 00                            \tlea    r14,[rip+0x274235]        # 0x140b88520",
+      "14091cb20:\t48 8d 35 f9 b9 26 00                            \tlea    rsi,[rip+0x26b9f9]        # 0x140b88520",
+      "14091cd00:\t48 8d 35 19 b8 26 00                            \tlea    rsi,[rip+0x26b819]        # 0x140b88520"
+    ]
+  },
+  {
+    "address": "0x140b89288",
+    "string": "volcano_markers",
+    "refs": [
+      "14091caa4:\t48 8d 35 dd c7 26 00                            \tlea    rsi,[rip+0x26c7dd]        # 0x140b89288"
+    ]
+  },
+  {
+    "address": "0x140b89f20",
+    "string": "volcano%u",
+    "refs": [
+      "1405663f9:\t48 8d 15 20 3b 62 00                            \tlea    rdx,[rip+0x623b20]        # 0x140b89f20"
+    ]
+  },
+  {
+    "address": "0x140b8d5b8",
+    "string": "data/tiles/island_42_volcano_tile_22.xml",
+    "refs": [
+      "14057fc59:\t48 8d 15 58 d9 60 00                            \tlea    rdx,[rip+0x60d958]        # 0x140b8d5b8"
+    ]
+  },
+  {
+    "address": "0x140b8d638",
+    "string": "data/tiles/island_42_volcano_tile_12.xml",
+    "refs": [
+      "14057fe3f:\t48 8d 15 f2 d7 60 00                            \tlea    rdx,[rip+0x60d7f2]        # 0x140b8d638"
+    ]
+  },
+  {
+    "address": "0x140b8d678",
+    "string": "data/tiles/island_42_volcano_tile_11.xml",
+    "refs": [
+      "14057fd4f:\t48 8d 15 22 d9 60 00                            \tlea    rdx,[rip+0x60d922]        # 0x140b8d678"
+    ]
+  },
+  {
+    "address": "0x140b8d6b8",
+    "string": "data/tiles/island_42_volcano_tile_21.xml",
+    "refs": [
+      "140580012:\t48 8d 15 9f d6 60 00                            \tlea    rdx,[rip+0x60d69f]        # 0x140b8d6b8"
+    ]
+  },
+  {
+    "address": "0x140b8d710",
+    "string": "data/tiles/island_42_volcano_tile_13.xml",
+    "refs": [
+      "14057ff2a:\t48 8d 15 df d7 60 00                            \tlea    rdx,[rip+0x60d7df]        # 0x140b8d710"
+    ]
+  },
+  {
+    "address": "0x140b8d748",
+    "string": "data/tiles/island_42_volcano_tile_31.xml",
+    "refs": [
+      "1405801dc:\t48 8d 15 65 d5 60 00                            \tlea    rdx,[rip+0x60d565]        # 0x140b8d748"
+    ]
+  },
+  {
+    "address": "0x140b8d8c0",
+    "string": "data/tiles/island_42_volcano_tile_23.xml",
+    "refs": [
+      "1405800f7:\t48 8d 15 c2 d7 60 00                            \tlea    rdx,[rip+0x60d7c2]        # 0x140b8d8c0"
+    ]
+  },
+  {
+    "address": "0x140b8d8f8",
+    "string": "data/tiles/island_42_volcano_tile_33.xml",
+    "refs": [
+      "1405803af:\t48 8d 15 42 d5 60 00                            \tlea    rdx,[rip+0x60d542]        # 0x140b8d8f8"
+    ]
+  },
+  {
+    "address": "0x140b8d960",
+    "string": "data/tiles/island_42_volcano_tile_32.xml",
+    "refs": [
+      "1405802c4:\t48 8d 15 95 d6 60 00                            \tlea    rdx,[rip+0x60d695]        # 0x140b8d960"
+    ]
+  },
+  {
+    "address": "0x140b91cb0",
+    "string": "Northwest region of a dormant volcano.",
+    "refs": [
+      "1401f5be4:\t4c 8d 05 c5 c0 99 00                            \tlea    r8,[rip+0x99c0c5]        # 0x140b91cb0"
+    ]
+  },
+  {
+    "address": "0x140b91cf0",
+    "string": "Volcano Northwest",
+    "refs": [
+      "1401f5bcb:\t4c 8d 05 1e c1 99 00                            \tlea    r8,[rip+0x99c11e]        # 0x140b91cf0"
+    ]
+  },
+  {
+    "address": "0x140b91d20",
+    "string": "Northern region of a dormant volcano.",
+    "refs": [
+      "1401f5c16:\t4c 8d 05 03 c1 99 00                            \tlea    r8,[rip+0x99c103]        # 0x140b91d20"
+    ]
+  },
+  {
+    "address": "0x140b91d60",
+    "string": "Volcano North",
+    "refs": [
+      "1401f5bfd:\t4c 8d 05 5c c1 99 00                            \tlea    r8,[rip+0x99c15c]        # 0x140b91d60"
+    ]
+  },
+  {
+    "address": "0x140b91d80",
+    "string": "Northeast region of a dormant volcano.",
+    "refs": [
+      "1401f5c48:\t4c 8d 05 31 c1 99 00                            \tlea    r8,[rip+0x99c131]        # 0x140b91d80"
+    ]
+  },
+  {
+    "address": "0x140b91dc0",
+    "string": "Volcano Northeast",
+    "refs": [
+      "1401f5c2f:\t4c 8d 05 8a c1 99 00                            \tlea    r8,[rip+0x99c18a]        # 0x140b91dc0"
+    ]
+  },
+  {
+    "address": "0x140b91de8",
+    "string": "Western region of a dormant volcano.",
+    "refs": [
+      "1401f5c7a:\t4c 8d 05 67 c1 99 00                            \tlea    r8,[rip+0x99c167]        # 0x140b91de8"
+    ]
+  },
+  {
+    "address": "0x140b91e20",
+    "string": "Volcano West",
+    "refs": [
+      "1401f5c61:\t4c 8d 05 b8 c1 99 00                            \tlea    r8,[rip+0x99c1b8]        # 0x140b91e20"
+    ]
+  },
+  {
+    "address": "0x140b91e40",
+    "string": "Central region of a dormant volcano.",
+    "refs": [
+      "1401f5cac:\t4c 8d 05 8d c1 99 00                            \tlea    r8,[rip+0x99c18d]        # 0x140b91e40"
+    ]
+  },
+  {
+    "address": "0x140b91e78",
+    "string": "Volcano Center",
+    "refs": [
+      "1401f5c93:\t4c 8d 05 de c1 99 00                            \tlea    r8,[rip+0x99c1de]        # 0x140b91e78"
+    ]
+  },
+  {
+    "address": "0x140b91ea0",
+    "string": "Eastern region of a dormant volcano.",
+    "refs": [
+      "1401f5cde:\t4c 8d 05 bb c1 99 00                            \tlea    r8,[rip+0x99c1bb]        # 0x140b91ea0"
+    ]
+  },
+  {
+    "address": "0x140b91ee0",
+    "string": "Volcano East",
+    "refs": [
+      "1401f5cc5:\t4c 8d 05 14 c2 99 00                            \tlea    r8,[rip+0x99c214]        # 0x140b91ee0"
+    ]
+  },
+  {
+    "address": "0x140b91f00",
+    "string": "Southwest region of a dormant volcano.",
+    "refs": [
+      "1401f5d10:\t4c 8d 05 e9 c1 99 00                            \tlea    r8,[rip+0x99c1e9]        # 0x140b91f00"
+    ]
+  },
+  {
+    "address": "0x140b91f38",
+    "string": "Volcano Southwest",
+    "refs": [
+      "1401f5cf7:\t4c 8d 05 3a c2 99 00                            \tlea    r8,[rip+0x99c23a]        # 0x140b91f38"
+    ]
+  },
+  {
+    "address": "0x140b91f70",
+    "string": "Southern region of a dormant volcano.",
+    "refs": [
+      "1401f5d42:\t4c 8d 05 27 c2 99 00                            \tlea    r8,[rip+0x99c227]        # 0x140b91f70"
+    ]
+  },
+  {
+    "address": "0x140b91fa8",
+    "string": "Volcano South",
+    "refs": [
+      "1401f5d29:\t4c 8d 05 78 c2 99 00                            \tlea    r8,[rip+0x99c278]        # 0x140b91fa8"
+    ]
+  },
+  {
+    "address": "0x140b91fc8",
+    "string": "Southeast region of a dormant volcano.",
+    "refs": [
+      "1401f5d74:\t4c 8d 05 4d c2 99 00                            \tlea    r8,[rip+0x99c24d]        # 0x140b91fc8"
+    ]
+  },
+  {
+    "address": "0x140b92000",
+    "string": "Volcano Southeast",
+    "refs": [
+      "1401f5d5b:\t4c 8d 05 9e c2 99 00                            \tlea    r8,[rip+0x99c29e]        # 0x140b92000"
+    ]
+  },
+  {
+    "address": "0x140b94500",
+    "string": "spawnTsunami",
+    "refs": [
+      "14059ac93:\t48 8d 05 66 98 5f 00                            \tlea    rax,[rip+0x5f9866]        # 0x140b94500",
+      "1405a4232:\t48 8d 15 c7 02 5f 00                            \tlea    rdx,[rip+0x5f02c7]        # 0x140b94500",
+      "1405a4305:\t48 8d 15 f4 01 5f 00                            \tlea    rdx,[rip+0x5f01f4]        # 0x140b94500"
+    ]
+  },
+  {
+    "address": "0x140b946f0",
+    "string": "spawnWhirlpool",
+    "refs": [
+      "14059acaf:\t48 8d 05 3a 9a 5f 00                            \tlea    rax,[rip+0x5f9a3a]        # 0x140b946f0",
+      "1405a4412:\t48 8d 15 d7 02 5f 00                            \tlea    rdx,[rip+0x5f02d7]        # 0x140b946f0",
+      "1405a44e5:\t48 8d 15 04 02 5f 00                            \tlea    rdx,[rip+0x5f0204]        # 0x140b946f0"
+    ]
+  },
+  {
+    "address": "0x140b947d0",
+    "string": "spawnMeteor",
+    "refs": [
+      "14059ad03:\t48 8d 05 c6 9a 5f 00                            \tlea    rax,[rip+0x5f9ac6]        # 0x140b947d0",
+      "1405a4e12:\t48 8d 15 b7 f9 5e 00                            \tlea    rdx,[rip+0x5ef9b7]        # 0x140b947d0",
+      "1405a4f10:\t48 8d 15 b9 f8 5e 00                            \tlea    rdx,[rip+0x5ef8b9]        # 0x140b947d0"
+    ]
+  },
+  {
+    "address": "0x140b947f0",
+    "string": "spawnTornado",
+    "refs": [
+      "14059ace7:\t48 8d 05 02 9b 5f 00                            \tlea    rax,[rip+0x5f9b02]        # 0x140b947f0",
+      "1405a4762:\t48 8d 15 87 00 5f 00                            \tlea    rdx,[rip+0x5f0087]        # 0x140b947f0",
+      "1405a4807:\t48 8d 15 e2 ff 5e 00                            \tlea    rdx,[rip+0x5effe2]        # 0x140b947f0"
+    ]
+  },
+  {
+    "address": "0x140b94810",
+    "string": "spawnVolcano",
+    "refs": [
+      "14059ad3b:\t48 8d 05 ce 9a 5f 00                            \tlea    rax,[rip+0x5f9ace]        # 0x140b94810",
+      "1405a4912:\t48 8d 15 f7 fe 5e 00                            \tlea    rdx,[rip+0x5efef7]        # 0x140b94810",
+      "1405a49b7:\t48 8d 15 52 fe 5e 00                            \tlea    rdx,[rip+0x5efe52]        # 0x140b94810"
+    ]
+  },
+  {
+    "address": "0x140b94830",
+    "string": "spawnMeteorShower",
+    "refs": [
+      "14059ad1f:\t48 8d 05 0a 9b 5f 00                            \tlea    rax,[rip+0x5f9b0a]        # 0x140b94830",
+      "1405a4c12:\t48 8d 15 17 fc 5e 00                            \tlea    rdx,[rip+0x5efc17]        # 0x140b94830",
+      "1405a4d10:\t48 8d 15 19 fb 5e 00                            \tlea    rdx,[rip+0x5efb19]        # 0x140b94830"
+    ]
+  },
+  {
+    "address": "0x140b948f0",
+    "string": "getVolcanos",
+    "refs": [
+      "14059ad57:\t48 8d 05 92 9b 5f 00                            \tlea    rax,[rip+0x5f9b92]        # 0x140b948f0",
+      "1405a4aad:\t48 8d 15 3c fe 5e 00                            \tlea    rdx,[rip+0x5efe3c]        # 0x140b948f0",
+      "1405a4b2e:\t48 8d 15 bb fd 5e 00                            \tlea    rdx,[rip+0x5efdbb]        # 0x140b948f0"
+    ]
+  },
+  {
+    "address": "0x140b96d40",
+    "string": "onWhirlpool",
+    "refs": [
+      "1405d2795:\t48 8d 15 a4 45 5c 00                            \tlea    rdx,[rip+0x5c45a4]        # 0x140b96d40",
+      "1405d27fe:\t48 8d 15 3b 45 5c 00                            \tlea    rdx,[rip+0x5c453b]        # 0x140b96d40"
+    ]
+  },
+  {
+    "address": "0x140b96e18",
+    "string": "onTsunami",
+    "refs": [
+      "1405d25b5:\t48 8d 15 5c 48 5c 00                            \tlea    rdx,[rip+0x5c485c]        # 0x140b96e18",
+      "1405d261e:\t48 8d 15 f3 47 5c 00                            \tlea    rdx,[rip+0x5c47f3]        # 0x140b96e18"
+    ]
+  },
+  {
+    "address": "0x140b96e38",
+    "string": "onTornado",
+    "refs": [
+      "1405d2b2b:\t48 8d 15 06 43 5c 00                            \tlea    rdx,[rip+0x5c4306]        # 0x140b96e38",
+      "1405d2b94:\t48 8d 15 9d 42 5c 00                            \tlea    rdx,[rip+0x5c429d]        # 0x140b96e38"
+    ]
+  },
+  {
+    "address": "0x140b96e80",
+    "string": "onMeteor",
+    "refs": [
+      "1405d2975:\t48 8d 15 04 45 5c 00                            \tlea    rdx,[rip+0x5c4504]        # 0x140b96e80",
+      "1405d29de:\t48 8d 15 9b 44 5c 00                            \tlea    rdx,[rip+0x5c449b]        # 0x140b96e80"
+    ]
+  },
+  {
+    "address": "0x140b96f58",
+    "string": "onVolcano",
+    "refs": [
+      "1405d2cdb:\t48 8d 15 76 42 5c 00                            \tlea    rdx,[rip+0x5c4276]        # 0x140b96f58",
+      "1405d2d44:\t48 8d 15 0d 42 5c 00                            \tlea    rdx,[rip+0x5c420d]        # 0x140b96f58"
+    ]
+  },
+  {
+    "address": "0x140b9c008",
+    "string": "volcano_manager",
+    "refs": [
+      "1409251de:\t48 8d 35 23 6e 27 00                            \tlea    rsi,[rip+0x276e23]        # 0x140b9c008"
+    ]
+  },
+  {
+    "address": "0x140ba5160",
+    "string": "Called when a tornado is spawned.",
+    "refs": [
+      "14064d0f5:\t48 8d 15 64 80 55 00                            \tlea    rdx,[rip+0x558064]        # 0x140ba5160"
+    ]
+  },
+  {
+    "address": "0x140ba51f0",
+    "string": "Called when a meteor is spawned.",
+    "refs": [
+      "14064d20d:\t48 8d 15 dc 7f 55 00                            \tlea    rdx,[rip+0x557fdc]        # 0x140ba51f0"
+    ]
+  },
+  {
+    "address": "0x140ba5220",
+    "string": "function onTornado(transform)",
+    "refs": [
+      "14064d159:\t48 8d 15 c0 80 55 00                            \tlea    rdx,[rip+0x5580c0]        # 0x140ba5220"
+    ]
+  },
+  {
+    "address": "0x140ba5248",
+    "string": "Called when a tsunami is spawned.",
+    "refs": [
+      "14064d325:\t48 8d 15 1c 7f 55 00                            \tlea    rdx,[rip+0x557f1c]        # 0x140ba5248"
+    ]
+  },
+  {
+    "address": "0x140ba5278",
+    "string": "function onMeteor(transform, magnitude)",
+    "refs": [
+      "14064d271:\t48 8d 15 00 80 55 00                            \tlea    rdx,[rip+0x558000]        # 0x140ba5278"
+    ]
+  },
+  {
+    "address": "0x140ba53e8",
+    "string": "Called when a whirlpool is spawned.",
+    "refs": [
+      "14064d43d:\t48 8d 15 a4 7f 55 00                            \tlea    rdx,[rip+0x557fa4]        # 0x140ba53e8"
+    ]
+  },
+  {
+    "address": "0x140ba5418",
+    "string": "function onTsunami(transform, magnitude)",
+    "refs": [
+      "14064d389:\t48 8d 15 88 80 55 00                            \tlea    rdx,[rip+0x558088]        # 0x140ba5418"
+    ]
+  },
+  {
+    "address": "0x140ba55a0",
+    "string": "Called when a volcano is triggered.",
+    "refs": [
+      "14064d555:\t48 8d 15 44 80 55 00                            \tlea    rdx,[rip+0x558044]        # 0x140ba55a0"
+    ]
+  },
+  {
+    "address": "0x140ba55d8",
+    "string": "function onWhirlpool(transform, magnitude)",
+    "refs": [
+      "14064d4a1:\t48 8d 15 30 81 55 00                            \tlea    rdx,[rip+0x558130]        # 0x140ba55d8"
+    ]
+  },
+  {
+    "address": "0x140ba56e0",
+    "string": "function onVolcano(transform)",
+    "refs": [
+      "14064d5b9:\t48 8d 15 20 81 55 00                            \tlea    rdx,[rip+0x558120]        # 0x140ba56e0"
+    ]
+  },
+  {
+    "address": "0x140ba8bf0",
+    "string": "Spawn Tsunami",
+    "refs": [
+      "1401fae69:\t4c 8d 05 80 dd 9a 00                            \tlea    r8,[rip+0x9add80]        # 0x140ba8bf0"
+    ]
+  },
+  {
+    "address": "0x140ba8d28",
+    "string": "Cancel Tsunami",
+    "refs": [
+      "1401fae82:\t4c 8d 05 9f de 9a 00                            \tlea    r8,[rip+0x9ade9f]        # 0x140ba8d28"
+    ]
+  },
+  {
+    "address": "0x140ccd9e0",
+    "string": ".?AUc_server_to_client_event_meteor_impact@@",
+    "refs": []
+  },
+  {
+    "address": "0x140ccf290",
+    "string": ".?AUc_event_game_to_logic_spawn_meteor@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cd6028",
+    "string": ".?AUc_material_tornado@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cd6eb0",
+    "string": ".?AUc_client_to_server_request_spawn_meteor@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cd7230",
+    "string": ".?AUc_client_to_server_request_despawn_tornado@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cd76c0",
+    "string": ".?AUc_server_to_client_event_spawn_tornado@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cd7750",
+    "string": ".?AUc_client_to_server_request_spawn_whirlpool@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cd9ad8",
+    "string": ".?AUc_server_to_client_event_despawn_tornado@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cd9fc0",
+    "string": ".?AUc_scene_object_volcano_marker@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cdbbf0",
+    "string": ".?AUc_client_to_server_request_spawn_tornado@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cdc248",
+    "string": ".?AUc_event_game_to_logic_spawn_whirlpool@@",
+    "refs": []
+  },
+  {
+    "address": "0x140cddcc8",
+    "string": ".?AUc_event_game_to_logic_spawn_tornado@@",
+    "refs": []
+  },
+  {
+    "address": "0x140ce13d8",
+    "string": ".?AUc_server_to_client_event_spawn_meteor@@",
+    "refs": []
+  }
+]

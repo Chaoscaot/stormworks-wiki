@@ -1,0 +1,25 @@
+rom/data/missions/default_natural_disasters/script.lua:13:    server.spawnTsunami(transform, 0.1)
+rom/data/missions/default_natural_disasters/script.lua:16:local function SpawnTornado(transform)
+rom/data/missions/default_natural_disasters/script.lua:17:    server.spawnTornado(transform)
+rom/data/missions/default_natural_disasters/script.lua:20:local function SpawnWhirlpool(transform)
+rom/data/missions/default_natural_disasters/script.lua:21:    server.spawnWhirlpool(transform, 1)
+rom/data/missions/default_natural_disasters/script.lua:24:local function SpawnTsunami(transform)
+rom/data/missions/default_natural_disasters/script.lua:25:    server.spawnTsunami(transform, 0.9)
+rom/data/missions/default_natural_disasters/script.lua:28:local function SpawnMeteor(transform)
+rom/data/missions/default_natural_disasters/script.lua:29:    server.spawnMeteorShower(transform, 1, true)
+rom/data/missions/default_natural_disasters/script.lua:32:local function SpawnVolcano(transform)
+rom/data/missions/default_natural_disasters/script.lua:47:        server.spawnVolcano(matrix.translation(closest_volcano.x, 0, closest_volcano.z))
+rom/data/missions/default_natural_disasters/script.lua:55:        = { probability = 200/1000, spawn = SpawnTornado },
+rom/data/missions/default_natural_disasters/script.lua:57:        = { probability = 100/1000, spawn = SpawnWhirlpool },
+rom/data/missions/default_natural_disasters/script.lua:59:        = { probability = 100/1000, spawn = SpawnTsunami },
+rom/data/missions/default_natural_disasters/script.lua:61:        = { probability = 50/1000, spawn = SpawnMeteor },
+rom/data/missions/default_natural_disasters/script.lua:63:        = { probability = 50/1000, spawn = SpawnVolcano },
+rom/data/missions/default_forest_fire_missions/script.lua:3:function onForestFireExtinguished(objective_id, x, y, z)
+rom/data/missions/default_forest_fire_missions/script.lua:11:function onForestFireSpawned(objective_id, x, y, z)
+rom/data/missions/default_forest_fire_missions/script.lua:13:    server.notify(-1, "New Forest Fire", "The location has been marked on your map.", 0)
+rom/data/missions/default_forest_fire_missions/script.lua:17:    g_savedata.missions[objective_id + 1].title = "Forest Fire"
+rom/data/missions/default_mission_locations/script.lua:3021:				server.spawnTornado(offset_spawn)
+rom/data/missions/default_mission_locations/script.lua:3025:					server.spawnWhirlpool(ocean, 1)
+rom/data/missions/default_mission_locations/script.lua:3030:					server.spawnTsunami(disaster.transform, 1)
+rom/data/missions/default_mission_locations/script.lua:3033:				server.spawnMeteorShower(offset_spawn, 1, true)
+rom/data/missions/default_mission_locations/script.lua:3037:					server.spawnVolcano(matrix.translation(closest_volcano.x, 0, closest_volcano.z))

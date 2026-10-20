@@ -43,6 +43,15 @@ COMPOSITE_DATA = 'investigation/native/composite/composite.json'
 WEATHER = 'investigation/weather.md'
 LEFTOVERS = 'investigation/leftovers.md'
 WEATHER_EXAMPLES = 'investigation/native/weather/tools/examples.json'
+HAZARDS = 'investigation/hazards.md'
+HAZARD_SUMS = 'investigation/native/hazards/SHA256SUMS'
+NATURAL = 'rom/data/missions/default_natural_disasters/script.lua'
+LOCATIONS = 'rom/data/missions/default_mission_locations/script.lua'
+FIRE = 'rom/data/missions/default_forest_fire_missions/script.lua'
+# Shipped addon scripts and the copies the hazard decode retained, whose line numbers it cites.
+HAZARD_LUA = {NATURAL: 'investigation/native/hazards/tools/default_natural_disasters.lua',
+              LOCATIONS: 'investigation/native/hazards/tools/default_mission_locations.lua',
+              FIRE: 'investigation/native/hazards/tools/default_forest_fire_missions.lua'}
 # Every direct call to the surrounding-temperature routine 0x14030fd60, with the weather flag byte it
 # stores at [rsp+0x38] (the routine's eighth argument, forwarded to the air sampler).
 AMBIENT_CALLS = {0x14034ce9d: 1, 0x1403c82d3: 1, 0x1403f3977: 1, 0x1403f3c23: 1, 0x1403f4cd8: 1, 0x1403f500f: 1, 0x14040d3e6: 1,
@@ -605,6 +614,117 @@ def lua(label, val, detail, path, needle, end=None, status='observed'):
     return finding(label, val, detail, cite(path, needle, end), status)
 
 
+def hazards():
+    """Natural disaster spawning from the shipped addons and hazard bounds from the hazard decode, re-read from the executable."""
+    if not (ROOT / HAZARDS).is_file():
+        raise ValueError(f'Hazard report missing: {HAZARDS}')
+    sums = dict(reversed(line.split('  ', 1)) for line in (ROOT / HAZARD_SUMS).read_text().splitlines())
+    for path, copy in HAZARD_LUA.items():
+        read(path)
+        if CACHE[path][1] != sums[copy]:
+            raise ValueError(f'{path} differs from the copy the hazard decode cites ({copy})')
+    r = HAZARDS
+    spawning = [
+        lua('Natural addon: frequency', '1 to 60 min, default 15; a new save starts at 54000',
+            'doomsday_frequency is the slider value × 60 × 60 onTick calls. A new save starts the countdown at 15 × 60 × 60 = 54000 calls whatever the slider says; a loaded save keeps its own value.',
+            NATURAL, 'doomsday_frequency = property.slider', 'doomsday_countdown = 15 * 60 * 60,'),
+        lua('Natural addon: countdown', 'minus 1 per onTick call',
+            'onTick ignores its tick_time argument. At 0 the countdown resets to the frequency and the addon tries one event, whether or not one is chosen. Minutes assume 60 calls per second.',
+            NATURAL, 'function onTick(tick_time)', 'spawnEvent(name, event)'),
+        lua('Natural addon: date gate', 'event only if random < D, D = min(1, (date − 20) ÷ 60)',
+            'With no_clip on, D = 1. D ≤ 0 accepts nothing, so with no_clip off no natural disaster spawns before date value 20 (inference: the date value counts in-game days). No weather, rain or wind test appears in this addon.',
+            NATURAL, 'function getDifficulty()', 'return nil, nil'),
+        lua('Natural addon: event weights', {'large wave': 0.5, 'tornado': 0.2, 'whirlpool': 0.1, 'tsunami': 0.1, 'meteor shower': 0.05, 'volcano': 0.05},
+            'Probabilities 500/1000, 200/1000, 100/1000, 100/1000, 50/1000 and 50/1000. A second draw walks the table with a running sum; the weights sum to 1, so the pairs order does not change each event\'s share of accepted attempts.',
+            NATURAL, 'local events = {', 'spawn = SpawnVolcano },'),
+        lua('Natural addon: spawn calls', {'large wave': 'spawnTsunami(transform, 0.1)', 'tornado': 'spawnTornado(transform)', 'whirlpool': 'spawnWhirlpool(transform, 1)',
+                                           'tsunami': 'spawnTsunami(transform, 0.9)', 'meteor shower': 'spawnMeteorShower(transform, 1, true)'},
+            'The large wave is a tsunami request with magnitude 0.1.', NATURAL, 'local function SpawnWave(transform)', 'server.spawnMeteorShower(transform, 1, true)'),
+        lua('Natural addon: volcano', 'nearest volcano from getVolcanos()', 'Erupts the volcano nearest the request position, and nothing when the list is empty.',
+            NATURAL, 'local function SpawnVolcano(transform)', 'server.spawnVolcano(matrix.translation(closest_volcano.x, 0, closest_volcano.z))'),
+        lua('Natural addon: spawn position', '5000 m from player 0 at a random angle', 'A spawn distance, not a safe distance.',
+            NATURAL, 'function getSpawnTransform()', 'return matrix.multiply(transform, matrix.translation(x, 0, z))'),
+        lua('Mission addon: disaster switch', 'Natural Disaster Missions, default on', 'Independent of the natural addon\'s frequency slider.',
+            LOCATIONS, 'enable_disasters = property.checkbox("Natural Disaster Missions", true)'),
+        lua('Mission addon: selection', {'volcano': '0.1 + 0.7 × D, nearest volcano < 2000 m', 'meteor': '0.1 + 0.3 × D', 'whirlpool': '0.1 + 0.3 × D, empty tile name',
+                                         'tsunami': '0.1 + 0.3 × D', 'tornado': '0.1 + 0.9 × D, wind > 70'},
+            'Fresh draws in this order, each tried only if every earlier one failed. Nothing is chosen with the switch off or while a disaster is pending. An empty tile name marks open ocean (inference). The chances apply per mission evaluation, not per minute.',
+            LOCATIONS, 'function getIncomingDisaster(transform)', 'return "tornado"'),
+        lua('Mission addon: difficulty', 'D = min(1, date ÷ 60)', 'With no_clip on, D = 1. Unlike the natural addon there is no 20-day offset.',
+            LOCATIONS, 'local mission_difficulty_factor = 1', 'mission_difficulty_factor = math.min(1, server.getDateValue() / 60)'),
+        lua('Mission addon: delay', '60 × 60 × random(30, 60) onTick calls', 'Set when the disaster is chosen: 30 to 60 minutes at 60 calls per second.',
+            LOCATIONS, 'countdown = 60 * 60 * math.random(30, 60),'),
+        lua('Mission addon: countdown', 'minus 1 per onTick call, spawn at exactly 0', 'tickDisasters runs once per onTick and does not use delta_worldtime, unlike the mission counter.',
+            LOCATIONS, 'function tickDisasters()', 'if disaster.countdown == 0 then'),
+        lua('Mission addon: spawn calls', {'tornado': 'spawnTornado 1500 to 2500 m from the mission', 'whirlpool': 'spawnWhirlpool(ocean, 1) if getOceanTransform(transform, 1000, 5000) succeeds',
+                                           'tsunami': 'spawnTsunami(mission transform, 1) if getOceanTransform(transform, 4000, 8000) succeeds',
+                                           'meteor': 'spawnMeteorShower(offset, 1, true) 1500 to 2500 m from the mission', 'volcano': 'nearest volcano'},
+            'The tsunami test finds an ocean point but the call passes the mission transform. The offset is 1500 + 1000 × random metres. The volcano is looked up again at spawn time.',
+            LOCATIONS, 'local radius_offset = 1500 + (1000 * math.random())', 'server.spawnVolcano(matrix.translation(closest_volcano.x, 0, closest_volcano.z))'),
+        lua('Forest fire addon', 'onForestFireSpawned, onForestFireExtinguished',
+            'Notifies players and adds a map zone of 4000 × random(25, 100) ÷ 100 m radius when the game reports a fire, and removes it when the fire is out. Nothing in it starts a fire.',
+            FIRE, 'function onForestFireExtinguished', 'g_savedata.missions[objective_id + 1].data.zone_radius = 4000 * (math.random(25, 100) / 100)'),
+    ]
+    tornado = [
+        native('Tornado defaults', 'outer wind radius 3000 m, strength 1, lifetime 180',
+               'The pool-entry initializer writes R = 3000 at +0x4c (a QWORD whose low float is 3000), S = 1 at +0x44 (0x1408cbeca), lifetime 180 at +0x40 (0x1408cbec3) and core scales 10 and 30 (0x1408cbf10, 0x1408cbf17). '
+               'The far-field wind is 0 at 3000 m or more horizontally from the tornado top. These are fresh-spawn values; a loaded save can restore others.',
+               '0x1408cbed2', '48 c7 41 4c 00 80 3b 45', report=r,
+               literals={'0x1408cbeca': '48 c7 41 44 00 00 80 3f', '0x1408cbec3': 'c7 41 40 00 00 34 43', '0x1408cbf10': 'c7 41 30 00 00 20 41', '0x1408cbf17': 'c7 41 34 00 00 f0 41'}),
+        native('Tornado spawn path', 'spawnTornado → event 111 → 0x1402c0610',
+               'The script operator 0x140726be0 sends network event 111. Its handler 0x14077d580, called at 0x14085f6d7, raycasts the spawn height and calls the initializer 0x1402c0610, which takes a pool entry at 0x1402c062e. '
+               'The only direct call to 0x1402c0610 is at 0x14077d675.',
+               '0x14085f6d7', 'e8 a4 de f1 ff', report=r, literals={'0x14077d675': 'e8 96 2f b4 ff', '0x1402c062e': 'e8 1d b8 60 00'}),
+        native('Tornado damage request', '2500 × S per request',
+               'With the vehicle_damage setting on (test at 0x1402bdb50), each pass of the tornado update\'s damage branch picks two points near the lower column and enqueues one damage raycast request (type 99, written at 0x1402bdecd and 0x1402bdf3c, enqueued at 0x1402bdfaf) carrying 2500 × S. '
+               'A fresh tornado has S = 1, so 2500.',
+               '0x1402bdea2', 'f3 44 0f 59 05 d1 29 8f 00', report=r,
+               literals={'0x140bb087c': '00 40 1c 45', '0x1402bdb50': '80 78 4a 00', '0x1402bdecd': '48 c7 40 08 63 00 00 00', '0x1402bdf3c': '48 c7 40 08 63 00 00 00', '0x1402bdfaf': 'e8 dc 68 f7 ff'}),
+        native('Server damage raycast', 'record amount and min(amount ÷ 2000, 4)',
+               'The server handler 0x1408581ae raycasts the request segment (0x140858218), drops misses and unavailable hits, and queues a local damage record holding the amount at +0x10 (0x1408582b9) and min(amount ÷ 2000, 4) at +0xc. '
+               'At S = 1 that scalar is 1.25. The request damages what the segment hits, not everything inside the wind radius.',
+               '0x1408582be', 'f3 0f 5e 05 ae 85 35 00', report=r,
+               literals={'0x140bb0874': '00 00 fa 44', '0x1408582c6': 'f3 0f 10 0d ba 81 35 00', '0x140bb0488': '00 00 80 40', '0x140858218': 'e8 43 bf 94 ff', '0x1408582b4': 'f3 0f 10 46 40', '0x1408582b9': 'f3 0f 11 40 10'}),
+    ]
+    ocean = [
+        native('Whirlpool reach', 'current 0 at r ≥ 200π ≈ 628.32 m; centre terms 0 at r ≥ 100π ≈ 314.16 m',
+               'Event type 1 of the water sampler compares 0.5 × 0.01 × r with π (0x1402bbf7f) before the current and 0.01 × r with π (0x1402bc25e) before the surface drop and downward term. '
+               'The hazard current is also 0 at 100 m or more below the depressed surface.',
+               '0x1402bbf7f', '0f 2f c8', report=r,
+               literals={'0x1402bbf77': 'f3 0f 10 0d 31 44 8f 00', '0x140bb03b0': 'db 0f 49 40', '0x1402bbf4d': 'f3 0f 59 15 03 3a 8f 00', '0x1402bbf30': 'f3 0f 10 3d 84 3d 8f 00',
+                         '0x140bafcbc': '00 00 00 3f', '0x1402bc256': 'f3 0f 10 0d 52 41 8f 00', '0x1402bc25e': '0f 2f c8'}),
+        native('Tsunami band', 'nothing unless abs(q) < 3.04159283638, q = 0.01 × r − 0.2 × A ÷ 60',
+               'Event type 0 of the water sampler 0x1402bbbb0. r is the horizontal distance from the event and A the ocean counter minus the event start (0x1402bbd4d). '
+               'Outside the band the event adds no height and no current. The band is centred on r = A ÷ 3 and spans about 304.16 m either side; at a nominal 60 counter steps per second it moves outward at 20 m/s (inference, no timing was measured).',
+               '0x1402bbd85', '44 0f 2f 1d ff 50 8f 00', report=r,
+               literals={'0x140bb0e8c': '75 a9 42 c0', '0x1402bbd9b': '41 0f 2f c3', '0x140bb0394': '75 a9 42 40', '0x1402bbd4d': '2b 86 d8 3b 0b 00', '0x1402bbd67': 'f3 0f 5e 05 f1 49 8f 00',
+                         '0x140bb0760': '00 00 70 42', '0x1402bbd6f': 'f3 44 0f 59 1d e0 3b 8f 00', '0x140baf958': '0a d7 23 3c', '0x1402bbd78': 'f3 0f 59 05 f0 3d 8f 00', '0x140bafb70': 'cd cc 4c 3e'}),
+        native('Tsunami height and current', 'H = 100 × M × (1 ÷ (q² + 1) − 0.1); F = 12 × (1 + cos φ) × (e.x, clamp(10 × q, −1, 1), e.z)',
+               'M is the event magnitude and e the outward horizontal direction. F fades from full strength at the raised surface H to 0 at 100 m below it (subtract 100 at 0x1402bbe92, divide by 100 at 0x1402bbee4). '
+               'M scales H but does not multiply F directly. F is a native current vector, not a force; ordinary waves are added afterwards.',
+               '0x1402bbe32', 'f3 0f 5e ca', report=r,
+               literals={'0x1402bbe36': 'f3 0f 5c 0d 92 3c 8f 00', '0x140bafad0': 'cd cc cc 3d', '0x1402bbe45': 'f2 44 0f 59 15 a2 45 8f 00', '0x140bb03f0': '00 00 00 00 00 00 59 40',
+                         '0x1402bbe5a': 'f2 44 0f 59 d1', '0x1402bbe85': 'f3 0f 10 05 d7 47 8f 00', '0x140bb0664': '00 00 40 41', '0x1402bbe24': 'f3 44 0f 59 1d 1f 48 8f 00', '0x140bb064c': '00 00 20 41',
+                         '0x1402bbe92': 'f3 0f 5c 0d f6 48 8f 00', '0x1402bbee4': 'f3 0f 5e 1d a4 48 8f 00', '0x140bb0790': '00 00 c8 42'}),
+        native('Tsunami phase table', '512 entries solving φ − 0.8 × sin φ = target',
+               'The initializer fills φ for target = 2π × j ÷ 512 − π, j = 0 to 511, iterating φ += 0.2 × (target − value) until within 0.00001 (sine calls at 0x1402ba3b3 and 0x1402ba3f3). The sampler interpolates φ linearly between entries.',
+               '0x1402ba415', 'f3 0f 11 37', report=r, literals={'0x1402ba3b3': 'e8 68 c8 71 00', '0x1402ba3f3': 'e8 28 c8 71 00'}),
+        native('Tsunami crest examples', 'H = 90 × M at q = 0: 9 m, 81 m and 90 m',
+               'From the height equation at the band centre, before ordinary waves: 9 m for the natural addon\'s large wave (0.1), 81 m for its tsunami (0.9) and 90 m for the mission tsunami (1). '
+               'This assumes M reaches the requested magnitude (inference); no wave was measured.',
+               '0x1402bbe5a', 'f2 44 0f 59 d1', status='inferred', report=r),
+        native('Lightning pulse reach', '800 counts, 100 m inner radius, 0 at 300 m',
+               'The weather update passes strength 800, inner radius 100 m and outer radius 300 m to the scene event 116 (EMP) constructor (call at 0x1405e2732). That the strike is lightning is an inference from the weather-update ownership. '
+               'The pulse interferes with electrics; it is not an HP-damage equation.',
+               '0x1405e2728', '41 b8 20 03 00 00', report=LEFTOVERS, literals={'0x1405e2732': 'e8 69 a9 c4 ff', '0x140bb0790': '00 00 c8 42', '0x140bb07f8': '00 00 96 43'}),
+        native('Hazard wind and current on vehicles', 'relative-velocity input, not a force',
+               'The vehicle update 0x1404bab00 samples the weather wind, tornado wind included (0x1404bad1e), scales it by 1 minus a position factor from 0x1402c10e0 and passes it to the surface context builder (0x1404baded). '
+               'The air callback 0x14048e2d0 subtracts it from each surface point\'s velocity. The surface traversal also calls the water sampler (0x14048bf6e) for current.',
+               '0x1404bad1e', 'e8 0d 6b e0 ff', report=r, literals={'0x1404baded': 'e8 1e f8 fc ff', '0x14048bf6e': 'e8 3d fc e2 ff'}),
+    ]
+    return dict(spawning=spawning, tornado=tornado, ocean=ocean)
+
+
 def build_articles():
     static_limit = 'These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.'
     sdk_limit = 'SDK comments describe defaults and editable SDK attributes. Neither proves the active binary uses that value.'
@@ -836,10 +956,12 @@ def build_articles():
              lua('Expiration', {'loaded':'timer > life','unloaded':'timer / life > 0.5'}, 'Timer increments by delta_worldtime for STATE_DEFAULT packages.', CARGO, 'cargo_package_object.timer = cargo_package_object.timer + delta_worldtime', 'if cargo_package_object.timer / cargo_package_object.life > 0.5 then')],
             [lua_limit, 'Package probability and terminal eligibility are configured elsewhere. No claim is made that every cargo addon uses these rules or that source expressions prove wall-clock timing.'])
     wx = weather_native()
+    hz = hazards()
     keys = wx['hours']
     article('environment-hazards', 'Weather temperature, lighting and hazards', 'Environment',
             'Parts sample a weather temperature that blends air and water by depth: air follows a warmth fraction from world Z, scrolling weather textures, month and time of day, minus rain cooling and 6.5 °C per 1000 m of height. '
-            'The native lighting table and the tornado and whirlpool vectors are decoded; the realtime environment file\'s hour markers and force terms are not what the game uses.',
+            'The native lighting table and the tornado, whirlpool and tsunami vectors are decoded; the realtime environment file\'s hour markers and force terms are not what the game uses. '
+            'Two shipped addons spawn natural disasters, and each hazard has a decoded reach or an open item.',
             'Every part that samples its surroundings outside an enclosed compartment (heat exchangers, radiators, engines, fluid tanks, steam and nuclear parts) uses one weather routine. '
             'It blends an air temperature Ta and a water temperature Tw by f = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so the sample is pure air from 0.25 m above the surface and pure water from 23.75 m below it.'
             '\n\n'
@@ -881,14 +1003,52 @@ def build_articles():
             'Whirlpool: for horizontal distance r from the centre and z = r ÷ 100, the current inside r < 200π is 50 × M × g × (n + tangent), with h = 0.33 ÷ (z² + 0.33) − 0.033, n the normalized vector (−e.x, −h, −e.z) and g = sin(1 ÷ ((z ÷ 2)² + 0.35)) − 0.1. '
             'Inside r < 100π the surface drops by 100 × M × h metres and a narrow downward term 500 × M × (0.01 ÷ (z² + 0.01) − 0.001) is added. The whole vector fades linearly from full strength at the depressed surface to 0 at 100 m below it. '
             'The environment file\'s whirlpool forces, 400 vertical, 60 radial and 50 tangential, are not these coefficients. '
-            'These vectors are wind and current in native units, not forces on a vehicle: what a hull feels depends on the code that consumes them, its shape and its relative motion.',
+            'These vectors are wind and current in native units, not forces on a vehicle: what a hull feels depends on the code that consumes them, its shape and its relative motion.'
+            '\n\n'
+            'Natural disasters: two shipped addons spawn them. The natural disaster addon lowers a countdown by 1 per onTick call; a slider sets it from 1 to 60 minutes, default 15, and a new save starts at 54000 calls, 15 minutes at 60 calls per second. '
+            'At 0 it resets and accepts an event with chance D = min(1, (date − 20) ÷ 60), or always with no_clip on, so with no_clip off nothing spawns before date value 20 (inference: the date value counts in-game days). '
+            'An accepted event is a large wave with weight 0.5, a tornado 0.2, a whirlpool 0.1, a tsunami 0.1, a meteor shower 0.05 or a volcano 0.05, placed 5000 m from player 0 at a random angle; a volcano event erupts the nearest volcano instead. '
+            'This addon tests no weather, rain or wind.'
+            '\n\n'
+            'The mission addon chooses a disaster when it creates a mission, if its Natural Disaster Missions switch is on (the default) and no disaster is pending. With D = min(1, date ÷ 60) it tries, in order and each only if every earlier draw failed: '
+            'volcano with chance 0.1 + 0.7 × D if a volcano is within 2000 m, meteor 0.1 + 0.3 × D, whirlpool 0.1 + 0.3 × D on a tile with an empty name (open ocean, inference), tsunami 0.1 + 0.3 × D, and tornado 0.1 + 0.9 × D if the wind there exceeds 70. '
+            'The disaster spawns 60 × 60 × random(30, 60) onTick calls later, 30 to 60 minutes at 60 calls per second. Tornado and meteor spawn 1500 to 2500 m from the mission; the tsunami spawns at the mission position itself once an ocean point 4000 to 8000 m away is found. '
+            'Neither addon starts forest fires: the fire addon only marks fires the game reports.'
+            '\n\n'
+            'Table: Hazard spawning, reach and damage\n'
+            '| Hazard | Natural addon | Mission addon | Direct reach | Damage | Still open |\n'
+            '| --- | --- | --- | --- | --- | --- |\n'
+            '| Large wave | weight 0.5, tsunami of magnitude 0.1 | none | the tsunami band | none in the water sampler | vehicle and character damage |\n'
+            '| Tornado | weight 0.2 | 0.1 + 0.9 × D, wind above 70 | wind 0 from 3000 m off the top (fresh spawn) | raycast request of 2500 × S | final component and character damage |\n'
+            '| Whirlpool | weight 0.1, magnitude 1 | 0.1 + 0.3 × D, ocean tile | current 0 from 200π ≈ 628.32 m | none in the water sampler | collision, flooding and drowning damage |\n'
+            '| Tsunami | weight 0.1, magnitude 0.9 | 0.1 + 0.3 × D, magnitude 1 | 0 unless abs(q) < 3.04159283638 | none in the water sampler | collision, flooding and drowning damage |\n'
+            '| Meteor shower | weight 0.05 | 0.1 + 0.3 × D | open | open | impact, blast and the secondary tsunami |\n'
+            '| Volcano | weight 0.05, nearest volcano | 0.1 + 0.7 × D within 2000 m | open | open | lava, projectiles and heat |\n'
+            '| Lightning EMP | from the weather update | none | 0 from 300 m | electrical interference, not HP | other effects of a strike |\n'
+            '| Forest fire | none | marker only | open | open | ignition, spread, heat and damage |'
+            '\n\n'
+            'Tornado damage: with vehicle_damage on, each pass of the tornado\'s damage branch picks two points near the lower column and sends one damage raycast request carrying 2500 × S, 2500 for a fresh tornado with S = 1. '
+            'The server raycasts that segment, drops misses, and queues a damage record holding the amount and min(amount ÷ 2000, 4), which is 1.25 at S = 1. '
+            'The damage lands on what the segment hits; it is not 2500 HP per update and not damage to everything inside 3000 m. How the record becomes component or character damage is still open.'
+            '\n\n'
+            'Tsunami and large wave: both use event type 0 of the water sampler. With r the horizontal distance from the event and A its age in ocean counter steps, q = 0.01 × r − 0.2 × A ÷ 60, and the event adds nothing unless abs(q) < 3.04159283638. '
+            'That is a ring about 304.16 m either side of r = A ÷ 3, moving outward at 20 m/s if the counter runs 60 steps per second (inference). '
+            'Inside it the surface rises by H = 100 × M × (1 ÷ (q² + 1) − 0.1) and the current is 12 × (1 + cos φ) × (e.x, clamp(10 × q, −1, 1), e.z), with φ from a 512-entry table that solves φ − 0.8 × sin φ = target. The current fades to 0 at 100 m below the raised surface. '
+            'At q = 0, H = 90 × M: a 9 m crest for the large wave, 81 m for the natural tsunami and 90 m for the mission tsunami, if M reaches the requested magnitude (inference). '
+            'No radius is safe at every age: a point the ring has passed gets nothing more from this event, and a point ahead of it is still to be reached.'
+            '\n\n'
+            'Vehicles: hazard wind and current enter as velocities, not forces. The vehicle update samples the weather wind, tornado wind included, and the surface code subtracts it from each surface point\'s velocity; the surface traversal samples water current the same way. '
+            'The force then follows from the air and water surface mechanics, the hull shape and its motion, so no single force-versus-distance law applies to every vehicle. '
+            'Each reach above bounds one direct contribution. None is a safe distance from debris, projectiles, collisions, secondary events or ordinary weather.',
             [config(n) for n in ['sunrise_start_hour','sunrise_hour','sunrise_end_hour','sunset_start_hour','sunset_hour','sunset_end_hour','tornado_base_radius_inner','tornado_base_radius_outer','tornado_wind_component_vertical','tornado_wind_component_radial','tornado_wind_component_tangential','whirlpool_vertical_force','whirlpool_radial_force','whirlpool_tangent_force']] +
             [absent([n for n in env_names if n.startswith(('sunrise_', 'sunset_', 'tornado_', 'whirlpool_'))], 'Lighting and hazard names', 'None of the sunrise, sunset, tornado or whirlpool names in the environment file occurs in the executable.'),
-             realtime_loader()] + wx['temperature'] + wx['lighting'] + wx['tornado'] + wx['whirlpool'],
+             realtime_loader()] + wx['temperature'] + wx['lighting'] + wx['tornado'] + wx['whirlpool'] + hz['spawning'] + hz['tornado'] + hz['ocean'],
             [native_limit,
              'The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.',
-             'Natural tornado and whirlpool spawning, ocean-depth acceptance, magnitude choice and default tornado field values were not traced; the Lua spawn functions only dispatch to the host. '
-             'The complete hazard damage equations, their targets and lifetime units were not decoded, and the conversion of the tornado wind and whirlpool current vectors into forces on a vehicle was not traced, so no safe distance is given.'])
+             'Final vehicle and character damage was not traced: the consumer of the tornado\'s server-side damage record, and any damage from whirlpool and tsunami water through collision, flooding or drowning. '
+             'Meteor impact, blast and secondary tsunami, volcano eruption, lava, projectiles and heat, and forest fire ignition, spread, heat and damage were not decoded, so no meteor, volcano or fire radius is given.',
+             'Whether native code schedules natural disasters besides the two addons was not established; the tornado initializer has a single network-handler caller, but other native, virtual or save-loading paths were not ruled out.',
+             'The chain from hazard wind and current to body forces was not traced in full (the cached water grid, surface weights, torque application and character consumers), and safe distances from debris, projectiles, secondary events and collisions were not established.'])
     article('jet-engines', 'Jet startup, turbines and afterburners', 'Engines',
             'Jet component descriptions separate electrical startup, combustion and exhaust controls.',
             'The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. '
