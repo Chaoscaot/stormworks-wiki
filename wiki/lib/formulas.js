@@ -11,6 +11,7 @@
 // PID controller: investigation/logic.md (logic update case 29 at 0x1403c5f19, microprocessor PID 0x14037a210).
 // Mechanical joints: investigation/mechanical-joints.md (joint motor update 0x140357ca0).
 // Advanced radar: investigation/sensors-radio.md (initializer 0x1403b7fc0, candidate test in 0x140909e40).
+// Radio: investigation/radio.md (receive routine 0x14054a780).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -749,6 +750,39 @@ export function radarDetection({ partRange, signature, fovX = RADAR.fovDefault, 
   };
 }
 
+// Radio signal strength, investigation/radio.md, ported from investigation/native/radio/tools/model.py.
+// binary32 arithmetic except the double distance, as in the receive routine 0x14054a780; Math.pow stands in for the
+// native powf, so the height term may differ in the last bit. Positions and ranges are world metres, y is height above the
+// literal plane y = 0 and power is each end's power fraction (1 at full power). Ordinary antennas have gain 1.
+export const RADIO = { heightCap: 40000, heightSlope: f32(2.2413792976294644e-5), heightExponent: f32(5.35950231552124), txWeight: 0.5, bonusScale: 128000, submergedFactor: 0.25 };
+const antenna = (id, label, range) => ({ id, label, range, families: [`part-${id.replaceAll('_', '-')}`, `part-${id.replaceAll('_', '-')}-v2`] });
+export const RADIO_ANTENNAS = [
+  antenna('rx_small', 'Small', 100),
+  antenna('rx_med', 'Medium', 1000),
+  antenna('rx_large', 'Large', 4000),
+  antenna('rx_huge', 'Huge', 20000),
+];
+export const radioAntennaFor = (family, variant = null) =>
+  RADIO_ANTENNAS.find((a) => a.id === variant || `${a.id}_v2` === variant) ?? RADIO_ANTENNAS.find((a) => a.families.includes(family)) ?? RADIO_ANTENNAS[0];
+
+const radioHeight = (y) => f32(Math.pow(f32(1 - f32(f32(Math.min(y, RADIO.heightCap)) * RADIO.heightSlope)), RADIO.heightExponent));
+
+// One transmitter at one receiver, before frequency and mode selection. rx and tx are [x, y, z] positions.
+export function radioSignal({ rxRange, txRange, rx = [0, 0, 0], tx = [0, 0, 0], rxPower = 1, txPower = 1, rxGain = 1, txGain = 1 }) {
+  finite([rxRange, txRange, ...rx, ...tx, rxPower, txPower, rxGain, txGain]);
+  const h = clamp(f32(1 - f32(f32(radioHeight(tx[1]) * RADIO.txWeight) + radioHeight(rx[1]))), 0, 1);
+  const bonus = f32(f32(h * h) * RADIO.bonusScale);
+  const base = f32(f32(f32(f32(bonus + f32(txRange)) + f32(bonus + f32(rxRange))) * f32(rxPower)) * f32(txPower));
+  const low = Math.min(rx[1], tx[1]);
+  const high = Math.max(rx[1], tx[1]);
+  const submerged = clamp(f32(-f32(low) / Math.max(1, f32(f32(high) - f32(low)))), 0, 1);
+  const range = f32(f32(f32(f32(base * RADIO.submergedFactor) - base) * submerged) + base);
+  const [dx, dy, dz] = [0, 1, 2].map((i) => tx[i] - rx[i]);
+  const distance = Math.sqrt((dy * dy + dx * dx) + dz * dz);
+  const candidate = range > 0 ? f32(f32(f32(1 - f32(f32(distance) / range)) * txGain) * rxGain) : 0;
+  return { distance, bonus, baseRange: base, submerged, range, candidate, strength: Math.max(0, candidate), heard: candidate > 0, level: clamp(2 * Math.max(0, candidate), 0, 1) };
+}
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -768,5 +802,6 @@ const FAMILY_GRAPHS = {
   'part-gate-pid-controller': ['pid'],
   ...Object.fromEntries(JOINT_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['gear']])),
   ...Object.fromEntries(RADAR_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['radar']])),
+  ...Object.fromEntries(RADIO_ANTENNAS.flatMap((a) => a.families).map((id) => [id, ['radio']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

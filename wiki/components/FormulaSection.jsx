@@ -60,6 +60,12 @@ const FINDINGS = {
     'Radar scan interval divisor', 'Radar scan counter', 'Radar range cap', 'Radar score divisor', 'Radar candidate score',
     'Radar score threshold', 'Radar target limit', 'Component updates per simulated second',
   ],
+  radio: [
+    'rx_range binding', 'rx_range copy', 'Radio receive call', 'Frequency match', 'Mode compatibility test', 'Ordinary antenna gain',
+    'Height cap', 'Height slope', 'Height exponent', 'Height power call', 'Transmitter height weight', 'Height bonus scale',
+    'Antenna range sum', 'Receiver power factor', 'Transmitter power factor', 'Submerged fraction', 'Submerged range factor',
+    'Antenna distance', 'Signal strength', 'Strongest signal selection', 'Payload level factor',
+  ],
 };
 
 const TITLES = {
@@ -74,6 +80,7 @@ const TITLES = {
   pid: 'PID step response with an example plant',
   gear: 'Joint speed and holding cap against Gear Ratio',
   radar: 'Radar detection distance against target signature and FOV',
+  radio: 'Radio signal strength against distance, height and power',
 };
 
 /*
@@ -520,9 +527,43 @@ const RADAR_DETECTION = {
   ],
 };
 
+const RADIO_STRENGTH = {
+  intro: (
+    <p>
+      Every radio runs the same receive routine. Strength falls in a straight line with distance and reaches 0 at a reach R. At full
+      power near sea level R is the receiver&apos;s rx_range plus the transmitter&apos;s, so two Small antennas reach 200 m and are at
+      0.5 at 100 m. Power at either end shrinks R, a high receiving antenna stretches it, and a submerged antenna shrinks it. Pick the
+      two antennas and set each end&apos;s height and power; the chart plots strength against horizontal distance.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="s">{mi('S')}{mo('=')}{fn('max')}<mrow>{mo('(')}{mn('0')}{mo(',')}{mn('1')}{mo('−')}<mfrac>{mi('d')}{mi('R')}</mfrac>{mo(')')}</mrow><mspace width="1em" />{mi('R')}{mo('=')}<mrow>{mo('(')}{mn('2')}{mi('H')}{mo('+')}{sub('r', 'rx')}{mo('+')}{sub('r', 'tx')}{mo(')')}</mrow>{sub('p', 'rx')}{sub('p', 'tx')}<mrow>{mo('(')}{mn('1')}{mo('−')}{mn('0.75')}{mi('q')}{mo(')')}</mrow></mrow>,
+        <mrow key="h">{mi('H')}{mo('=')}{mn('128000')}{mo('×')}{fn('clamp')}<msup><mrow>{mo('(')}{mn('1')}{mo('−')}{mn('0.5')}{mi('A')}<mrow>{mo('(')}{sub('y', 'tx')}{mo(')')}</mrow>{mo('−')}{mi('A')}<mrow>{mo('(')}{sub('y', 'rx')}{mo(')')}</mrow>{mo(')')}</mrow>{mn('2')}</msup></mrow>,
+        <mrow key="a">{mi('A')}<mrow>{mo('(')}{mi('y')}{mo(')')}</mrow>{mo('=')}<msup><mrow>{mo('(')}{mn('1')}{mo('−')}{mn('2.2413793e-5')}{mo('×')}{fn('min')}<mrow>{mo('(')}{mi('y')}{mo(',')}{mn('40000')}{mo(')')}</mrow>{mo(')')}</mrow>{mn('5.3595023')}</msup><mspace width="1em" />{mi('q')}{mo('=')}{fn('clamp')}<mrow>{mo('(')}<mfrac><mrow>{mo('−')}{fn('min')}<mrow>{mo('(')}{sub('y', 'rx')}{mo(',')}{sub('y', 'tx')}{mo(')')}</mrow></mrow><mrow>{fn('max')}<mrow>{mo('(')}{mn('1')}{mo(',')}{mo('|')}{sub('y', 'rx')}{mo('−')}{sub('y', 'tx')}{mo('|')}{mo(')')}</mrow></mrow></mfrac>{mo(')')}</mrow></mrow>,
+      ]}
+      text={[
+        'S = max(0, 1 - d / R) for antennas d metres apart in a straight line; the signal is heard only while S > 0',
+        'R = (2H + r_rx + r_tx) * p_rx * p_tx * (1 - 0.75 q); r = rx_range, p = power fraction (1 at full power)',
+        'H = 128000 * clamp(1 - 0.5 A(y_tx) - A(y_rx))^2 metres per end',
+        'A(y) = (1 - 2.2413793e-5 * min(y, 40000))^5.3595023, y = height above y = 0',
+        'q = clamp(-min(y_rx, y_tx) / max(1, |y_rx - y_tx|)): 1 with both antennas below y = 0, 0 with both above',
+        'Audio and video level = clamp(2 S)',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Ordinary Small, Medium, Large and Huge antennas, legacy or v2, with gain 1 and both on the same frequency. Video antennas follow the same formula with rx_range 10000 but carry video only, and directional antennas add an aim gain; neither is listed.',
+    'Only one transmitter. With several on the frequency the receiver keeps the strongest; signals never add.',
+    'The game computes in single precision and uses its own power routine for the height term; the chart uses Math.pow there, so the last digit can differ.',
+    'The audio and video level line reads the clamp(2 S) factor as the level of those payloads, an inference. Composite data is copied unscaled. Nothing here was measured in a running game.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
-  pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION,
+  pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, radio: RADIO_STRENGTH,
 };
 
 function Evidence({ items }) {

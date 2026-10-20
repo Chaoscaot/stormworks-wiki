@@ -243,14 +243,8 @@
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/12/limitations/1",
-        "text": "Radio signal strength, propagation and size-specific range were not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/12/sections/6/body",
-        "text": "Not decoded: how a vehicle's size, shape or material sets the signature S, so no detection distance follows for a given vehicle; the editor's minimum and maximum FOV, so no figures at those limits; which objects block the line-of-sight query; the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar; radio signal strength against distance.",
+        "pointer": "/categories/12/sections/7/body",
+        "text": "Not decoded: how a vehicle's size, shape or material sets the signature S, so no detection distance follows for a given vehicle; the editor's minimum and maximum FOV, so no figures at those limits; which objects block the line-of-sight query; the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1341,53 +1335,27 @@
     ]
   },
   {
-    "key": "family:part-rx-huge",
-    "title": "Radio RX Huge: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-huge",
+    "key": "family:part-rx-directional",
+    "title": "RX Directional: decode remaining behavior and formulas",
+    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-directional",
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/180/limitations/0",
-        "text": "Equal configuration does not prove identical propagation code.",
+        "pointer": "/families/178/limitations/0",
+        "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
     ]
   },
   {
-    "key": "family:part-rx-large",
-    "title": "Radio RX Large: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-large",
+    "key": "family:part-rx-directional-large",
+    "title": "RX Directional (Large): decode remaining behavior and formulas",
+    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-directional-large",
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/182/limitations/0",
-        "text": "Equal configuration does not prove identical propagation code.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-rx-med",
-    "title": "Radio RX Medium: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-med",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/184/limitations/0",
-        "text": "Equal configuration does not prove identical propagation code.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-rx-small",
-    "title": "Radio RX Small: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-rx-small",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/186/limitations/0",
-        "text": "Equal configuration does not prove identical propagation code.",
+        "pointer": "/families/179/limitations/0",
+        "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1399,7 +1367,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/204/limitations/0",
+        "pointer": "/families/205/limitations/0",
         "text": "Reaction kinetics not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1412,13 +1380,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/210/limitations/0",
+        "pointer": "/families/211/limitations/0",
         "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/210/findings/2/detail",
+        "pointer": "/families/211/findings/2/detail",
         "text": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
         "scope": "Practical behavior guidance"
       }
@@ -1431,13 +1399,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/211/limitations/0",
+        "pointer": "/families/212/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/211/limitations/1",
+        "pointer": "/families/212/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -1450,7 +1418,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/212/limitations/0",
+        "pointer": "/families/213/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1476,7 +1444,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/213/limitations/0",
+        "pointer": "/families/214/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -1489,7 +1457,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/214/limitations/0",
+        "pointer": "/families/215/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1502,7 +1470,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/215/limitations/0",
+        "pointer": "/families/216/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1528,7 +1496,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/216/limitations/0",
+        "pointer": "/families/217/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1554,7 +1522,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/217/limitations/0",
+        "pointer": "/families/218/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1580,7 +1548,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/218/limitations/0",
+        "pointer": "/families/219/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1606,7 +1574,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/219/limitations/0",
+        "pointer": "/families/220/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1619,7 +1587,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/220/limitations/0",
+        "pointer": "/families/221/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1651,19 +1619,19 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/224/findings/0/detail",
+        "pointer": "/families/225/findings/0/detail",
         "text": "propeller_pitch_small: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/224/findings/1/detail",
+        "pointer": "/families/225/findings/1/detail",
         "text": "propeller_pitch: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/224/findings/2/detail",
+        "pointer": "/families/225/findings/2/detail",
         "text": "propeller_pitch_large: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
@@ -1706,7 +1674,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/228/limitations/0",
+        "pointer": "/families/229/limitations/0",
         "text": "Thrust and burn time per segment were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1719,7 +1687,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/229/limitations/0",
+        "pointer": "/families/230/limitations/0",
         "text": "Heat per coal not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1732,7 +1700,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/230/limitations/0",
+        "pointer": "/families/231/limitations/0",
         "text": "Torque per pressure was not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1745,7 +1713,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/231/limitations/0",
+        "pointer": "/families/232/limitations/0",
         "text": "Track physics was not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1783,13 +1751,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/232/limitations/0",
+        "pointer": "/families/233/limitations/0",
         "text": "How power splits between the two connections was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/232/sections/0/body",
+        "pointer": "/families/233/sections/0/body",
         "text": "Each has two power connections (A and B), which allows rotors to be stacked along one drivetrain; how power divides between them was not recovered.",
         "scope": "Practical behavior guidance"
       },
@@ -1863,7 +1831,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/233/limitations/0",
+        "pointer": "/families/234/limitations/0",
         "text": "Whether the wording difference reflects different mechanics is unknown.",
         "scope": "Practical behavior guidance"
       }
@@ -1876,13 +1844,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/234/limitations/0",
+        "pointer": "/families/235/limitations/0",
         "text": "The metre interpretation is unverified.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/234/sections/1/body",
+        "pointer": "/families/235/sections/1/body",
         "text": "Verify speed per RPS with a linear speed sensor.",
         "scope": "Practical behavior guidance"
       }

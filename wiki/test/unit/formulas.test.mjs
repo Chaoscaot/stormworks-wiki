@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -710,4 +710,69 @@ test('radar graph constants remain tied to verified native and definition findin
   assert.equal(radarVariantFor('part-radar-advanced-awacs').id, 'radar_advanced_awacs');
   assert.deepEqual(graphKindsForFamily('part-radar'), [], 'legacy radar has no graph');
   assert.deepEqual(graphKindsForFamily('part-radar-advanced-missile-laser'), []);
+});
+
+// Worked examples from investigation/native/radio/tools/model.py (worked-examples.json): receiver and transmitter range,
+// positions, power fractions, then the effective range, height bonus per end and candidate strength the model prints.
+const RADIO_EXAMPLES = [
+  ['small-small halfway', 100, 100, [0, 0, 0], [100, 0, 0], 1, 1, 200, 0, 0.5],
+  ['small-small cutoff', 100, 100, [0, 0, 0], [200, 0, 0], 1, 1, 200, 0, 0],
+  ['small-huge halfway', 100, 20000, [0, 0, 0], [10050, 0, 0], 1, 1, 20100, 0, 0.5],
+  ['large-huge halfway', 4000, 20000, [0, 0, 0], [12000, 0, 0], 1, 1, 24000, 0, 0.5],
+  ['huge-huge halfway', 20000, 20000, [0, 0, 0], [20000, 0, 0], 1, 1, 40000, 0, 0.5],
+  ['both submerged', 100, 100, [0, -10, 0], [25, -10, 0], 1, 1, 50, 0, 0.5],
+  ['one submerged', 100, 100, [0, -10, 0], [0, 10, 0], 1, 1, 125, 0, 0.8400000333786011],
+  ['half power at both ends', 100, 100, [0, 0, 0], [25, 0, 0], 0.5, 0.5, 50, 0, 0.5],
+  ['high altitude', 100, 100, [0, 5000, 0], [1000, 5000, 0], 1, 1, 11139.0693359375, 5469.53466796875, 0.9102258682250977],
+  ['unequal heights rx high', 100, 100, [0, 10000, 0], [1000, 0, 0], 1, 1, 15363.162109375, 7581.5810546875, 0.34584587812423706],
+  ['unequal heights rx low', 100, 100, [1000, 0, 0], [0, 10000, 0], 1, 1, 200, 0, -49.2493782043457],
+];
+
+test('radio model reproduces the investigation model examples', () => {
+  for (const [name, rxRange, txRange, rx, tx, rxPower, txPower, range, bonus, candidate] of RADIO_EXAMPLES) {
+    const r = radioSignal({ rxRange, txRange, rx, tx, rxPower, txPower });
+    assert.equal(r.range, range, name);
+    assert.equal(r.bonus, bonus, name);
+    assert.equal(r.candidate, candidate, name);
+    assert.equal(r.strength, Math.max(0, candidate), name);
+    assert.equal(r.heard, candidate > 0, name);
+  }
+  // Sea-level pair reach is the sum of both rx_range values.
+  for (const a of RADIO_ANTENNAS) {
+    for (const b of RADIO_ANTENNAS) assert.equal(radioSignal({ rxRange: a.range, txRange: b.range }).range, a.range + b.range, `${a.id}-${b.id}`);
+  }
+  assert.equal(radioSignal({ rxRange: 100, txRange: 100, rxPower: 0 }).heard, false, 'no power, no range');
+  assert.equal(radioSignal({ rxRange: 100, txRange: 100, tx: [150, 0, 0] }).level, 0.5, 'level is clamp(2 S)');
+  assert.equal(radioSignal({ rxRange: 100, txRange: 100, tx: [50, 0, 0] }).level, 1);
+  // A high transmitter alone adds nothing; the bonus needs the receiver above about 5413 m.
+  assert.equal(radioSignal({ rxRange: 100, txRange: 100, tx: [0, 40000, 0] }).bonus, 0);
+  assert.equal(radioSignal({ rxRange: 100, txRange: 100, rx: [0, 5400, 0] }).bonus, 0);
+  assert.ok(radioSignal({ rxRange: 100, txRange: 100, rx: [0, 5430, 0] }).bonus > 0);
+  assert.throws(() => radioSignal({ rxRange: 100, txRange: Number.NaN }), RangeError);
+});
+
+test('radio graph constants remain tied to verified native and definition findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const fams = new Map(data.families.map((f) => [f.id, f]));
+  const any = (label) => data.families.flatMap((f) => f.findings).find((x) => x.label === label);
+  assert.equal(Number(any('Height cap').value), RADIO.heightCap);
+  assert.equal(Math.fround(Number(any('Height slope').value)), RADIO.heightSlope);
+  assert.equal(Math.fround(Number(any('Height exponent').value)), RADIO.heightExponent);
+  assert.equal(Number(any('Transmitter height weight').value), RADIO.txWeight);
+  assert.equal(Number(any('Height bonus scale').value), RADIO.bonusScale);
+  assert.equal(Number(any('Submerged range factor').value), RADIO.submergedFactor);
+  for (const label of ['Antenna range sum', 'Signal strength', 'Strongest signal selection', 'Frequency match', 'Submerged fraction']) {
+    assert.ok(any(label)?.source?.address, `${label}: native address is required`);
+  }
+  for (const a of RADIO_ANTENNAS) {
+    for (const id of a.families) {
+      const fam = fams.get(id);
+      assert.ok(fam, id);
+      assert.equal(Number(fam.findings.find((x) => x.label.endsWith(' · rx_range') && x.source.path.endsWith(`/${id.slice(5).replaceAll('-', '_')}.xml`))?.value), a.range, id);
+      assert.deepEqual(graphKindsForFamily(id), ['radio']);
+    }
+  }
+  assert.equal(radioAntennaFor('part-rx-huge-v2').id, 'rx_huge');
+  assert.equal(radioAntennaFor(null, 'rx_med_v2').id, 'rx_med');
+  assert.deepEqual(graphKindsForFamily('part-rx-directional'), [], 'directional antennas have no graph');
 });

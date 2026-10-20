@@ -5,7 +5,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, radiatorRate, scoopInflow, surfaceForce,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1499,9 +1499,118 @@ function RadarGraph({ family, variant }) {
   );
 }
 
+/* ---------- radio ---------- */
+
+// Endpoint heights offered by the sliders: submerged, sea level, and up to the 40000 m cap of the height term.
+const RADIO_HEIGHTS = [-100, -50, -20, -10, -5, -1, 0, 10, 50, 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 6000, 8000, 10000, 15000, 20000, 30000, 40000];
+const RADIO_FRACTIONS = [0, 0.25, 0.5, 0.75, 0.9, 1];
+const metres = (m) => `${m.toLocaleString('en-US')} m`;
+
+function RadioGraph({ family, variant }) {
+  const uid = useUid();
+  const start = radioAntennaFor(family, variant).id;
+  const [rxId, setRx] = useState(start);
+  const [txId, setTx] = useState(start);
+  const [rxH, setRxH] = useState(RADIO_HEIGHTS.indexOf(0));
+  const [txH, setTxH] = useState(RADIO_HEIGHTS.indexOf(0));
+  const [rxP, setRxP] = useState(1);
+  const [txP, setTxP] = useState(1);
+  const rxA = RADIO_ANTENNAS.find((a) => a.id === rxId);
+  const txA = RADIO_ANTENNAS.find((a) => a.id === txId);
+  const yr = RADIO_HEIGHTS[rxH];
+  const yt = RADIO_HEIGHTS[txH];
+  const run = (x) => radioSignal({ rxRange: rxA.range, txRange: txA.range, rx: [0, yr, 0], tx: [x, yt, 0], rxPower: rxP, txPower: txP });
+  const base = run(0);
+  const dy = Math.abs(yt - yr);
+  // Horizontal distance at which the straight-line distance reaches R.
+  const reach = base.range > dy ? Math.sqrt(base.range ** 2 - dy ** 2) : 0;
+  const top = Math.max(reach, base.range, 1) * 1.15;
+  const [sel, setSel] = useState(() => (rxA.range + txA.range) / 2);
+  const x = Math.min(sel, top);
+  const at = run(x);
+  const count = 240;
+  const samples = Array.from({ length: count + 1 }, (_, i) => (top * i) / count).map((u) => ({ u, ...run(u) }));
+  const xTick = top / 4;
+  const summary = `Receiver ${rxA.label} at ${metres(yr)}, ${pct(rxP)} power; transmitter ${txA.label} at ${metres(yt)}, ${pct(txP)} power. Reach R ${dist(base.range)}${reach > 0 ? `, heard out to ${dist(reach)} horizontally` : ', never heard at any horizontal distance'}. At ${dist(x)} the strength is ${fixed(at.strength, 3)}.`;
+  const status = useSettled(summary);
+  const desc = `Signal strength against horizontal distance. It falls in a straight line from 1 near the receiver to 0 at the reach R, slightly curved near zero when the antennas are at different heights. The audio and video level stays at 1 until strength drops below 0.5, then falls to 0 at R. ${summary}`;
+  const hint = (y) => (y < 0 ? 'Below y = 0: the range shrinks.' : 'Height above y = 0.');
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Signal strength S = 1 − d ÷ R', className: 'graph-line-a' },
+        { label: 'Audio and video level, clamp(2 S) (inference)', className: 'graph-line-b' },
+      ]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-rx`}>Receiving antenna</label>
+            <select id={`${uid}-rx`} value={rxId} onChange={(ev) => setRx(ev.target.value)} aria-describedby={`${uid}-rx-hint`}>
+              {RADIO_ANTENNAS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+            <span id={`${uid}-rx-hint`} className="graph-field-hint">{`rx_range ${rxA.range}, legacy and v2 alike.`}</span>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-tx`}>Transmitting antenna</label>
+            <select id={`${uid}-tx`} value={txId} onChange={(ev) => setTx(ev.target.value)} aria-describedby={`${uid}-tx-hint`}>
+              {RADIO_ANTENNAS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+            <span id={`${uid}-tx-hint`} className="graph-field-hint">{`rx_range ${txA.range}.`}</span>
+          </div>
+          <Range id={`${uid}-rh`} label="Receiver height" value={rxH} min={0} max={RADIO_HEIGHTS.length - 1} step={1} onChange={setRxH} valueText={metres(yr)} hint={`${hint(yr)} Only a high receiver adds range; the height term stops changing at 40000 m.`} />
+          <Range id={`${uid}-th`} label="Transmitter height" value={txH} min={0} max={RADIO_HEIGHTS.length - 1} step={1} onChange={setTxH} valueText={metres(yt)} hint={hint(yt)} />
+          <Range id={`${uid}-rp`} label="Receiver power fraction" value={rxP} min={0} max={1} step={0.05} onChange={(v) => setRxP(+v.toFixed(2))} valueText={pct(rxP)} hint="Multiplies R." />
+          <Range id={`${uid}-tp`} label="Transmitter power fraction" value={txP} min={0} max={1} step={0.05} onChange={(v) => setTxP(+v.toFixed(2))} valueText={pct(txP)} hint="Multiplies R." />
+          <Range id={`${uid}-x`} label="Selected horizontal distance" value={x} min={0} max={top} step={top / count} onChange={setSel} valueText={dist(x)} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Radio signal strength against horizontal distance"
+          desc={desc}
+          x={{ min: 0, max: top, ticks: [0, 1, 2, 3, 4].map((i) => i * xTick), format: dist, label: 'Horizontal distance between the antennas' }}
+          y={{ min: 0, max: 1, ticks: [0, 0.25, 0.5, 0.75, 1], format: (v) => fixed(v, 2) }}
+          series={[
+            { key: 'level', className: 'graph-line-b', points: samples.map((s) => [s.u, s.level]) },
+            { key: 'strength', className: 'graph-line-a', points: samples.map((s) => [s.u, s.strength]) },
+          ]}
+          selected={{ x, points: [{ key: 'strength', y: at.strength, className: 'graph-dot-a' }] }}
+          onSelect={(u) => setSel(clamp(u, 0, top))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${rxA.label} hearing ${txA.label} at ${dist(x)}`}
+          rows={[
+            ['Reach R (straight line)', dist(base.range)],
+            ['Horizontal reach', reach > 0 ? dist(reach) : 'not heard'],
+            ['Height bonus per end', dist(base.bonus)],
+            ['Submerged fraction q', fixed(base.submerged, 3)],
+            ['Straight-line distance', dist(at.distance)],
+            ['Signal strength', fixed(at.strength, 3)],
+            ['Audio and video level', fixed(at.level, 3)],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${rxA.label} receiving from ${txA.label}, R ${dist(base.range)}`,
+        cols: ['Horizontal distance', 'Signal strength', 'Audio and video level'],
+        rows: reach > 0 ? RADIO_FRACTIONS.map((k) => {
+          const r = run(k * reach);
+          return [dist(k * reach), fixed(r.strength, 3), fixed(r.level, 3)];
+        }) : [['Any', fixed(0, 3), fixed(0, 3)]],
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
-  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph,
+  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, radio: RadioGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

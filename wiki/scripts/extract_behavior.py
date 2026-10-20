@@ -4342,6 +4342,219 @@ def sonar_figures(E, bid):
                      [f["s_div"], f["s_thr"], f["s_amp"], f["s_pfac"]])
 
 
+# radio pass; files under investigation/native/radio/, report investigation/radio.md.
+RD = "../radio/"
+RD_REPORT = "investigation/radio.md"
+RD_EXAMPLES = "investigation/native/radio/tools/worked-examples.json"
+F_RX = 0x14054A780          # radio receive and strength routine, called from the component dispatcher
+F_RX_BODY = 0x14054A7AE     # chained unwind chunk of F_RX holding the loops
+F_RX_INIT = 0x140432C80     # radio initializer: rx_range copy, record mode flags, strength pointer
+F_RX_COLLECT = 0x1404BC700  # collector that appends each radio record
+F_RX_GATE = 0x1402645F0     # directional gate helper (leaf, no unwind entry)
+RADIOS = (("small", "rx_small", "rx_small_v2", "Small"), ("medium", "rx_med", "rx_med_v2", "Medium"),
+          ("large", "rx_large", "rx_large_v2", "Large"), ("huge", "rx_huge", "rx_huge_v2", "Huge"))
+_RA, _RP = RD + "asm/", RD + "pseudocode/"
+_RX, _RXC = _RA + "14054a780.asm", _RP + "14054a780.c"
+WHERE.update({
+    (F_DISPATCH, 0x140549E37): _RA + "140549240.asm:L736; " + _RP + "140549240.c:L482",
+    (F_DEFSER, 0x140B5D598): _RA + "1403168d0.asm:L1323-L1327; " + _RP + "1403168d0.c:L481",
+    (F_RX_INIT, 0x140432E90): _RA + "140432c80.asm:L136-L166; " + _RP + "140432c80.c:L36-L65",
+    (F_RX_INIT, 0x140432F1B): _RA + "140432c80.asm:L167-L168; " + _RP + "140432c80.c:L66",
+    (F_RX_INIT, 0x140432F85): _RA + "140432c80.asm:L183-L184; " + _RP + "140432c80.c:L73",
+    (F_RX_COLLECT, 0x1404BC7ED): _RA + "1404bc700.asm:L69; " + _RP + "1404bc700.c:L59",
+    (F_RX_BODY, 0x14054A857): _RX + ":L62-L64,L531-L532; " + _RXC + ":L90,L129",
+    (F_RX_BODY, 0x14054B000): _RX + ":L531-L532; " + _RXC + ":L129",
+    (F_RX_BODY, 0x14054A94F): _RX + ":L123-L126; " + _RXC + ":L147",
+    (F_RX_BODY, 0x14054A963): _RX + ":L127-L135; " + _RXC + ":L147-L149",
+    (F_RX_BODY, 0x14054A975): _RX + ":L136-L138; " + _RXC + ":L150",
+    (F_RX_BODY, 0x14054A981): _RX + ":L26,L139-L140; " + _RXC + ":L151",
+    (F_RX_BODY, 0x14054A802): _RX + ":L41,L281-L292; " + _RXC + ":L214-L225",
+    (F_RX_BODY, 0x14054A81B): _RX + ":L47,L293-L305; " + _RXC + ":L227",
+    (F_RX_BODY, 0x14054A82C): _RX + ":L51,L303-L305; " + _RXC + ":L227",
+    (F_RX_BODY, 0x14054AC80): _RX + ":L293-L318; " + _RXC + ":L226-L238; " + _RA + "1409b9c10.asm",
+    (F_RX_BODY, 0x14054ACB6): _RX + ":L319-L330; " + _RXC + ":L240-L248",
+    (F_RX_BODY, 0x14054ACF6): _RX + ":L331-L338; " + _RXC + ":L255",
+    (F_RX_BODY, 0x14054AD09): _RX + ":L342-L345; " + _RXC + ":L261-L263",
+    (F_RX_BODY, 0x14054AD23): _RX + ":L348; " + _RXC + ":L261-L263",
+    (F_RX_BODY, 0x14054AD2F): _RX + ":L351; " + _RXC + ":L261-L263",
+    (F_RX_BODY, 0x14054AD34): _RX + ":L339-L362; " + _RXC + ":L256-L276",
+    (F_RX_BODY, 0x14054AD60): _RX + ":L365-L372; " + _RXC + ":L278",
+    (F_RX_BODY, 0x14054AD75): _RX + ":L370-L372; " + _RXC + ":L278",
+    (F_RX_BODY, 0x14054AD84): _RX + ":L373-L374; " + _RXC + ":L279",
+    (F_RX_BODY, 0x14054ADA7): _RX + ":L375-L386; " + _RXC + ":L280-L291",
+    (F_RX_BODY, 0x14054ADB5): _RX + ":L387-L392; " + _RXC + ":L292",
+    (F_RX_BODY, 0x14054ADCF): _RX + ":L393-L403; " + _RXC + ":L296-L299",
+    (F_RX_BODY, 0x14054AE06): _RX + ":L407-L414; " + _RXC + ":L348-L355",
+    (F_RX_BODY, 0x14054AF38): _RX + ":L483-L484; " + _RXC + ":L406",
+    (F_RX_BODY, 0x14054A7F1): _RX + ":L37,L196-L206; " + _RXC + ":L167-L176",
+    (F_RX_BODY, 0x14054AAAB): _RX + ":L196-L206; " + _RXC + ":L167-L176",
+    (F_RX_BODY, 0x14054AACA): _RX + ":L207-L210,L277-L280; " + _RXC + ":L177-L180,L208-L211",
+    (F_RX_GATE, F_RX_GATE): _RA + "1402645f0.asm; " + _RP + "1402645f0.c",
+})
+
+
+def _f32(x):
+    return struct.unpack("<f", struct.pack("<f", x))[0]
+
+
+def radio_pair(rx_range, tx_range, rx=(0, 0, 0), tx=(0, 0, 0), rx_power=1.0, tx_power=1.0, rx_gain=1.0, tx_gain=1.0):
+    """Candidate strength of one transmitter at one receiver; port of investigation/native/radio/tools/model.py.
+
+    binary32 arithmetic except the double distance; math.pow stands in for the native powf.
+    """
+    add = lambda a, b: _f32(a + b)
+    mul = lambda a, b: _f32(a * b)
+    clamp = lambda x: max(0.0, min(1.0, x))
+
+    def height(y):
+        y = _f32(min(y, 40000.0))
+        return _f32(math.pow(add(1.0, -mul(y, _f32(2.2413792976294644e-5))), _f32(5.35950231552124)))
+    h = clamp(add(1.0, -add(mul(height(tx[1]), 0.5), height(rx[1]))))
+    bonus = mul(mul(h, h), 128000.0)
+    r = mul(mul(add(add(bonus, _f32(tx_range)), add(bonus, _f32(rx_range))), _f32(rx_power)), _f32(tx_power))
+    low, high = min(rx[1], tx[1]), max(rx[1], tx[1])
+    q = clamp(_f32(-_f32(low) / max(1.0, add(_f32(high), -_f32(low)))))
+    r = add(mul(add(mul(r, 0.25), -r), q), r)
+    dx, dy, dz = (tx[i] - rx[i] for i in range(3))
+    d = math.sqrt((dy * dy + dx * dx) + dz * dz)
+    s = mul(mul(add(1.0, -_f32(_f32(d) / r)), tx_gain), rx_gain) if r > 0 else 0.0
+    return {"bonus": bonus, "range": r, "strength": max(0.0, s)}
+
+
+def radio_native(E):
+    """Radio receive routine 0x14054a780 and its inputs, verified once and shared by the radio entries."""
+    if hasattr(E, "radio"):
+        return E.radio
+    code, op = E.code, E.operand
+    if not (E.root / RD_REPORT).is_file():
+        raise ValueError("Radio report missing: " + RD_REPORT)
+    for bid in [b for _, old, new, _ in RADIOS for b in (old, new)] + ["rx_directional", "rx_directional_large", "rx_video_r", "rx_video_x"]:
+        if E.block(bid)["attributes"]["type"] != "45":
+            raise ValueError("%s is not definition type 45" % bid)
+    # The port must reproduce every worked example of the investigation's model.
+    for ex in json.loads((E.root / RD_EXAMPLES).read_bytes()):
+        got = radio_pair(ex["rx_range"], ex["tx_range"], ex["rx"], ex["tx"], ex["rx_power"], ex["tx_power"])
+        if got["range"] != ex["effective_range_m"] or got["strength"] != ex["strength"] or got["bonus"] != ex["height_bonus_per_end_m"]:
+            raise ValueError("Radio model port differs from %s: %s" % (RD_EXAMPLES, ex["example"]))
+    rep = " Report: %s." % RD_REPORT
+    f = {}
+    # Wiring: definition field, component copy, record collection, call.
+    f["field"] = E.string(F_DEFSER, 0x140B5D598, "rx_range", "rx_range binding",
+                          "The definition loader binds rx_range to definition+0x2c98 (lea r9 at 0x140318063)." + rep)
+    f["copy"] = code(F_RX_INIT, 0x140432F1B, "8b87982c00008986dc090000", "rx_range copy", "component +0x9dc",
+                     "The radio initializer copies definition+0x2c98 into component+0x9dc, which is field +0x2c of the radio record at component+0x9b0. "
+                     "The receive routine reads both endpoints' range from +0x2c." + rep)
+    f["flags"] = code(F_RX_INIT, 0x140432E90, "48a9000000020f47cd", "Radio mode flags", "record flags from definition flags",
+                      "Each definition flag bit sets one record mode flag at component+0x9d4 (record +0x24): 0x2000000 gives 4 (always transmit), 0x1000000 gives 2 (always receive), "
+                      "0x4000000 gives 8, 0x10000000 gives 16 and 0x80000000 gives 32 (directional); flag 1 is always set (0x140432e78). "
+                      "The legacy radios' definition flags 587202560 or 587202561 give record flags 7; the v2 radios' 268435456 or 268435457 give 17 (0x11)." + rep)
+    f["ptr"] = code(F_RX_INIT, 0x140432F85, "488d8668080000488986180a0000", "Signal strength output slot", "component +0x868",
+                    "Record +0x68 points at component+0x868, the value slot behind the radio's numeric signal strength output (node handle at component+0x878)." + rep)
+    f["collect"] = code(F_RX_COLLECT, 0x1404BC7ED, "488da8b0090000", "Radio record collection", "component +0x9b0",
+                        "The collector appends each radio component's record at component+0x9b0 to the list the receive routine walks. All 12 shipped rx_* definitions have type 45 and share this path." + rep)
+    f["call"] = code(F_DISPATCH, 0x140549E37, "e844090000", "Radio receive call", "call 0x14054a780",
+                     "The vehicle/component dispatcher calls the receive routine with the collected radio records. The routine tests mode flags and reads range and power, never a size identifier or rx_length." + rep)
+    # Eligibility.
+    f["rx_gate"] = code(F_RX_BODY, 0x14054A857, "a8020f85ba000000", "Receiver test", "flag 2 set or Transmit byte 0",
+                        "For each record r: if flag 2 is clear, cmp at 0x14054a85f requires the transmit byte at +0x34 to be 0; otherwise the record is skipped as a receiver and its strength output is set to 0 at 0x14054b000." + rep)
+    f["tx_off"] = code(F_RX_BODY, 0x14054B000, "488b436844896818", "Strength while transmitting", "0",
+                       "Stores 0 into the strength slot of a record that does not receive, such as a v2 radio with Transmit Mode on." + rep)
+    f["tx_gate"] = code(F_RX_BODY, 0x14054A94F, "f6c204750a807f3401", "Transmitter test", "flag 4 set or Transmit byte 1",
+                        "Each other record t must have flag 4 or a transmit byte of exactly 1; the same record is skipped (cmp r12d,esi at 0x14054a930)." + rep)
+    f["mode"] = code(F_RX_BODY, 0x14054A963, "33c2a808740c8bc133c2a810", "Mode compatibility test", "(r ^ t) & 8 = 0 or (r ^ t) & 16 = 0",
+                     "The pair passes when the two records agree on flag 8 or agree on flag 16. Legacy (7) and v2 (17) records both lack flag 8, so they pass this test." + rep)
+    f["freq"] = code(F_RX_BODY, 0x14054A975, "8b4728394328", "Frequency match", "equal integer frequency",
+                     "cmp of the two records' signed 32-bit frequency at +0x28 (0x14054a978); jne skips the pair." + rep)
+    f["gain"] = code(F_RX_BODY, 0x14054A981, "440f28d6440f28ce", "Ordinary antenna gain", "1",
+                     "Both endpoint gains start as xmm6 = 1.0 (loaded from 0x140bafecc at 0x14054a7c2); only records with flag 32 replace them." + rep)
+    # Height bonus.
+    f["cap"] = op(F_RX_BODY, 0x14054A802, "f2440f1025755d6600", 0x140BB0580, "Height cap",
+                  "Each endpoint's world Y (record +0x08) is capped at this before the height power (comisd at 0x14054ac32 and 0x14054ac4d)." + rep, kind="f64")
+    f["slope"] = op(F_RX_BODY, 0x14054A81B, "f3440f10355c506600", 0x140BAF880, "Height slope",
+                    "A(y) = powf(1 − min(y, 40000) × this, e) for each endpoint (mulss at 0x14054ac73 and 0x14054aca4)." + rep)
+    f["exp"] = op(F_RX_BODY, 0x14054A82C, "f3440f103dcf5c6600", 0x140BB0504, "Height exponent",
+                  "Passed as the second argument of the power routine for both endpoints (movaps xmm1,xmm15 at 0x14054ac7c and 0x14054acad)." + rep)
+    f["pow"] = code(F_RX_BODY, 0x14054AC80, "e88bef4600", "Height power call", "call 0x1409b9c10",
+                    "Receiver A(y_r) here, transmitter A(y_t) at 0x14054acb1. Inference from the report: 0x1409b9c10 is the C runtime powf (logarithm, exponent multiplication and exponential reconstruction); its exact rounding is an open question." + rep)
+    f["half"] = op(F_RX_BODY, 0x14054ACB6, "f30f5905fe4f6600", 0x140BAFCBC, "Transmitter height weight",
+                   "h = clamp(1 − (0.5 × A(y_t) + A(y_r)), 0, 1): the transmitter term is halved, the receiver term is not (addss at 0x14054acc1, subss at 0x14054acc6, clamp to 0x14054acd9)." + rep)
+    f["bonus"] = op(F_RX_BODY, 0x14054ACF6, "f30f590d525c6600", 0x140BB0950, "Height bonus scale",
+                    "H = h × h × 128000 metres, added to each endpoint's range." + rep)
+    # Range and strength.
+    f["sum"] = code(F_RX_BODY, 0x14054AD09, "f30f586f2cf30f584b2c", "Antenna range sum", "(H + r_t) + (H + r_r)",
+                    "Adds the transmitter's range (rdi+0x2c) and the receiver's range (rbx+0x2c) to H each and sums them at 0x14054ad1b." + rep)
+    f["p_r"] = code(F_RX_BODY, 0x14054AD23, "f30f596b30", "Receiver power factor", "× p_r",
+                    "Multiplies the range by the receiver record's power fraction at +0x30, 1 at full power." + rep)
+    f["p_t"] = code(F_RX_BODY, 0x14054AD2F, "f30f596f30", "Transmitter power factor", "× p_t",
+                    "Multiplies the range by the transmitter record's power fraction at +0x30." + rep)
+    f["sub"] = code(F_RX_BODY, 0x14054AD34, "f30f5fd1f30f5ee2", "Submerged fraction", "q = clamp(−min(y_r, y_t) ÷ max(1, |y_r − y_t|))",
+                    "0 − min(Y) is divided by max(1, max(Y) − min(Y)) and clamped to 0 to 1 (0x14054ad3c-0x14054ad4b). It measures Y below the literal plane y = 0; no water surface or wave query takes part." + rep)
+    f["water"] = op(F_RX_BODY, 0x14054AD60, "f3440f5905534e6600", 0x140BAFBBC, "Submerged range factor",
+                    "Range at full submersion relative to the dry range." + rep)
+    f["blend"] = code(F_RX_BODY, 0x14054AD75, "f3440f5cc5f3440f59c4f3440f58c5", "Submerged range blend", "R = R0 + (0.25 R0 − R0) q",
+                      "R = R0 × (1 − 0.75 q): 0.25 R0 with both endpoints submerged, 0.625 R0 for one endpoint 10 m under and the other 10 m above." + rep)
+    f["pos"] = code(F_RX_BODY, 0x14054AD84, "440f2fc77645", "Positive range test", "R > 0",
+                    "jbe skips the distance and leaves the candidate at 0 when R is 0 or less, for example with no power at either end." + rep)
+    f["dist"] = code(F_RX_BODY, 0x14054ADA7, "660f51c3", "Antenna distance", "√(dx² + dy² + dz²)",
+                     "Straight-line distance between the two record positions in double precision (subsd and mulsd at 0x14054ad4e-0x14054ad9d), narrowed to binary32 at 0x14054adb5. "
+                     "No terrain, obstacle, weather or random query takes part (report)." + rep)
+    f["strength"] = code(F_RX_BODY, 0x14054ADB5, "f20f5ac00f28cef3450f59caf3410f5ec0f30f5cc8f3410f59c9", "Signal strength", "(1 − d ÷ R) × g_r × g_t",
+                         "Narrows d, multiplies the two gains, divides d by R, subtracts from 1 and applies the gains. Strength falls linearly from 1 at d = 0 to 0 at d = R." + rep)
+    f["best"] = code(F_RX_BODY, 0x14054ADCF, "410f2fcd", "Strongest signal selection", "strictly greater than the best so far",
+                     "The best score starts at 0 (movaps xmm13,xmm7 at 0x14054a91f); jbe at 0x14054ade5 keeps it unless the candidate is larger. So a signal exactly at d = R is not heard, ties keep the earlier record, and signals never add." + rep)
+    f["out"] = code(F_RX_BODY, 0x14054AF38, "f3440f116818", "Signal strength output", "best strength",
+                    "Stores the selected strength into the slot record +0x68 points at; with no eligible signal it stores 0." + rep)
+    f["level"] = code(F_RX_BODY, 0x14054AE06, "450f28c5f3450f58c5", "Payload level factor", "clamp(2 S)",
+                      "After selection, 2 × strength clamped to 0 to 1. When both records have flag 8 (video) it multiplies field +0x2c of the receiver's video block (0x14054ae71); "
+                      "when both have flag 16 (v2 and directional radios) it multiplies field +0x40 of the audio block (0x14054aec2), and the selected transmitter's 132-byte composite block is copied unscaled (0x14054aee0-0x14054af2d). "
+                      "Inference: the scaled fields are signal levels, and 132 bytes hold 32 numbers plus a 32-bit on/off mask. The numeric strength output is not scaled." + rep)
+    # Directional gain.
+    f["d_thr"] = op(F_RX_BODY, 0x14054A7F1, "f3440f101dbe566600", 0x140BAFEB8, "Directional aim threshold",
+                    "For a record with flag 32, gain = clamp((v · w − this) × 800) with v and w normalized after coordinate conversion 0x1402dbde0: one points 1000 units along the record direction, the other toward the other endpoint." + rep)
+    f["d_slope"] = op(F_RX_BODY, 0x14054AAAB, "f3440f5915a05d6600", 0x140BB0854, "Directional aim slope",
+                      "Multiplies the dot product minus 0.99875 by this; the transmitter's gain is computed the same way at 0x14054abf7." + rep)
+    f["d_call"] = code(F_RX_BODY, 0x14054AACA, "e8219bd1ff", "Directional gate call", "call 0x1402645f0",
+                       "If the helper returns false the gain becomes 0 (0x14054aad3); the transmitter side calls it at 0x14054ac16." + rep)
+    f["d_gate"] = code(F_RX_GATE, F_RX_GATE, "803d615ea90000740c803d595ea90000", "Directional gate helper", "bytes 0x140cfa458 and 0x140cfa459 both nonzero",
+                       "Returns true only when both global bytes are nonzero and reads nothing else, so no terrain or weather query takes part." + rep)
+    g = _num
+    ranges = {k: float(E.block(new)["attributes"]["rx_range"]) for k, _, new, _ in RADIOS}
+    rows = "; ".join("%s: %s" % (lab, ", ".join(g(ranges[k] + ranges[k2]) for k2, _, _, _ in RADIOS)) for k, _, _, lab in RADIOS)
+    wiring = [f[k] for k in ("field", "copy", "collect", "call", "sum", "p_r", "p_t", "strength", "best")]
+    f["pairs"] = E.derived("Sea-level radio reach", "R = rx_range of receiver + rx_range of transmitter",
+                           "At full power with both antennas at y = 0, H = 0 and q = 0, so R is the sum of both rx_range values and strength is 0.5 at half that distance. "
+                           "Ordinary rx_range: %s. Reach in metres against Small, Medium, Large, Huge: %s. "
+                           "The tooltip's ground-level range equals rx_range, which is where two equal antennas read 0.5." % (
+                               ", ".join("%s %s m" % (lab, g(ranges[k])) for k, _, _, lab in RADIOS), rows),
+                           wiring + [E.attr(new, "rx_range", "") for _, _, new, _ in RADIOS])
+    e = _f32(5.35950231552124)
+    k = _f32(2.2413792976294644e-5)
+    y_rx = (1 - 0.5 ** (1 / e)) / k
+    y_eq = (1 - (2 / 3) ** (1 / e)) / k
+    hi = radio_pair(100, 100, (0, 10000, 0), (1000, 0, 0))
+    lo = radio_pair(100, 100, (1000, 0, 0), (0, 10000, 0))
+    both = radio_pair(100, 100, (0, 5000, 0), (1000, 5000, 0))
+    top = radio_pair(100, 100, (0, 40000, 0), (0, 0, 0))
+    f["height"] = E.derived("Radio height bonus", "starts above about %d m receiver altitude" % round(y_rx),
+                            "H > 0 needs 0.5 A(y_t) + A(y_r) < 1. With the transmitter at sea level (A = 1) that needs A(y_r) < 0.5, receiver above (1 − 0.5^(1/e)) ÷ k = %s m, about %d m; "
+                            "with both at one altitude, A < 2/3, above %s m, about %d m. A transmitter at altitude alone never adds range. Two Small antennas: receiver at 10000 m, transmitter at sea level: H = %s m per end, R = %s m; "
+                            "the reverse: R = %s m. Both at 5000 m: H = %s m, R = %s m. Receiver at 40000 m or higher, transmitter at sea level: H = %s m per end." % (
+                                g(round(y_rx, 1)), round(y_rx), g(round(y_eq, 1)), round(y_eq), g(round(hi["bonus"], 1)), g(round(hi["range"])), g(round(lo["range"])),
+                                g(round(both["bonus"], 1)), g(round(both["range"])), g(round(top["bonus"]))),
+                            [f[k] for k in ("cap", "slope", "exp", "pow", "half", "bonus", "sum")])
+    f["water_fig"] = E.derived("Radio power and submersion figures", "both submerged 0.25 R; both at half power 0.25 R",
+                               "R0 is multiplied by p_r × p_t, so 0.5 at both ends gives 0.25 R0. Submersion: q = 1 with both endpoints below y = 0 gives 0.25 R0; "
+                               "at y = −10 and +10, q = 10 ÷ 20 = 0.5 gives 0.625 R0.",
+                               [f[k] for k in ("p_r", "p_t", "sub", "water", "blend")])
+    E.radio = f
+    return f
+
+
+RADIO_CORE = ("field", "copy", "flags", "ptr", "collect", "call", "rx_gate", "tx_off", "tx_gate", "mode", "freq", "gain", "cap", "slope", "exp", "pow",
+              "half", "bonus", "sum", "p_r", "p_t", "sub", "water", "blend", "pos", "dist", "strength", "best", "out", "level")
+RADIO_DIRECTIONAL = ("d_thr", "d_slope", "d_call", "d_gate")
+
+
 def sensors_and_radio(B, E):
     rx = {b: E.attr(b, "rx_range", "Radio range configuration; equals the tooltip range on the v2 radios.") for b in
           ("rx_small_v2", "rx_med_v2", "rx_large_v2", "rx_huge_v2", "rx_small", "rx_med", "rx_large", "rx_huge", "rx_directional", "rx_directional_large")}
@@ -4357,11 +4570,23 @@ def sensors_and_radio(B, E):
                                  "s_pfac", "s_passive", "s_ray", "s_noise")]
     locator = [f[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_clamp", "l_acc", "l_rate")]
     noise = [f[k] for k in ("sdk_sonar", "sdk_radar", "sdk_dist", "sdk_default", "noise")] + f["sdk"]
+    rf = radio_native(E)
+    radio = [rf[k] for k in RADIO_CORE] + [rf["pairs"], rf["height"], rf["water_fig"]]
     B.category("Other components",
                "This catch-all holds sensors, radios, lights, fluid fittings, connectors, winches, doors and tools. Definitions give the ranges: v2 radios 100 m to 20 km with legacy radios configured identically, and radar ranges from 5000 to 500000 m. "
-               "Advanced radars and sonars pass a target when signature over distance beats a fixed threshold, and the transponder locator pulses faster near a beacon.",
+               "Advanced radars and sonars pass a target when signature over distance beats a fixed threshold, and the transponder locator pulses faster near a beacon. "
+               "Radio signal strength falls linearly with distance over a reach set by both antennas' rx_range.",
                [section("Radio ranges",
-                        "rx_range equals the tooltip's ground-level range on every v2 radio (100, 1000, 4000, 20000) and on the directional antennas (8000000, 10000000). The legacy radios carry the same rx_range values as their v2 counterparts, so expect the same ranges."),
+                        "rx_range equals the tooltip's ground-level range on every v2 radio (100, 1000, 4000, 20000) and on the directional antennas (8000000, 10000000). The legacy radios carry the same rx_range values as their v2 counterparts and run the same receive code. "
+                        "The tooltip figure is the distance at which two equal antennas fall to strength 0.5 (directional ones when exactly aligned); they still hear each other out to twice that."),
+                section("Radio signal strength",
+                        "All radios, legacy, v2, video and directional, share one receive routine. A receiver hears a transmitter on the same frequency when the two pass a mode test, and keeps only the strongest signal; signals never add. "
+                        "Strength is S = (1 − d ÷ R) × g_r × g_t for antennas d metres apart in a straight line, and the signal is lost at d = R. Ordinary and video antennas have gain g = 1.",
+                        "At full power with both antennas at sea level, R is the receiver's rx_range plus the transmitter's: 200 m for two Small, 20100 m for Small and Huge, 40000 m for two Huge. "
+                        "Each end's power fraction multiplies R, so half power at both ends gives 0.25 R. A height bonus H = 128000 × clamp(1 − (0.5 A(y_t) + A(y_r)))² m per end, with A(y) = (1 − 2.2413793e-05 × min(y, 40000))^5.3595023, adds range only when the receiver is high: "
+                        "above about 5413 m with the transmitter at sea level, or above about 3251 m with both at one altitude. A high transmitter alone adds nothing. Below y = 0 the range shrinks, to 0.25 R with both antennas submerged.",
+                        "No terrain, obstacle, weather or random term takes part. After selection a level field in the received audio and video blocks is scaled by clamp(2 × S), full out to half of R (inference: their signal level). "
+                        "Composite data is copied unscaled, and the strength value itself is not scaled."),
                 section("Radar and sonar ranges",
                         "radar_range matches the stated range for the basic radars (5000, 20000, 50000), sonars (3000, 1000), advanced sonars (60000, 100000, 200000) and the fish finder (100). The advanced radars without a stated range carry 60000 (radar), 500000 (AWACS), 200000 (dish), 100000 (phalanx) and 20000 (missile)."),
                 section("Advanced radar detection",
@@ -4378,23 +4603,53 @@ def sensors_and_radio(B, E):
                         "At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise."),
                 section("Open questions",
                         "Not decoded: how a vehicle's size, shape or material sets the signature S, so no detection distance follows for a given vehicle; the editor's minimum and maximum FOV, so no figures at those limits; which objects block the line-of-sight query; "
-                        "the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar; radio signal strength against distance.")],
+                        "the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar. "
+                        "For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); "
+                        "how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; "
+                        "payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.")],
                list(rx.values()) + list(rx_t.values()) + list(radar.values()) + [E.tooltip("radar"), E.tooltip("sonar_advanced")] +
-               radar_core + sonar_core + locator + noise + [rate],
+               radar_core + sonar_core + locator + noise + [rate] + radio,
                ["Signature S is a value on the target record whose producer was not recovered, so these formulas give no detection distance in metres for a given vehicle size.",
-                "Radio signal strength, propagation and size-specific range were not decoded.",
+                "Radio figures come from a static decode of the receive routine 0x14054a780; the radio items under Open questions are what it leaves open.",
                 "Unrelated definitions carry serialized default ranges; only sensor and radio definitions are interpreted here."])
     legacy = (("part-rx-small", "rx_small", "rx_small_v2", "100 m"), ("part-rx-med", "rx_med", "rx_med_v2", "1 km"),
               ("part-rx-large", "rx_large", "rx_large_v2", "4 km"), ("part-rx-huge", "rx_huge", "rx_huge_v2", "20 km"))
+    g = _num
+    ranges = {b: float(E.block(b)["attributes"]["rx_range"]) for _, _, b, _ in RADIOS}
+    labels = {b: lab for _, _, b, lab in RADIOS}
+    rcore = [rf[k] for k in RADIO_CORE] + [rf["pairs"], rf["height"], rf["water_fig"]]
+
+    def radio_sections(bid):
+        r = ranges[bid]
+        reach = ", ".join("%s m to a %s" % (g(r + ranges[o]), labels[o]) for o in ranges)
+        return [section("Range and signal strength",
+                        "Antennas d metres apart in a straight line get strength 1 − d ÷ R, lost at d = R. At full power with both antennas at sea level, R is the sum of both antennas' rx_range. "
+                        "With this antenna's %s m that is %s. Strength is 0.5 at half those distances, so two antennas of this size are at 0.5 at the tooltip's %s m." % (g(r), reach, g(r)),
+                        "A receiver keeps only the strongest transmitter on its frequency; signals do not add. No terrain, obstacle or weather term takes part."),
+                section("Height, power and water",
+                        "Both antennas' power fractions multiply R: half power at both ends gives 0.25 R. A height bonus adds range only when the receiving antenna is high, above about 5413 m with the transmitter at sea level or above about 3251 m with both at one altitude. "
+                        "For two Small antennas with the receiver at 10000 m and the transmitter at sea level, R is about 15363 m instead of 200 m; the other way round it stays 200 m. "
+                        "Below y = 0 the range shrinks, to 0.25 R when both antennas are submerged.")]
     for fid, old, new, text in legacy:
-        B.family(fid, "Legacy radio with the same rx_range as %s, whose tooltip states %s." % (new, text),
+        B.family(fid, "Legacy radio with the same rx_range as its v2 model, %s m; two of them at sea level and full power hear each other out to %s m, at strength 0.5 at %s m." % (
+                     g(ranges[new]), g(2 * ranges[new]), g(ranges[new])),
+                 radio_sections(new) +
                  [section("Variant tradeoffs",
-                          "The legacy definition's tooltip states no range, but its rx_range equals the v2 radio's, whose tooltip gives the range. Unlike v2 it has separate send and receive frequencies and no audio.")],
-                 [rx[old], rx[new], rx_t[new], E.port(old, "Frequency Send"), E.port(old, "Frequency Recv")], ["Equal configuration does not prove identical propagation code."])
+                          "The legacy definition's tooltip states no range, but its rx_range equals the v2 radio's, whose tooltip gives the range, and both run the same receive routine with the same formula. "
+                          "Unlike v2 it has separate send and receive frequencies and no audio, and it has no signal strength port.")],
+                 [rx[old], rx[new], rx_t[new], E.port(old, "Frequency Send"), E.port(old, "Frequency Recv"), E.attr(old, "type", "Definition type 45, the radio class."),
+                  E.attr(old, "flags", "Definition flags; the radio initializer turns them into record mode flags.")] + rcore,
+                 ["How the legacy data path and its two frequencies use this strength is an open question listed under Other components; the range formula above is the shared receive routine's."])
     for fid, bid in (("part-rx-small-v2", "rx_small_v2"), ("part-rx-med-v2", "rx_med_v2"), ("part-rx-large-v2", "rx_large_v2"), ("part-rx-huge-v2", "rx_huge_v2")):
-        B.family(fid, "Range %s per tooltip and rx_range field; defaults to receive." % E.block(bid)["attributes"]["rx_range"],
-                 [section("Setup and interactions", "Transmit Mode defaults to receive; set it on to send. One frequency is shared for send and receive.")],
-                 [rx[bid], rx_t[bid], E.port(bid, "Transmit Mode")], [])
+        B.family(fid, "Range %s per tooltip and rx_range field; two of them at sea level hear each other out to %s m. Defaults to receive." % (
+                     E.block(bid)["attributes"]["rx_range"], g(2 * ranges[bid])),
+                 radio_sections(bid) +
+                 [section("Setup and interactions",
+                          "Transmit Mode defaults to receive; set it on to send. One frequency is shared for send and receive. While transmitting, the radio does not receive (inference: the record's transmit byte follows Transmit Mode).",
+                          "There is no signal strength port. Inference from the receive routine: received audio stays at full level out to half of R and fades to 0 at R, and composite data arrives unscaled whenever the signal is heard.")],
+                 [rx[bid], rx_t[bid], E.port(bid, "Transmit Mode"), E.attr(bid, "type", "Definition type 45, the radio class."),
+                  E.attr(bid, "flags", "Definition flags; the radio initializer turns them into record mode flags.")] + rcore,
+                 ["Runtime behaviour and the exact rounding of the height term are open questions listed under Other components."])
     g = _num
     for fid, bid in ADV_RADARS:
         rng = E.block(bid)["attributes"]["radar_range"]
@@ -4533,14 +4788,46 @@ def more_families(B, E):
            [sf[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_clamp", "l_acc", "l_rate")] + [update_rate(E)["findings"][0]],
            ["The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced."])
 
-    # Radios.
+    # Radios: the shared receive routine, investigation/radio.md.
+    rf = radio_native(E)
+    rcore = [rf[k] for k in RADIO_CORE] + [rf["height"], rf["water_fig"]]
+    aim = math.degrees(math.acos(E.native.f32(0x140BAFEB8)))
+    half = math.degrees(math.acos(E.native.f32(0x140BAFEB8) + 0.5 / E.native.f32(0x140BB0854)))
+    cone = E.derived("Directional aim cone", "gain 0 beyond about %s degrees" % _num(round(aim, 2)),
+                     "gain = clamp((cos θ − 0.99875) × 800) if the dot product is the cosine of the angle θ between the aim and the other antenna (inference): 1 only on axis, 0.5 at %s degrees, 0 from %s degrees. "
+                     "Both ends apply their own gain, so two directional antennas each %s degrees off reach 0.25 of the aligned strength." % (
+                         _num(round(half, 2)), _num(round(aim, 2)), _num(round(half, 2))),
+                     [rf[k] for k in RADIO_DIRECTIONAL])
     for fid, bid in (("part-rx-directional", "rx_directional"), ("part-rx-directional-large", "rx_directional_large")):
-        simple(fid, "Directional link with rx_range %s; must be aimed at the target antenna." % A(bid, "rx_range", "")["value"],
-               [("Setup and interactions", "Steer with Target Yaw and Target Pitch (pitch at most 0.1 turns). Transmit Mode defaults to receive. It carries audio, composite and video.")],
-               [T(bid), A(bid, "rx_range", "Equals the tooltip range in metres."), P(bid, "Target Pitch")], [])
-    simple("part-rx-video-x", "Video transmitter with 10000 m range (tooltip and rx_range agree).",
-           [("Setup and interactions", "Pair with a video receiver on the same frequency; the receiver's rx_range is also 10000.")],
-           [T("rx_video_x"), A("rx_video_x", "rx_range", "Equals the tooltip range."), A("rx_video_r", "rx_range", "Receiver range field.")], [])
+        r = float(A(bid, "rx_range", "")["value"])
+        reach = E.derived("%s pair reach" % E.block(bid)["name"], "%s m" % _num(2 * r),
+                          "Two of these at full power and y = 0 with gains of 1: R = %s + %s = %s m." % (_num(r), _num(r), _num(2 * r)),
+                          [A(bid, "rx_range", ""), rf["sum"], rf["strength"]])
+        simple(fid, "Directional link with rx_range %s; must be aimed at the target antenna. By inference its gain falls to 0 about %s degrees off axis." % (A(bid, "rx_range", "")["value"], _num(round(aim, 2))),
+               [("Setup and interactions", "Steer with Target Yaw and Target Pitch (pitch at most 0.1 turns). Transmit Mode defaults to receive. It carries audio, composite and video."),
+                ("Range and aim",
+                 ["It uses the shared radio receive routine: strength (1 − d ÷ R) × g_r × g_t, with R the sum of both antennas' rx_range at full power and sea level, %s m for two of these. "
+                  "Height, power and submersion change R as for every radio." % _num(2 * r),
+                  "Each directional end has its own gain, clamp((v · w − 0.99875) × 800), from its aim direction v and the direction w to the other antenna. Inference, reading v · w as cos θ: the gain is 1 only exactly on axis, 0.5 at %s degrees and 0 from %s degrees. "
+                  "The gain is also 0 unless a global gate check passes." % (_num(round(half, 2)), _num(round(aim, 2)))])],
+               [T(bid), A(bid, "rx_range", "Equals the tooltip range in metres."), P(bid, "Target Pitch"), P(bid, "Signal Strength"),
+                A(bid, "flags", "Definition flags; bit 0x80000000 sets record flag 32, the directional branch.")] + rcore + [rf[k] for k in RADIO_DIRECTIONAL] + [cone, reach],
+               ["What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes."])
+    vr = float(A("rx_video_r", "rx_range", "")["value"]) + float(A("rx_video_x", "rx_range", "")["value"])
+    vreach = E.derived("Video link reach", "%s m" % _num(vr),
+                       "Video receiver and transmitter at full power and y = 0: R = %s + %s = %s m; strength 0.5 at %s m." % (
+                           A("rx_video_r", "rx_range", "")["value"], A("rx_video_x", "rx_range", "")["value"], _num(vr), _num(vr / 2)),
+                       [A("rx_video_r", "rx_range", ""), A("rx_video_x", "rx_range", ""), rf["sum"], rf["strength"]])
+    simple("part-rx-video-x", "Video transmitter with 10000 m range (tooltip and rx_range agree); a video receiver at sea level hears it out to %s m." % _num(vr),
+           [("Setup and interactions", "Pair with a video receiver on the same frequency; the receiver's rx_range is also 10000."),
+            ("Range", "It uses the shared radio receive routine. At full power with both ends at sea level the receiver's strength is 1 − d ÷ %s for d metres apart, 0.5 at the tooltip's 10000 m. "
+                      "Inference from the receive routine: the video level is full out to 10000 m and fades to 0 at %s m." % (_num(vr), _num(vr)))],
+           [T("rx_video_x"), A("rx_video_x", "rx_range", "Equals the tooltip range."), A("rx_video_r", "rx_range", "Receiver range field.")] + rcore + [vreach], [])
+    simple("part-rx-video-r", "Video receiver with rx_range 10000; its Signal Strength output reads 1 − d ÷ %s from a video transmitter d metres away at sea level." % _num(vr),
+           [("Range and signal strength",
+             "It uses the shared radio receive routine and keeps the strongest video transmitter on its frequency. Signal Strength is (1 − d ÷ R) with R the sum of both rx_range values, %s m at full power and sea level, and 0 when nothing is heard. "
+             "Height, power and submersion change R as for every radio. Inference from the receive routine: the video level is full out to half of R and fades to 0 at R." % _num(vr))],
+           [T("rx_video_r"), A("rx_video_r", "rx_range", "Receiver range field."), A("rx_video_x", "rx_range", "Transmitter range field."), P("rx_video_r", "Signal Strength")] + rcore + [vreach], [])
 
     # Winches and ropes: cable_length matches stated lengths.
     for fid, bid in (("part-winch-electric", "winch_electric"), ("part-winch-a", "winch_a"), ("part-winch-large-a", "winch_large_a"),
