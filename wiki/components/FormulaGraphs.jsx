@@ -4,8 +4,8 @@
 // can also be clicked or dragged, but nothing depends on pointer input.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, pidResponse, radiatorRate, scoopInflow, surfaceForce,
+  CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, radiatorRate, scoopInflow, surfaceForce,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -222,7 +222,29 @@ const useUid = () => `g${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
 /* ---------- engine ---------- */
 
+const ENGINE_MODES = {
+  efficiency: 'Efficiency factors against crank speed',
+  response: 'Crank RPS over time',
+};
+
+function EngineMode({ uid, mode, setMode }) {
+  return (
+    <div className="graph-field">
+      <label htmlFor={`${uid}-mode`}>Plot</label>
+      <select id={`${uid}-mode`} value={mode} onChange={(e) => setMode(e.target.value)} aria-describedby={`${uid}-mode-hint`}>
+        {Object.entries(ENGINE_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      </select>
+      <span id={`${uid}-mode-hint`} className="graph-field-hint">The response runs the recovered crank and cylinder update 60 times per simulated second.</span>
+    </div>
+  );
+}
+
 function EngineGraph() {
+  const [mode, setMode] = useState('efficiency');
+  return mode === 'response' ? <EngineResponseGraph mode={mode} setMode={setMode} /> : <EngineEfficiencyGraph mode={mode} setMode={setMode} />;
+}
+
+function EngineEfficiencyGraph({ mode, setMode }) {
   const uid = useUid();
   const [temperature, setTemperature] = useState(20);
   const [afr, setAfr] = useState(13.68);
@@ -232,7 +254,7 @@ function EngineGraph() {
   const inWindow = afr >= at.lower && afr <= at.upper;
   const bands = inWindow ? [{ from: 0, to: 2 }, { from: 60, to: 70 }] : [{ from: 0, to: 70 }];
   const torque = at.running ? 'Yes. Combustion counts and the torque gate is open.' : `No. ${at.reason}`;
-  const summary = `At ${fixed(rps, 1)} RPS, air:fuel ${fixed(afr, 2)}, temperature ${fixed(temperature, 0)}: speed factor ${pct(at.speed)}, mixture factor ${pct(at.mixture)}, combined ${pct(at.efficiency)}. Torque: ${torque}`;
+  const summary = `At ${fixed(rps, 1)} RPS, air:fuel ${fixed(afr, 2)}, manifold ${fixed(temperature, 0)} °C: speed factor ${pct(at.speed)}, mixture factor ${pct(at.mixture)}, combined ${pct(at.efficiency)}. Torque: ${torque}`;
   const status = useSettled(summary);
   const desc = `Speed factor falls from ${pct(samples[0].speed)} at 0 RPS to ${pct(samples.at(-1).speed)} at 70 RPS. The combined line is the speed factor times a mixture factor of ${pct(at.mixture)}. ${inWindow ? 'Hatched areas below 2 RPS and above 60 RPS give no torque.' : 'The air:fuel ratio is outside the combustion window, so the whole range is hatched: no torque.'} ${summary}`;
   return (
@@ -246,7 +268,8 @@ function EngineGraph() {
       ]}
       controls={(
         <>
-          <Range id={`${uid}-t`} label="Manifold temperature" value={temperature} min={0} max={120} step={1} onChange={setTemperature} valueText={fixed(temperature, 0)} hint="Game units. Values above 100 act like 100." />
+          <EngineMode uid={uid} mode={mode} setMode={setMode} />
+          <Range id={`${uid}-t`} label="Manifold temperature" value={temperature} min={0} max={120} step={1} onChange={setTemperature} valueText={`${fixed(temperature, 0)} °C`} hint="Values above 100 °C act like 100 °C." />
           <Range id={`${uid}-afr`} label="Air:fuel ratio" value={afr} min={8} max={22} step={0.02} onChange={(v) => setAfr(+v.toFixed(2))} valueText={fixed(afr, 2)} hint={`Window at this temperature: ${fixed(at.lower, 2)} to ${fixed(at.upper, 2)}. Peak at ${fixed(at.bestAfr, 2)}.`} />
           <Range id={`${uid}-x`} label="Selected crank speed" value={rps} min={0} max={70} step={0.5} onChange={setRps} valueText={`${fixed(rps, 1)} RPS`} />
         </>
@@ -283,9 +306,139 @@ function EngineGraph() {
         />
       )}
       table={{
-        caption: `Efficiency factors at air:fuel ${fixed(afr, 2)} and temperature ${fixed(temperature, 0)}`,
+        caption: `Efficiency factors at air:fuel ${fixed(afr, 2)} and manifold temperature ${fixed(temperature, 0)} °C`,
         cols: ['Crank speed (RPS)', 'Speed factor', 'Combined factor', 'Torque'],
         rows: samples.filter((s) => s.r % 5 === 0).map((s) => [fixed(s.r, 0), pct(s.speed), pct(s.efficiency), s.running ? 'Yes' : 'No']),
+      }}
+    />
+  );
+}
+
+const ENGINE_DURATIONS = [5, 10, 30, 60];
+const ENGINE_SIZES = Object.keys(MODULAR_SIZES);
+const ENGINE_FLYWHEELS = Object.keys(MODULAR_FLYWHEELS);
+const flywheelLabel = (k) => (k === 'none' ? 'None' : `${k} (+${MODULAR_FLYWHEELS[k]} to I and F)`);
+
+function EngineResponseGraph({ mode, setMode }) {
+  const uid = useUid();
+  const [size, setSize] = useState('1x1');
+  const [cylinders, setCylinders] = useState(4);
+  const [cranks, setCranks] = useState(1);
+  const [flywheel, setFlywheel] = useState('none');
+  const [throttle, setThrottle] = useState(1);
+  const [peak, setPeak] = useState(true);
+  const [afr, setAfr] = useState(13.68);
+  const [temperature, setTemperature] = useState(20);
+  const [start, setStart] = useState(5);
+  const [clutch, setClutch] = useState(0);
+  const [load, setLoad] = useState(0);
+  const [duration, setDuration] = useState(10);
+  const [time, setTime] = useState(2);
+  const samples = useMemo(
+    () => modularEngineResponse({ engine: { cylinders, size, cranks, flywheel }, rps: start, throttle, temperature, afr: peak ? null : afr, clutch, loadRps: load, seconds: duration }),
+    [cylinders, size, cranks, flywheel, start, throttle, temperature, peak, afr, clutch, load, duration],
+  );
+  const every = Math.max(1, Math.round(samples.length / 600));
+  const plotted = samples.filter((s) => s.n % every === 0 || s.n === samples.length - 1);
+  const n = clamp(Math.round(time * UPDATES_PER_SECOND), 0, samples.length - 1);
+  const at = samples[n];
+  const first = samples[1];
+  const inertia = first.inertia;
+  const top = Math.max(...samples.map((s) => s.rps));
+  const end = samples.at(-1);
+  const t = clamp(temperature / 100, 0, 1);
+  const peakAfr = 13.6 + 0.4 * t;
+  const ratio = peak ? peakAfr : afr;
+  const inWindow = ratio >= 12 - 2 * t && ratio <= 16 + 4 * t;
+  const why = at.n === 0 ? 'Starting speed.'
+    : at.combusting ? 'Yes. Cylinders burned fuel this update.'
+      : start <= MODULAR.threshold && top <= MODULAR.threshold ? 'No. The crank never exceeds 2 RPS, so nothing ignites; use the starter speed.'
+        : !inWindow ? 'No. The air:fuel ratio is outside the combustion window.'
+          : throttle === 0 ? 'No. Fuel throttle is 0.'
+            : at.rps > MODULAR.cutoff ? 'No. Fuel is cut above 60 RPS.'
+              : 'No. The crank is at or below 2 RPS.';
+  const dy = forceDomain([...samples.map((s) => s.rps), 70]);
+  const summary = `${cylinders} × ${size} cylinders, ${cranks} crankshaft${cranks > 1 ? 's' : ''}, flywheel ${flywheel}, I = ${fixed(inertia, 1)}. At ${fixed(at.seconds, 2)} s: ${fixed(at.rps, 2)} RPS. Highest ${fixed(top, 2)} RPS; after ${duration} s ${fixed(end.rps, 2)} RPS.`;
+  const status = useSettled(summary);
+  const desc = `Crank RPS over ${duration} simulated seconds from ${fixed(start, 1)} RPS at fuel throttle ${fixed(throttle, 2)} and air:fuel ${fixed(ratio, 2)}${clutch ? `, with Clutch Pressure ${fixed(clutch, 2)} to an output held at ${load} RPS` : ''}. Fuel stops above 60 RPS, so an unloaded engine hovers just above 60. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[{ label: 'Crank speed (RPS)', className: 'graph-line-a' }, { label: '60 RPS fuel cut', className: 'graph-line-c' }]}
+      controls={(
+        <>
+          <EngineMode uid={uid} mode={mode} setMode={setMode} />
+          <div className="graph-field">
+            <label htmlFor={`${uid}-size`}>Cylinder and crankshaft size</label>
+            <select id={`${uid}-size`} value={size} onChange={(e) => setSize(e.target.value)}>
+              {ENGINE_SIZES.map((k) => <option key={k} value={k}>{`${k}: ${MODULAR_SIZES[k].voxels} voxel${MODULAR_SIZES[k].voxels > 1 ? 's' : ''}, cylinder +${MODULAR_SIZES[k].cylinder}, crankshaft +${MODULAR_SIZES[k].crank}`}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-n`} label="Cylinders" value={cylinders} min={1} max={16} step={1} onChange={setCylinders} valueText={String(cylinders)} />
+          <Range id={`${uid}-c`} label="Crankshaft blocks" value={cranks} min={1} max={8} step={1} onChange={setCranks} valueText={String(cranks)} hint="Plain crankshafts of the same size. Converters and belts would add their own weight." />
+          <div className="graph-field">
+            <label htmlFor={`${uid}-fw`}>Flywheel</label>
+            <select id={`${uid}-fw`} value={flywheel} onChange={(e) => setFlywheel(e.target.value)}>
+              {ENGINE_FLYWHEELS.map((k) => <option key={k} value={k}>{flywheelLabel(k)}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-u`} label="Fuel throttle" value={throttle} min={0} max={1} step={0.05} onChange={(v) => setThrottle(+v.toFixed(2))} valueText={fixed(throttle, 2)} />
+          <Check id={`${uid}-pk`} label="Hold the peak mixture" checked={peak} onChange={setPeak} hint={`Air:fuel ${fixed(peakAfr, 2)} at this temperature. Clear it to set the ratio.`} />
+          {peak ? null : (
+            <Range id={`${uid}-afr`} label="Air:fuel ratio" value={afr} min={8} max={22} step={0.02} onChange={(v) => setAfr(+v.toFixed(2))} valueText={fixed(afr, 2)} hint={`Window ${fixed(12 - 2 * t, 2)} to ${fixed(16 + 4 * t, 2)}.`} />
+          )}
+          <Range id={`${uid}-t`} label="Manifold temperature" value={temperature} min={0} max={120} step={1} onChange={setTemperature} valueText={`${fixed(temperature, 0)} °C`} hint="Held fixed; heating and cooling are not simulated." />
+          <Range id={`${uid}-s`} label="Starting crank speed" value={start} min={0} max={60} step={0.5} onChange={setStart} valueText={`${fixed(start, 1)} RPS`} hint="The starter pushes up to 5 RPS. Cylinders need more than 2." />
+          <Range id={`${uid}-cl`} label="Clutch Pressure" value={clutch} min={0} max={1} step={0.05} onChange={(v) => setClutch(+v.toFixed(2))} valueText={fixed(clutch, 2)} hint={`Engagement target ${fixed(clutch ** 3, 3)}. 0 leaves the engine unloaded.`} />
+          {clutch ? (
+            <Range id={`${uid}-ld`} label="Clutch output speed" value={load} min={0} max={60} step={1} onChange={setLoad} valueText={`${load} RPS`} hint="Example load: an output shaft held at this speed." />
+          ) : null}
+          <div className="graph-field">
+            <label htmlFor={`${uid}-d`}>Simulated time</label>
+            <select id={`${uid}-d`} value={duration} onChange={(e) => { const d = Number(e.target.value); setDuration(d); setTime((v) => Math.min(v, d)); }}>
+              {ENGINE_DURATIONS.map((d) => <option key={d} value={d}>{`${d} s`}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-x`} label="Selected time" value={time} min={0} max={duration} step={1 / UPDATES_PER_SECOND} onChange={(v) => setTime(+v.toFixed(4))} valueText={`${fixed(time, 2)} s, update ${n}`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Crank RPS over simulated time"
+          desc={desc}
+          x={{ min: 0, max: duration, ticks: steps(0, duration, duration <= 10 ? 1 : duration / 6), format: (v) => fixed(v, 0), label: 'Simulated time (s), 60 updates per second' }}
+          y={{ ...dy, format: tick }}
+          series={[
+            { key: 'cut', className: 'graph-line-c', points: [[0, MODULAR.cutoff], [duration, MODULAR.cutoff]] },
+            { key: 'rps', className: 'graph-line-a', points: plotted.map((s) => [s.seconds, s.rps]) },
+          ]}
+          selected={{ x: at.seconds, points: [{ key: 'rps', y: at.rps, className: 'graph-dot-a' }] }}
+          onSelect={(v) => setTime(+snap(v, 0, duration, 1 / UPDATES_PER_SECOND).toFixed(4))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At ${fixed(at.seconds, 2)} s, update ${at.n}`}
+          rows={[
+            ['Crank speed', `${fixed(at.rps, 3)} RPS`],
+            ['Inertia I, frictionless F', `${fixed(inertia, 1)}, ${MODULAR_FLYWHEELS[flywheel]}`],
+            ['Speed kept per update before combustion', fixed(first.damping, 6)],
+            ['Combustion added this update', `${fixed(at.impulse, 4)} RPS`],
+            ['First cylinder efficiency', at.efficiency === null ? 'n/a' : pct(at.efficiency)],
+            ['Burned fuel', `${fixed(at.litresPerSecond, 4)} L/s`],
+            ['Clutch engagement', fixed(at.engagement, 3)],
+            ['Burning fuel', why, at.combusting ? 'graph-ok' : 'graph-no'],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Crank RPS every ${duration <= 10 ? 0.5 : duration / 20} s`,
+        cols: ['Time (s)', 'Crank speed (RPS)', 'Combustion added (RPS per update)', 'Burned fuel (L/s)'],
+        rows: samples.filter((s) => s.n % Math.round((duration <= 10 ? 0.5 : duration / 20) * UPDATES_PER_SECOND) === 0)
+          .map((s) => [fixed(s.seconds, 1), fixed(s.rps, 3), fixed(s.impulse, 4), fixed(s.litresPerSecond, 4)]),
       }}
     />
   );

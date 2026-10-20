@@ -9,6 +9,9 @@ const FINDINGS = {
   engine: [
     'Speed-efficiency scale', 'Best stoichiometric position', 'Rich edge of combustion window at cold',
     'Lean edge of combustion window at cold', 'Cylinder intake cut-off speed', 'Minimum running speed and window slope',
+    'Fuel intake coefficient', 'Combustion RPS gain, undamaged', 'Combustion RPS gain, damage 1 to 19', 'Impulse ÷ inertia',
+    'Crank group starting inertia', 'Crank inertia sum', 'Frictionless sum', 'Crank damping fraction', 'Crank speed retention',
+    'Clutch target exponent', 'Clutch engagement slew', 'Clutch crank speed mix', 'Component updates per simulated second',
   ],
   radiator: ['Radiator cooling fraction', 'Radiator airflow divisor', 'Radiator fan term cap and electric fan gain'],
   exchanger: [
@@ -55,7 +58,7 @@ const FINDINGS = {
 };
 
 const TITLES = {
-  engine: 'Cylinder efficiency against crank speed',
+  engine: 'Cylinder efficiency and crank speed response',
   radiator: 'Radiator cooling rate against airspeed',
   exchanger: 'Heat exchanger temperatures over time',
   scoop: 'Air scoop inflow against airspeed',
@@ -121,8 +124,9 @@ const ENGINE = {
   intro: (
     <p>
       The modular engine cylinder multiplies two factors. One falls as the crank speeds up. The other depends on where the air:fuel
-      ratio sits inside a combustion window that widens as the manifold warms. Combustion, and so torque, needs the crank above 2 RPS
-      and the ratio inside that window. Above 60 RPS the intake throttle term is set to zero.
+      ratio sits inside a combustion window that widens as the manifold warms. Combustion needs the crank above 2 RPS and the ratio
+      inside that window. Above 60 RPS the fuel throttle is set to zero. The response plot runs the whole crank group update: each
+      update the crank keeps part of its speed, then every cylinder in turn adds an RPS step divided by the group&apos;s inertia.
     </p>
   ),
   formula: (
@@ -134,23 +138,34 @@ const ENGINE = {
         <mrow key="m">{sub('η', 'mix')}{mo('=')}{mn('1')}{mo('−')}{mn('2')}<msup><mrow>{mo('(')}{mi('s')}{mo('−')}{mn('0.6')}{mo(')')}</mrow>{mn('2')}</msup></mrow>,
         <mrow key="v">{sub('η', 'speed')}{mo('=')}{mi('clamp')}<mrow>{mo('(')}<mfrac><mrow>{mn('4')}{mo('(')}{mn('0.02')}{mi('ω')}{mo('+')}{mn('0.5')}{mo(')')}</mrow><msup><mrow>{mo('(')}{mn('0.02')}{mi('ω')}{mo('+')}{mn('1')}{mo(')')}</mrow>{mn('2')}</msup></mfrac>{mo('−')}{mn('1')}{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}</mrow></mrow>,
         <mrow key="e">{mi('η')}{mo('=')}{sub('η', 'speed')}{mo('×')}{sub('η', 'mix')}</mrow>,
+        <mrow key="i">{mi('I')}{mo('=')}{mn('1')}{mo('+')}{mi('Σ')}{sub('w', 'part')}<mspace width="1em" />{mi('ω')}{mo('←')}{mi('ω')}<mrow>{mo('(')}{mn('1')}{mo('−')}{mn('0.01')}<mrow>{mo('(')}{mn('1')}{mo('−')}<mfrac>{mi('F')}{mi('I')}</mfrac>{mo(')')}</mrow>{mo(')')}</mrow></mrow>,
+        <mrow key="d">{mi('Δω')}{mo('=')}<mfrac><mrow>{mn('80000')}{mo('×')}{mi('ω')}{mo('×')}{mn('0.000004')}{mo('×')}{mi('v')}{mo('×')}{mi('u')}{mo('×')}{mi('η')}</mrow>{mi('I')}</mfrac><mspace width="1em" /><mtext>per cylinder, in turn</mtext></mrow>,
       ]}
       text={[
-        't = clamp(T / 100, 0, 1), T = manifold temperature',
+        't = clamp(T / 100, 0, 1), T = manifold temperature in °C',
         'AFR_rich = 12 - 2t,  AFR_lean = 16 + 4t',
         's = (AFR_lean - AFR) / (AFR_lean - AFR_rich), clamped to 0..1',
         'eta_mix = 1 - 2 (s - 0.6)^2',
         'eta_speed = clamp(4 (0.02 w + 0.5) / (0.02 w + 1)^2 - 1, 0, 1), w = crank speed in RPS',
         'eta = eta_speed * eta_mix',
-        'Torque only when 2 < w <= 60 and AFR_rich <= AFR <= AFR_lean',
+        'Combustion only when 2 < w <= 60 and AFR_rich <= AFR <= AFR_lean',
+        'I = 1 + sum of engine_max_force over the crank group; F = sum of engine_frictionless_force (flywheels only)',
+        'Each update: w = w * (1 - 0.01 * (1 - F / I)), then for each cylinder in turn',
+        '  dw = gain * w * 0.000004 * v * u * eta / I, gain 80000 (40000 at damage 1 to 19, 0 from 20)',
+        '  v = cylinder voxels (1, 27, 125), u = fuel throttle',
+        'Clutch: e moves toward clamp(pressure, 0, 1)^3 by at most 0.1, then w = w + e * (output RPS - w)',
       ].join('\n')}
     />
   ),
   assumptions: [
     'Both factors scale combustion inside the cylinder model. Neither is fuel economy, power or torque output.',
-    'The factor lines stay above zero in the hatched areas, but the model gives no torque there. The readout says whether the selected point produces torque and why.',
-    'Fuel, oxygen and exhaust flow are assumed to be available. Throttle, cylinder size, crankshaft load and cooling are not part of this graph.',
-    'Temperature is the manifold temperature in the game\'s own units. Anything above 100 behaves like 100.',
+    'The factor lines stay above zero in the hatched areas, but the model burns no fuel there. The readout says whether the selected point burns fuel and why.',
+    'Fuel, oxygen and exhaust room are assumed available, and the air:fuel ratio is set directly. Air throttle and boost only matter through that ratio here.',
+    'Temperature is the manifold temperature in °C. Anything above 100 °C behaves like 100 °C. The response plot holds it fixed: heat, coolant and overheat damage are not simulated.',
+    'The response is RPS over simulated time, not torque or power. Inertia, the RPS step and the clutch weight are internal solver quantities with no N m conversion.',
+    'The crank group in the response holds the chosen cylinders, plain crankshafts of the same size and at most one flywheel, and nothing else. The starter is not modelled; start above 2 RPS.',
+    'Clutch load is an example: an output shaft held at a fixed speed. A real output shaft has its own inertia and changes speed with the engine.',
+    'Python doubles in engine_step.py and this port agree; the game computes in float32, so long runs can drift in the last digits.',
   ],
 };
 

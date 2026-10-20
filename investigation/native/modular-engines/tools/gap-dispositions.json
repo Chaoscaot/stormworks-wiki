@@ -1,0 +1,210 @@
+[
+  {
+    "issue": 10,
+    "quote": "Compartment pressure units, manifold heat capacity, coolant transfer and the update rate were not recovered; measure RPS response and temperatures in game to calibrate these.",
+    "current_paths": [],
+    "status": "original quote absent; changed current wording covered",
+    "replacement_or_scope": "\"Compartment pressure is in atmospheres. Engine heat uses native amount-times-degrees Celsius; coolant exchange uses k=0.04*(liquid/total)*(1-0.8*scaling)^3 and water weight fresh+sea water. There are 60 eligible simulation updates per simulated second. No SI heat-energy calibration is established.\" Sources are the pressure, coolant and reproduction sections above.",
+    "current_variant": "Compartment pressure units and the units of manifold heat and coolant transfer were not recovered; measure RPS response and temperatures in game to calibrate these."
+  },
+  {
+    "issue": 40,
+    "quote": "The exact shaping of the target value (a powf call) was not resolved.",
+    "current_paths": [
+      "behavior/families/31/limitations/0"
+    ],
+    "status": "replacement supplied",
+    "replacement_or_scope": "\"Clutch Pressure is clamped to 0..1 and cubed. Stored engagement slews toward that target by at most 0.1 per update. At 0.5 input the target is 0.125.\" `0x14044a22d..0x14044a25f`. The other two quoted limitations are absent."
+  },
+  {
+    "issue": 40,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "\"Clutch Pressure is clamped to 0..1 and cubed. Stored engagement slews toward that target by at most 0.1 per update. At 0.5 input the target is 0.125.\" `0x14044a22d..0x14044a25f`. The other two quoted limitations are absent."
+  },
+  {
+    "issue": 40,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "\"Clutch Pressure is clamped to 0..1 and cubed. Stored engagement slews toward that target by at most 0.1 per update. At 0.5 input the target is 0.125.\" `0x14044a22d..0x14044a25f`. The other two quoted limitations are absent."
+  },
+  {
+    "issue": 41,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. Add the recovered rule if expanding the article: \"A crank group starts with inertia 1 and adds configured member weights. Connected crank parts share one RPS state. Cylinder impulses divide by this inertia; coasting retains 1-0.01*(1-F/I) of speed per group update.\" SI torque and full placement validation remain open."
+  },
+  {
+    "issue": 41,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. Add the recovered rule if expanding the article: \"A crank group starts with inertia 1 and adds configured member weights. Connected crank parts share one RPS state. Cylinder impulses divide by this inertia; coasting retains 1-0.01*(1-F/I) of speed per group update.\" SI torque and full placement validation remain open."
+  },
+  {
+    "issue": 42,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. \"Crankshaft converters connect different coupling sizes into the same crank group, so the speed reference is 1:1. They add inertia 8 or 15; their component update has no separate speed-ratio operation.\" `0x1404b4050`, `0x1404b4113`, jump-table types 20 and 24. Full placement validation remains open."
+  },
+  {
+    "issue": 42,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. \"Crankshaft converters connect different coupling sizes into the same crank group, so the speed reference is 1:1. They add inertia 8 or 15; their component update has no separate speed-ratio operation.\" `0x1404b4050`, `0x1404b4113`, jump-table types 20 and 24. Full placement validation remains open."
+  },
+  {
+    "issue": 43,
+    "quote": "The counter at component offset 0x8 is read as damage because the overheat branch increments it (capped at 50); its other writers were not traced.",
+    "current_paths": [
+      "behavior/families/33/limitations/3"
+    ],
+    "status": "partly recovered; explicit remaining boundary",
+    "replacement_or_scope": "\"Component +8 is explicitly serialized as damage. The modular setter caps it at 50; binary restore can write it directly. Cylinder torque gain is 80000 at damage 0, 40000 at damage 1..19 and disabled at 20 or more. Overheat increments it above 115 degrees Celsius on the first qualifying hot update and each 300 qualifying updates thereafter when both damage settings are enabled. Still open: all other gameplay damage/repair callers and their rates.\" `0x140449630`, `0x140328855`, `0x140449e2e`, `0x14044a16e`."
+  },
+  {
+    "issue": 43,
+    "quote": "Confirm the target ratio in game with the Air:Fuel Ratio inspection line; measure how manifold pressure units relate to the pressure factor; time the damage interval to recover the update rate.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "\"Component +8 is explicitly serialized as damage. The modular setter caps it at 50; binary restore can write it directly. Cylinder torque gain is 80000 at damage 0, 40000 at damage 1..19 and disabled at 20 or more. Overheat increments it above 115 degrees Celsius on the first qualifying hot update and each 300 qualifying updates thereafter when both damage settings are enabled. Still open: all other gameplay damage/repair callers and their rates.\" `0x140449630`, `0x140328855`, `0x140449e2e`, `0x14044a16e`."
+  },
+  {
+    "issue": 43,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "\"Component +8 is explicitly serialized as damage. The modular setter caps it at 50; binary restore can write it directly. Cylinder torque gain is 80000 at damage 0, 40000 at damage 1..19 and disabled at 20 or more. Overheat increments it above 115 degrees Celsius on the first qualifying hot update and each 300 qualifying updates thereafter when both damage settings are enabled. Still open: all other gameplay damage/repair callers and their rates.\" `0x140449630`, `0x140328855`, `0x140449e2e`, `0x14044a16e`."
+  },
+  {
+    "issue": 43,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "\"Component +8 is explicitly serialized as damage. The modular setter caps it at 50; binary restore can write it directly. Cylinder torque gain is 80000 at damage 0, 40000 at damage 1..19 and disabled at 20 or more. Overheat increments it above 115 degrees Celsius on the first qualifying hot update and each 300 qualifying updates thereafter when both damage settings are enabled. Still open: all other gameplay damage/repair callers and their rates.\" `0x140449630`, `0x140328855`, `0x140449e2e`, `0x14044a16e`."
+  },
+  {
+    "issue": 44,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. \"Drive belts join the crank group and add 0.6 inertia. They do not apply a speed ratio in the component update. Accessories mix their own RPS toward crank RPS through their clutch inputs; the alternator applies speed-dependent drag after mixing.\" `0x1404b4050`, type 4 jump-table target `0x14044ac16`, `0x14044a300..0x14044a3c1`."
+  },
+  {
+    "issue": 44,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. \"Drive belts join the crank group and add 0.6 inertia. They do not apply a speed ratio in the component update. Accessories mix their own RPS toward crank RPS through their clutch inputs; the alternator applies speed-dependent drag after mixing.\" `0x1404b4050`, type 4 jump-table target `0x14044ac16`, `0x14044a300..0x14044a3c1`."
+  },
+  {
+    "issue": 45,
+    "quote": "How quickly exhaust leaves through connected outlets was not recovered.",
+    "current_paths": [
+      "behavior/families/34/limitations/0"
+    ],
+    "status": "replacement supplied",
+    "replacement_or_scope": "\"An exhaust manifold exchanges its 1/3-native-unit compartment through the port solver with outward bias +10 and factor 1. Delivered flow depends on pressure, source contents, destination space and the port's previous allocation; the current transfer is capped by half the magnitude of the new demand. There is no fixed exhaust-outflow rate independent of the connected network.\" `0x14044abef`, `0x14044abf7`, `0x1402ec710`. The report supplies the full demand equation and a worked example. The other two quoted limitations are absent."
+  },
+  {
+    "issue": 45,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "\"An exhaust manifold exchanges its 1/3-native-unit compartment through the port solver with outward bias +10 and factor 1. Delivered flow depends on pressure, source contents, destination space and the port's previous allocation; the current transfer is capped by half the magnitude of the new demand. There is no fixed exhaust-outflow rate independent of the connected network.\" `0x14044abef`, `0x14044abf7`, `0x1402ec710`. The report supplies the full demand equation and a worked example. The other two quoted limitations are absent."
+  },
+  {
+    "issue": 45,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "\"An exhaust manifold exchanges its 1/3-native-unit compartment through the port solver with outward bias +10 and factor 1. Delivered flow depends on pressure, source contents, destination space and the port's previous allocation; the current transfer is capped by half the magnitude of the new demand. There is no fixed exhaust-outflow rate independent of the connected network.\" `0x14044abef`, `0x14044abf7`, `0x1402ec710`. The report supplies the full demand equation and a worked example. The other two quoted limitations are absent."
+  },
+  {
+    "issue": 46,
+    "quote": "The second accumulator (offset 0x25c) is fed by engine_frictionless_force; its effect was not recovered.",
+    "current_paths": [
+      "behavior/families/35/limitations/0"
+    ],
+    "status": "replacement supplied",
+    "replacement_or_scope": "Replace the limitation: \"The frictionless accumulator F reduces passive crank damping: r becomes r*(1-0.01*(1-F/I)) each group update.\" Replace the performance paragraph: \"Cylinder impulses divide by I=1+sum(member inertia weights). A flywheel adds the same configured amount to I and F, smoothing speed changes and reducing passive speed loss.\" `0x1404b3f1b`, `0x1404cb907..0x1404cb945`. The two generic limitations are absent."
+  },
+  {
+    "issue": 46,
+    "quote": "Every cylinder torque impulse is divided by the summed crank inertia. The flywheels also add the same amount to a second accumulator from engine_frictionless_force, whose use was not traced.",
+    "current_paths": [
+      "behavior/families/35/sections/0/body"
+    ],
+    "status": "replacement supplied",
+    "replacement_or_scope": "Replace the limitation: \"The frictionless accumulator F reduces passive crank damping: r becomes r*(1-0.01*(1-F/I)) each group update.\" Replace the performance paragraph: \"Cylinder impulses divide by I=1+sum(member inertia weights). A flywheel adds the same configured amount to I and F, smoothing speed changes and reducing passive speed loss.\" `0x1404b3f1b`, `0x1404cb907..0x1404cb945`. The two generic limitations are absent."
+  },
+  {
+    "issue": 46,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "Replace the limitation: \"The frictionless accumulator F reduces passive crank damping: r becomes r*(1-0.01*(1-F/I)) each group update.\" Replace the performance paragraph: \"Cylinder impulses divide by I=1+sum(member inertia weights). A flywheel adds the same configured amount to I and F, smoothing speed changes and reducing passive speed loss.\" `0x1404b3f1b`, `0x1404cb907..0x1404cb945`. The two generic limitations are absent."
+  },
+  {
+    "issue": 46,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "Replace the limitation: \"The frictionless accumulator F reduces passive crank damping: r becomes r*(1-0.01*(1-F/I)) each group update.\" Replace the performance paragraph: \"Cylinder impulses divide by I=1+sum(member inertia weights). A flywheel adds the same configured amount to I and F, smoothing speed changes and reducing passive speed loss.\" `0x1404b3f1b`, `0x1404cb907..0x1404cb945`. The two generic limitations are absent."
+  },
+  {
+    "issue": 47,
+    "quote": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. \"Manifold extensions propagate the shared manifold group through manifold couplings. Types 13..15 add no cylinder heat capacity or crank inertia in the recovered registration switches.\" `0x1404b4330` and `0x1404b4050`. Still open: the complete placement/orientation validator."
+  },
+  {
+    "issue": 47,
+    "quote": "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown.",
+    "current_paths": [],
+    "status": "quoted text absent from current wiki snapshot",
+    "replacement_or_scope": "No literal replacement is required. \"Manifold extensions propagate the shared manifold group through manifold couplings. Types 13..15 add no cylinder heat capacity or crank inertia in the recovered registration switches.\" `0x1404b4330` and `0x1404b4050`. Still open: the complete placement/orientation validator."
+  },
+  {
+    "issue": 64,
+    "quote": "The pressure value's unit was not recovered.",
+    "current_paths": [
+      "behavior/families/117/limitations/0"
+    ],
+    "status": "replacement supplied",
+    "replacement_or_scope": "\"The pressure scalar is atmospheres. Cylinder intake uses the mean connected air-manifold pipe pressure in clamp(1+0.01*P,1,2).\" `0x140449a03..0x140449a74`; same pressure helper as the Tank Pressure output, whose shipped description explicitly says atmospheres."
+  },
+  {
+    "issue": 65,
+    "quote": "How \u03c9 relates to crank RPS through the belt coupling and what the charge unit is were not recovered.",
+    "current_paths": [
+      "behavior/families/118/sections/1/body"
+    ],
+    "status": "partly recovered; explicit remaining boundary",
+    "replacement_or_scope": "\"The alternator's separate speed is in the same RPS reference as the crank, with 1:1 belt connection. Its clutch mixes the two states by their inertia weights before drag. Charge submitted each update is 0.05*abs(mixed_RPS)*min(abs(mixed_RPS)/560,0.25), zero when damaged. This is native electrical-network charge; an SI joule conversion remains unestablished.\" `0x14044a300..0x14044a3ec`."
+  },
+  {
+    "issue": 66,
+    "quote": "The coolant heat-transfer coefficient was not recovered.",
+    "current_paths": [
+      "behavior/families/119/limitations/0"
+    ],
+    "status": "replacement supplied",
+    "replacement_or_scope": "\"The per-update coolant temperature coefficient is 0.04*(liquid_amount/total_amount)*(1-0.8*scaling)^3. Engine heat transfer also multiplies by fresh-water plus seawater amount and divides by engine heat capacity. Clean, unscaled water gives coefficient 0.04.\" `0x1404cbc60..0x1404cbef2`, including liquid sum call `0x1404cbe6d`."
+  },
+  {
+    "issue": 149,
+    "quote": "The resources inspected do not establish an optimal air-fuel ratio, stoichiometry, efficiency curve or fuel-to-power equation. Composite volume and temperature units are not given in the selected channel description.",
+    "current_paths": [
+      "mechanics/articles/5/limitations/2"
+    ],
+    "status": "partly recovered; explicit remaining boundary",
+    "replacement_or_scope": "\"Native cylinder code gives peak AFR 13.6+0.4*clamp(T/100,0,1), a temperature-dependent combustion window and the efficiency/impulse equations retained in modular-engines.md. Composite channel 1 is 6000 times admitted oxygen, channel 2 is 10 times admitted diesel and channel 3 is manifold degrees Celsius. These are sampled per cylinder visit, not automatically rates per second. Still open: physical atmospheric-air litres for channel 1 and an SI fuel-to-power conversion.\" `0x140449b67`, `0x140449d50`, `0x14044a19a`, `0x14044a1bd..0x14044a1e5`."
+  }
+]

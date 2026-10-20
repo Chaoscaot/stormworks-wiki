@@ -1511,6 +1511,312 @@ def classic_engine(E):
     return E.classic
 
 
+# modular-engine pass; files under investigation/native/modular-engines/, report investigation/modular-engines.md.
+ME = "../modular-engines/"
+ME_REPORT = "investigation/modular-engines.md"
+F_CRANK_NEW = 0x1404B3AB0    # engine group allocation: crank inertia, frictionless sum, heat capacity
+F_CRANK_WALK = 0x1404B4205   # chunk of the crank membership walk 0x1404b4050: coupling names it follows
+F_MANIFOLD_REG = 0x1404B438B  # chunk of the manifold walk 0x1404b4330: registration switch and capacity
+F_MANIFOLD_WALK = 0x1404B4552  # chunk of the manifold walk 0x1404b4330: coupling name it follows
+F_GROUP_DAMP = 0x1404CB7F2   # chunk of the engine group update 0x1404cb790: crank damping and coolant constants
+F_GROUP_COOL = 0x1404CBCE6   # chunk of the engine group update 0x1404cb790: throttle latch and coolant exchange
+F_DAMAGE_SET = 0x140449630   # modular damage setter, slot +0x20 of vtable 0x140b9c8b0 (leaf)
+F_BASE_CTOR = 0x14033B320    # component base constructor
+F_BASE_SER = 0x1403261D0     # component base serializer: damage save name and binary restore
+F_ENGINE_INIT = 0x140441800  # modular component initializer: compartment volumes
+ME_DAMAGE_SLOT = (0x140B9C8D0, 0x140449630)  # vtable 0x140b9c8b0 + 0x20
+ME_SWITCH = (0x14044ACAC, 0x14044AC7C)       # component update: byte map by engine_module_type, then dword targets
+ME_REG_SWITCH = (0x1404B45F4, 0x1404B45DC)   # manifold registration: byte map by engine_module_type - 1, then dword targets
+ME_NOOP, ME_REG_NONE, ME_REG_CYL = 0x14044AC16, 0x1404B4540, 0x1404B440B
+_MU, _MG, _MC = ME + "asm/component-update.asm", ME + "asm/group-update.asm", ME + "asm/crank-assembly.asm"
+WHERE.update({
+    (0x1404B3AB0, 0x1404B3F1B): _MC + ":L270; " + ME + "pseudocode/0x1404b3ab0.c",
+    (0x1404B3AB0, 0x1404B3C44): _MC + ":L98; " + ME + "pseudocode/0x1404b3ab0.c",
+    (0x1404B40A1, 0x1404B40FC): _MC + ":L396-L404; " + ME + "pseudocode/0x1404b4050.c",
+    (0x1404B40A1, 0x1404B411C): _MC + ":L404-L415; " + ME + "pseudocode/0x1404b4050.c",
+    (0x1404B40A1, 0x1404B413A): _MC + ":L404-L415; " + ME + "pseudocode/0x1404b4050.c",
+    (0x1404B4205, None): ME + "pseudocode/0x1404b4050.c",
+    (0x1404B438B, None): _MC + ":L560-L600; " + ME + "pseudocode/0x1404b4330.c",
+    (0x1404B4552, None): ME + "pseudocode/0x1404b4330.c",
+    (0x1403168D0, 0x140317622): ME + "asm/definition-bindings.asm:L133,L778-L780; " + ME + "asm/float-attribute.asm; " + ME + "pseudocode/0x1408efd50.c",
+    (0x140449670, 0x14044971A): _MU + ":L41-L49",
+    (0x1404CB7F2, None): _MG + ":L96-L117,L335-L345; " + ME + "pseudocode/0x1404cb790.c",
+    (0x1404CBCE6, None): _MG + ":L398-L460; " + ME + "pseudocode/0x1404cb790.c",
+    (0x140449630, None): ME + "asm/damage-setter.asm:L8-L34; " + ME + "pseudocode/0x140449630.c",
+    (0x14033B320, None): ME + "asm/base-construct.asm:L51; " + ME + "pseudocode/0x14033b320.c",
+    (0x1403261D0, None): ME + "asm/damage-serialization.asm:L19-L20,L97; " + ME + "pseudocode/0x1403261d0.c",
+    (0x140441800, None): ME + "asm/component-initialization.asm:L8255,L8284,L8320; " + ME + "pseudocode/0x140441800.c",
+    (0x140449670, 0x140449A13): _MU + ":L218-L251; " + ME + "asm/pressure-helpers.asm:L327-L379",
+    (0x140449670, 0x140449ACE): _MU + ":L264-L281",
+    (0x140449670, 0x14044A16B): _MU + ":L661-L679",
+    (0x140449670, 0x14044A17A): _MU + ":L661-L679",
+    (0x140449670, 0x14044A186): _MU + ":L661-L679",
+    (0x140449670, 0x14044A191): _MU + ":L661-L679",
+    (0x140449670, 0x14044A19A): _MU + ":L661-L679",
+    (0x140449670, 0x14044A1AB): _MU + ":L661-L679",
+    (0x140449670, 0x140449D9F): _MU + ":L440-L452",
+    (0x140449670, 0x140449DC6): _MU + ":L440-L452",
+    (0x140449670, 0x14044A1BD): _MU + ":L264-L281,L681-L691",
+    (0x140449670, 0x14044A1CF): _MU + ":L681-L691",
+    (0x140449670, 0x14044A1E5): _MU + ":L681-L691",
+    (0x140449670, 0x140449DFE): _MU + ":L455-L483",
+    (0x140449670, 0x140449E09): _MU + ":L455-L483",
+    (0x140449670, 0x140449E1C): _MU + ":L455-L483",
+    (0x140449670, 0x14044A200): _MU + ":L696-L748",
+    (0x140449670, 0x14044A22D): _MU + ":L696-L748; " + ME + "pseudocode/0x1409b9c10.c",
+    (0x140449670, 0x14044A285): _MU + ":L696-L748",
+    (0x140449670, 0x14044A2BC): _MU + ":L696-L748",
+    (0x140449670, 0x14044A300): _MU + ":L750-L822",
+    (0x140449670, 0x14044A33F): _MU + ":L750-L822",
+    (0x140449670, 0x14044A35B): _MU + ":L750-L822",
+    (0x140449670, 0x14044A3B0): _MU + ":L750-L822",
+    (0x140449670, 0x14044A3E7): _MU + ":L750-L822",
+    (0x140449670, 0x14044A898): _MU + ":L1085-L1101",
+    (0x140449670, 0x14044A9FA): _MU + ":L1170-L1184",
+    (0x140449670, 0x14044ABE7): _MU + ":L1272-L1300; " + ME + "asm/port-exchange.asm",
+    (0x140449670, 0x14044ABEF): _MU + ":L1272-L1300; " + ME + "asm/port-exchange.asm",
+    (0x140449670, 0x14044ABF7): _MU + ":L1272-L1300; " + ME + "asm/port-exchange.asm; " + ME + "pseudocode/0x1402ec710.c",
+})
+
+
+def _module_targets(n, maps, types, shift=0):
+    """Two-level switch: byte map indexed by engine_module_type - shift, then image-relative dword targets."""
+    bytemap, table = maps
+    out = {}
+    for t in types:
+        i = n.raw(bytemap + t - shift, 1)[0]
+        out[t] = n.base + struct.unpack("<I", n.raw(table + 4 * i, 4))[0]
+    return out
+
+
+def modular_native(E):
+    """Modular engine crank group, cylinder impulse, clutch, accessories, exhaust, coolant and damage, verified once and shared."""
+    if hasattr(E, "modular"):
+        return E.modular
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / ME_REPORT).is_file():
+        raise ValueError("Modular-engine report missing: " + ME_REPORT)
+    slot, target = ME_DAMAGE_SLOT
+    if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+        raise ValueError("Modular vtable slot %#x does not point to %#x" % (slot, target))
+    run = _module_targets(n, ME_SWITCH, range(29))
+    expect = {t: ME_NOOP for t in (0, 2, 4, 13, 14, 15, 17, 18, 19, 20, 23, 24, 25)}
+    expect.update({1: 0x140449726, 22: 0x140449726, 27: 0x140449726, 3: 0x14044A1F0, 21: 0x14044A1F0, 26: 0x14044A1F0,
+                   5: 0x14044A2C9, 10: 0x14044AB81, 11: 0x14044AB81, 12: 0x14044AB81})
+    if any(run[t] != v for t, v in expect.items()):
+        raise ValueError("Modular component switch differs: %s" % {t: hex(run[t]) for t in expect})
+    reg = _module_targets(n, ME_REG_SWITCH, range(1, 29), 1)
+    if any(reg[t] != ME_REG_CYL for t in (1, 22, 27)) or any(reg[t] != ME_REG_NONE for t in (13, 14, 15)):
+        raise ValueError("Manifold registration switch differs")
+    rep = " Report: %s." % ME_REPORT
+    F = F_ENGINE
+    f = {}
+    # Crank group: membership, inertia, frictionless sum, damping.
+    f["i0"] = code(F_CRANK_NEW, 0x1404B3F1B, "48c786580200000000803f", "Crank group starting inertia", "I = 1, F = 0",
+                   "One 8-byte store sets group+0x258, the inertia I, to 1 and the adjacent group+0x25c, the frictionless sum F, to 0 when the engine group is allocated. Registered parts add to both afterwards, so I = 1 + Σ engine_max_force, not the bare sum." + rep)
+    f["c0"] = code(F_CRANK_NEW, 0x1404B3C44, "c780f0000000" + "0000803f", "Manifold group starting heat capacity", "C = 1",
+                   "Sets group+0xf0, the heat capacity C, to 1 at allocation; the store before it at 0x1404b3c3a sets the group temperature +0xec to 20 °C. Cylinders add 40 × listed voxels to C as they register." + rep)
+    f["walk"] = E.string(F_CRANK_WALK, 0x140B70978, "crankshaft", "Crank coupling names",
+                         "The crank walk 0x1404b4050 gives each reached part the same group pointer (component+0x630) and follows couplings named crankshaft, crankshaft_3, crankshaft_5, belt (prefix match, so drive_belt too), cylinder, cylinder_3 and cylinder_5. A part already in a group is skipped, so each registers once. Every member therefore reads and writes one crank RPS (group+0x254)." + rep)
+    f["mask"] = code(F_ASSEMBLY, 0x1404B40FC, "ba1700ce0b0fa3ca", "Crank weight type mask", "types 0, 1, 2, 4, 17, 18, 19, 20, 22, 23, 24, 25, 27",
+                     "bt against 0xbce0017, plus a separate test for type 20 at 0x1404b4106, selects which engine_module_type values add their weights: crankshafts and flywheels (0, 18, 19, 25), cylinders (1, 22, 27), the drive belt (4), power manifolds (17, 23) and converters (20, 24). Clutches (3, 21, 26), the alternator (5), fluid pump (6) and starter (7) do not add to I or F." + rep)
+    f["i_add"] = code(F_ASSEMBLY, 0x1404B411C, "f3410f118058020000", "Crank inertia sum", "I += engine_max_force",
+                      "Stores I + definition+0x874 (engine_max_force, read at 0x1404b410b) for each registered part." + rep)
+    f["f_add"] = code(F_ASSEMBLY, 0x1404B413A, "f3410f11805c020000", "Frictionless sum", "F += engine_frictionless_force",
+                      "Stores F + definition+0x878 (engine_frictionless_force, read at 0x1404b4129) for each registered part." + rep)
+    f["f_name"] = E.string(F_DEFSER, 0x140B5C1D8, "engine_frictionless_force", "engine_frictionless_force binding",
+                           "The definition serializer binds definition+0x878 to this name as a float." + rep)
+    f["f_default"] = code(F_DEFSER, 0x140317622, "f30f11742420", "engine_frictionless_force default", "0",
+                          "Passes xmm6, zeroed at 0x140316aed, as the default argument of the float reader 0x1408efd50, which stores it when the attribute is absent. A definition without the attribute, such as the converters and the drive belt, has F = 0." + rep)
+    f["d_f"] = code(F_GROUP_DAMP, 0x1404CB907, "f30f10835c020000", "Crank damping F read", "F",
+                    "At the start of each crank group update the group reads F (group+0x25c)." + rep)
+    f["d_i"] = code(F_GROUP_DAMP, 0x1404CB918, "f30f5e8358020000", "Crank damping F ÷ I", "F ÷ I", "Divides F by I (group+0x258)." + rep)
+    f["d_k"] = op(F_GROUP_DAMP, 0x1404CB945, "f30f590d0b406e00", 0x140BAF958, "Crank damping fraction",
+                  "Multiplies 1 - F ÷ I by this; the result is subtracted from 1 at 0x1404cb962." + rep)
+    f["d_r"] = code(F_GROUP_DAMP, 0x1404CB969, "f30f599b54020000", "Crank speed retention", "r × (1 - 0.01 × (1 - F ÷ I))",
+                    "Multiplies the crank RPS (group+0x254) by 1 - 0.01 × (1 - F ÷ I) before any cylinder runs. With F = 0 the crank keeps 0.99 per update; F = I would keep all of it. This is a speed rule in RPS, not a viscous friction torque." + rep)
+    f["noop"] = code(F, 0x14044971A, "8b8c827cac4400", "Component update dispatch", "byte map 0x14044acac, targets 0x14044ac7c",
+                     "The update reads engine_module_type (definition+0x2cb8), looks up a byte index at 0x14044acac + type and jumps to the dword target at 0x14044ac7c + 4 × index. Re-read by the extractor: crankshafts and flywheels (0, 18, 19, 25), the drive belt (4), power manifolds (17, 23), converters (20, 24) and manifold extensions (13, 14, 15) all go to 0x14044ac16, the end of the update, so none of them changes speed. Cylinders go to 0x140449726, clutches to 0x14044a1f0, the alternator to 0x14044a2c9 and exhaust manifolds to 0x14044ab81." + rep)
+    f["reg"] = E.string(F_MANIFOLD_WALK, 0x140B70B48, "manifold", "Manifold coupling name",
+                        "The manifold walk 0x1404b4330 assigns one manifold group (component+0x638) across couplings with this name. Its registration switch (byte map 0x1404b45f4, targets 0x1404b45dc, re-read by the extractor) sends cylinders (1, 22, 27) to 0x1404b440b, which adds 40 × listed voxels to the heat capacity, and manifold extensions (13, 14, 15) to 0x1404b4540, which adds nothing." + rep)
+    f["c_40"] = E.const(F_MANIFOLD_REG, 0x140BB072C, "Heat capacity per cylinder voxel",
+                        "C += this × listed voxels for each registered cylinder, so C = 1 + 40 × the group's cylinder voxels." + rep)
+    # Cylinder impulse, heat and telemetry.
+    f["floor"] = op(F, 0x140449ACE, "f30f10057e5d7600", 0x140BAF854, "Air:fuel denominator floor",
+                    "AFR = 600 × admitted oxygen ÷ max(admitted diesel, this)." + rep)
+    f["accept"] = code(F, 0x140449D9F, "f3440f599750060000", "Exhaust acceptance factor", "× exhaust share (+0x650)",
+                       "Burned fuel = combustion gate × exhaust share × admitted diesel; this multiply and the following ones up to 0x140449db1 form it and the efficiency product." + rep)
+    f["c_div"] = code(F, 0x140449DC6, "f3440f5e90f0000000", "Cylinder heat ÷ capacity", "6000 × burned fuel ÷ C",
+                      "Divides the heat by the manifold group's capacity C (group+0xf0) and adds it to the group temperature +0xec, in °C." + rep)
+    f["gate20"] = code(F, 0x14044A16B, "8b4f0883f914", "Cylinder damage gate", "damage < 20",
+                       "After the 2 RPS test at 0x14044a161, reads damage (component+8) and skips the impulse when it is 20 or more (unsigned compare, jae at 0x14044a171). Damage 0 selects 80000 (je at 0x14044a184), any other value below 20 selects 40000." + rep)
+    f["i_read"] = code(F, 0x14044A17A, "f30f108058020000", "Cylinder reads crank inertia", "I", "Loads I (group+0x258) for the division." + rep)
+    f["g_d"] = op(F, 0x14044A186, "f3440f590589677600", 0x140BB0918, "Combustion RPS gain, damage 1 to 19",
+                  "Multiplies burned fuel × efficiency by this when damage is 1 to 19." + rep)
+    f["g_0"] = op(F, 0x14044A191, "f3440f59059e677600", 0x140BB0938, "Combustion RPS gain, undamaged",
+                  "Multiplies burned fuel × efficiency by this when damage is 0." + rep)
+    f["div"] = code(F, 0x14044A19A, "f3440f5ec0", "Impulse ÷ inertia", "gain × burned fuel × efficiency ÷ I", "Divides the impulse by I." + rep)
+    f["r_store"] = code(F, 0x14044A1AB, "f3440f11a854020000", "Crank RPS after cylinder", "r + Δr",
+                        "Writes the crank RPS back after each cylinder. Cylinders run one after another in the component update, so a later cylinder starts from the speed an earlier one left. The 60 RPS fuel cut is tested before each impulse, so the crank can pass 60 within an update." + rep)
+    f["ch1"] = code(F, 0x14044A1BD, "f3440f11bf94050000", "Composite number 1", "6000 × admitted oxygen",
+                    "Stores admitted oxygen × 10 × 60 (0x140449adf, 0x140449ae8), × 10 again at 0x14044a1b4, to component+0x594, the Composite Data Air Volume channel. That is 10 × the AFR numerator." + rep)
+    f["ch2"] = code(F, 0x14044A1CF, "f3440f11a798050000", "Composite number 2", "10 × admitted diesel",
+                    "Stores admitted diesel × 10 (0x14044a1c6) to component+0x598, the Fuel Volume channel: litres per cylinder visit at 10 L per amount. Number 1 ÷ number 2 is the AFR when fuel is nonzero." + rep)
+    f["ch3"] = code(F, 0x14044A1E5, "898f9c050000", "Composite number 3", "manifold °C",
+                    "Copies the manifold group temperature (+0xec) after this cylinder's heat to component+0x59c, the Temperature channel. Cylinders that share a group can report slightly different values within one update." + rep)
+    f["hot35"] = code(F, 0x140449DFE, "40387035", "Overheat gate engine_overheating", "settings+0x35",
+                      "Above 115 °C the cylinder needs this setting byte nonzero." + rep)
+    f["hot4a"] = code(F, 0x140449E09, "4038704a", "Second overheat gate", "settings+0x4a", "And this second settings byte nonzero." + rep)
+    f["hot_step"] = code(F, 0x140449E1C, "8b5708ffc2b9320000003bd10f47d1488bcfff5020", "Overheat damage step", "min(damage + 1, 50) via slot +0x20",
+                         "When the cylinder timer (component+0x6d0) is 0 it calls the damage setter with damage + 1, capped at 50; the timer then advances modulo 300 (0x140449e43). A zero timer damages on the first hot update, then every 300 qualifying updates. Cooling below 115 °C pauses the timer without resetting it." + rep)
+    # Damage field.
+    f["dmg_set"] = code(F_DAMAGE_SET, 0x140449661, "894108", "Modular damage setter", "min(value, 50) to component+8",
+                        "Slot +0x20 of the modular vtable 0x140b9c8b0 (pointer re-read by the extractor) clamps its unsigned argument to 50 and stores it at component+8. Crossing zero toggles component flags +0x6a4 and +0x6a5 and marks +0xa0 dirty." + rep)
+    f["dmg_ctor"] = code(F_BASE_CTOR, 0x14033B33E, "48894f08", "Damage at construction", "0", "The component base constructor clears component+8 with the adjacent field." + rep)
+    f["dmg_name"] = E.string(F_BASE_SER, 0x140B605D4, "damage", "damage save name",
+                             "The base serializer saves component+8 (address formed at 0x140328728) under this name, so the field the cylinder and alternator test is the component's damage." + rep)
+    f["dmg_load"] = code(F_BASE_SER, 0x140328855, "41894d08", "Damage binary restore", "direct write",
+                         "Binary restore writes component+8 directly, without the setter's cap of 50." + rep)
+    # Clutch.
+    f["cl_in"] = code(F, 0x14044A200, "f30f108738050000", "Clutch Pressure read", "clamp(input, 0, 1)",
+                      "Reads Clutch Pressure (component+0x538) and clamps it to 0 to 1 at 0x14044a20b to 0x14044a222." + rep)
+    f["cl_exp"] = op(F, 0x14044A22D, "f30f100d5b617600", 0x140BB0390, "Clutch target exponent",
+                     "The clamped input is raised to this power by the float power routine 0x1409b9c10 (call at 0x14044a235): target = u³." + rep)
+    f["cl_w"] = code(F, 0x14044A285, "f30f11b7c0020000", "Clutch output weight", "engagement × I",
+                     "With an output shaft group present, publishes engagement × I to component+0x2c0 and the crank RPS before mixing to +0x2c4 for the shaft solver." + rep)
+    f["cl_mix"] = code(F, 0x14044A2BC, "f30f118854020000", "Clutch crank speed mix", "r + e × (output RPS - r)",
+                       "Moves the crank RPS toward the output group's published speed (component+0x2c8) by the engagement e." + rep)
+    # Belt accessories and the alternator.
+    f["a_j"] = code(F, 0x14044A300, "f3410f109074080000", "Accessory inertia read", "J = engine_max_force",
+                    "Belt accessories read their own engine_max_force J (0.5 for the alternator, starter and fluid pump) for the mixing weights." + rep)
+    f["a_r"] = code(F, 0x14044A33F, "f30f119054020000", "Accessory crank mix", "r + J ÷ (I + J) × u × (w - r)",
+                    "u is Clutch Pressure clamped to 0 to 1, used linearly; w is the accessory's own RPS (component+0x640)." + rep)
+    f["a_w"] = code(F, 0x14044A35B, "f30f11af40060000", "Accessory speed mix", "w + I ÷ (I + J) × u × (r - w)",
+                    "Both assignments use the old r and w, so I × r + J × w is unchanged and the gap shrinks to (1 - u) × (r - w). There is no belt ratio or 2π factor: w is RPS in the crank's reference." + rep)
+    f["a_dmg"] = code(F, 0x14044A3B0, "837f0800", "Alternator damage test", "charge 0 when damaged",
+                      "Nonzero damage zeroes the charge at 0x14044a3b6; the speed drag after it still applies." + rep)
+    f["a_add"] = code(F, 0x14044A3E7, "f30f585004f30f115004", "Alternator charge deposit", "network generation += charge",
+                      "Adds a positive charge to the electrical network's generation accumulator (+4), in the native charge units of the electricity pass." + rep)
+    # Manifold throttles.
+    f["thr_fuel"] = code(F, 0x14044A898, "f30f10808c000000f30f5fc1f30f11808c000000", "Intake manifold fuel throttle", "max over intake manifolds",
+                         "An intake manifold (type 9) clamps its input (component+0x538) to 0 to 1 and stores the larger of it and the group's pending fuel throttle (+0x8c)." + rep)
+    f["thr_air"] = code(F, 0x14044A9FA, "f30f108094000000f30f5fc1f30f118094000000", "Air manifold air throttle", "max over air manifolds",
+                        "An air manifold (type 28) does the same for the pending air throttle (+0x94)." + rep)
+    f["latch"] = code(F_GROUP_COOL, 0x1404CBDDB, "898388000000", "Throttle latch", "pending → active once per group update",
+                      "The group update copies the pending throttles to +0x88 (fuel) and +0x90 (air, 0x1404cbdf2) and clears the pending values. Cylinders read +0x88 and +0x90, so the throttle is the largest input among the group's manifolds from the previous update; inputs are not summed." + rep)
+    # Air pressure.
+    f["p_call"] = code(F, 0x140449A13, "e8481aeaff", "Air manifold pressure", "mean pressure of the air manifolds' networks",
+                       "For each connected air-manifold port the cylinder computes the network pressure: total × 60 ÷ volume up to volume 8, window amount (0x1402eb460) × 60 × 0.125 above it, then averages them; the intake factor is clamp(1 + 0.01 × mean, 1, 2) (0x140449a4b to 0x140449a71). This is the pressure law the Tank Pressure output uses, whose shipped port descriptions say atmospheres." + rep)
+    # Exhaust manifold.
+    f["x_vol"] = code(F_ENGINE_INIT, 0x1404491C6, "c7835c060000abaaaa3e", "Exhaust manifold compartment volume", "1/3 amount, 3.33 L",
+                      "Stores binary32 0.33333334 as the volume of the exhaust compartment (+0x654) for types 10, 11 and 12; the same store occurs at 0x140449245 and 0x1404492e5. Full, it reads 60 atm." + rep)
+    f["x_f"] = op(F, 0x14044ABE7, "f30f101ddd527600", 0x140BAFECC, "Exhaust port exchange factor", "Exchange factor for the Exhaust port; both mode flags are 0 and every species may move." + rep)
+    f["x_b"] = op(F, 0x14044ABEF, "f30f1015555a7600", 0x140BB064C, "Exhaust port bias",
+                  "Bias passed to the single-port exchange. Fluid leaves the manifold for the pipe network while the manifold pressure is above the network's minus this, and enters only when the network is more than this above the manifold." + rep)
+    f["x_call"] = code(F, 0x14044ABF7, "e8141beaff", "Exhaust port exchange call", "call 0x1402ec710",
+                       "The Exhaust port (component+0x148) runs the same port exchange as tanks and radiators. The move each update is at most half the new demand, follows the network allocation set the update before, and is limited by source contents and free space." + rep)
+    # Coolant exchange.
+    f["k"] = op(F_GROUP_DAMP, 0x1404CBCC2, "f3440f1025593d6e00", 0x140BAFA24, "Coolant exchange coefficient",
+                "k = this × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³ for a nonempty coolant compartment, used at 0x1404cbe8e." + rep)
+    f["k_s"] = op(F_GROUP_DAMP, 0x1404CBCDD, "f3440f103dea406e00", 0x140BAFDD0, "Coolant scaling weight", "The 0.8 in (1 - 0.8 × scaling)³, applied at 0x1404cbe57." + rep)
+    f["k_cube"] = code(F_GROUP_COOL, 0x1404CBE5C, "f30f5ce80f28c5f30f59c5f30f59e8", "Coolant scaling cube", "(1 - 0.8 × scaling)³",
+                       "Subtracts 0.8 × scaling from 1 and cubes it by two multiplies." + rep)
+    f["k_liq"] = code(F_GROUP_COOL, 0x1404CBE6D, "e86ef7e1ff", "Coolant liquid share", "liquid amount ÷ total",
+                      "Calls the liquid sum 0x1402eb5e0 (indices 0, 1, 2, 5, 6, 8, 9) and divides by the compartment total; gas dilutes k, and diesel, oil or slurry count as liquid." + rep)
+    f["te"] = code(F_GROUP_COOL, 0x1404CBEB6, "f30f1193ec000000", "Engine temperature after coolant", "Te + W × k × (Tc - Te) ÷ C",
+                   "W is fresh plus sea water amount (+0xa4, +0xbc) and C the heat capacity (+0xf0). Both updates use the temperatures from before the exchange." + rep)
+    f["tc"] = code(F_GROUP_COOL, 0x1404CBEC6, "f30f11a3dc000000", "Coolant temperature after exchange", "Tc + k × (Te - Tc)", "Stores the coolant temperature +0xdc." + rep)
+    f["sc"] = code(F_GROUP_COOL, 0x1404CBE47, "f30f1183e4000000", "Coolant scaling growth", "scaling + sea water × 1e-5 × clamp((Te - 100) ÷ 100, 0, 1)",
+                   "Stores the scaling (+0xe4) clamped to 0 to 1. Only sea water above 100 °C raises it, and this update never lowers it." + rep)
+    f["x_step"] = op(F_PORT_DEMAND, 0x1402EC9EE, "f30f5905c6328c00", 0x140BAFCBC, "Step fraction", "Multiplies demand × factor before the clamp.")
+    f["x_cap"] = op(F_PORT_MOVE, 0x1402ECEB1, "f30f10056f3d8c00", 0x140BB0C28, "Inflow cap per update", "An inflow move is limited to this and to the outside state's total amount.")
+    f["sc_k"] = op(F_GROUP_DAMP, 0x1404CBCB9, "f3440f1005ae3b6e00", 0x140BAF870, "Coolant scaling rate", "Sea water amount × this × the temperature ramp is added to the scaling each update." + rep)
+
+    # Worked numbers from the verified constants, as tools/engine_step.py computes them (report "Python model and worked examples").
+    k = lambda a: float(fmt(n.f32(a)))
+    K = dict(damp=k(0x140BAF958), fuel=k(0x140BAF86C), gain=k(0x140BB0938), gain_d=k(0x140BB0918), heat=k(0x140BB08A0), cap=k(0x140BB072C),
+             eff=k(0x140BAF9B0), half=k(0x140BAFCBC), opt=k(0x140BAFD1C), two=k(0x140BB0218), cut=k(0x140BB0760))
+    ups = update_rate(E)["ups"]
+
+    def num(x, d=6):
+        return ("%.*f" % (d, x)).rstrip("0").rstrip(".")
+
+    def efficiency(r, temp, afr):
+        t = min(1.0, max(0.0, temp / 100))
+        lo, hi = 12 - K["two"] * t, 16 + 4 * t
+        x = (hi - afr) / (hi - lo)
+        mix = 1 - 2 * (min(1.0, max(0.0, x)) - K["opt"]) ** 2
+        speed = min(1.0, max(0.0, 4 * (K["eff"] * r + K["half"]) / (1 + K["eff"] * r) ** 2 - 1))
+        return r > K["two"] and 0 <= x <= 1, speed * mix
+
+    def step(cyl, vox, inertia, frictionless, r, throttle=1.0, temp=20.0, damage=0):
+        cap = 1 + K["cap"] * cyl * vox
+        r *= 1 - K["damp"] * (1 - frictionless / inertia)
+        for _ in range(cyl):
+            fuel = 0.0 if r > K["cut"] else r * K["fuel"] * vox * throttle
+            gate, eta = efficiency(r, temp, 13.6 + 0.4 * min(1.0, max(0.0, temp / 100)))
+            burned = fuel * gate
+            if damage < 20:
+                r += burned * eta * (K["gain"] if damage == 0 else K["gain_d"]) / inertia
+            temp += burned * K["heat"] / cap
+        return r
+
+    A = lambda bid, name, meaning: E.attr(bid, name, meaning)
+    weights = {b: A(b, "engine_max_force", "Added to the crank inertia I by the crank walk." if b not in ME_NO_I else "Not added to the crank inertia: the type is outside the crank weight mask.")
+               for b in ME_PARTS}
+    fly = {b: A(b, "engine_frictionless_force", "Added to the frictionless sum F; equal to the part's engine_max_force.") for b in ("modular_engine_flywheel", "modular_engine_flywheel_3x3", "modular_engine_flywheel_5x5")}
+    w = {b: float(x["value"]) for b, x in weights.items()}
+    I1 = 1 + w["modular_engine_cylinder_straight"] + w["modular_engine_crankshaft"]
+    I4 = 1 + 4 * w["modular_engine_cylinder_straight"] + w["modular_engine_crankshaft"]
+    FW = float(fly["modular_engine_flywheel"]["value"])
+    I4f = I4 + w["modular_engine_flywheel"]
+    one, four, fw = step(1, 1, I1, 0, 20.0), step(4, 1, I4, 0, 20.0), step(4, 1, I4f, FW, 20.0)
+    keep = 1 - K["damp"] * (1 - FW / I4f)
+    cyl_in = [weights[b] for b in ("modular_engine_cylinder_straight", "modular_engine_crankshaft", "modular_engine_flywheel")] + [fly["modular_engine_flywheel"]]
+    f["example"] = E.derived("Crank RPS after one update from 20 RPS",
+                             "1 cylinder, I = %s: %s; 4 cylinders, I = %s: %s; 4 cylinders and a 1x1 flywheel, I = %s: %s" % (num(I1), num(one, 4), num(I4), num(four, 4), num(I4f), num(fw, 4)),
+                             "1x1 cylinders on one 1x1 crankshaft at 20 °C, mixture at its peak AFR 13.68, full fuel throttle, ideal supply and exhaust room, damage 0. "
+                             "The crank first keeps 0.99 (F = 0) or %s (flywheel, F = %s) of its 20 RPS, then each cylinder adds 80000 × burned fuel × efficiency ÷ I in turn. "
+                             "The flywheel cuts both the coasting loss and each impulse. Python doubles in tools/engine_step.py give 22.111442663, 25.343046687 and 20.133916487." % (num(keep, 6), num(FW)) + rep,
+                             cyl_in + [f["i0"], f["i_add"], f["f_add"], f["d_k"], f["d_r"], f["g_0"], f["div"], f["r_store"]])
+    f["coast"] = E.derived("Crank coasting without a flywheel", "0.99 per update, %s after one simulated second" % num(0.99 ** ups, 5),
+                           "F = 0 gives retention 1 - 0.01 = 0.99 per update; 0.99^%d = %s, when nothing else acts on the crank." % (ups, num(0.99 ** ups, 5)) + rep,
+                           [f["d_k"], f["d_r"], f["f_default"]] + update_rate(E)["findings"][:1])
+    per_rev = K["fuel"] * K["gain"] * ups
+    f["impulse"] = E.derived("Cylinder impulse with ideal supply",
+                             "%s × r × voxels × throttle × efficiency ÷ I RPS per update; %s × voxels × throttle × efficiency ÷ I per revolution" % (num(K["fuel"] * K["gain"]), num(per_rev / 1)),
+                             "Burned fuel r × 0.000004 × voxels × throttle times gain 80000 gives %s × r × voxels × throttle × efficiency ÷ I per update. At a held r there are %d ÷ r updates per revolution, so one revolution adds %s × voxels × throttle × efficiency ÷ I, half that from damage 1. A conversion at held speed, not a firing-order event or a torque curve." % (
+                                 num(K["fuel"] * K["gain"]), ups, num(per_rev)) + rep,
+                             [E.const(F, 0x140BAF86C, "Fuel intake coefficient", "Fuel term = RPS × this × listed-voxel count × throttle (manifold offset 0x88), capped by the diesel found in the connected fuel manifolds."), f["g_0"], f["g_d"], f["div"]] + update_rate(E)["findings"][:1])
+    cl = [(u, u ** 3) for u in (0.5,)]
+    f["clutch_ex"] = E.derived("Clutch target and travel", "input 0.5 → target 0.125; 0 to 1 in 10 updates, 1/6 s",
+                               "target = clamp(input, 0, 1)³, so 0.5 gives %s. From engagement 0 the first two updates give 0.1 and 0.125. A full 0 to 1 change takes at least 1 ÷ 0.1 = 10 updates, 10 ÷ %d = 1/6 simulated second." % (num(cl[0][1]), ups) + rep,
+                               [f["cl_in"], f["cl_exp"], E.const(F, 0x140BAFAD0, "Clutch engagement slew", "Cases 3, 0x15 and 0x1a (clutches) move stored engagement toward its target by at most this per update.")] + update_rate(E)["findings"][:1])
+    d20 = 20 / 560
+    f["alt_ex"] = E.derived("Alternator charge at 20 RPS", "%s per update, %s per simulated second" % (num(0.05 * 20 * d20, 6), num(0.05 * 20 * d20 * ups, 4)),
+                            "d = min(20 ÷ 560, 0.25) = %s; charge = 0.05 × 20 × d. At 140 RPS d reaches 0.25 and charge grows linearly with speed after that. Native charge units, not joules." % num(d20, 6) + rep,
+                            [f["a_add"], E.const(F, 0x140BB083C, "Alternator speed normaliser", "Case 5 (alternator) charge per update = electric_magnitude × force_emitter_max_force × 0.1 × 0.1 × |ω| × min(|ω| ÷ this, 0.25), where ω is the alternator's coupled speed.")] + update_rate(E)["findings"][:1])
+    f["boost"] = E.derived("Intake pressure factor", "1.01 at 1 atm; 2 from 100 atm", "clamp(1 + 0.01 × mean pressure, 1, 2): 1 + 0.01 × 1 = 1.01; the cap 2 is reached at 100 atm." + rep,
+                           [f["p_call"], E.const(F, 0x140BAF958, "Manifold pressure scale", "Pressure factor = clamp(1 + this × average air-manifold pressure value, 1, 2); the pressure value is (contents × 60) ÷ volume per compartment.")])
+    f["k_ex"] = E.derived("Coolant coefficient examples", "clean water 0.04; fully scaled 0.00032",
+                          "Clean, unscaled liquid: k = 0.04 × 1 × 1. Scaling 1: 0.04 × (1 - 0.8)³ = 0.04 × 0.008 = 0.00032. Gas in the compartment lowers k further. Heat moved is W × k × (Te - Tc) per update, in amount × °C." + rep,
+                          [f["k"], f["k_s"], f["k_cube"], f["k_liq"]])
+    f["afr_peak"] = E.derived("Peak air:fuel ratio", "13.6 + 0.4 × t; 13.68 at 20 °C, 14 from 100 °C",
+                              "s = 0.6 inside the window 12 - 2t to 16 + 4t gives 16 + 4t - 0.6 × (4 + 6t) = 13.6 + 0.4t, with t = clamp(T ÷ 100, 0, 1) and T in °C." + rep,
+                              [E.const(F, 0x140BAFD1C, "Best stoichiometric position", "Mixture factor = 1 − 2 × (s − this)²; it peaks at s = 0.6, is 0.28 at the lean edge (s = 0), and 0.68 at the rich edge (s = 1).")])
+    E.modular = {"f": f, "weights": weights, "fly": fly, "K": K}
+    return E.modular
+
+
+ME_PARTS = ("modular_engine_crankshaft", "modular_engine_crankshaft_3x1", "modular_engine_crankshaft_3x3", "modular_engine_crankshaft_5x5",
+            "modular_engine_crankshaft_converter_3x3", "modular_engine_crankshaft_converter_5x5",
+            "modular_engine_cylinder_straight", "modular_engine_piston_3x3", "modular_engine_piston_5x5",
+            "modular_engine_drive_belt", "modular_engine_power_manifold_3x3", "modular_engine_power_manifold_5x5",
+            "modular_engine_flywheel", "modular_engine_flywheel_3x3", "modular_engine_flywheel_5x5",
+            "modular_engine_clutch", "modular_engine_clutch_3x3", "modular_engine_clutch_5x5")
+ME_NO_I = ("modular_engine_clutch", "modular_engine_clutch_3x3", "modular_engine_clutch_5x5")
+
+
 def surface_air(E):
     """Air force of the rudder component (wings, control surfaces, fins), verified once and shared."""
     if hasattr(E, "surface"):
@@ -2130,22 +2436,24 @@ def heat_exchange(B, E):
 
 def modular_engines(B, E):
     N = E.native
+    M = modular_native(E)
+    m, wts, flyf = M["f"], M["weights"], M["fly"]
     rps60 = E.const(F_ENGINE, 0x140BB0760, "Cylinder intake cut-off speed",
-                    "In engine_module_type cases 1, 0x16 and 0x1b (the 1x1, 3x3 and 5x5 cylinders) the throttle term read from manifold offset 0x88 is set to zero when the shared crank speed (offset 0x254, the value shown as RPS) exceeds this constant.")
+                    "In engine_module_type cases 1, 0x16 and 0x1b (the 1x1, 3x3 and 5x5 cylinders) the fuel throttle (group offset 0x88) is set to zero when the shared crank speed (group offset 0x254, the value shown as RPS) exceeds this constant.")
     air_k = E.const(F_ENGINE, 0x140BAF864, "Pressure-scaled intake coefficient",
-                    "Intake term = RPS × this × listed-voxel count ÷ 60 × throttle (manifold offset 0x90) × pressure factor, capped by the oxygen found in the connected air manifolds.")
+                    "Intake term = RPS × this × listed-voxel count ÷ 60 × air throttle (group offset 0x90) × pressure factor, capped by the oxygen found in the connected air manifolds.")
     fuel_k = E.const(F_ENGINE, 0x140BAF86C, "Fuel intake coefficient",
                      "Fuel term = RPS × this × listed-voxel count × throttle (manifold offset 0x88), capped by the diesel found in the connected fuel manifolds.")
     p_scale = E.const(F_ENGINE, 0x140BAF958, "Manifold pressure scale",
                       "Pressure factor = clamp(1 + this × average air-manifold pressure value, 1, 2); the pressure value is (contents × 60) ÷ volume per compartment.")
     afr16 = E.const(F_ENGINE, 0x140BB06A8, "Lean edge of combustion window at cold",
-                    "Window upper bound = this + 4 × t, where t = manifold temperature ÷ 100 clamped 0…1.")
+                    "Window upper bound = this + 4 × t, where t = manifold temperature in °C ÷ 100 clamped 0…1.")
     afr12 = E.const(F_ENGINE, 0x140BB0664, "Rich edge of combustion window at cold",
                     "Window lower bound = this − 2 × t. Stoichiometric position s = (upper − AFR) ÷ (upper − lower); combustion counts only when 0 ≤ s ≤ 1 and RPS exceeds 2.")
     afr_mult = E.const(F_ENGINE, 0x140BB0488, "Window temperature slope and efficiency multiplier",
                        "Used as the 4 × t term of the lean bound and as the 4 in the speed-efficiency expression.")
     two = E.const(F_ENGINE, 0x140BB0218, "Minimum running speed and window slope",
-                  "Combustion and torque need RPS above this value; it is also the 2 × t term of the rich bound.")
+                  "Combustion and the speed impulse need RPS above this value; it is also the 2 × t term of the rich bound.")
     opt = E.const(F_ENGINE, 0x140BAFD1C, "Best stoichiometric position",
                   "Mixture factor = 1 − 2 × (s − this)²; it peaks at s = 0.6, is 0.28 at the lean edge (s = 0), and 0.68 at the rich edge (s = 1).")
     eff_a = E.const(F_ENGINE, 0x140BAF9B0, "Speed-efficiency scale",
@@ -2154,13 +2462,9 @@ def modular_engines(B, E):
     afr_mul = E.const(F_ENGINE, 0x140BB064C, "Air:fuel ratio scale",
                       "Displayed air:fuel ratio = intake term × 10 × 60 ÷ fuel term.")
     hot = E.const(F_ENGINE, 0x140BB07A4, "Overheat damage threshold",
-                  "When the manifold temperature exceeds this, the engine_overheating setting is on and a further setting byte at offset 0x4a is set, the cylinder applies damage every 300 updates.")
+                  "When the manifold temperature in °C exceeds this, the engine_overheating setting is on and a further setting byte at offset 0x4a is set, the cylinder applies damage every 300 updates.")
     heat = E.const(F_ENGINE, 0x140BB08A0, "Combustion heat gain",
                    "Manifold temperature += combustion × exhaust share × fuel term × this ÷ manifold heat capacity (offset 0xf0).")
-    torque_ok = E.const(F_ENGINE, 0x140BB0938, "Torque gain, undamaged",
-                        "Crank RPS += combustion × exhaust share × fuel term × efficiency × this ÷ crank inertia, applied while the cylinder's damage counter is zero.")
-    torque_dmg = E.const(F_ENGINE, 0x140BB0918, "Torque gain, damaged",
-                         "Used instead of 80000 once the cylinder's damage counter is non-zero; no torque is applied once the counter reaches 20.")
     fixed = E.const(F_ENGINE, 0x140BAFFD8, "Infinite-fuel intake ratio",
                     "With the infinite_fuel setting (settings offset 0x34) the intake term becomes fuel term × this ÷ 60, which fixes the air:fuel ratio at 14 regardless of manifolds.")
     starter = E.const(F_ENGINE, 0x140BB04E0, "Starter assist ceiling",
@@ -2186,12 +2490,11 @@ def modular_engines(B, E):
                  "lea r9,[rsi+0x2cb8] precedes the engine_module_type enum serializer call; the engine update switches on this offset.")
     inertia = E.code(F_ASSEMBLY, 0x1404B410B, "f30f108074080000f3410f588058020000", "Crank inertia accumulation",
                      "definition engine_max_force summed",
-                     "While building an engine assembly the code adds each part's engine_max_force (definition+0x874) to the crank inertia (offset 0x258) for engine_module_type values 0, 1, 2, 4, 17, 18, 19, 20, 22, 23, 24, 25 and 27, and engine_frictionless_force to offset 0x25c.")
+                     "While building an engine assembly the code adds each part's engine_max_force (definition+0x874) to the crank inertia (offset 0x258) for engine_module_type values 0, 1, 2, 4, 17, 18, 19, 20, 22, 23, 24, 25 and 27, and engine_frictionless_force to offset 0x25c. The inertia starts at 1, not 0.")
     cyl_vox = [E.derived("%s listed voxels" % E.block(b)["name"], E.block(b)["physics"]["voxels"]["count"],
                          "Count of voxel entries in %s.xml, which the cylinder code uses as its per-cylinder intake multiplier." % b,
                          [E.tooltip(b)]) for b in ("modular_engine_cylinder_straight", "modular_engine_piston_3x3", "modular_engine_piston_5x5")]
-    fly = [E.attr(b, "engine_max_force", "Added to the crank inertia sum by the assembly code.") for b in
-           ("modular_engine_crankshaft", "modular_engine_flywheel", "modular_engine_flywheel_3x3", "modular_engine_flywheel_5x5")]
+    fly = [wts[b] for b in ("modular_engine_crankshaft", "modular_engine_flywheel", "modular_engine_flywheel_3x3", "modular_engine_flywheel_5x5")]
     settings = [E.code(F_SETTINGS, 0x1402930FF, "4c8d4f344c8d052ed28700", "infinite_fuel setting byte", "settings+0x34",
                        "lea r9,[rdi+0x34] then lea r8,'infinite_fuel'; the engine update checks this byte."),
                 E.code(F_SETTINGS, 0x14029318B, "4c8d4f354c8d057ad18700", "engine_overheating setting byte", "settings+0x35",
@@ -2200,7 +2503,7 @@ def modular_engines(B, E):
             E.derived("Best air:fuel ratio, manifold at or above 100 °C", 14.0, "Window 10 … 20 at t = 1; s = 0.6 gives 20 − 0.6 × 10.", [afr16, afr12, afr_mult, two, opt]),
             E.derived("Speed efficiency at 50 RPS", 0.5, "4 × (1 + 0.5) ÷ (1 + 1)² − 1 with 0.02 × 50 = 1.", [eff_a, eff_b, afr_mult]),
             E.derived("Air:fuel ratio with equal throttles and no boost", 7, "600 × 2.8e-6 ÷ 60 ÷ 4e-6 = 7.", [air_k, fuel_k, afr_mul])]
-    core = [rps60, air_k, fuel_k, p_scale, afr16, afr12, afr_mult, two, opt, eff_a, eff_b, afr_mul] + best
+    core = [rps60, air_k, fuel_k, p_scale, afr16, afr12, afr_mult, two, opt, eff_a, eff_b, afr_mul, m["floor"], m["afr_peak"]] + best
     R = update_rate(E)["findings"]
     ups = update_rate(E)["ups"]
     fuel_s = per_second(E, "Cylinder fuel per simulated second", "RPS × %.3g × voxels × fuel throttle" % (float(fuel_k["value"]) * ups),
@@ -2208,50 +2511,118 @@ def modular_engines(B, E):
     damage_s = per_second(E, "Overheat damage interval", "%s ÷ %d = %g s" % (damage_period["value"], ups, float(damage_period["value"]) / ups),
                           "One damage step per %s component updates." % damage_period["value"])
     timed = [fuel_s, damage_s] + R
+    crank = [m[x] for x in ("i0", "walk", "mask", "i_add", "f_add", "f_name", "f_default", "d_f", "d_i", "d_k", "d_r", "noop", "coast")] + [inertia]
+    impulse = [m[x] for x in ("gate20", "i_read", "g_0", "g_d", "div", "r_store", "accept", "impulse", "example")]
+    thermal = [m[x] for x in ("c0", "reg", "c_40", "c_div", "hot35", "hot4a", "hot_step", "k", "k_s", "k_cube", "k_liq", "te", "tc", "sc", "sc_k", "k_ex")] + [heat, hot, damage_period, damage_s]
+    damage = [m[x] for x in ("dmg_set", "dmg_ctor", "dmg_name", "dmg_load", "gate20", "hot_step")]
+    telemetry = [m[x] for x in ("ch1", "ch2", "ch3")] + texts[:5]
+    throttles = [m[x] for x in ("thr_fuel", "thr_air", "latch")]
+    pressure = [m["p_call"], m["boost"], fluid_network(E)["t_pressure"], fluid_network(E)["law"], E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")]
+    exhaust = [m[x] for x in ("x_vol", "x_f", "x_b", "x_call", "accept", "x_step", "x_cap")]
+    belt = [m[x] for x in ("a_j", "a_r", "a_w")]
+    weights = [wts[b] for b in ME_PARTS if b not in ME_NO_I] + list(flyf.values())
+    open_category = [
+        "SI torque, power and energy were not recovered: the inertia weights, RPS impulses, heat in amount × °C and electrical charge have no established conversion to N m, watts or joules.",
+        "The placement and alignment validator for modular parts was not traced. Which attachment positions and orientations the editor accepts is unknown beyond the coupling names the crank and manifold walks follow.",
+        "Writers of component damage (offset 8) other than the cylinder overheat branch, the capped setter and binary restore were not traced, so collision damage and repair rates are unknown.",
+    ]
     B.category("Modular engines",
-               "Recovered cylinder code gives a concrete tuning target: keep the air:fuel ratio near 13.6–14.0, keep the crank below 60 RPS, keep manifolds under 115 °C and give the exhaust room.",
-               [section("Combustion window",
-                        "Each cylinder computes a fuel term (RPS × 4e-6 × voxels × fuel throttle) and an intake term (RPS × 2.8e-6 × voxels ÷ 60 × air throttle × pressure factor). At 60 updates per simulated second the fuel term is RPS × 0.00024 × voxels × fuel throttle per second. The displayed air:fuel ratio is intake × 600 ÷ fuel, so with equal throttles and no boost it reads 7. Combustion happens only when the ratio lies between 12 − 2t and 16 + 4t, where t is manifold temperature ÷ 100 clamped to 0…1. Within the window the mixture factor 1 − 2(s − 0.6)² peaks at an air:fuel ratio of 13.6 cold and 14.0 when the manifold is at or above 100 °C."),
-                section("Speed, heat and damage",
-                        "Fuel admission is cut above 60 RPS, so cylinders act as a hard rev limiter. Speed efficiency falls from 1 at standstill to 0.5 at 50 RPS. Burning fuel heats the manifold group (gain 6000 ÷ heat capacity); above 115 °C, with engine overheating enabled, the cylinder takes damage every 300 updates (5 simulated seconds), and torque gain drops from 80000 to 40000 once damaged."),
-                section("Assembly",
-                        "Crank inertia is the sum of engine_max_force over the assembly: a 1x1 crank block adds 0.7 while flywheels add 150, 600 and 2400. Inertia divides every torque impulse, so flywheels smooth speed and make starting slower. The starter only pushes while the crank is below 5 RPS."),
-                section("Measurement questions",
-                        "Compartment pressure units and the units of manifold heat and coolant transfer were not recovered; measure RPS response and temperatures in game to calibrate these.")],
-               core + [hot, heat, torque_ok, torque_dmg, starter, damage_period] + texts + fly + cyl_vox + timed,
-               ["All engine formulas are reconstructed from static decompilation of build f9206d85…; they were not checked in a running game.", TICK,
-                "Throttle offsets 0x88 and 0x90 are attributed to the fuel and air manifolds from the oxygen/diesel caps applied to them; the manifold write path was only partially traced."])
+               "Crank parts share one RPS state with inertia I = 1 + Σ engine_max_force. Each undamaged cylinder above 2 RPS adds 80000 × burned fuel × efficiency ÷ I RPS per update, "
+               "fuel stops above 60 RPS, the mixture peaks at AFR 13.6 + 0.4t, and the crank keeps 1 - 0.01 × (1 - F ÷ I) of its speed each update.",
+               [section("Crank group and inertia",
+                        "Crankshafts, converters, cylinders, drive belts, power manifolds and flywheels joined by crank, belt or cylinder couplings form one crank group with one RPS value. "
+                        "The group starts at inertia I = 1 and frictionless sum F = 0. Each member adds its engine_max_force to I and its engine_frictionless_force to F: crankshafts 0.7, 8, 15 and 25; converters 8 and 15; cylinders 0.6, 12 and 15; the drive belt 0.6; power manifolds 5; flywheels 150, 600 and 2400. "
+                        "Only flywheels have a nonzero F, equal to their inertia weight. Clutches, the starter, alternator and fluid pump add nothing to I. Converters and belts change no speed in their own update, so every member turns at the crank RPS, 1:1."),
+                section("Speed each update",
+                        "First the crank keeps r × (1 - 0.01 × (1 - F ÷ I)): 0.99 per update without a flywheel, 0.54716 after one simulated second of coasting. "
+                        "Then each cylinder in turn adds Δr = gain × burned fuel × efficiency ÷ I, with gain 80000 at damage 0, 40000 at damage 1 to 19 and no impulse from damage 20. "
+                        "Burned fuel is r × 0.000004 × voxels × fuel throttle when the crank is above 2 RPS and not above 60 RPS, the mixture is inside the window and the exhaust has room. "
+                        "With ideal supply one cylinder adds 0.32 × r × voxels × throttle × efficiency ÷ I per update. A later cylinder starts from the speed the earlier ones left, and the 60 RPS cut is tested before each impulse, so the crank can pass 60 within one update."),
+                section("Worked example",
+                        "At 20 °C, peak mixture and full throttle, starting at 20 RPS: one 1x1 cylinder on a 1x1 crankshaft (I = 2.3) ends the update at 22.1114 RPS, four 1x1 cylinders (I = 4.1) at 25.343 RPS, "
+                        "and the same four with a 1x1 flywheel (I = 154.1, F = 150) at 20.1339 RPS. The flywheel cuts both the coasting loss and each impulse."),
+                section("Combustion window",
+                        "Each cylinder computes a fuel term (RPS × 4e-6 × voxels × fuel throttle) and an intake term (RPS × 2.8e-6 × voxels ÷ 60 × air throttle × pressure factor). At 60 updates per simulated second the fuel term is RPS × 0.00024 × voxels × fuel throttle per second. "
+                        "The displayed air:fuel ratio is intake × 600 ÷ fuel, so with equal throttles and no boost it reads 7. Combustion happens only when the ratio lies between 12 − 2t and 16 + 4t, where t is the manifold temperature in °C ÷ 100 clamped to 0…1. "
+                        "Within the window the mixture factor 1 − 2(s − 0.6)² peaks at an air:fuel ratio of 13.6 + 0.4t: 13.68 at 20 °C and 14 at or above 100 °C. "
+                        "The fuel and air throttles are the largest inputs among the group's intake and air manifolds, taken once per group update; they are not summed."),
+                section("Heat, coolant and damage",
+                        "Burned fuel heats the shared manifold group by 6000 × burned fuel ÷ C, where C = 1 + 40 × the group's cylinder voxels; manifold extensions add nothing to C. Engine and coolant temperatures are in °C. "
+                        "Each group update the coolant moves k of the gap toward the engine and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. "
+                        "Clean water gives k = 0.04, fully scaled water 0.00032. Sea water above 100 °C builds scaling. "
+                        "Above 115 °C, with engine_overheating and a second settings flag on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field."),
+                section("Pressure and units",
+                        "Manifold and pipe pressures are in atmospheres, on the same law as the Tank Pressure output. The intake factor clamp(1 + 0.01 × mean air-manifold pressure, 1, 2) is 1.01 at 1 atm and reaches 2 at 100 atm. "
+                        "Crank and accessory speeds are RPS and temperatures °C. Inertia weights, heat in amount × °C and electrical charge are internal units.")],
+               core + [hot, heat, starter, damage_period] + texts + weights + cyl_vox + timed + crank + impulse + thermal + damage + throttles + pressure + exhaust + belt,
+               ["All engine formulas are reconstructed from static decompilation of build f9206d85…; they were not checked in a running game.", TICK] + open_category)
     B.family("modular-engine-cylinder",
-             "Burns diesel with manifold oxygen inside a temperature-dependent air:fuel window; best efficiency near ratio 13.6 cold and 14.0 hot, no fuel above 60 RPS.",
+             "Each undamaged cylinder above 2 RPS adds 80000 × burned fuel × efficiency ÷ I RPS per update. Best efficiency at air:fuel ratio 13.6 + 0.4t, 13.68 at 20 °C; no fuel above 60 RPS.",
              [section("Operating conditions",
-                      "A cylinder produces torque only when the crank is above 2 RPS, its air:fuel ratio is inside the window 12 − 2t … 16 + 4t (t = manifold °C ÷ 100, clamped 0…1), and the crank is at or below 60 RPS. Fuel is capped by the diesel available in its fuel manifolds and intake by the oxygen in its air manifolds."),
+                      "A cylinder adds speed only when the crank is above 2 RPS, its air:fuel ratio is inside the window 12 − 2t … 16 + 4t (t = manifold °C ÷ 100, clamped 0…1), the crank is at or below 60 RPS and its damage is below 20. Fuel is capped by the diesel available in its fuel manifolds and intake by the oxygen in its air manifolds."),
+              section("Speed impulse",
+                      "Δr = gain × burned fuel × efficiency ÷ I, added straight to the crank RPS, with I = 1 + Σ engine_max_force of the crank group. Gain is 80000 at damage 0 and 40000 at damage 1 to 19. "
+                      "Burned fuel is the fuel term times the exhaust share, so with ideal supply one cylinder adds 0.32 × r × voxels × throttle × efficiency ÷ I per update, or 19.2 × voxels × throttle × efficiency ÷ I per revolution at a held speed. "
+                      "Cylinders run one after another and each sees the speed the earlier ones left. This is an RPS step, not a torque in N m, and there is no separate firing stroke."),
               section("Performance drivers",
-                      "Fuel per update = RPS × 4e-6 × listed voxels × fuel throttle, which is RPS × 0.00024 × listed voxels × fuel throttle per simulated second. Intake = RPS × 2.8e-6 × listed voxels ÷ 60 × air throttle × pressure factor, where the pressure factor rises from 1 to 2 with air-manifold pressure (scale 0.01). Efficiency = speed efficiency × mixture factor; speed efficiency = clamp(4(0.02·RPS + 0.5)/(0.02·RPS + 1)² − 1, 0, 1), and the mixture factor 1 − 2(s − 0.6)² peaks at the air:fuel ratio 13.6 cold, 14.0 hot. The displayed Stoichiometric value is 2s − 1, so aim for about 0.2."),
+                      "Fuel per update = RPS × 4e-6 × listed voxels × fuel throttle, which is RPS × 0.00024 × listed voxels × fuel throttle per simulated second. Intake = RPS × 2.8e-6 × listed voxels ÷ 60 × air throttle × pressure factor, where the pressure factor rises from 1 to 2 with air-manifold pressure in atmospheres (scale 0.01). "
+                      "The air:fuel ratio is 600 × admitted oxygen ÷ max(admitted diesel, 1e-08). Efficiency = speed efficiency × mixture factor; speed efficiency = clamp(4(0.02·RPS + 0.5)/(0.02·RPS + 1)² − 1, 0, 1), and the mixture factor 1 − 2(s − 0.6)² peaks at the air:fuel ratio 13.6 cold, 14.0 hot. The displayed Stoichiometric value is 2s − 1, so aim for about 0.2."),
               section("Variant tradeoffs",
-                      "The cylinder code multiplies fuel and intake by the definition's listed voxel count: 1 for the 1x1, 27 for the 3x3 and 125 for the 5x5. At equal RPS and throttle a 3x3 cylinder therefore admits 27 times the fuel of a 1x1 and heats its manifolds correspondingly."),
+                      "The cylinder code multiplies fuel and intake by the definition's listed voxel count: 1 for the 1x1, 27 for the 3x3 and 125 for the 5x5. At equal RPS and throttle a 3x3 cylinder therefore admits 27 times the fuel of a 1x1 and heats its manifolds correspondingly. "
+                      "Their inertia weights are 0.6, 12 and 15, and each adds 40 × its voxels to the manifold heat capacity."),
               section("Setup and interactions",
-                      "With equal air and fuel throttles and no boost the ratio is 7, below the window, so the engine will not fire; reduce fuel throttle to roughly half of air throttle or add manifold pressure. Exhaust that cannot fit into the exhaust manifolds reduces torque and heat in proportion (Exhaust % in the inspection text). Above 115 °C with overheating enabled the cylinder accumulates damage every 300 updates, once per 5 simulated seconds; while damaged its torque gain halves from 80000 to 40000, and at a counter of 20 it stops producing torque."),
-              section("Open measurement questions",
-                      "Confirm the target ratio in game with the Air:Fuel Ratio inspection line; measure how manifold pressure units relate to the pressure factor; time the damage interval to check the 5-second period.")],
-             core + [hot, heat, torque_ok, torque_dmg, fixed, damage_period, vox, emt] + texts + cyl_vox + settings + [E.port("modular_engine_cylinder_straight", "Composite Data")] + timed,
-             ["Reconstructed from static decompilation; signs and offsets were checked against instruction bytes, but no in-game run confirmed the curves.", TICK,
-              "The fuel/air attribution of the two throttle offsets rests on the diesel and oxygen caps applied to them.",
-              "The counter at component offset 0x8 is read as damage because the overheat branch increments it (capped at 50); its other writers were not traced."])
+                      "With equal air and fuel throttles and no boost the ratio is 7, below the window, so the engine will not fire; reduce fuel throttle to roughly half of air throttle or add manifold pressure. Exhaust that cannot fit into the exhaust manifolds reduces the speed impulse and heat in proportion (Exhaust % in the inspection text). "
+                      "Above 115 °C with overheating enabled the cylinder takes 1 damage at once and 1 more every 300 updates, once per 5 simulated seconds; with damage 1 to 19 its gain halves from 80000 to 40000, and from 20 it adds no speed. Damage is the component's saved damage field, capped at 50 by the setter."),
+              section("Composite telemetry",
+                      "Composite Data number 1 (Air Volume) is 6000 × admitted oxygen, number 2 (Fuel Volume) is 10 × admitted diesel, in litres, and number 3 is the manifold temperature in °C after this cylinder's heat. "
+                      "Numbers 1 and 2 are per cylinder visit, not per second, and number 1 ÷ number 2 is the air:fuel ratio when fuel is nonzero. Both stay nonzero outside the combustion window, so they show demand, not combustion. Number 1 is not the air stored in the manifold.")],
+             core + [hot, heat, fixed, damage_period, vox, emt] + texts + cyl_vox + settings + [E.port("modular_engine_cylinder_straight", "Composite Data")] + timed
+             + impulse + damage + telemetry + throttles + [m["boost"], m["c_40"], m["reg"]] + [wts[b] for b in ("modular_engine_cylinder_straight", "modular_engine_piston_3x3", "modular_engine_piston_5x5")],
+             ["Reconstructed from static decompilation; signs and offsets were checked against instruction bytes, but no in-game run confirmed the curves.", TICK])
     B.family("modular-engine-flywheel",
-             "Adds 150, 600 or 2400 to the crank inertia sum, against 0.7 for a 1x1 crank block; it smooths speed and slows starting.",
+             "Adds 150, 600 or 2400 to both the crank inertia I and the frictionless sum F, so each impulse is smaller and the crank loses less speed per update.",
              [section("Performance drivers",
-                      "Every cylinder torque impulse is divided by the summed crank inertia. The flywheels also add the same amount to a second accumulator from engine_frictionless_force, whose use was not traced."),
+                      "Each update the crank keeps 1 - 0.01 × (1 - F ÷ I) of its speed before the cylinders run, and every cylinder impulse divides by I. Flywheels are the only shipped parts with a nonzero F, equal to their inertia weight. "
+                      "Example from 20 RPS at full throttle: four 1x1 cylinders on a 1x1 crankshaft (I = 4.1) reach 25.343 RPS after one update; with a 1x1 flywheel (I = 154.1, F = 150) they reach 20.1339 RPS, and coasting keeps 0.999734 per update instead of 0.99."),
               section("Setup and interactions",
                       "The starter's coupling weights its own inertia (engine_max_force 0.5) against the crank inertia and only assists below 5 RPS, so a large flywheel noticeably lengthens cranking. Expect smaller RPS dips under load in exchange.")],
-             fly + [inertia, starter, E.attr("modular_engine_starter", "engine_max_force", "Starter's own inertia weight in the coupling."), E.tooltip("modular_engine_flywheel")],
-             ["The second accumulator (offset 0x25c) is fed by engine_frictionless_force; its effect was not recovered."])
+             fly + list(flyf.values()) + crank + [m["example"], m["div"], starter, E.attr("modular_engine_starter", "engine_max_force", "Starter's own inertia weight in the coupling."), E.tooltip("modular_engine_flywheel")],
+             [TICK])
     B.family("modular-engine-crankshaft",
-             "Its engine_max_force values are summed into the crank inertia; the crank speed it reports is the RPS every cylinder and accessory reads.",
-             [section("Performance drivers",
-                      "Crank blocks add 0.7 (1x1) to the inertia sum; heavier assemblies respond more slowly to each combustion impulse. Cylinders read the shared crank speed for their intake, efficiency and 60 RPS cut-off.")],
-             [fly[0], inertia, rps60, E.attr("modular_engine_crankshaft_3x3", "engine_max_force", "Added to the crank inertia sum."),
-              E.attr("modular_engine_crankshaft_5x5", "engine_max_force", "Added to the crank inertia sum.")],
-             ["Only the inertia contribution was traced."])
+             "Crank parts share one RPS state. The crank group starts at inertia 1 and each crankshaft adds 0.7, 8, 15 or 25.",
+             [section("Crank group",
+                      "The crank walk joins parts through couplings named crankshaft, crankshaft_3, crankshaft_5, belt and cylinder, so a crankshaft, its cylinders, converters, belts and flywheels form one group with one RPS value. "
+                      "The group starts at I = 1 and F = 0; crankshafts add 0.7 (1x1), 8 (3x1), 15 (3x3) and 25 (5x5) to I and 0 to F. Their own component update does nothing, so the crankshaft changes no speed by itself."),
+              section("Performance drivers",
+                      "Each update the crank keeps r × (1 - 0.01 × (1 - F ÷ I)) of its speed, 0.99 without a flywheel, and every cylinder impulse divides by I, so heavier assemblies respond more slowly to each combustion impulse. Cylinders read the shared crank speed for their intake, efficiency and 60 RPS cut-off.")],
+             [wts[b] for b in ("modular_engine_crankshaft", "modular_engine_crankshaft_3x1", "modular_engine_crankshaft_3x3", "modular_engine_crankshaft_5x5")] + crank + [rps60, m["div"]],
+             [TICK])
+    B.family("modular-engine-crankshaft-converter",
+             "Joins two crankshaft sizes into one crank group at a 1:1 speed and adds inertia 8 (Converter 3 to 1) or 15 (Converter 5 to 3).",
+             [section("How it works",
+                      "The crank walk follows a converter's crankshaft couplings like any other, so both sides end up in the same group and read the same RPS. Its component update (types 20 and 24) does nothing, so there is no speed ratio and no torque multiplication. "
+                      "The size names describe the couplings. The converter adds its engine_max_force, 8 or 15, to the crank inertia I and 0 to the frictionless sum, as it has no engine_frictionless_force attribute.")],
+             [wts["modular_engine_crankshaft_converter_3x3"], wts["modular_engine_crankshaft_converter_5x5"]] + crank,
+             [TICK])
+    B.family("modular-engine-drive-belt",
+             "Joins the crank group and carries crank RPS 1:1 to starters, alternators and fluid pumps; adds inertia 0.6, or 5 for the power manifolds.",
+             [section("How it works",
+                      "The drive belt has one crankshaft coupling and four belt couplings. The crank walk follows both kinds, so the belt is part of the crank group. Its component update (type 4, and 17 and 23 for the power manifolds) does nothing: no ratio, slip or loss. "
+                      "It adds 0.6 (drive belt) or 5 (3x3 and 5x5 power manifolds) to the crank inertia I and 0 to the frictionless sum."),
+              section("Accessories",
+                      "A starter, alternator or fluid pump on the belt keeps its own speed w in RPS, in the crank's reference. Each update it mixes with the crank by its Clutch Pressure u, clamped to 0 to 1 and used linearly: "
+                      "r becomes r + J ÷ (I + J) × u × (w - r) and w becomes w + I ÷ (I + J) × u × (r - w), with J = 0.5 the accessory's own weight. I × r + J × w is unchanged and at u = 1 both end at the same speed. "
+                      "The alternator then applies its speed drag; the pump and starter keep 0.99 of their speed.")],
+             [wts[b] for b in ("modular_engine_drive_belt", "modular_engine_power_manifold_3x3", "modular_engine_power_manifold_5x5")] + crank + belt + [pump_decay,
+              E.attr("modular_engine_alternator", "engine_max_force", "The alternator's J in the belt mixing.")],
+             [TICK])
+    B.family("modular-engine-manifold",
+             "Manifold extensions carry the shared manifold group between cylinders and manifolds; they add no crank inertia and no heat capacity.",
+             [section("How it works",
+                      "The manifold walk joins parts through couplings named manifold, so cylinders, manifolds and extensions connected this way share one manifold group: one temperature, one heat capacity, one pair of throttles and the same air, fuel, exhaust and coolant manifolds. "
+                      "In the registration switch cylinders add 40 × their voxels to the heat capacity, while extensions (types 13, 14 and 15) add nothing. Their component update does nothing and they are outside the crank weight mask.")],
+             [m["reg"], m["c_40"], m["c0"], m["noop"], m["mask"], m["latch"]],
+             [TICK])
     decay_s = relaxation(E, "Belt accessory speed after one simulated second", round(1 - float(pump_decay["value"]), 9), [pump_decay])
     B.family("part-modular-engine-starter",
              "Pushes the crank only below 5 RPS, in proportion to the shortfall, while powered.",
@@ -2262,25 +2633,33 @@ def modular_engines(B, E):
              [starter, pump_decay, decay_s, E.attr("modular_engine_starter", "engine_max_force", "Inertia weight in the starter-crank coupling."), E.tooltip("modular_engine_starter"), two] + R,
              [TICK])
     B.family("part-modular-engine-alternator",
-             "Charge per update rises with the square of its coupled speed up to 140, then linearly.",
+             "Charge per update is 0.05 × |w| × min(|w| ÷ 560, 0.25), with w its own RPS after belt mixing: quadratic up to 140 RPS, linear above.",
              [section("Performance drivers",
-                      "Case 5 adds electric_magnitude × force_emitter_max_force × 0.1 × 0.1 × |ω| × min(|ω| ÷ 560, 0.25) per update, with electric_magnitude 0.05 and force_emitter_max_force 100. The second factor saturates at |ω| = 140, so the output is quadratic in speed below that and linear above it. The alternator then retains (1 − min(|ω| ÷ 560, 0.25)) of its speed, which is the load it puts on the belt. Multiply the charge per update by 60 for charge per simulated second."),
-              section("Open measurement questions",
-                      "How ω relates to crank RPS through the belt coupling and what the charge unit is were not recovered.")],
+                      "Case 5 adds electric_magnitude × force_emitter_max_force × 0.1 × 0.1 × |w| × min(|w| ÷ 560, 0.25) per update, with electric_magnitude 0.05 and force_emitter_max_force 100, so 0.05 × |w| × min(|w| ÷ 560, 0.25). The second factor saturates at |w| = 140, so the output is quadratic in speed below that and linear above it. "
+                      "The alternator then keeps (1 − min(|w| ÷ 560, 0.25)) of its speed, which is the load it puts on the belt. At 20 RPS it deposits 0.035714 per update, 2.1429 per simulated second."),
+              section("Belt coupling",
+                      "w is the alternator's own speed in RPS, in the crank's reference: the belt connects 1:1. Before charging, the alternator and crank mix by its Clutch Pressure u: r + J ÷ (I + J) × u × (w - r) and w + I ÷ (I + J) × u × (r - w), with J = 0.5. "
+                      "When damaged it deposits nothing but still drags. Charge goes into the electrical network's generation sum in native charge units.")],
              [alt, E.attr("modular_engine_alternator", "electric_magnitude", "Multiplier in the alternator charge expression."),
-              E.attr("modular_engine_alternator", "force_emitter_max_force", "Multiplier in the alternator charge expression."), clutch,
+              E.attr("modular_engine_alternator", "force_emitter_max_force", "Multiplier in the alternator charge expression."),
+              E.attr("modular_engine_alternator", "engine_max_force", "The alternator's J in the belt mixing."), clutch,
               E.derived("Alternator saturation speed", 140, "560 × 0.25: above this |ω| the min() term is constant.", [alt]),
               E.const(F_ENGINE, 0x140BAFBBC, "Alternator factor cap", "The min(|ω| ÷ 560, 0.25) cap in case 5."),
-              E.const(F_ENGINE, 0x140BAFECC, "Alternator speed retention base", "Case 5 multiplies its speed by (1 − min(|ω| ÷ 560, 0.25)) after charging.")] + R,
-             ["The alternator formula comes from decompiled code; its energy unit is the game's internal charge unit."])
+              E.const(F_ENGINE, 0x140BAFECC, "Alternator speed retention base", "Case 5 multiplies its speed by (1 − min(|ω| ÷ 560, 0.25)) after charging.")]
+             + belt + [m["a_dmg"], m["a_add"], m["alt_ex"]] + R,
+             ["The alternator formula comes from decompiled code; its energy unit is the game's internal charge unit.", TICK])
     slew_s = per_second(E, "Shortest full clutch travel", "%g ÷ %s = %d updates = %.3g s" % (1, clutch["value"], round(1 / float(clutch["value"])), round(1 / float(clutch["value"])) / ups),
                         "Engagement moves by at most %s per update." % clutch["value"])
     B.family("modular-engine-clutch",
-             "Stored engagement follows the Clutch Pressure input at no more than 0.1 per update.",
-             [section("Operating conditions",
-                      "Cases 3, 0x15 and 0x1a clamp the change of engagement to −0.1 … 0.1 per update, so a full engage or release takes at least ten updates, 0.167 simulated seconds. Engagement then scales the transfer between crank speed and the output side.")],
-             [clutch, slew_s, E.const(F_ENGINE, 0x140BB0ABC, "Clutch release slew", "Lower clamp of the engagement change."), E.tooltip("modular_engine_clutch")] + R,
-             ["The exact shaping of the target value (a powf call) was not resolved.", TICK])
+             "Clutch Pressure is clamped to 0 to 1 and cubed; engagement follows that target by at most 0.1 per update and sets how far crank and output speeds pull together.",
+             [section("Engagement",
+                      "The target is u³, with u the Clutch Pressure clamped to 0 to 1, so 0.5 asks for 0.125. Stored engagement moves toward the target by at most 0.1 per update: from 0 at input 0.5 it reads 0.1, then 0.125. A full engage or release takes at least ten updates, 0.167 simulated seconds."),
+              section("Output",
+                      "Each update the clutch gives its output shaft group the weight engagement × I and the crank RPS, then moves the crank RPS toward the output group's speed by the engagement. At engagement 1 the crank takes the output's speed. "
+                      "Clutches are not part of the crank weight sum, and the clutch weight is a solver weight, not a torque in N m.")],
+             [clutch, slew_s, E.const(F_ENGINE, 0x140BB0ABC, "Clutch release slew", "Lower clamp of the engagement change."), E.tooltip("modular_engine_clutch")]
+             + [m[x] for x in ("cl_in", "cl_exp", "cl_w", "cl_mix", "clutch_ex", "mask")] + [wts[b] for b in ME_NO_I] + R,
+             [TICK])
     B.family("part-modular-engine-fluid-pump",
              "Belt-driven pump coupled to the crank by clutch pressure; its own speed decays by the factor 0.99 every update.",
              [section("Operating conditions",
@@ -2290,29 +2669,44 @@ def modular_engines(B, E):
              [pump_decay, decay_s, E.attr("modular_engine_fluid_pump", "engine_max_force", "Inertia weight in the belt coupling."), E.tooltip("modular_engine_fluid_pump")] + fluid_transport(E)["modular"] + R,
              ["Flow per RPS is an equal-pressure bound from static analysis; backpressure, fill and other ports lower the real flow.", TICK])
     B.family("part-modular-engine-coolant-manifold",
-             "Shows litres, coolant temperature and a coolant-scaling percentage when inspected; it exchanges fluid with the manifold group.",
-             [section("Setup and interactions",
-                      "The inspection text for engine_module_type 8 shows Coolant %.fC and Coolant Scaling %.0f%%. Cylinder heat goes into the manifold group temperature, which the overheat check at 115 °C reads, so circulating coolant through this manifold is the lever against damage.")],
-             [texts[5], hot, E.tooltip("modular_engine_coolant_manifold")],
-             ["The coolant heat-transfer coefficient was not recovered."])
+             "Coolant in the manifold exchanges heat with the engine group at k = 0.04 × liquid share × (1 - 0.8 × scaling)³ per update.",
+             [section("Coolant exchange",
+                      "Each group update, for a nonempty coolant compartment, k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. The coolant moves k of the gap toward the engine, and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and C = 1 + 40 × the group's cylinder voxels. "
+                      "Both changes use the temperatures from before the exchange. Clean, unscaled water gives k = 0.04; fully scaled water 0.00032. Gas in the compartment lowers k, and diesel, oil or slurry count as liquid without adding to W."),
+              section("Scaling",
+                      "Coolant Scaling grows by sea water amount × 1e-05 × clamp((engine °C - 100) ÷ 100, 0, 1) per update, up to 100 %. Fresh water does not scale and this update never removes scaling. "
+                      "Cylinder heat goes into the same group temperature that the overheat check at 115 °C reads, so circulating clean coolant through this manifold is the lever against damage.")],
+             [texts[5], hot, E.tooltip("modular_engine_coolant_manifold")] + [m[x] for x in ("k", "k_s", "k_cube", "k_liq", "te", "tc", "sc", "sc_k", "k_ex", "c0", "c_40")],
+             [TICK])
     B.family("part-modular-engine-air-manifold",
-             "Supplies oxygen and the air throttle; air-manifold pressure boosts intake up to two times.",
+             "Supplies oxygen and the air throttle; air pressure in atmospheres boosts intake by up to two times.",
              [section("Performance drivers",
-                      "The cylinder averages a pressure value over its air-manifold compartments and multiplies intake by clamp(1 + 0.01 × pressure, 1, 2). Intake is capped by the oxygen in those manifolds.")],
-             [air_k, p_scale, two, E.tooltip("modular_engine_air_manifold")],
-             ["The pressure value's unit was not recovered."])
+                      "The cylinder averages the pressure of the pipe networks on its air manifolds' ports, in atmospheres, and multiplies intake by clamp(1 + 0.01 × pressure, 1, 2): 1.01 at 1 atm and 2 from 100 atm. "
+                      "Pressure is 60 × amount ÷ volume for a volume up to 8, the law the Tank Pressure output uses. Intake is capped by the oxygen in those manifolds."),
+              section("Air throttle",
+                      "Each air manifold clamps its input to 0 to 1. The group keeps the largest value among its air manifolds and hands it to the cylinders once per group update.")],
+             [air_k, p_scale, two, E.tooltip("modular_engine_air_manifold")] + pressure + [m["thr_air"], m["latch"]],
+             [TICK])
     B.family("part-modular-engine-intake-manifold",
              "Supplies diesel and the fuel throttle; fuel admission stops above 60 RPS.",
              [section("Performance drivers",
-                      "Fuel per update is RPS × 4e-6 × cylinder voxels × fuel throttle, capped by available diesel. Keep the fuel throttle about half of the air throttle without boost to stay inside the 12–16 window.")],
-             [fuel_k, rps60, afr16, afr12, E.tooltip("modular_engine_intake_manifold")],
-             ["Throttle attribution to this manifold is inferred from the diesel cap."])
+                      "Fuel per update is RPS × 4e-6 × cylinder voxels × fuel throttle, capped by available diesel. Keep the fuel throttle about half of the air throttle without boost to stay inside the 12–16 window."),
+              section("Fuel throttle",
+                      "Each intake manifold clamps its input to 0 to 1. The group keeps the largest value among its intake manifolds and hands it to the cylinders once per group update; inputs are not summed.")],
+             [fuel_k, rps60, afr16, afr12, E.tooltip("modular_engine_intake_manifold"), m["thr_fuel"], m["latch"]],
+             [TICK])
     B.family("modular-engine-exhaust-manifold",
-             "Exhaust space limits combustion: the share that fits sets both torque and heat.",
+             "Exhaust space limits combustion: the share that fits sets both the speed impulse and heat. The manifold drains through the port exchange with an outward bias of 10.",
              [section("Performance drivers",
-                      "The cylinder computes produced exhaust as fuel × 20 ÷ 60 and the share that fits into the exhaust manifold network; torque and manifold heating are multiplied by that share, shown as Exhaust %.")],
-             [texts[3], E.const(F_ENGINE, 0x140BB06C8, "Exhaust volume factor", "Produced exhaust = fuel term × this ÷ 60."), E.tooltip("modular_engine_exhaust_manifold_straight")],
-             ["How quickly exhaust leaves through connected outlets was not recovered."])
+                      "The cylinder computes produced exhaust as fuel × 20 ÷ 60 and the share that fits into the exhaust manifold network; the speed impulse and manifold heating are multiplied by that share, shown as Exhaust %."),
+              section("Outflow",
+                      "Each exhaust manifold holds a compartment of 1/3 amount, 3.33 L, which reads 60 atm when full. Each update its Exhaust port runs the same port exchange as tanks and radiators, with bias 10 and factor 1: "
+                      "exhaust leaves for the pipe network while the manifold pressure is above the network's minus 10, and comes back only when the network is more than 10 above. "
+                      "The move each update is at most half the new demand and follows the network's allocation from the update before, limited by what the source holds, the room on the other side and 1 amount per update into the pipe. "
+                      "Delivered flow therefore depends on the connected network and the other ports on it; there is no fixed exhaust rate.")],
+             [texts[3], E.const(F_ENGINE, 0x140BB06C8, "Exhaust volume factor", "Produced exhaust = fuel term × this ÷ 60."), E.tooltip("modular_engine_exhaust_manifold_straight")]
+             + exhaust + [m["x_step"], m["x_cap"], fluid_network(E)["law"], alloc_finding(E)],
+             [TICK])
 
 
 def transmission(B, E):

@@ -1,0 +1,223 @@
+[
+  {
+    "category": "Modular engines",
+    "summary": "Recovered cylinder code gives a concrete tuning target: keep the air:fuel ratio near 13.6\u201314.0, keep the crank below 60 RPS, keep manifolds under 115 \u00b0C and give the exhaust room.",
+    "sections": [
+      {
+        "title": "Combustion window",
+        "body": "Each cylinder computes a fuel term (RPS \u00d7 4e-6 \u00d7 voxels \u00d7 fuel throttle) and an intake term (RPS \u00d7 2.8e-6 \u00d7 voxels \u00f7 60 \u00d7 air throttle \u00d7 pressure factor). At 60 updates per simulated second the fuel term is RPS \u00d7 0.00024 \u00d7 voxels \u00d7 fuel throttle per second. The displayed air:fuel ratio is intake \u00d7 600 \u00f7 fuel, so with equal throttles and no boost it reads 7. Combustion happens only when the ratio lies between 12 \u2212 2t and 16 + 4t, where t is manifold temperature \u00f7 100 clamped to 0\u20261. Within the window the mixture factor 1 \u2212 2(s \u2212 0.6)\u00b2 peaks at an air:fuel ratio of 13.6 cold and 14.0 when the manifold is at or above 100 \u00b0C."
+      },
+      {
+        "title": "Speed, heat and damage",
+        "body": "Fuel admission is cut above 60 RPS, so cylinders act as a hard rev limiter. Speed efficiency falls from 1 at standstill to 0.5 at 50 RPS. Burning fuel heats the manifold group (gain 6000 \u00f7 heat capacity); above 115 \u00b0C, with engine overheating enabled, the cylinder takes damage every 300 updates (5 simulated seconds), and torque gain drops from 80000 to 40000 once damaged."
+      },
+      {
+        "title": "Assembly",
+        "body": "Crank inertia is the sum of engine_max_force over the assembly: a 1x1 crank block adds 0.7 while flywheels add 150, 600 and 2400. Inertia divides every torque impulse, so flywheels smooth speed and make starting slower. The starter only pushes while the crank is below 5 RPS."
+      },
+      {
+        "title": "Measurement questions",
+        "body": "Compartment pressure units and the units of manifold heat and coolant transfer were not recovered; measure RPS response and temperatures in game to calibrate these."
+      }
+    ],
+    "limitations": [
+      "All engine formulas are reconstructed from static decompilation of build f9206d85\u2026; they were not checked in a running game.",
+      "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.",
+      "Throttle offsets 0x88 and 0x90 are attributed to the fuel and air manifolds from the oxygen/diesel caps applied to them; the manifold write path was only partially traced."
+    ],
+    "sources": [
+      {
+        "path": "rom/data/definitions/modular_engine_crankshaft.xml",
+        "sha256": "c0ab96d34db74a29155c0d4b4a9a1181b906c941307641ea94b96dd89e1f894d",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      {
+        "path": "rom/data/definitions/modular_engine_cylinder_straight.xml",
+        "sha256": "91e4ce413ba9557c7336f47a5fe46a1c5aad86958354a5bdcd3c8114a7b9cd78",
+        "lineStart": 102,
+        "lineEnd": 102
+      },
+      {
+        "path": "rom/data/definitions/modular_engine_flywheel.xml",
+        "sha256": "f2c85258976036d52ee4de178536dd89b94f0c167d77eb19a292514490919257",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      {
+        "path": "rom/data/definitions/modular_engine_flywheel_3x3.xml",
+        "sha256": "4c579e77c060501ee495e87073efdc3b495bb6584c8f2a05400fded191ff18e4",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      {
+        "path": "rom/data/definitions/modular_engine_flywheel_5x5.xml",
+        "sha256": "5cfb27b3abf69ee41d1ccd1753b4fd483e4a4d953cb3e00c7f12043e810f51e6",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      {
+        "path": "rom/data/definitions/modular_engine_piston_3x3.xml",
+        "sha256": "cf3fc15e2a892f88e02d0741bbf9084ab91c175a078e42af89a153ee943560b7",
+        "lineStart": 470,
+        "lineEnd": 470
+      },
+      {
+        "path": "rom/data/definitions/modular_engine_piston_5x5.xml",
+        "sha256": "dbc20fb7b2ea73730d0535e7a1b8867d3e09267fb318fe34f6136a32140f3487",
+        "lineStart": 1039,
+        "lineEnd": 1039
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1405498d6"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1405e3add"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1405e3aea"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1405ebd5c"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1407435bb"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1407439c6"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140b71490"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140b714d0"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140b714e8"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140b71500"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140b71510"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140b71530"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140baf864"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140baf86c"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140baf958"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140baf9b0"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bafcbc"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bafd1c"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb0218"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb0488"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb04e0"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb064c"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb0664"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb06a8"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb0760"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb07a4"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb07f8"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb08a0"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb0918"
+      },
+      {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140bb0938"
+      }
+    ]
+  }
+]

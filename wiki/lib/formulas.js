@@ -5,6 +5,7 @@
 // Radiator: asm/water.asm:3540-3661. Speeds and capacities retain internal units.
 // Air scoop: investigation/air-scoop.md (flow law) and investigation/air-scoop-followup.md (m/s, L/s display).
 // Control surfaces: investigation/control-surfaces.md (rudder update 0x1403dfd20).
+// Modular engine crank speed: investigation/modular-engines.md (component update 0x140449670, group update 0x1404cb790).
 // Classic engines: investigation/classic-engines.md (classic engine update 0x14034ba00).
 // Jet engines: investigation/jet-engines.md (jet engine update 0x140350f40).
 // PID controller: investigation/logic.md (logic update case 29 at 0x1403c5f19, microprocessor PID 0x14037a210).
@@ -37,6 +38,93 @@ export function engineEfficiency({ rps, afr, temperature }) {
     running: rps > 2 && rps <= 60 && afr >= lower && afr <= upper,
     reason,
   };
+}
+
+// Modular engine crank group, investigation/modular-engines.md, ported from investigation/native/modular-engines/tools/engine_step.py.
+// Speeds are RPS; inertia weights, heat and charge stay in internal units. No fluid network, starter, coolant or damage event is
+// simulated: AFR and exhaust acceptance are inputs, and supply is assumed ideal.
+export const MODULAR = {
+  damping: 0.01, fuelCoefficient: 4e-6, gain: 80000, damagedGain: 40000, damageLimit: 20, threshold: 2, cutoff: 60,
+  heatGain: 6000, capacityPerVoxel: 40, ambientFraction: 1e-5, clutchExponent: 3, clutchSlew: 0.1, litresPerAmount: 10,
+};
+// Shipped voxel count, cylinder engine_max_force and the same-size plain crankshaft's engine_max_force.
+export const MODULAR_SIZES = {
+  '1x1': { voxels: 1, cylinder: 0.6, crank: 0.7 },
+  '3x3': { voxels: 27, cylinder: 12, crank: 15 },
+  '5x5': { voxels: 125, cylinder: 15, crank: 25 },
+};
+// Flywheel engine_max_force; engine_frictionless_force is the same value.
+export const MODULAR_FLYWHEELS = { none: 0, '1x1': 150, '3x3': 600, '5x5': 2400 };
+
+export function modularInertia({ cylinders, size, cranks = 1, flywheel = 'none', belts = 0 }) {
+  const s = MODULAR_SIZES[size];
+  if (!s || !(flywheel in MODULAR_FLYWHEELS)) throw new RangeError('Unknown cylinder size or flywheel.');
+  finite([cylinders, cranks, belts]);
+  return 1 + cylinders * s.cylinder + cranks * s.crank + MODULAR_FLYWHEELS[flywheel] + belts * 0.6;
+}
+
+// One group update: crank damping, then each cylinder in turn. afr null holds the peak mixture on every visit.
+export function modularEngineStep({ cylinders = 1, size = '1x1', cranks = 1, flywheel = 'none', belts = 0, damage = 0 },
+  { rps, throttle, temperature = 20, afr = null, exhaust = 1, ambient = 20 }) {
+  finite([cylinders, cranks, belts, damage, rps, throttle, temperature, exhaust, ambient, ...(afr === null ? [] : [afr])]);
+  if (!Number.isInteger(cylinders) || !Number.isInteger(cranks) || cylinders < 1 || cranks < 1) throw new RangeError('Use at least one cylinder and one crankshaft.');
+  if (throttle < 0 || throttle > 1 || exhaust < 0 || exhaust > 1) throw new RangeError('Throttle and exhaust acceptance must be from 0 to 1.');
+  if (rps < 0) throw new RangeError('The model covers forward-running engines only.');
+  const inertia = modularInertia({ cylinders, size, cranks, flywheel, belts });
+  const { voxels } = MODULAR_SIZES[size];
+  const capacity = 1 + MODULAR.capacityPerVoxel * cylinders * voxels;
+  const damping = 1 - MODULAR.damping * (1 - MODULAR_FLYWHEELS[flywheel] / inertia);
+  let r = rps * damping;
+  let temp = temperature + MODULAR.ambientFraction * (ambient - temperature);
+  let impulse = 0;
+  let fuel = 0;
+  const rows = [];
+  for (let i = 0; i < cylinders; i++) {
+    const requested = r > MODULAR.cutoff ? 0 : r * MODULAR.fuelCoefficient * voxels * throttle;
+    const t = clamp(temp / 100, 0, 1);
+    const ratio = afr === null ? 13.6 + 0.4 * t : afr;
+    const x = (16 + 4 * t - ratio) / (16 + 4 * t - (12 - 2 * t));
+    const gate = r > MODULAR.threshold && x >= 0 && x <= 1;
+    const { efficiency } = engineEfficiency({ rps: r, afr: ratio, temperature: temp });
+    const burned = gate ? requested * exhaust : 0;
+    const delta = damage < MODULAR.damageLimit ? (burned * efficiency * (damage === 0 ? MODULAR.gain : MODULAR.damagedGain)) / inertia : 0;
+    const heat = (burned * MODULAR.heatGain) / capacity;
+    rows.push({ rpsAtEntry: r, afr: ratio, efficiency, burned, delta, combusting: gate && requested > 0 });
+    r += delta;
+    temp += heat;
+    impulse += delta;
+    fuel += burned;
+  }
+  return {
+    inertia, capacity, damping, rpsAfterDamping: rps * damping, rps: r, impulse, temperature: temp, rows,
+    burned: fuel, litresPerSecond: fuel * MODULAR.litresPerAmount * UPDATES_PER_SECOND,
+  };
+}
+
+export function modularClutchStep(engagement, pressure) {
+  finite([engagement, pressure]);
+  return engagement + clamp(clamp(pressure, 0, 1) ** MODULAR.clutchExponent - engagement, -MODULAR.clutchSlew, MODULAR.clutchSlew);
+}
+
+// Crank RPS over simulated time at a held manifold temperature. With Clutch Pressure above 0 the clutch output is a shaft
+// held at loadRps, an example load, so the crank moves toward loadRps by the engagement after the cylinders each update.
+export function modularEngineResponse({ engine, rps, throttle, temperature = 20, afr = null, clutch = 0, loadRps = 0, seconds = 10 }) {
+  finite([rps, clutch, loadRps, seconds]);
+  const updates = Math.round(seconds * UPDATES_PER_SECOND);
+  let r = rps;
+  let engagement = 0;
+  const out = [{ n: 0, seconds: 0, rps: r, impulse: 0, engagement, litresPerSecond: 0, efficiency: null, combusting: false }];
+  for (let n = 1; n <= updates; n++) {
+    const s = modularEngineStep(engine, { rps: r, throttle, temperature, afr, ambient: temperature });
+    r = s.rps;
+    engagement = modularClutchStep(engagement, clutch);
+    if (engagement > 0) r += engagement * (loadRps - r);
+    out.push({
+      n, seconds: n / UPDATES_PER_SECOND, rps: r, impulse: s.impulse, engagement, litresPerSecond: s.litresPerSecond,
+      efficiency: s.rows[0].efficiency, combusting: s.rows.some((x) => x.combusting), inertia: s.inertia, damping: s.damping,
+    });
+  }
+  return out;
 }
 
 export function radiatorRate({ airspeed, fanPower, enclosed }) {

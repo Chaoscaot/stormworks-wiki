@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -23,6 +23,104 @@ test('displayed efficiency factor is distinct from combustion eligibility at spe
   assert.equal(e(10, 16).running, true);
   assert.ok(e(0).efficiency > 0);
   assert.equal(e(0).running, false);
+});
+test('modular engine step reproduces the worked examples of investigation/modular-engines.md', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
+  const one = modularEngineStep({}, { rps: 20, throttle: 1 });
+  close(one.inertia, 2.3);
+  close(one.rpsAfterDamping, 19.8);
+  close(one.rps, 22.111442663);
+  close(one.burned * MODULAR.litresPerAmount, 0.000792);
+  close(one.temperature, 20.011590244);
+  close(modularEngineStep({ cylinders: 4 }, { rps: 20, throttle: 1 }).rps, 25.343046687);
+  const fw = modularEngineStep({ cylinders: 4, flywheel: '1x1' }, { rps: 20, throttle: 1 });
+  close(fw.inertia, 154.1);
+  close(fw.rpsAfterDamping, 19.99467878);
+  close(fw.rps, 20.133916487);
+  // Gates: 2 RPS and below, above 60, outside the window, damage 20.
+  assert.equal(modularEngineStep({}, { rps: 2, throttle: 1 }).impulse, 0);
+  assert.equal(modularEngineStep({}, { rps: 61, throttle: 1 }).impulse, 0);
+  assert.equal(modularEngineStep({}, { rps: 20, throttle: 1, afr: 7 }).impulse, 0);
+  assert.equal(modularEngineStep({ damage: 20 }, { rps: 20, throttle: 1 }).impulse, 0);
+  const half = modularEngineStep({ damage: 1 }, { rps: 20, throttle: 1 }).impulse;
+  close(half * 2, one.impulse);
+  close(modularInertia({ cylinders: 1, size: '5x5', flywheel: '5x5' }), 1 + 15 + 25 + 2400);
+});
+test('modular engine model matches tools/examples.json when the investigation is present', (t) => {
+  const file = new URL('../../../investigation/native/modular-engines/tools/examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const examples = JSON.parse(readFileSync(file, 'utf8'));
+  assert.ok(examples.length >= 10);
+  const close = (a, b, what) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), `${what}: ${a} != ${b}`);
+  for (const ex of examples) {
+    const { cylinders, size, cranks, flywheel, belts, damage } = ex.engine;
+    const out = modularEngineStep({ cylinders, size, cranks, flywheel, belts, damage }, { rps: ex.rps_before, throttle: 1 });
+    const id = `${cylinders} × ${size}, flywheel ${flywheel}, ${ex.rps_before} RPS`;
+    close(out.inertia, ex.inertia, `${id} inertia`);
+    close(out.capacity, ex.capacity, `${id} capacity`);
+    close(out.rpsAfterDamping, ex.rps_after_damping, `${id} damping`);
+    close(out.rps, ex.rps_after, `${id} rps`);
+    close(out.impulse, ex.combustion_delta_rps, `${id} impulse`);
+    close(out.burned * MODULAR.litresPerAmount, ex.effective_fuel_litres, `${id} fuel`);
+    close(out.temperature, ex.temperature_after, `${id} temperature`);
+    ex.cylinders.forEach((row, i) => {
+      close(out.rows[i].rpsAtEntry, row.rps_at_entry, `${id} cylinder ${i} entry`);
+      close(out.rows[i].efficiency, row.efficiency, `${id} cylinder ${i} efficiency`);
+      close(out.rows[i].delta, row.delta_rps, `${id} cylinder ${i} delta`);
+    });
+  }
+});
+test('modular clutch cubes its target and slews by 0.1; the response holds the 60 RPS cut and flywheel lag', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-12, `${a} != ${b}`);
+  close(modularClutchStep(0, 0.5), 0.1);
+  close(modularClutchStep(0.1, 0.5), 0.125);
+  close(modularClutchStep(0.125, 0.5), 0.125);
+  close(modularClutchStep(1, 0), 0.9);
+  close(modularClutchStep(0, 2), 0.1);
+  let e = 0;
+  for (let i = 0; i < 10; i++) e = modularClutchStep(e, 1);
+  close(e, 1);
+  const free = modularEngineResponse({ engine: { cylinders: 4 }, rps: 5, throttle: 1, seconds: 10 });
+  assert.equal(free.length, 601);
+  assert.equal(free[0].rps, 5);
+  close(free[1].rps, modularEngineStep({ cylinders: 4 }, { rps: 5, throttle: 1 }).rps);
+  const late = free.slice(300);
+  assert.ok(late.every((s) => s.rps > 55 && s.rps < 66), 'an unloaded engine hovers around the 60 RPS fuel cut');
+  const heavy = modularEngineResponse({ engine: { cylinders: 4, flywheel: '1x1' }, rps: 5, throttle: 1, seconds: 10 });
+  assert.ok(heavy[60].rps < free[60].rps, 'a flywheel slows the run-up');
+  const cold = modularEngineResponse({ engine: { cylinders: 4 }, rps: 2, throttle: 1, seconds: 1 });
+  close(cold.at(-1).rps, 2 * 0.99 ** 60);
+  const loaded = modularEngineResponse({ engine: { cylinders: 4 }, rps: 30, throttle: 0, clutch: 1, loadRps: 0, seconds: 1 });
+  assert.ok(loaded.at(-1).rps < 1e-6, 'full engagement to a held 0 RPS output stops an unfuelled crank');
+  assert.equal(MODULAR_FLYWHEELS['3x3'], 600);
+  assert.equal(MODULAR_SIZES['5x5'].voxels, 125);
+});
+test('modular graph constants remain tied to verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const findings = data.families.flatMap((f) => f.findings);
+  const value = (label) => {
+    const x = findings.find((y) => y.label === label);
+    assert.ok(x?.source?.address, `${label}: native address is required`);
+    return Number(x.value);
+  };
+  assert.equal(value('Combustion RPS gain, undamaged'), MODULAR.gain);
+  assert.equal(value('Combustion RPS gain, damage 1 to 19'), MODULAR.damagedGain);
+  assert.equal(value('Crank damping fraction'), MODULAR.damping);
+  assert.equal(value('Fuel intake coefficient'), MODULAR.fuelCoefficient);
+  assert.equal(value('Clutch target exponent'), MODULAR.clutchExponent);
+  assert.equal(value('Clutch engagement slew'), MODULAR.clutchSlew);
+  assert.equal(value('Cylinder intake cut-off speed'), MODULAR.cutoff);
+  assert.equal(value('Combustion heat gain'), MODULAR.heatGain);
+  assert.equal(value('Heat capacity per cylinder voxel'), MODULAR.capacityPerVoxel);
+  const attr = (id, name) => Number(findings.find((x) => x.source.path === `rom/data/definitions/${id}.xml` && x.label.endsWith(name))?.value);
+  for (const [size, ids] of Object.entries({ '1x1': ['modular_engine_cylinder_straight', 'modular_engine_crankshaft'], '3x3': ['modular_engine_piston_3x3', 'modular_engine_crankshaft_3x3'], '5x5': ['modular_engine_piston_5x5', 'modular_engine_crankshaft_5x5'] })) {
+    assert.equal(attr(ids[0], 'engine_max_force'), MODULAR_SIZES[size].cylinder, ids[0]);
+    assert.equal(attr(ids[1], 'engine_max_force'), MODULAR_SIZES[size].crank, ids[1]);
+  }
+  for (const [k, id] of [['1x1', 'modular_engine_flywheel'], ['3x3', 'modular_engine_flywheel_3x3'], ['5x5', 'modular_engine_flywheel_5x5']]) {
+    assert.equal(attr(id, 'engine_max_force'), MODULAR_FLYWHEELS[k], id);
+    assert.equal(attr(id, 'engine_frictionless_force'), MODULAR_FLYWHEELS[k], id);
+  }
 });
 test('radiator airflow caps at 80 internal speed units and is skipped inside a compartment', () => {
   const r = (airspeed, fanPower = 0, enclosed = false) => radiatorRate({ airspeed, fanPower, enclosed });

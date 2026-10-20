@@ -1,0 +1,100 @@
+[
+  {
+    "id": "modular-engines",
+    "title": "Modular engine assembly and telemetry",
+    "category": "Engines",
+    "summary": "Cylinder tooltips describe manifold sharing, and composite output names three data channels.",
+    "body": "The 1x1 cylinder attaches to a crankshaft and needs manifolds for air, fuel and exhaust. Directly adjacent cylinders can share a manifold according to the supplied tooltip. Cylinder composite values 1, 2 and 3 are air volume, fuel volume and temperature. The starter attaches to a drive belt, and the alternator converts drive belt energy to electric charge.",
+    "findings": [
+      {
+        "label": "Modular Engine Cylinder 1x1: Composite Data",
+        "value": "Outputs data from the cylinder. (Value 1 : Air Volume) (Value 2 : Fuel Volume) (Value 3 : Temperature)",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/modular_engine_cylinder_straight.xml:91e4ce413ba9:L45-L45",
+        "source": {
+          "path": "rom/data/definitions/modular_engine_cylinder_straight.xml",
+          "sha256": "91e4ce413ba9557c7336f47a5fe46a1c5aad86958354a5bdcd3c8114a7b9cd78",
+          "lineStart": 45,
+          "lineEnd": 45
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Modular Engine Cylinder 1x1",
+        "value": "Attach a cylinder to a crankshafts outer surface to produce power for an engine. The cylinder requires a manifold to move air, fuel, and exhaust through the cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.",
+        "detail": "Shipped component tooltip.",
+        "evidenceId": "resource:rom/data/definitions/modular_engine_cylinder_straight.xml:91e4ce413ba9:L102-L102",
+        "source": {
+          "path": "rom/data/definitions/modular_engine_cylinder_straight.xml",
+          "sha256": "91e4ce413ba9557c7336f47a5fe46a1c5aad86958354a5bdcd3c8114a7b9cd78",
+          "lineStart": 102,
+          "lineEnd": 102
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Modular Engine Air Manifold",
+        "value": "Attach a manifold to a cylinder to provide a connection for air to that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.",
+        "detail": "Shipped component tooltip.",
+        "evidenceId": "resource:rom/data/definitions/modular_engine_air_manifold.xml:750b7db4293e:L66-L66",
+        "source": {
+          "path": "rom/data/definitions/modular_engine_air_manifold.xml",
+          "sha256": "750b7db4293e8582c07731cc301d1638222a541e2198ddd07f5fedcefe9feccd",
+          "lineStart": 66,
+          "lineEnd": 66
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Modular Engine Fuel Manifold",
+        "value": "Attach a manifold to a cylinder to provide a connection for fuel to that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.",
+        "detail": "Shipped component tooltip.",
+        "evidenceId": "resource:rom/data/definitions/modular_engine_intake_manifold.xml:0f9a3fa6de75:L65-L65",
+        "source": {
+          "path": "rom/data/definitions/modular_engine_intake_manifold.xml",
+          "sha256": "0f9a3fa6de753c835f5a7cccd91fbc527144e433b9f72685ad5275c4568de9e4",
+          "lineStart": 65,
+          "lineEnd": 65
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Modular Engine Starter",
+        "value": "Attach a starter to a Drive Belt component and supply power to apply an inefficient force on the engine to get it started.",
+        "detail": "Shipped component tooltip.",
+        "evidenceId": "resource:rom/data/definitions/modular_engine_starter.xml:9b00ca39e93b:L62-L62",
+        "source": {
+          "path": "rom/data/definitions/modular_engine_starter.xml",
+          "sha256": "9b00ca39e93b643fa80069b2beab626ba9d172edc83fe6d1d08dc1d07e16396f",
+          "lineStart": 62,
+          "lineEnd": 62
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Modular Engine Alternator",
+        "value": "Alternators convert mechanical energy from a Drive Belt into electric charge.",
+        "detail": "Shipped component tooltip.",
+        "evidenceId": "resource:rom/data/definitions/modular_engine_alternator.xml:ff0c09faa645:L62-L62",
+        "source": {
+          "path": "rom/data/definitions/modular_engine_alternator.xml",
+          "sha256": "ff0c09faa6453ef602188a71657921aaa5ee010b97afd3f0a7c9047848a4e067",
+          "lineStart": 62,
+          "lineEnd": 62
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      }
+    ],
+    "limitations": [
+      "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
+      "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
+      "The resources inspected do not establish an optimal air-fuel ratio, stoichiometry, efficiency curve or fuel-to-power equation. Composite volume and temperature units are not given in the selected channel description."
+    ]
+  }
+]

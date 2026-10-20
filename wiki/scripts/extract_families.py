@@ -37,6 +37,7 @@ THERMAL_LIMIT = "Heat-transfer coefficients, effectiveness, flow dependence and 
 EXCHANGER_LIMIT = "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve."
 POWER_LIMIT = "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules."
 ELECTRIC_POWER_LIMIT = "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research."
+MODULAR_POWER_LIMIT = "Crank speed is in RPS. The crank inertia, damping, cylinder impulse, clutch, belt, exhaust and coolant equations come from native code and are in the practical behaviour research; open items shared by all modular parts are listed under Modular engines on the parts index."
 DIESEL_POWER_LIMIT = "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the speed step, fuel use, heating and starter equations of the classic engine update are covered by the practical behaviour research."
 
 
@@ -147,7 +148,7 @@ def curated_specs(blocks):
         ("manifold", "Manifold Extension", "modular_engine_manifold_straight modular_engine_manifold_corner modular_engine_manifold_t", "Connects cylinder systems through straight, corner and T shapes.", "Manifold extensions provide cylinder connections for air, fuel and exhaust. Directly adjacent cylinders can share a manifold. The family has straight, corner and T shapes, each without logic ports."),
     ]
     for suffix, title, ids, summary, body in modular:
-        add("modular-engine-" + suffix, "Modular Engine " + title, "Modular engines", ids, summary, body, limits=[POWER_LIMIT, "Attachment limits, inertia, accessory losses and units or ranges absent from port descriptions remain unknown."])
+        add("modular-engine-" + suffix, "Modular Engine " + title, "Modular engines", ids, summary, body, limits=[MODULAR_POWER_LIMIT])
 
     # Deliberate size/shape series. Each still carries every member's own tooltip,
     # ports and source evidence, so differences are inspectable rather than lost.

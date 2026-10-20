@@ -1,0 +1,1684 @@
+[
+  {
+    "path": "rom/data/definitions/modular_engine_air_manifold.xml",
+    "sha256": "750b7db4293e8582c07731cc301d1638222a541e2198ddd07f5fedcefe9feccd",
+    "attributes": {
+      "name": "Modular Engine Air Manifold",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "28"
+    },
+    "lines": [
+      {
+        "line": 17,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 18,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Throttle\" mode=\"1\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 21,
+        "text": "\t\t<logic_node orientation=\"4\" label=\"Air\" mode=\"1\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 26,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"intake_manifold\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 66,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide a connection for air to that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine air manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_air_ram.xml",
+    "sha256": "78da8a4ba40e0a6ef073d3d1ccbe6f382b6c6b8fe8fd7cf9e93b246ccb9fcb2e",
+    "attributes": {
+      "name": "Air Ram",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "0"
+    },
+    "lines": [
+      {
+        "line": 10,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 11,
+        "text": "\t\t<logic_node orientation=\"3\" label=\"Air\" mode=\"0\" type=\"3\" description=\"Allows fluid to flow in and out of an enclosed volume.\" flags=\"0\">"
+      },
+      {
+        "line": 52,
+        "text": "\t<tooltip_properties description=\"\" short_description=\"Port used to allow air in and out of a fluid system.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_alternator.xml",
+    "sha256": "ff0c09faa6453ef602188a71657921aaa5ee010b97afd3f0a7c9047848a4e067",
+    "attributes": {
+      "name": "Modular Engine Alternator",
+      "mass": "1",
+      "force_emitter_max_force": "100",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "0.5",
+      "engine_frictionless_force": "0",
+      "electric_type": "1",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0.05",
+      "engine_module_type": "5"
+    },
+    "lines": [
+      {
+        "line": 13,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 14,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Clutch Pressure\" mode=\"1\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 17,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Electric\" mode=\"0\" type=\"4\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 22,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"4\" coupling_type=\"belt\" coupling_name=\"alternator\" coupling_gender=\"1\" alignment_required=\"true\">"
+      },
+      {
+        "line": 62,
+        "text": "\t<tooltip_properties description=\"Alternators convert mechanical energy from a Drive Belt into electric charge.\" short_description=\"A modular engine alternator.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_clutch.xml",
+    "sha256": "f3ee3f391f0ecd5a361921a17782d2b1d7ea075d793600b5afa6a98c3014833e",
+    "attributes": {
+      "name": "Modular Engine Clutch 1x1",
+      "mass": "1",
+      "force_emitter_max_force": "200",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "0.6",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "1",
+      "engine_module_type": "3"
+    },
+    "lines": [
+      {
+        "line": 12,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 13,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Clutch Pressure\" mode=\"1\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 16,
+        "text": "\t\t<logic_node orientation=\"2\" label=\"RPS\" mode=\"1\" type=\"2\" description=\"The power supplied by the engine for inputting to other components.\" flags=\"0\">"
+      },
+      {
+        "line": 21,
+        "text": "\t\t<coupling orientation=\"3\" coupling_type=\"crankshaft\" coupling_name=\"clutch\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 61,
+        "text": "\t<tooltip_properties description=\"Attach a clutch to a crankshaft block to control the torque made available to the connected system.\" short_description=\"A modular engine clutch.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_clutch_3x3.xml",
+    "sha256": "5c8b9ac7461f485e6c155ce9e4d528e16aa8fcbebef95efc87c935f470718749",
+    "attributes": {
+      "name": "Modular Engine Clutch 3x3",
+      "mass": "9",
+      "force_emitter_max_force": "2000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "5",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "1",
+      "engine_module_type": "21"
+    },
+    "lines": [
+      {
+        "line": 104,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 105,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Clutch Pressure\" mode=\"1\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 108,
+        "text": "\t\t<logic_node orientation=\"2\" label=\"RPS\" mode=\"1\" type=\"2\" description=\"The power supplied by the engine for inputting to other components.\" flags=\"0\">"
+      },
+      {
+        "line": 113,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"clutch\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 185,
+        "text": "\t<tooltip_properties description=\"Attach a clutch to a crankshaft block to control the torque made available to the connected system.\" short_description=\"A modular engine clutch.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_clutch_5x5.xml",
+    "sha256": "c959db93140226b41b0da3ae9a3ec67b2e16a3d675c331b8a6b52b5a2b413ede",
+    "attributes": {
+      "name": "Modular Engine Clutch 5x5",
+      "mass": "25",
+      "force_emitter_max_force": "20000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "10",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "1",
+      "engine_module_type": "26"
+    },
+    "lines": [
+      {
+        "line": 224,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 225,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Clutch Pressure\" mode=\"1\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 228,
+        "text": "\t\t<logic_node orientation=\"2\" label=\"RPS\" mode=\"1\" type=\"2\" description=\"The power supplied by the engine for inputting to other components.\" flags=\"0\">"
+      },
+      {
+        "line": 233,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_5\" coupling_name=\"clutch\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 369,
+        "text": "\t<tooltip_properties description=\"Attach a clutch to a crankshaft block to control the torque made available to the connected system.\" short_description=\"A modular engine clutch.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_coolant_manifold.xml",
+    "sha256": "6dd53012b187248c4f9a47864b511a13b1822cde8ab7963e68d4f5f5e433367b",
+    "attributes": {
+      "name": "Modular Engine Coolant Manifold",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "8"
+    },
+    "lines": [
+      {
+        "line": 15,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 16,
+        "text": "\t\t<logic_node orientation=\"4\" label=\"Coolant A\" mode=\"1\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 19,
+        "text": "\t\t<logic_node orientation=\"5\" label=\"Coolant B\" mode=\"0\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 24,
+        "text": "\t\t<coupling orientation=\"3\" coupling_type=\"manifold\" coupling_name=\"coolant_manifold\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 64,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide a connection for coolant to that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine coolant manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_crankshaft.xml",
+    "sha256": "c0ab96d34db74a29155c0d4b4a9a1181b906c941307641ea94b96dd89e1f894d",
+    "attributes": {
+      "name": "Modular Engine Crankshaft 1x1",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "0.7",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "0"
+    },
+    "lines": [
+      {
+        "line": 58,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 59,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 64,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 67,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 70,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_a\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 73,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_b\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 76,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_c\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 79,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_d\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 119,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. Attach cylinders to the outer surfaces to generate power. Multiple crankshaft blocks can be placed adajcent to each other to form larger engines.\" short_description=\"A modular engine crankshaft block.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_crankshaft_3x1.xml",
+    "sha256": "75cb29ca53298e4ec5461ce7f89320cd94efbb042f59ed109cf7490ac9c01358",
+    "attributes": {
+      "name": "Modular Engine Crankshaft 3x1",
+      "mass": "9",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "8",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "18"
+    },
+    "lines": [
+      {
+        "line": 142,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 143,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 148,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 151,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 154,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_a\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 157,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_b\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 160,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_c\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 163,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_d\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 166,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_e\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 169,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_f\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 172,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_g\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 175,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_h\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 247,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. Attach cylinders to the outer surfaces to generate power. Multiple crankshaft blocks can be placed adajcent to each other to form larger engines.\" short_description=\"A modular engine crankshaft block.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_crankshaft_3x3.xml",
+    "sha256": "9f01fe3935fb7c41c351350360b64b0676c2c7493d6fe5033e6d05ac92d7935e",
+    "attributes": {
+      "name": "Modular Engine Crankshaft 3x3",
+      "mass": "27",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "15",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "19"
+    },
+    "lines": [
+      {
+        "line": 346,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 347,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 352,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"cylinder_3\" coupling_name=\"cylinder_a\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 355,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"cylinder_3\" coupling_name=\"cylinder_b\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 358,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"cylinder_3\" coupling_name=\"cylinder_c\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 361,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"cylinder_3\" coupling_name=\"cylinder_d\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 364,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 367,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 511,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. Attach cylinders to the outer surfaces to generate power. Multiple crankshaft blocks can be placed adajcent to each other to form larger engines.\" short_description=\"A modular engine crankshaft block.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_crankshaft_5x5.xml",
+    "sha256": "ef91ef6483a4b8052b9038df1c221b95aaab8ed78fe0982d35c3291e65b0ecec",
+    "attributes": {
+      "name": "Modular Engine Crankshaft 5x5",
+      "mass": "100",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "25",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "25"
+    },
+    "lines": [
+      {
+        "line": 922,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 923,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 928,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"cylinder_5\" coupling_name=\"cylinder_a\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 931,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"cylinder_5\" coupling_name=\"cylinder_b\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 934,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"cylinder_5\" coupling_name=\"cylinder_c\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 937,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"cylinder_5\" coupling_name=\"cylinder_d\" coupling_gender=\"2\" alignment_required=\"false\">"
+      },
+      {
+        "line": 940,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_5\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 943,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft_5\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 1479,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. Attach cylinders to the outer surfaces to generate power. Multiple crankshaft blocks can be placed adajcent to each other to form larger engines.\" short_description=\"A modular engine crankshaft block.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_crankshaft_converter_3x3.xml",
+    "sha256": "6afd83991b6931be735533a227c4481caea4853e85bad3b7dbc7b6c030652785",
+    "attributes": {
+      "name": "Modular Engine Crankshaft Converter 3 to 1",
+      "mass": "9",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "8.0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "20"
+    },
+    "lines": [
+      {
+        "line": 24,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 25,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 30,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 33,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 105,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. This component efficiently converts torque between different size crankshafts. Multiple crankshaft blocks can be placed adajcent to each other to form larger engines.\" short_description=\"A modular engine crankshaft block.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_crankshaft_converter_5x5.xml",
+    "sha256": "58ca6d266f4cd85f823c42958875f7007609d8a4e03a2e37684cb3eb2f1c620f",
+    "attributes": {
+      "name": "Modular Engine Crankshaft Converter 5 to 3",
+      "mass": "27",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "15",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "24"
+    },
+    "lines": [
+      {
+        "line": 24,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 25,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 30,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_5\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 33,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 169,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. This component efficiently converts torque between different size crankshafts. Multiple crankshaft blocks can be placed adajcent to each other to form larger engines.\" short_description=\"A modular engine crankshaft block.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_cylinder_straight.xml",
+    "sha256": "91e4ce413ba9557c7336f47a5fe46a1c5aad86958354a5bdcd3c8114a7b9cd78",
+    "attributes": {
+      "name": "Modular Engine Cylinder 1x1",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "0.6",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "1"
+    },
+    "lines": [
+      {
+        "line": 44,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 45,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Composite Data\" mode=\"0\" type=\"5\" description=\"Outputs data from the cylinder. (Value 1 : Air Volume) (Value 2 : Fuel Volume) (Value 3 : Temperature)\" flags=\"0\">"
+      },
+      {
+        "line": 50,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder_straight\" coupling_gender=\"1\" alignment_required=\"false\">"
+      },
+      {
+        "line": 53,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 56,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 59,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_c\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 62,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_d\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 102,
+        "text": "\t<tooltip_properties description=\"Attach a cylinder to a crankshafts outer surface to produce power for an engine. The cylinder requires a manifold to move air, fuel, and exhaust through the cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine cylinder.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_drive_belt.xml",
+    "sha256": "7fef0ec8540efe00d1e60ca7a98c2e44370d5385c501f4065cd638da381fdc5b",
+    "attributes": {
+      "name": "Modular Engine Drive Belt 1x1",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "0.6",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "1",
+      "engine_module_type": "4"
+    },
+    "lines": [
+      {
+        "line": 24,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 27,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft\" coupling_name=\"drive_belt\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 30,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_a\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 33,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_b\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 36,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_c\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 39,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_d\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 79,
+        "text": "\t<tooltip_properties description=\"The drive belt attaches to the crankshaft and provides an interface for starters, alternators and pumps.\" short_description=\"A modular engine drive belt.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_exhaust_manifold_corner.xml",
+    "sha256": "eb0416462593b0c72bcdf55cc7398b27838803e4560395253b79d3c3a3138943",
+    "attributes": {
+      "name": "Modular Engine Exhaust Manifold (Corner)",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "10"
+    },
+    "lines": [
+      {
+        "line": 13,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 14,
+        "text": "\t\t<logic_node orientation=\"5\" label=\"Exhaust\" mode=\"0\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 19,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"exhaust_manifold\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 59,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide an exhaust output connection for that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_exhaust_manifold_straight.xml",
+    "sha256": "8dc52ac91a1e666044ce2d95554db8103d91396575a8b1dd44b1a115adece6ea",
+    "attributes": {
+      "name": "Modular Engine Exhaust Manifold (Straight)",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "11"
+    },
+    "lines": [
+      {
+        "line": 16,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 17,
+        "text": "\t\t<logic_node orientation=\"2\" label=\"Exhaust\" mode=\"0\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 22,
+        "text": "\t\t<coupling orientation=\"3\" coupling_type=\"manifold\" coupling_name=\"exhaust_manifold\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 62,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide an exhaust output connection for that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_fluid_pump.xml",
+    "sha256": "ccd33bbc099b6683192250fc21d46f2fbdab2b3f7af2e4a460141f8e2a3da63d",
+    "attributes": {
+      "name": "Modular Engine Fluid Pump",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "0.5",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "6"
+    },
+    "lines": [
+      {
+        "line": 29,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 30,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Clutch Pressure\" mode=\"1\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 33,
+        "text": "\t\t<logic_node orientation=\"5\" label=\"Fluid In\" mode=\"1\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 36,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Fluid Out\" mode=\"0\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 41,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"4\" coupling_type=\"belt\" coupling_name=\"fluid_pump\" coupling_gender=\"1\" alignment_required=\"true\" allow_bipolar_alignment=\"false\">"
+      },
+      {
+        "line": 81,
+        "text": "\t<tooltip_properties description=\"An pump that attaches to a Drive Belt to mechanically push fluid around a system.\" short_description=\"A modular engine fluid pump.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_flywheel.xml",
+    "sha256": "f2c85258976036d52ee4de178536dd89b94f0c167d77eb19a292514490919257",
+    "attributes": {
+      "name": "Modular Engine Flywheel 1x1",
+      "mass": "100",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "150",
+      "engine_frictionless_force": "150",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "0"
+    },
+    "lines": [
+      {
+        "line": 115,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 116,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 121,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 124,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 196,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. A flywheel piece sits as part of the crankshaft and acts as a momentum (energy) store for a running engine, but also makes the engine harder to start.\" short_description=\"A modular engine crankshaft flywheel.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_flywheel_3x3.xml",
+    "sha256": "4c579e77c060501ee495e87073efdc3b495bb6584c8f2a05400fded191ff18e4",
+    "attributes": {
+      "name": "Modular Engine Flywheel 3x3",
+      "mass": "200",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "600",
+      "engine_frictionless_force": "600",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "19"
+    },
+    "lines": [
+      {
+        "line": 235,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 236,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 241,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 244,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 380,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. A flywheel piece sits as part of the crankshaft and acts as a momentum (energy) store for a running engine, but also makes the engine harder to start.\" short_description=\"A modular engine crankshaft flywheel.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_flywheel_5x5.xml",
+    "sha256": "5cfb27b3abf69ee41d1ccd1753b4fd483e4a4d953cb3e00c7f12043e810f51e6",
+    "attributes": {
+      "name": "Modular Engine Flywheel 5x5",
+      "mass": "300",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "2400",
+      "engine_frictionless_force": "2400",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "25"
+    },
+    "lines": [
+      {
+        "line": 379,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 380,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"RPS\" mode=\"0\" type=\"1\" description=\"Output value giving data info on engine speed.\" flags=\"2\">"
+      },
+      {
+        "line": 385,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_5\" coupling_name=\"crankshaft_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 388,
+        "text": "\t\t<coupling orientation=\"2\" alignment=\"0\" coupling_type=\"crankshaft_5\" coupling_name=\"crankshaft_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 604,
+        "text": "\t<tooltip_properties description=\"The crankshaft is the core of an engine. A flywheel piece sits as part of the crankshaft and acts as a momentum (energy) store for a running engine, but also makes the engine harder to start.\" short_description=\"A modular engine crankshaft flywheel.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+    "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+    "attributes": {
+      "name": "Gearbox 1x1",
+      "mass": "1",
+      "force_emitter_max_force": "200",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "0"
+    },
+    "lines": [
+      {
+        "line": 65,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 66,
+        "text": "\t\t<logic_node orientation=\"3\" label=\"RPS A\" mode=\"1\" type=\"2\" description=\"Power connection A.\" flags=\"0\">"
+      },
+      {
+        "line": 69,
+        "text": "\t\t<logic_node orientation=\"2\" label=\"RPS B\" mode=\"1\" type=\"2\" description=\"Power connection B.\" flags=\"0\">"
+      },
+      {
+        "line": 72,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Gear Switch\" mode=\"1\" type=\"0\" description=\"Toggle between the two gear ratios.\" flags=\"0\">"
+      },
+      {
+        "line": 75,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"The electric connection to power the component.\" flags=\"0\">"
+      },
+      {
+        "line": 116,
+        "text": "\t<tooltip_properties description=\"The ratio can be toggled between two values which can be set in the properties.\" short_description=\"Gearbox for changing the torque and speed across power connections.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+    "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+    "attributes": {
+      "name": "Gearbox 3x3",
+      "mass": "9",
+      "force_emitter_max_force": "1200",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "0"
+    },
+    "lines": [
+      {
+        "line": 281,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 282,
+        "text": "\t\t<logic_node orientation=\"3\" label=\"RPS A\" mode=\"1\" type=\"2\" description=\"Power connection A.\" flags=\"0\">"
+      },
+      {
+        "line": 285,
+        "text": "\t\t<logic_node orientation=\"2\" label=\"RPS B\" mode=\"1\" type=\"2\" description=\"Power connection B.\" flags=\"0\">"
+      },
+      {
+        "line": 288,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Gear Switch\" mode=\"1\" type=\"0\" description=\"Toggle between the two gear ratios.\" flags=\"0\">"
+      },
+      {
+        "line": 291,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"The electric connection to power the component.\" flags=\"0\">"
+      },
+      {
+        "line": 400,
+        "text": "\t<tooltip_properties description=\"The ratio can be toggled between two values which can be set in the properties.\" short_description=\"Gearbox for changing the torque and speed across power connections.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+    "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
+    "attributes": {
+      "name": "Gearbox 5x5",
+      "mass": "25",
+      "force_emitter_max_force": "5000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "0"
+    },
+    "lines": [
+      {
+        "line": 689,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 690,
+        "text": "\t\t<logic_node orientation=\"3\" label=\"RPS A\" mode=\"1\" type=\"2\" description=\"Power connection A.\" flags=\"0\">"
+      },
+      {
+        "line": 693,
+        "text": "\t\t<logic_node orientation=\"2\" label=\"RPS B\" mode=\"1\" type=\"2\" description=\"Power connection B.\" flags=\"0\">"
+      },
+      {
+        "line": 696,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Gear Switch\" mode=\"1\" type=\"0\" description=\"Toggle between the two gear ratios.\" flags=\"0\">"
+      },
+      {
+        "line": 699,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"The electric connection to power the component.\" flags=\"0\">"
+      },
+      {
+        "line": 1036,
+        "text": "\t<tooltip_properties description=\"The ratio can be toggled between two values which can be set in the properties.\" short_description=\"Gearbox for changing the torque and speed across power connections.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_intake_manifold.xml",
+    "sha256": "0f9a3fa6de753c835f5a7cccd91fbc527144e433b9f72685ad5275c4568de9e4",
+    "attributes": {
+      "name": "Modular Engine Fuel Manifold",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "9"
+    },
+    "lines": [
+      {
+        "line": 16,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 17,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Throttle\" mode=\"1\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 20,
+        "text": "\t\t<logic_node orientation=\"4\" label=\"Fuel\" mode=\"1\" type=\"3\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 25,
+        "text": "\t\t<coupling orientation=\"3\" coupling_type=\"manifold\" coupling_name=\"intake_manifold\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 65,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide a connection for fuel to that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine fuel manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_manifold_corner.xml",
+    "sha256": "c3b40ede24795e6c0b22da5d9ae7296d3ae6037586eb86adbea2098900c4b637",
+    "attributes": {
+      "name": "Modular Engine Manifold (Corner)",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "13"
+    },
+    "lines": [
+      {
+        "line": 12,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 15,
+        "text": "\t\t<coupling orientation=\"3\" coupling_type=\"manifold\" coupling_name=\"manifold_a\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 18,
+        "text": "\t\t<coupling orientation=\"5\" coupling_type=\"manifold\" coupling_name=\"manifold_b\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 58,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide connections for air, fuel, and exhaust for that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_manifold_straight.xml",
+    "sha256": "bcbb44802df1c98fd1cda81e7b5977f0381cf3c501789cbee1664e12b77c6f21",
+    "attributes": {
+      "name": "Modular Engine Manifold (Straight)",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "14"
+    },
+    "lines": [
+      {
+        "line": 13,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 16,
+        "text": "\t\t<coupling orientation=\"3\" coupling_type=\"manifold\" coupling_name=\"manifold_a\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 19,
+        "text": "\t\t<coupling orientation=\"2\" coupling_type=\"manifold\" coupling_name=\"manifold_b\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 59,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide connections for air, fuel, and exhaust for that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_manifold_t.xml",
+    "sha256": "fc2caeb80b9754f58f36bdffffce3c0581f0a9a358b6885a427978bc06e2839e",
+    "attributes": {
+      "name": "Modular Engine Manifold (T)",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "15"
+    },
+    "lines": [
+      {
+        "line": 16,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 19,
+        "text": "\t\t<coupling orientation=\"3\" coupling_type=\"manifold\" coupling_name=\"manifold_a\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 22,
+        "text": "\t\t<coupling orientation=\"4\" coupling_type=\"manifold\" coupling_name=\"manifold_b\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 25,
+        "text": "\t\t<coupling orientation=\"5\" coupling_type=\"manifold\" coupling_name=\"manifold_c\" coupling_gender=\"0\">"
+      },
+      {
+        "line": 65,
+        "text": "\t<tooltip_properties description=\"Attach a manifold to a cylinder to provide connections for air, fuel, and exhaust for that cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine manifold.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_piston_3x3.xml",
+    "sha256": "cf3fc15e2a892f88e02d0741bbf9084ab91c175a078e42af89a153ee943560b7",
+    "attributes": {
+      "name": "Modular Engine Cylinder 3x3",
+      "mass": "27",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "12",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "22"
+    },
+    "lines": [
+      {
+        "line": 302,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 303,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Composite Data\" mode=\"0\" type=\"5\" description=\"Outputs data from the cylinder. (Value 1 : Air Volume) (Value 2 : Fuel Volume) (Value 3 : Temperature)\" flags=\"0\">"
+      },
+      {
+        "line": 308,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_x\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 311,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_d\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 314,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_c\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 317,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 320,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 323,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_y\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 326,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"cylinder_3\" coupling_name=\"cylinder\" coupling_gender=\"1\" alignment_required=\"false\">"
+      },
+      {
+        "line": 470,
+        "text": "\t<tooltip_properties description=\"Attach a cylinder to a crankshafts outer surface to produce power for an engine. The cylinder requires a manifold to move air, fuel, and exhaust through the cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine cylinder.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_piston_5x5.xml",
+    "sha256": "dbc20fb7b2ea73730d0535e7a1b8867d3e09267fb318fe34f6136a32140f3487",
+    "attributes": {
+      "name": "Modular Engine Cylinder 5x5",
+      "mass": "100",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "15",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "27"
+    },
+    "lines": [
+      {
+        "line": 479,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 480,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Composite Data\" mode=\"0\" type=\"5\" description=\"Outputs data from the cylinder. (Value 1 : Air Volume) (Value 2 : Fuel Volume) (Value 3 : Temperature)\" flags=\"0\">"
+      },
+      {
+        "line": 485,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_x\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 488,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_d\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 491,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_c\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 494,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_b\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 497,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_a\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 500,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"0\" coupling_type=\"manifold\" coupling_name=\"manifold_y\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 503,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"cylinder_5\" coupling_name=\"cylinder\" coupling_gender=\"1\" alignment_required=\"false\">"
+      },
+      {
+        "line": 1039,
+        "text": "\t<tooltip_properties description=\"Attach a cylinder to a crankshafts outer surface to produce power for an engine. The cylinder requires a manifold to move air, fuel, and exhaust through the cylinder. Cylinders that are chained directly adjacent to each other can share a single manifold.\" short_description=\"A modular engine cylinder.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_power_manifold_3x3.xml",
+    "sha256": "8fca7069697357cc8805a8c5a3e70d260753759045a822f92f3226bc6b2cc348",
+    "attributes": {
+      "name": "Modular Engine Drive Belt 3x3",
+      "mass": "9",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "5",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "17"
+    },
+    "lines": [
+      {
+        "line": 58,
+        "text": "\t<logic_nodes/>"
+      },
+      {
+        "line": 60,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_3\" coupling_name=\"drive_belt\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 63,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_a\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 66,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_b\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 69,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_c\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 72,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_d\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 75,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_e\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 78,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_f\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 81,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_g\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 84,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_h\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 156,
+        "text": "\t<tooltip_properties description=\"The drive belt attaches to the crankshaft and provides an interface for starters, alternators and pumps.\" short_description=\"A modular engine drive belt.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_power_manifold_5x5.xml",
+    "sha256": "257c333c451377f76d8ace8242ee260eb584bc1835b72a3892ce7e66fee9cba2",
+    "attributes": {
+      "name": "Modular Engine Drive Belt 5x5",
+      "mass": "27",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "5",
+      "engine_frictionless_force": "0",
+      "electric_type": "0",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0",
+      "engine_module_type": "23"
+    },
+    "lines": [
+      {
+        "line": 335,
+        "text": "\t<logic_nodes/>"
+      },
+      {
+        "line": 337,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"crankshaft_5\" coupling_name=\"drive_belt\" coupling_gender=\"0\" alignment_required=\"false\">"
+      },
+      {
+        "line": 340,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_a\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 343,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_b\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 346,
+        "text": "\t\t<coupling orientation=\"0\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_c\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 349,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_d\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 352,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_e\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 355,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_f\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 358,
+        "text": "\t\t<coupling orientation=\"4\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_g\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 361,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_h\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 364,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_i\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 367,
+        "text": "\t\t<coupling orientation=\"1\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_j\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 370,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_k\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 373,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_l\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 376,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_m\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 379,
+        "text": "\t\t<coupling orientation=\"5\" alignment=\"2\" coupling_type=\"belt\" coupling_name=\"belt_n\" coupling_gender=\"2\" alignment_required=\"true\">"
+      },
+      {
+        "line": 515,
+        "text": "\t<tooltip_properties description=\"The drive belt attaches to the crankshaft and provides an interface for starters, alternators and pumps.\" short_description=\"A modular engine drive belt.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_sensor_temperature.xml",
+    "sha256": "860c276ad0533b05864f9c54146357ab58e08474e0f5782a1323bbe6236b11af",
+    "attributes": {
+      "name": "Modular Engine Temperature Sensor",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "1000",
+      "electric_type": "1",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0.05",
+      "engine_module_type": "16"
+    },
+    "lines": [
+      {
+        "line": 10,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 11,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Temperature\" mode=\"0\" type=\"1\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 16,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"0\" coupling_type=\"cylinder\" coupling_name=\"cylinder\" coupling_gender=\"1\" alignment_required=\"false\">"
+      },
+      {
+        "line": 56,
+        "text": "\t<tooltip_properties description=\"Attach to a crankshaft to provide temperature information.\" short_description=\"A modular engine temperature sensor.\"/>"
+      }
+    ]
+  },
+  {
+    "path": "rom/data/definitions/modular_engine_starter.xml",
+    "sha256": "9b00ca39e93b643fa80069b2beab626ba9d172edc83fe6d1d08dc1d07e16396f",
+    "attributes": {
+      "name": "Modular Engine Starter",
+      "mass": "1",
+      "force_emitter_max_force": "1000",
+      "force_emitter_max_vector": "1",
+      "force_emitter_default_pitch": "0",
+      "force_emitter_blade_height": "0",
+      "force_emitter_rotation_speed": "1",
+      "force_emitter_blade_physics_length": "4",
+      "force_emitter_blade_efficiency": "0.01",
+      "force_emitter_efficiency": "1",
+      "engine_max_force": "0.5",
+      "engine_frictionless_force": "0",
+      "electric_type": "1",
+      "electric_charge_capacity": "0",
+      "electric_magnitude": "0.2",
+      "engine_module_type": "7"
+    },
+    "lines": [
+      {
+        "line": 13,
+        "text": "\t<logic_nodes>"
+      },
+      {
+        "line": 14,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Starter\" mode=\"1\" type=\"0\" description=\"\" flags=\"0\">"
+      },
+      {
+        "line": 17,
+        "text": "\t\t<logic_node orientation=\"0\" label=\"Electric\" mode=\"1\" type=\"4\" description=\"Electrical power connection.\" flags=\"0\">"
+      },
+      {
+        "line": 22,
+        "text": "\t\t<coupling orientation=\"3\" alignment=\"4\" coupling_type=\"belt\" coupling_name=\"starter\" coupling_gender=\"1\" alignment_required=\"true\">"
+      },
+      {
+        "line": 62,
+        "text": "\t<tooltip_properties description=\"Attach a starter to a Drive Belt component and supply power to apply an inefficient force on the engine to get it started.\" short_description=\"A modular engine starter.\"/>"
+      }
+    ]
+  }
+]

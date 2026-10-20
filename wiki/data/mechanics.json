@@ -774,7 +774,7 @@
       "title": "Modular engine assembly and telemetry",
       "category": "Engines",
       "summary": "Cylinder tooltips describe manifold sharing, and composite output names three data channels.",
-      "body": "The 1x1 cylinder attaches to a crankshaft and needs manifolds for air, fuel and exhaust. Directly adjacent cylinders can share a manifold according to the supplied tooltip. Cylinder composite values 1, 2 and 3 are air volume, fuel volume and temperature. The starter attaches to a drive belt, and the alternator converts drive belt energy to electric charge.",
+      "body": "The 1x1 cylinder attaches to a crankshaft and needs manifolds for air, fuel and exhaust. Directly adjacent cylinders can share a manifold according to the supplied tooltip. Cylinder composite values 1, 2 and 3 are air volume, fuel volume and temperature. The starter attaches to a drive belt, and the alternator converts drive belt energy to electric charge. A native decode (investigation/modular-engines.md, shown on the Modular engines parts pages) found how these parts assemble and what the channels hold. Parts joined by crankshaft, belt and cylinder couplings share one crank RPS with inertia I = 1 + the sum of their engine_max_force; parts joined by manifold couplings share one temperature, heat capacity and throttle pair. Each cylinder needs the crank above 2 RPS and its air:fuel ratio inside 12 - 2t to 16 + 4t, with t = manifold °C ÷ 100 clamped to 0 to 1. Its efficiency is a speed factor times 1 - 2 (s - 0.6)², so the best ratio is 13.6 + 0.4t, 13.68 at 20 °C and 14 from 100 °C; the inspected Stoichiometric value 2s - 1 then reads 0.2. An undamaged cylinder adds 80000 × burned fuel × efficiency ÷ I RPS per update, where burned fuel is RPS × 0.000004 × voxels × fuel throttle while the crank is at most 60 RPS and the exhaust has room. Composite value 1 is 6000 × the admitted oxygen, value 2 is 10 × the admitted diesel in litres and value 3 is the manifold temperature in °C. Values 1 and 2 are per cylinder visit, not per second, and value 1 ÷ value 2 is the air:fuel ratio.",
       "findings": [
         {
           "label": "Modular Engine Cylinder 1x1: Composite Data",
@@ -864,7 +864,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The resources inspected do not establish an optimal air-fuel ratio, stoichiometry, efficiency curve or fuel-to-power equation. Composite volume and temperature units are not given in the selected channel description."
+        "The air:fuel window, efficiency, speed impulse and channel scaling come from that native decode. Composite value 1 is not established as litres of atmospheric air: it is 6000 × admitted oxygen, ten times the gas-litre factor the fluid tooltips use. An SI conversion from fuel to torque, power or energy was not recovered."
       ]
     },
     {
