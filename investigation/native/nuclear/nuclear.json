@@ -1,0 +1,206 @@
+{
+  "build_sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+  "component_hz": 60,
+  "rtti": "c_scene_vehicle_component_nuclear",
+  "vtable": "0x140b74140",
+  "update_slot": "0x358",
+  "update": "0x14041dc40",
+  "post_update_slot": "0x360",
+  "post_update": "0x14041ed90",
+  "nuclear_type_labels": {
+    "0": {
+      "name": "fuel assembly",
+      "address": "0x140b42450",
+      "bytes": "66 75 65 6c 20 61 73 73 65 6d 62 6c 79 00"
+    },
+    "1": {
+      "name": "fuel rod",
+      "address": "0x140b42648",
+      "bytes": "66 75 65 6c 20 72 6f 64 00"
+    },
+    "2": {
+      "name": "control rod",
+      "address": "0x140b424e0",
+      "bytes": "63 6f 6e 74 72 6f 6c 20 72 6f 64 00"
+    }
+  },
+  "definitions": [
+    {
+      "definition": "rom/data/definitions/radiation_detector.xml",
+      "name": "Radiation Detector",
+      "definition_line": 1,
+      "type": 16,
+      "mass": 1.0,
+      "value": 250.0,
+      "logic_gate_type": 59,
+      "voxel_count": 1,
+      "source_sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd"
+    },
+    {
+      "definition": "rom/data/definitions/steam_nuclear_control_rod.xml",
+      "name": "Nuclear Control Rod",
+      "definition_line": 2,
+      "type": 54,
+      "mass": 100.0,
+      "value": 250.0,
+      "nuclear_component_type": 2,
+      "voxel_count": 17,
+      "source_sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+      "input_min": 0.0,
+      "input_max": 1.0,
+      "insertion_min": 0.0,
+      "insertion_max": 1.0,
+      "insertion_change_per_update": 0.005,
+      "full_stroke_updates": 200,
+      "full_stroke_seconds": 3.3333333333333335,
+      "damaged_control": "insertion freezes"
+    },
+    {
+      "definition": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+      "name": "Nuclear Fuel Assembly",
+      "definition_line": 2,
+      "type": 54,
+      "mass": 80.0,
+      "value": 500.0,
+      "nuclear_component_type": 0,
+      "voxel_count": 12,
+      "source_sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+      "neighbour_slots": 4,
+      "neighbour_reaction_gain": 0.002,
+      "self_relaxation": 0.999,
+      "neighbour_relaxation": 0.998,
+      "control_multiplier_per_sum_insertion": -0.01,
+      "liquid_exchange_gain": 0.001,
+      "rod_exchange_capacity": 100.0,
+      "rod_exchange_cap": 0.5,
+      "minimum_compartment_total_exclusive": 1.0,
+      "coolant_radiation_injection": 0.001
+    },
+    {
+      "definition": "rom/data/definitions/steam_nuclear_fuel_rod.xml",
+      "name": "Nuclear Fuel Rod",
+      "definition_line": 2,
+      "type": 54,
+      "mass": 80.0,
+      "value": 2500.0,
+      "nuclear_component_type": 1,
+      "voxel_count": 9,
+      "source_sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
+      "reaction_min": 0.0,
+      "reaction_max": 50.0,
+      "fuel_baseline_gain": 0.1,
+      "reaction_relaxation": 0.999,
+      "detached_extra_relaxation": 0.999,
+      "heat_per_update_per_reaction": 0.1,
+      "fuel_fraction_per_update_per_reaction": 1e-08,
+      "environment_relaxation": 0.001,
+      "damage_temperature_strictly_above_C": 1500.0,
+      "damage_increment_hot_updates": 300,
+      "damage_max": 50,
+      "damaged_fuel_loss_max_per_update": 0.0001,
+      "nominal_full_fuel_lifetime_at_reaction50_seconds": 33333.333333333336,
+      "live_radiation_strength_per_reaction": 0.1,
+      "live_radiation_radius_per_strength_m": 10.0,
+      "radiation_cross_compartment_radius_penalty_m": 200.0
+    }
+  ],
+  "constants": {
+    "0x140bafebc": {
+      "bytes": "77 be 7f 3f",
+      "float32": 0.9990000128746033
+    },
+    "0x140bafbbc": {
+      "bytes": "00 00 80 3e",
+      "float32": 0.25
+    },
+    "0x140bafad0": {
+      "bytes": "cd cc cc 3d",
+      "float32": 0.10000000149011612
+    },
+    "0x140bafeb4": {
+      "bytes": "ee 7c 7f 3f",
+      "float32": 0.9980000257492065
+    },
+    "0x140bafecc": {
+      "bytes": "00 00 80 3f",
+      "float32": 1.0
+    },
+    "0x140bafa24": {
+      "bytes": "0a d7 23 3d",
+      "float32": 0.03999999910593033
+    },
+    "0x140baf89c": {
+      "bytes": "52 49 1d 39",
+      "float32": 0.0001500000071246177
+    },
+    "0x140baf8f8": {
+      "bytes": "6f 12 83 3a",
+      "float32": 0.0010000000474974513
+    },
+    "0x140bb0790": {
+      "bytes": "00 00 c8 42",
+      "float32": 100.0
+    },
+    "0x140bafcbc": {
+      "bytes": "00 00 00 3f",
+      "float32": 0.5
+    },
+    "0x140bb0740": {
+      "bytes": "00 00 48 42",
+      "float32": 50.0
+    },
+    "0x140baf854": {
+      "bytes": "77 cc 2b 32",
+      "float32": 9.99999993922529e-09
+    },
+    "0x140bb1f20": {
+      "bytes": "ff ff ff 7f"
+    },
+    "0x140bb0864": {
+      "bytes": "00 80 bb 44",
+      "float32": 1500.0
+    },
+    "0x140bb06dc": {
+      "bytes": "00 00 c0 41",
+      "float32": 24.0
+    },
+    "0x140bb07d8": {
+      "bytes": "00 00 48 43",
+      "float32": 200.0
+    },
+    "0x140baf898": {
+      "bytes": "17 b7 d1 38",
+      "float32": 9.999999747378752e-05
+    },
+    "0x140bb064c": {
+      "bytes": "00 00 20 41",
+      "float32": 10.0
+    },
+    "0x140baf958": {
+      "bytes": "0a d7 23 3c",
+      "float32": 0.009999999776482582
+    },
+    "0x140bb0830": {
+      "bytes": "00 00 fa 43",
+      "float32": 500.0
+    },
+    "0x140bb0a08": {
+      "bytes": "0a d7 a3 bb",
+      "float32": -0.004999999888241291
+    },
+    "0x140baf92c": {
+      "bytes": "0a d7 a3 3b",
+      "float32": 0.004999999888241291
+    },
+    "0x140bafdb0": {
+      "bytes": "00 00 40 3f",
+      "float32": 0.75
+    }
+  },
+  "open": [
+    "generic coupling positional/angular matching tolerance",
+    "global component order guarantee",
+    "radiation contamination persistence/decay and physical dose units",
+    "full downstream effects of gated damage event"
+  ]
+}

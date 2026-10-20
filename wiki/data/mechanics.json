@@ -3984,8 +3984,8 @@
       "id": "nuclear-reactor-components",
       "title": "Nuclear fuel assemblies and control rods",
       "category": "Engines",
-      "summary": "Fuel and control rod tooltips document assembly and adjacent-rod reaction control.",
-      "body": "A fuel rod can be inserted into a fuel assembly to begin fission. The assembly tooltip says fuel rods consume uranium ingots from workbench inventory to fuel. A control rod decreases the reaction rate of adjacent rods. The assembly labels Release Fuel Rod and Fuel Rod Temperature, while the control rod labels Insertion Target and Insertion. Their empty descriptions provide no units or input ranges.",
+      "summary": "Fuel assemblies add the reactions of up to four coupled fuel assemblies, control rods scale the excess over 0.1 × fuel by 1 − 0.01 × insertion, and fuel rods heat by 0.1 × r per update and take damage above 1500.",
+      "body": "A fuel rod can be inserted into a fuel assembly to begin fission. The assembly tooltip says fuel rods consume uranium ingots from workbench inventory to fuel. A control rod decreases the reaction rate of adjacent rods. The assembly labels Release Fuel Rod and Fuel Rod Temperature, while the control rod labels Insertion Target and Insertion; their port descriptions are empty. A native decode (investigation/nuclear.md, shown on the Nuclear parts pages) names the three nuclear_component_type values from the editor selector: 0 fuel assembly, 1 fuel rod and 2 control rod. Each update an assembly with a rod computes A = b + 0.999 × (R − b), B = S + 0.998 × (A − S) and b + (1 − 0.01 × C) × (B − b), with b = 0.1 × fuel fraction, R the rod's reaction, S the summed reaction of coupled fuel assemblies and C the summed insertion of coupled control rods; the rod then clamps its reaction r to 0 to 50. Adjacency is the four control_rod couplings x+, x-, z+ and z-, not a radius, so an assembly sees at most four neighbours, fuel or control. Insertion follows Insertion Target clamped to 0 to 1 by at most 0.005 per update, 200 updates or 3.333 s for a full stroke; larger insertion lowers the reaction but never below the 0.1 × fuel baseline. A rod uses 1e-8 × r of its fuel per update, so a full rod lasts 33333 s, 9.259 simulated hours, at r = 50. It heats by 0.1 × r per update, exchanges heat with immersed coolant at k = 0.001 × (q ÷ A) × w, the rod counting as 100 liquid amount and its own step capped at 0.5, and moves 0.001 of the way to its surroundings. A rod above r = 0.001 is a live radiation source of strength s = 0.1 × r with linear falloff over 10 × s metres, cut by 200 m across compartments, and assemblies add 0.001 × reaction ÷ A to their coolant's contamination, which a radiation detector inside reads. Strictly above 1500 a rod takes damage at once and then every 300 hot updates, up to 50; the update has no separate meltdown or explosion temperature.",
       "findings": [
         {
           "label": "Nuclear Fuel Rod",
@@ -4084,12 +4084,247 @@
           },
           "status": "observed",
           "evidenceType": "component-interface-description"
+        },
+        {
+          "label": "Nuclear type 0 name",
+          "value": "fuel assembly",
+          "detail": "The editor selector loads this label and registers it with value 0 (bytes 33 d2 at 0x14087dbb4): the game's own name for nuclear_component_type 0. Bytes 48 8d 15 ac 48 2c 00 at 0x14087db9d, literal 66 75 65 6c 20 61 73 73 65 6d 62 6c 79 00 at 0x140b42450, literal 33 d2 at 0x14087dbb4. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14087db9d",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14087db9d"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Nuclear type 1 name",
+          "value": "fuel rod",
+          "detail": "The editor selector loads this label and registers it with value 1 (bytes ba 01 00 00 00 at 0x14087dbe1): the game's own name for nuclear_component_type 1. Bytes 48 8d 15 77 4a 2c 00 at 0x14087dbca, literal 66 75 65 6c 20 72 6f 64 00 at 0x140b42648, literal ba 01 00 00 00 at 0x14087dbe1. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14087dbca",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14087dbca"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Nuclear type 2 name",
+          "value": "control rod",
+          "detail": "The editor selector loads this label and registers it with value 2 (bytes ba 02 00 00 00 at 0x14087dc0d): the game's own name for nuclear_component_type 2. Bytes 48 8d 15 e0 48 2c 00 at 0x14087dbf9, literal 63 6f 6e 74 72 6f 6c 20 72 6f 64 00 at 0x140b424e0, literal ba 02 00 00 00 at 0x14087dc0d. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14087dbf9",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14087dbf9"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Nuclear type dispatch",
+          "value": "0 assembly, 1 rod, 2 control",
+          "detail": "The nuclear update reads nuclear_component_type at definition+0x2cc0 and branches to the assembly, rod or control step. Bytes 8b 8a c0 2c 00 00 85 c9 0f 84 6f 0c 00 00 83 e9 01 0f 84 d7 01 00 00 83 f9 01 0f 85 63 10 00 00 at 0x14041dcb4. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dcb4",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dcb4"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Assembly self relaxation",
+          "value": "0.999",
+          "detail": "A = b + 0.999 × (R − b), b = 0.1 × fuel fraction, R the inserted rod's reaction. Bytes f3 0f 59 05 35 15 79 00 at 0x14041e97f, literal 77 be 7f 3f at 0x140bafebc, literal cd cc cc 3d at 0x140bafad0. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041e97f",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e97f"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Neighbour relaxation",
+          "value": "0.998",
+          "detail": "B = S + 0.998 × (A − S), S the summed reaction of the coupled fuel assemblies that hold a rod; the sum is not averaged. Bytes f3 0f 59 05 70 14 79 00 at 0x14041ea3c, literal ee 7c 7f 3f at 0x140bafeb4. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041ea3c",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea3c"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Control sum scale",
+          "value": "0.25 × 0.04 = 0.01",
+          "detail": "Each coupled control rod adds 0.25 × insertion; the sum is scaled by 0.04 and the result is b + (1 − 0.01 × C) × (B − b). Bytes f3 44 0f 59 05 b7 0f 79 00 at 0x14041ea64, literal 0a d7 23 3d at 0x140bafa24, literal 00 00 80 3e at 0x140bafbbc. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041ea64",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea64"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Coupling walk",
+          "value": "four control_rod couplings",
+          "detail": "The assembly walks the couplings bound at component+0x1f8, x+, x-, z+ and z-, and reads each peer's nuclear type; there is no distance test. Bytes 45 39 a6 08 02 00 00 76 76 at 0x14041e9aa. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041e9aa",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e9aa"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Insertion step limit",
+          "value": "0.005",
+          "detail": "Insertion moves toward clamp(Insertion Target, 0, 1) by at most 0.005 per update: 1 ÷ 0.005 = 200 updates, 3.333 s at 60 updates per second, for a full stroke. Bytes f3 0f 5d 35 11 1c 79 00 at 0x14041dd13, literal 0a d7 a3 3b at 0x140baf92c, literal 0a d7 a3 bb at 0x140bb0a08. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dd13",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dd13"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Reaction cap",
+          "value": "50",
+          "detail": "The rod clamps r = b + 0.999 × (next − b) to 0 to 50. Bytes f3 44 0f 10 2d 64 27 79 00 at 0x14041dfd3, literal 00 00 48 42 at 0x140bb0740. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dfd3",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfd3"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Fuel use per reaction",
+          "value": "1e-8",
+          "detail": "F falls by 1e-8 × r per update, so a full rod lasts 1 ÷ (60 × 1e-8 × 50) = 33333 s, 9.259 simulated hours, at r = 50. Bytes f3 0f 59 15 48 18 79 00 at 0x14041e004, literal 77 cc 2b 32 at 0x140baf854. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041e004",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e004"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Heat per reaction",
+          "value": "0.1 × r",
+          "detail": "T rises by 0.1 × r per update and then moves 0.001 of the way toward the surrounding temperature. Bytes f3 41 0f 59 c4 at 0x14041dfed, literal 6f 12 83 3a at 0x140baf8f8. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dfed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfed"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Rod exchange capacity and cap",
+          "value": "100 and 0.5",
+          "detail": "With compartment total amount A above 1: k = 0.001 × (q ÷ A) × w; the coolant moves k × (rod − coolant) and the rod min(q ÷ 100 × k, 0.5) × (coolant − rod). Bytes f3 0f 5e 05 d9 1a 79 00 at 0x14041ecaf, literal 00 00 c8 42 at 0x140bb0790, literal 00 00 00 3f at 0x140bafcbc. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041ecaf",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ecaf"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Coolant contamination",
+          "value": "0.001 × reaction ÷ A",
+          "detail": "The assembly adds 0.001 × the rod's working reaction ÷ A to the compartment radiation value at +0x78. Bytes f3 0f 59 05 f2 0b 79 00 f3 0f 5e 41 70 f3 0f 58 41 78 at 0x14041ecfe. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041ecfe",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ecfe"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Live source radius and penalty",
+          "value": "10 × s, −200 m",
+          "detail": "A rod with r above 0.001 is a live source of strength s = 0.1 × r; a sample within 10 × s metres reads s × (1 − d ÷ (10 × s)), and a source in another compartment loses 200 m of radius. Bytes f3 44 0f 10 50 18 41 0f 28 f2 f3 41 0f 59 f4 at 0x14030fb22, literal 00 00 20 41 at 0x140bb064c, literal 00 00 48 43 at 0x140bb07d8. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030fb22",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fb22"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Radiation detector case",
+          "value": "logic gate 59",
+          "detail": "Jump-table entry 59 (bytes 08 88 3c 00 at 0x1403c9640) leads to the detector case, which calls the radiation sampler and writes its result unscaled to the Radiation output. Bytes e8 4d 71 f4 ff at 0x1403c886e, literal 08 88 3c 00 at 0x1403c9640. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c886e",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c886e"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Damage temperature",
+          "value": "1500",
+          "detail": "Strictly above 1500 a rod takes 1 damage at once and then every 300 hot updates (5 simulated seconds), up to 50; cooling does not reset the counter. Bytes 0f 2f 0d 46 27 79 00 at 0x14041e117, literal 00 80 bb 44 at 0x140bb0864, literal 69 c2 2c 01 00 00 at 0x14041e157, literal b9 32 00 00 00 at 0x14041e134. Report: investigation/nuclear.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041e117",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e117"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Nuclear Fuel Assembly: couplings",
+          "value": "x+, x-, z+, z-",
+          "detail": "Four control_rod couplings at local (0, 6, 0), orientations 0, 1, 4 and 5, alignment required. No diagonal coupling.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L221-L230",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+            "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+            "lineStart": 221,
+            "lineEnd": 230
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Reaction kinetics, adjacency radius, insertion direction and range, fuel lifetime, heat transfer, radiation and meltdown thresholds remain unresolved. No numeric nuclear type is translated into an inferred enum name."
+        "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range; whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments, and what the two game settings that gate it are. Temperatures, reaction and detector readings are internal game values."
       ]
     },
     {
@@ -13897,8 +14132,8 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 398,
-    "sourceCount": 71,
+    "findingCount": 416,
+    "sourceCount": 72,
     "categories": [
       "Control",
       "Economy",
@@ -14115,6 +14350,11 @@
         "path": "rom/data/definitions/radar.xml",
         "sha256": "8d78fcb9a4295441d1c8e5ac05bfb2ecd417d8b8d0bc39f1738976fd1e95e0c2",
         "lineCount": 134
+      },
+      {
+        "path": "rom/data/definitions/radiation_detector.xml",
+        "sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd",
+        "lineCount": 60
       },
       {
         "path": "rom/data/definitions/rope_hook_composite.xml",

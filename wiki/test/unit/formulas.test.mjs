@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { KEEL, KEELS, keelFor, keelLateral, keelMemory, keelScale, keelUpright, WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { NUCLEAR, REACTOR_FAMILIES, reactorCritical, reactorLayout, reactorRun, reactorSteady, KEEL, KEELS, keelFor, keelLateral, keelMemory, keelScale, keelUpright, WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1572,4 +1572,106 @@ test('keel ports match investigation/native/keel-windows when present', (t) => {
       assert.ok(Math.abs(keelMemory({ keel: k, scale: e.S, step: 1, updates: c.update }) - c.momentum_force) < 1e-6, `${k.id} update ${c.update}`);
     }
   }
+});
+
+test('nuclear constants and graph families remain tied to the verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const all = data.families.flatMap((f) => f.findings);
+  const value = (label) => {
+    const x = all.find((f) => f.label === label);
+    assert.ok(x?.source?.address, label);
+    return Math.fround(Number(x.value));
+  };
+  const same = (label, v) => assert.equal(value(label), Math.fround(v), label);
+  same('Fuel baseline gain', NUCLEAR.baseline);
+  same('Fuel baseline gain', NUCLEAR.heat); // the heating multiply reuses the baseline register (0x14041dfed)
+  same('Assembly self relaxation', NUCLEAR.relax);
+  same('Reaction relaxation', NUCLEAR.relax);
+  same('Neighbour relaxation', NUCLEAR.neighbourRelax);
+  same('Control rod weight', NUCLEAR.controlWeight);
+  same('Control sum scale', NUCLEAR.controlScale);
+  same('Insertion step limit (+)', NUCLEAR.insertionStep);
+  same('Insertion step limit (−)', -NUCLEAR.insertionStep);
+  same('Reaction cap', NUCLEAR.cap);
+  same('Fuel use per reaction', NUCLEAR.fuelUse);
+  same('Surrounding temperature pull', NUCLEAR.ambient);
+  same('Coolant exchange gain', NUCLEAR.exchange);
+  same('Rod exchange capacity', NUCLEAR.rodCapacity);
+  same('Rod exchange cap', NUCLEAR.rodCap);
+  same('Damage temperature', NUCLEAR.damageTemperature);
+  assert.equal(Math.fround(NUCLEAR.controlWeight * NUCLEAR.controlScale), Math.fround(0.01));
+  for (const id of REACTOR_FAMILIES) {
+    assert.ok(data.families.some((f) => f.id === id), id);
+    assert.deepEqual(graphKindsForFamily(id), ['reactor']);
+  }
+  assert.deepEqual(graphKindsForFamily('part-radiation-detector'), []);
+});
+
+// Worked examples from investigation/native/nuclear/tools/examples.json (model.py): 2 by 2 fuel block, one control rod each, 600 s.
+const NUCLEAR_EXAMPLES = [
+  { insertion: 0.1, freeze: true, react: 0.2997994004016882, fuel: 1, temp: 34.982471285707604 },
+  { insertion: 0.25, freeze: true, react: 0.1797519573889291, fuel: 1, temp: 28.98310182248636 },
+  { insertion: 1, freeze: true, react: 0.11978215451642886, fuel: 1, temp: 25.986111673931383 },
+  { insertion: 0.1, freeze: false, react: 0.2997688464830982, fuel: 0.999895084768462, temp: 34.980966776820246 },
+  { insertion: 0.25, freeze: false, react: 0.1797405883441229, fuel: 0.9999360322332667, temp: 28.982541715661657 },
+  { insertion: 1, freeze: false, react: 0.11977702692812003, fuel: 0.9999570725964892, temp: 25.985859002390253 },
+];
+
+test('reactor model reproduces the worked examples of investigation/nuclear.md', () => {
+  const layout = reactorLayout(4, 'square', 'one');
+  assert.deepEqual(layout.cells, [[0, 0], [1, 0], [0, 1], [1, 1]]);
+  assert.deepEqual(layout.fuel, [[1, 2], [0, 3], [0, 3], [1, 2]]);
+  assert.deepEqual(layout.control, [[0], [1], [2], [3]]);
+  for (const e of NUCLEAR_EXAMPLES) {
+    const { rods, rows, damageAt } = reactorRun({ count: 4, shape: 'square', controls: 'one', insertion: e.insertion, seconds: 600, freezeFuel: e.freeze, every: 36000 });
+    for (const rod of rods) {
+      assert.ok(Math.abs(rod.react - e.react) < 1e-12, `react ${e.insertion} ${e.freeze}`);
+      assert.ok(Math.abs(rod.temp - e.temp) < 1e-9, `temp ${e.insertion} ${e.freeze}`);
+      assert.ok(Math.abs(rod.fuel - e.fuel) < 1e-15, `fuel ${e.insertion} ${e.freeze}`);
+    }
+    assert.equal(damageAt, null);
+    assert.equal(rows.at(-1).insertion, e.insertion);
+    if (e.freeze) {
+      const s = reactorSteady(2, e.insertion);
+      assert.ok(Math.abs(s.r - e.react) < 1e-9 && Math.abs(s.temp - e.temp) < 1e-7, `steady ${e.insertion}`);
+    }
+  }
+});
+
+test('reactor model matches tools/examples.json when the investigation is present', (t) => {
+  const file = new URL('../../../investigation/native/nuclear/tools/examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const examples = JSON.parse(readFileSync(file, 'utf8'));
+  assert.equal(examples.length, NUCLEAR_EXAMPLES.length);
+  examples.forEach((x, i) => {
+    const e = NUCLEAR_EXAMPLES[i];
+    assert.deepEqual([x.insertion, x.freeze_fuel, x.rod.react, x.rod.fuel, x.rod.temp], [e.insertion, e.freeze, e.react, e.fuel, e.temp]);
+  });
+});
+
+test('reactor stroke, layouts, runaway and cooling follow the decoded rules', () => {
+  // Full stroke: 200 updates of 0.005.
+  const stroke = reactorRun({ count: 1, controls: 'one', insertion: 1, seconds: 200 / 60, every: 1 });
+  assert.ok(Math.abs(stroke.rows.at(-1).insertion - 1) < 1e-12);
+  assert.ok(Math.abs(stroke.rows[100].insertion - 0.5) < 1e-12);
+  // Neighbour counts and control slots.
+  assert.deepEqual(reactorLayout(3, 'line', 'all').fuel.map((f) => f.length), [1, 2, 1]);
+  assert.deepEqual(reactorLayout(3, 'line', 'all').control.map((c) => c.length), [3, 2, 3]);
+  assert.deepEqual(reactorLayout(9, 'square', 'all').control.map((c) => c.length), [2, 1, 2, 1, 0, 1, 2, 1, 2]);
+  assert.equal(reactorLayout(6, 'double', 'none').controlCount, 0);
+  // A lone rod and a rod with one neighbour always settle; four neighbours run away.
+  assert.ok(Math.abs(reactorSteady(1, 0).r - 0.1) < 1e-12);
+  assert.ok(reactorSteady(0, 0).r < 0.05);
+  assert.equal(reactorSteady(4, 0).r, null);
+  assert.equal(reactorCritical(0), 0);
+  assert.ok(Math.abs(reactorCritical(3) - 0.1995009979041784) < 1e-12);
+  const lone = reactorRun({ count: 1, controls: 'none', insertion: 0, seconds: 1800, freezeFuel: true, every: 108000 }).rods[0];
+  assert.ok(Math.abs(lone.react - reactorSteady(0, 0).r) < 1e-9 && Math.abs(lone.temp - reactorSteady(0, 0).temp) < 1e-6);
+  // A 3 by 3 block without control rods reaches the cap and passes 1500 within ten minutes.
+  const hot = reactorRun({ count: 9, shape: 'square', controls: 'none', insertion: 0, seconds: 600, every: 600 });
+  assert.equal(hot.rows.at(-1).rMax, NUCLEAR.cap);
+  assert.ok(hot.damageAt > 0 && hot.damageAt < 600);
+  // Without coolant the same lone rod settles at 20 + 0.0999 r ÷ 0.001.
+  const dry = reactorRun({ count: 1, controls: 'none', insertion: 0, seconds: 1800, freezeFuel: true, immersion: 0, every: 108000 }).rods[0];
+  assert.ok(Math.abs(dry.temp - (20 + (0.0999 * dry.react) / 0.001)) < 1e-6);
 });

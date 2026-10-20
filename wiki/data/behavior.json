@@ -106610,6 +106610,318 @@
       ]
     },
     {
+      "id": "part-radiation-detector",
+      "summary": "Outputs the sum of live sources within reach, s × (1 − d ÷ (10 × s)), plus the contamination of the compartment it sits in; outside compartments it adds persistent contamination records instead.",
+      "sections": [
+        {
+          "title": "Reading",
+          "body": "Logic case 59 transforms the detector's position to world space, calls the radiation sampler and writes the result unscaled to the Radiation output. A damaged detector outputs 0. Each fuel rod with a reaction above 0.001 is a live source of strength s = 0.1 × r and reach 10 × s metres, reduced by 200 m when it sits in another compartment; sources add with linear falloff. Inside a compartment the detector also adds that compartment's contamination, which fuel assemblies raise by 0.001 × reaction ÷ total amount per update. Outside a compartment it adds persistent contamination records instead, each (1 − d ÷ radius) × amplitude; damaged fuel rods create them with radius 200."
+        },
+        {
+          "title": "Example",
+          "body": "A fuel rod at the cap r = 50 in the detector's compartment reads 5 at the rod, 2.5 at 25 m and 0 from 50 m. A rod settled at r = 0.18, as in the 2 by 2 example at insertion 0.25, reaches only 0.18 m, so most of a reactor's reading comes from its coolant contamination."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Logic case 59",
+          "value": "output cleared first",
+          "detail": "Jump-table entry 59 at 0x1403c9640 (bytes 08883c00, image-relative) leads here; radiation_detector has logic_gate_type 59. The case starts by writing 0 to its numeric output. Report: investigation/nuclear.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 0f57c9498d8e00040000e8591af2ff at 0x1403c8808. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/sensor-case59.asm:L8-L10. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c8808",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c8808"
+          }
+        },
+        {
+          "label": "Detector damage test",
+          "value": "damaged → 0",
+          "detail": "Case 59 first clears its output, then skips the reading when 0x140141280 returns nonzero; that routine is the component damage state, as in the fuel cell case. Report: investigation/nuclear.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e8618ad7ff85c00f85cb0c0000 at 0x1403c881a. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/sensor-case59.asm:L12-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c881a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c881a"
+          }
+        },
+        {
+          "label": "Detector reading",
+          "value": "call 0x14030f9c0",
+          "detail": "Transforms the component position to world space and calls the radiation sampler with its compartment. Report: investigation/nuclear.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e84d71f4ff at 0x1403c886e. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/sensor-case59.asm:L32. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c886e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c886e"
+          }
+        },
+        {
+          "label": "Detector output",
+          "value": "sampler result → Radiation",
+          "detail": "Passes the sampler's float straight to the numeric output through 0x1402ea270, with no scale factor. Report: investigation/nuclear.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 0f28c8498d8e00040000e8ee19f2ff at 0x1403c8873. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/sensor-case59.asm:L33-L35. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c8873",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c8873"
+          }
+        },
+        {
+          "label": "Live source radius per strength",
+          "value": "10",
+          "detail": "radius = this × s for each live source (0x14030fb2c). Report: investigation/nuclear.md. Function 0x14030f9c0-0x14030fd5f; instruction bytes f3440f10254a0b8a00 at 0x14030faf9 address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/radiation-sample.asm:L84-L85; ../nuclear/pseudocode/0x14030f9c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030faf9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030faf9"
+          }
+        },
+        {
+          "label": "Other-compartment radius penalty",
+          "value": "200",
+          "detail": "A source whose compartment differs from the sample's loses this from its radius and is skipped unless the radius stays positive (0x14030fb31-0x14030fb40). Report: investigation/nuclear.md. Function 0x14030f9c0-0x14030fd5f; instruction bytes f3440f101dbd0d8a00 at 0x14030fa12 address binary32 200 (bytes 00004843) at 0x140bb07d8. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/radiation-sample.asm:L29-L30; ../nuclear/pseudocode/0x14030f9c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fa12",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fa12"
+          }
+        },
+        {
+          "label": "Live source falloff",
+          "value": "s × (1 − clamp(d ÷ radius, 0, 1))",
+          "detail": "Only sources with d² < radius² count (0x14030fb83). Each adds s × (1 − clamp(d ÷ radius, 0, 1)) to the reading (0x14030fbd8), linear in distance; sources add. Report: investigation/nuclear.md. Function 0x14030f9c0-0x14030fd5f; instruction bytes 410f28c1f30f5cc1f3440f59d0 at 0x14030fbcb. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/radiation-sample.asm:L138-L140; ../nuclear/pseudocode/0x14030f9c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fbcb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fbcb"
+          }
+        },
+        {
+          "label": "Compartment radiation in the reading",
+          "value": "reading + compartment+0x78",
+          "detail": "Inside a compartment the sampler adds that compartment's radiation value, the one assemblies raise. Outside a compartment (0x14030fbec) it instead queries the persistent contamination index and adds (1 − d ÷ radius) × amplitude per record (0x14030fcce-0x14030fce0). Report: investigation/nuclear.md. Function 0x14030f9c0-0x14030fd5f; instruction bytes f30f587e78 at 0x14030fd12. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/radiation-sample.asm:L215; ../nuclear/pseudocode/0x14030f9c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fd12",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fd12"
+          }
+        },
+        {
+          "label": "Contamination record",
+          "value": "radius 200, amplitude",
+          "detail": "A deposit that does not merge into a nearby record creates one with radius 200 and the deposited amount as amplitude. Report: investigation/nuclear.md. Function 0x14030f740-0x14030f9ba; instruction bytes 41c7411800004843f3410f117120 at 0x14030f8b6. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/contamination-deposit.asm:L108-L110; ../nuclear/pseudocode/0x14030f740.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f740@0x14030f8b6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030f8b6"
+          }
+        },
+        {
+          "label": "Live radiation strength",
+          "value": "s = 0.1 × r",
+          "detail": "Each update the source gets the rod position and strength s = r × the 0.1 in xmm12, and the compartment of the associated assembly (0x14041e897). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3410f108e30040000f3410f59cc498b07488b08f30f114918 at 0x14041e86c. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L728-L733; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e86c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e86c"
+          }
+        },
+        {
+          "label": "Live radiation threshold",
+          "value": "r ≤ 0.001 removes the source",
+          "detail": "Compares the 0.001 in xmm11 (0x140baf8f8) with r: at or below it the rod releases its live radiation source (+0x448); above it the rod creates one if needed and adds it to the radiation manager list. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 450f2f9e300400007233 at 0x14041e6a1. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L613-L615; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e6a1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e6a1"
+          }
+        },
+        {
+          "label": "Coolant contamination",
+          "value": "Z = Z + 0.001 × next ÷ A",
+          "detail": "Adds 0.001 × the rod's working reaction (loaded at 0x14041ecf6) ÷ A to the compartment radiation value at +0x78. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f5905f20b7900f30f5e4170f30f584178f30f114178 at 0x14041ecfe. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L1011-L1015; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ecfe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ecfe"
+          }
+        },
+        {
+          "label": "Live radiation reach",
+          "value": "radius = r m; at r = 50: 5 at the rod, 2.5 at 25 m, 0 from 50 m",
+          "detail": "s = 0.1 × r and radius = 10 × s, so the radius in metres equals r. In the same compartment a rod at the cap r = 50 reads 5 at its position, 2.5 at 25 m and 0 from 50 m; in another compartment the radius drops by 200, so no live source reaches it. The 2 by 2 example at I = 0.25 has s = 0.018 and a radius of 0.18 m. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e86c, native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030faf9, native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fa12, native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fbcb, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3, derived:9ba979d0d047.",
+          "evidenceId": "derived:30096630cbb0",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e86c"
+          }
+        },
+        {
+          "label": "2 by 2 fuel block, one control rod each",
+          "value": "I = 0.1: r 0.2998, T 34.98; I = 0.25: r 0.1798, T 28.98; I = 1: r 0.1198, T 25.99",
+          "detail": "Output of the report's 60 Hz model (tools/model.py, tools/examples.json), re-derived here in closed form: four fuel assemblies in a square, each with two fuel neighbours and one control rod, F = 1 held fixed, coolant and surroundings at 20, liquid and total amount 100, full immersion, controls before assemblies before rods. After 600 simulated seconds the rods settle at I = 0.1: r = 0.2998, T = 34.98; I = 0.25: r = 0.1798, T = 28.98; I = 1: r = 0.1198, T = 25.99. The model is not a game measurement, and an uncooled tank would warm up instead. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea76, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea3c, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea64, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9a1, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfb0, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfea, derived:6e6053727d4e.",
+          "evidenceId": "derived:9ba979d0d047",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea76"
+          }
+        },
+        {
+          "label": "Radiation Detector · tooltip",
+          "value": "Outputs radiation dose rate per second at its location.",
+          "detail": "radiation_detector: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/radiation_detector.xml:fb7118200b69:L51-L51",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/radiation_detector.xml",
+            "sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd",
+            "lineStart": 51,
+            "lineEnd": 51
+          }
+        },
+        {
+          "label": "Radiation Detector · port Radiation",
+          "value": "The detected radiation dose rate.",
+          "detail": "radiation_detector: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/radiation_detector.xml:fb7118200b69:L10-L10",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/radiation_detector.xml",
+            "sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd",
+            "lineStart": 10,
+            "lineEnd": 10
+          }
+        },
+        {
+          "label": "Radiation Detector · logic_gate_type",
+          "value": "59",
+          "detail": "radiation_detector: definition attribute logic_gate_type. Value 59 selects case 59 of the logic update.",
+          "evidenceId": "resource:rom/data/definitions/radiation_detector.xml:fb7118200b69:L1-L1",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/radiation_detector.xml",
+            "sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd",
+            "lineStart": 1,
+            "lineEnd": 1
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
+        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/radiation_detector.xml",
+          "sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd",
+          "lineStart": 1,
+          "lineEnd": 1
+        },
+        {
+          "path": "rom/data/definitions/radiation_detector.xml",
+          "sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd",
+          "lineStart": 10,
+          "lineEnd": 10
+        },
+        {
+          "path": "rom/data/definitions/radiation_detector.xml",
+          "sha256": "fb7118200b69c5537c57d290a72c2319b65ba4c1c14189262a341942f31daffd",
+          "lineStart": 51,
+          "lineEnd": 51
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030f8b6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fa12"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030faf9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fbcb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fd12"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c8808"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c881a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c886e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c8873"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e6a1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e86c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea76"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ecfe"
+        }
+      ]
+    },
+    {
       "id": "part-rope-hook-fluid",
       "summary": "Links the fluid networks at both ends of a hose with bias 0, both directions and exchange factor 0.5; hose length adds no volume or resistance.",
       "sections": [
@@ -123816,14 +124128,335 @@
     },
     {
       "id": "part-steam-nuclear-control-rod",
-      "summary": "Insertion lowers the reaction rate of adjacent fuel rods.",
+      "summary": "Insertion follows Insertion Target, clamped to 0 to 1, by at most 0.005 per update (a full stroke takes 3.333 s); each coupled fuel assembly scales the reaction above 0.1 × fuel by 1 − 0.01 × the summed insertion.",
       "sections": [
         {
           "title": "Setup and interactions",
-          "body": "Place rods next to fuel assemblies and drive Insertion Target from fuel rod temperature."
+          "body": "Couple it to fuel assemblies through its side couplings and drive Insertion Target, for example from an assembly's Fuel Rod Temperature."
+        },
+        {
+          "title": "Insertion",
+          "body": "Native nuclear type 2, which the editor names control rod. While undamaged, each update I moves toward clamp(Insertion Target, 0, 1) by at most 0.005: 0.3 per simulated second, 200 updates or 3.333 s for a full stroke. The Insertion output is I. A damaged control rod skips this step, so its insertion stays where it was."
+        },
+        {
+          "title": "Effect on the reaction",
+          "body": "Every coupled assembly adds 0.25 × I per control rod and multiplies the sum by 0.04, so each rod contributes 0.01 × I to C in b + (1 − 0.01 × C) × (B − b). Larger insertion lowers the reaction, but full insertion of one rod removes only 1% of the part above b per update. How many fuel neighbours an assembly has matters as much (see the fuel assembly page): with two, c × I above 0.0001 settles the reaction; with three, above 0.1995. In the report's 2 by 2 block with one control rod per assembly, coolant at 20: I = 0.1: r 0.2998, T 34.98; I = 0.25: r 0.1798, T 28.98; I = 1: r 0.1198, T 25.99."
         }
       ],
       "findings": [
+        {
+          "label": "Nuclear component vtable",
+          "value": "0x140b74140",
+          "detail": "The constructor installs this vtable (RTTI c_scene_vehicle_component_nuclear). Its slot +0x358 at 0x140b74498 holds the update 0x14041dc40, slot +0x360 the post-update 0x14041ed90 and slot +0x20 the damage setter 0x14041dc00; the extractor re-reads all three pointers. Report: investigation/nuclear.md. Function 0x14045fa70-0x14045fc98; instruction bytes 488d05b4467100488907 at 0x14045fa85. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/constructor.asm:L16-L17; ../nuclear/pseudocode/0x14045fa70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14045fa70@0x14045fa85",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045fa85"
+          }
+        },
+        {
+          "label": "Nuclear type dispatch",
+          "value": "0 → 0x14041e931, 1 → 0x14041dea2, 2 → 0x14041dcd4",
+          "detail": "The update reads nuclear_component_type at definition+0x2cc0: type 0 (fuel assembly) jumps to the assembly branch, type 1 (fuel rod) to the rod branch and type 2 (control rod) to the control branch; any other value ends the update. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 8b8ac02c000085c90f846f0c000083e9010f84d701000083f9010f8563100000 at 0x14041dcb4. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L38-L44; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dcb4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dcb4"
+          }
+        },
+        {
+          "label": "nuclear_component_type reader",
+          "value": "nuclear_component_type",
+          "detail": "The definition reader 0x1403168d0 passes definition+0x2cc0 to this routine (0x140318157), which reads the integer attribute nuclear_component_type and stores 0 when it is absent. Report: investigation/nuclear.md. Function 0x140940ea0-0x140940f98; it references the string 'nuclear_component_type' at 0x140b5d6b8. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140940ea0@0x140b5d6b8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b5d6b8"
+          }
+        },
+        {
+          "label": "Nuclear type selector",
+          "value": "nuclear type",
+          "detail": "The editor property panel registers a selector with this caption whose getter 0x14087fc10 and setter 0x14087fc20 access the edited definition's type field. Report: investigation/nuclear.md. Function 0x140872de0-0x14087e104; it references the string 'nuclear type' at 0x140b42498. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140872de0@0x140b42498",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b42498"
+          }
+        },
+        {
+          "label": "Nuclear type 2 name",
+          "value": "control rod",
+          "detail": "The selector loads this label just before registering it with value 2 (bytes ba02000000 at 0x14087dc0d); the game's own name for nuclear_component_type 2, not an inferred enum identifier. Report: investigation/nuclear.md. Function 0x140872de0-0x14087e104; it references the string 'control rod' at 0x140b424e0. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140872de0@0x140b424e0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b424e0"
+          }
+        },
+        {
+          "label": "Control rod damage gate",
+          "value": "damage 0 only",
+          "detail": "The control branch runs only while the damage count at component+0x8 is 0; a damaged control rod skips it and keeps its stored insertion. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 453966080f8559100000 at 0x14041dcd4. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L45-L46; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dcd4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dcd4"
+          }
+        },
+        {
+          "label": "Insertion Target clamp",
+          "value": "clamp(input, 0, 1) − I",
+          "detail": "Loads the Insertion Target input (component+0x1f0), clamps it to 0 to 1 (1 from 0x140bafecc) and subtracts the stored insertion I (+0x434). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3410f10b6f0010000450f57e4f3410f5ff4f3440f1015ca217900f3410f5df2f30f5cf0 at 0x14041dce7. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L49-L56; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dce7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dce7"
+          }
+        },
+        {
+          "label": "Insertion step limit (−)",
+          "value": "-0.005",
+          "detail": "Lower bound of the per-update change. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f5f35f52c7900 at 0x14041dd0b address binary32 -0.005 (bytes 0ad7a3bb) at 0x140bb0a08. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L57-L58; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dd0b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dd0b"
+          }
+        },
+        {
+          "label": "Insertion step limit (+)",
+          "value": "0.005",
+          "detail": "Upper bound of the per-update change. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f5d35111c7900 at 0x14041dd13 address binary32 0.005 (bytes 0ad7a33b) at 0x140baf92c. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L59-L60; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dd13",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dd13"
+          }
+        },
+        {
+          "label": "Insertion store",
+          "value": "I = I + step; Insertion = I",
+          "detail": "Adds the clamped step to I, stores it at +0x434 and writes the same value to the numeric output at +0x160, the Insertion port. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f58c6f3410f118634040000f3410f118660010000 at 0x14041dd1b. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L61-L65; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dd1b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dd1b"
+          }
+        },
+        {
+          "label": "Control neighbour sum",
+          "value": "C' = C' + 0.25 × I",
+          "detail": "A type-2 peer adds its insertion (+0x434) times the 0.25 in xmm9 (0x140bafbbc, loaded at 0x14041e9a1). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 83fa027512f30f108034040000f3410f59c1f3440f58c0ffc3 at 0x14041ea07. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L833-L839; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea07",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea07"
+          }
+        },
+        {
+          "label": "Control rod weight",
+          "value": "0.25",
+          "detail": "Each coupled control rod adds this × its insertion to the control sum. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f100d12127900 at 0x14041e9a1 address binary32 0.25 (bytes 0000803e) at 0x140bafbbc. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L808-L809; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9a1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e9a1"
+          }
+        },
+        {
+          "label": "Control sum scale",
+          "value": "0.04",
+          "detail": "Multiplies the control sum by this: 0.25 × 0.04 = 0.01 per unit of insertion. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f5905b70f7900 at 0x14041ea64 address binary32 0.04 (bytes 0ad7233d) at 0x140bafa24. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L855-L856; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea64",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea64"
+          }
+        },
+        {
+          "label": "Assembly reaction result",
+          "value": "b + (1 − 0.01 × ΣI) × (B − b)",
+          "detail": "Stores b + (1 − scaled control sum) × (B − b) as the rod's working reaction. Insertion scales only the part above b. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 410f28cef3410f5cc8f30f108030040000f30f5cc2f30f59c8f30f58caf30f118830040000 at 0x14041ea76. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L859-L867; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea76",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea76"
+          }
+        },
+        {
+          "label": "Nuclear coupling type",
+          "value": "control_rod",
+          "detail": "The binder 0x14041c8e0 looks up couplings of this type for assemblies and control rods and allocates four slots at component+0x1f8 (0x14041c934), the list the assembly walks. Report: investigation/nuclear.md. Function 0x14041c8e0-0x14041d63d; it references the string 'control_rod' at 0x140b6f990. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041c8e0@0x140b6f990",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6f990"
+          }
+        },
+        {
+          "label": "Nuclear Control Rod · couplings",
+          "value": "x+, x-, z+, z- at (0, 0, 0)",
+          "detail": "steam_nuclear_control_rod: the same four control_rod couplings, orientations 0, 1, 4 and 5, at local (0, 0, 0).",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L152-L163",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 152,
+            "lineEnd": 163
+          }
+        },
+        {
+          "label": "Control rod stroke",
+          "value": "0.005 per update, 0.3 per simulated second; full stroke 200 updates, 3.333 s",
+          "detail": "Insertion moves at most 0.005 per update toward clamp(Insertion Target, 0, 1): 0.3 per simulated second, so 0 to 1 takes 200 updates, 3.333 simulated seconds (investigation/native/nuclear/nuclear.json). Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dd13, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dd0b, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dd1b, derived:7d3ff454a23f.",
+          "evidenceId": "derived:2a335accb9a1",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dd13"
+          }
+        },
+        {
+          "label": "Settling and runaway layouts",
+          "value": "n = 2: c × I > 0.0001; n = 3: c × I > 0.1995; n = 4: no slot for a control rod",
+          "detail": "Inference from the assembly and rod steps for equal rods, each with n fuel neighbours and c control rods at insertion I, F held fixed: a disturbance grows by g = 0.999 × (1 − 0.01 × c × I) × (0.002 × n + 0.997002) per update. With g < 1 the reaction settles at r = b + 0.001998 × (1 − 0.01 × c × I) × b × (n − 1) ÷ (1 − g), b = 0.1 × F; otherwise it climbs to the cap of 50. A lone rod settles at 0.04999 (T 22.5 in the coolant case) and a rod with one neighbour at 0.1 (T 25), whatever the insertion. Two neighbours give g = 1.000000998 at I = 0, growing by a factor e in about 4.6 simulated hours; any c × I above 0.0001 settles them. Three neighbours need c × I above 0.1995. Four fuel neighbours fill all four couplings, so g = 1.004: ×1.27 per simulated second, from 0.1 to the cap in about 26 s. In a finite block the outer rods have fewer neighbours, so the block behaves like an n between its smallest and largest neighbour count. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e97f, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9e3, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea07, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea3c, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea64, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea76, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfb0, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3, resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L221-L232, derived:6e6053727d4e, derived:7d3ff454a23f.",
+          "evidenceId": "derived:4d09fba547e4",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e97f"
+          }
+        },
+        {
+          "label": "2 by 2 fuel block, one control rod each",
+          "value": "I = 0.1: r 0.2998, T 34.98; I = 0.25: r 0.1798, T 28.98; I = 1: r 0.1198, T 25.99",
+          "detail": "Output of the report's 60 Hz model (tools/model.py, tools/examples.json), re-derived here in closed form: four fuel assemblies in a square, each with two fuel neighbours and one control rod, F = 1 held fixed, coolant and surroundings at 20, liquid and total amount 100, full immersion, controls before assemblies before rods. After 600 simulated seconds the rods settle at I = 0.1: r = 0.2998, T = 34.98; I = 0.25: r = 0.1798, T = 28.98; I = 1: r = 0.1198, T = 25.99. The model is not a game measurement, and an uncooled tank would warm up instead. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea76, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea3c, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea64, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9a1, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfb0, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfea, derived:6e6053727d4e.",
+          "evidenceId": "derived:9ba979d0d047",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea76"
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
+        },
         {
           "label": "Nuclear Control Rod · tooltip",
           "value": "Can be inserted into a fuel assembly to decrease the rate of reaction of adjacent rods.",
@@ -123838,6 +124471,744 @@
           }
         },
         {
+          "label": "Nuclear Control Rod · port Insertion Target",
+          "value": "Insertion Target",
+          "detail": "steam_nuclear_control_rod: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L144-L144",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 144,
+            "lineEnd": 144
+          }
+        },
+        {
+          "label": "Nuclear Control Rod · port Insertion",
+          "value": "Insertion",
+          "detail": "steam_nuclear_control_rod: output port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L147-L147",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 147,
+            "lineEnd": 147
+          }
+        },
+        {
+          "label": "Nuclear Control Rod · nuclear_component_type",
+          "value": "2",
+          "detail": "steam_nuclear_control_rod: definition attribute nuclear_component_type. Value 2, named control rod by the editor selector.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
+        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+          "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+          "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+          "lineStart": 144,
+          "lineEnd": 144
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+          "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+          "lineStart": 147,
+          "lineEnd": 147
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+          "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+          "lineStart": 152,
+          "lineEnd": 163
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+          "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+          "lineStart": 265,
+          "lineEnd": 265
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dcb4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dcd4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dce7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dd0b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dd13"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dd1b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e97f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e9a1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea07"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea64"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea76"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045fa85"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b42498"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b424e0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b5d6b8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6f990"
+        }
+      ]
+    },
+    {
+      "id": "part-steam-nuclear-fuel-assembly",
+      "summary": "Runs the reaction of the fuel rod inside it: relaxes it toward 0.1 × fuel fraction, adds the reactions of coupled fuel assemblies, scales the excess by 1 − 0.01 × the summed insertion of coupled control rods, and trades heat with the liquid in its compartment.",
+      "sections": [
+        {
+          "title": "Setup and interactions",
+          "body": "Insert a fuel rod, couple the assembly to other assemblies and control rods through its four side couplings, and read Fuel Rod Temperature to drive the control rods' Insertion Target."
+        },
+        {
+          "title": "Reaction step",
+          "body": "Native nuclear type 0, which the editor names fuel assembly. Each update an assembly with a rod works on that rod's reaction R and fuel fraction F, with b = 0.1 × F. It computes A = b + 0.999 × (R − b), then B = S + 0.998 × (A − S), where S is the sum of R over coupled assemblies that hold a rod, and stores b + (1 − 0.01 × C) × (B − b) as the rod's working reaction, C being the summed insertion of coupled control rods (each adds 0.25 × I, scaled by 0.04). The rod then applies its own step and the 0 to 50 clamp, and after the update pass the assembly copies the result into R. Neighbours are added, not averaged, and an assembly without a rod adds nothing. Control rods scale only the part above b, so even full insertion leaves the baseline."
+        },
+        {
+          "title": "Neighbours",
+          "body": "The assembly reads only the four couplings of type control_rod named x+, x-, z+ and z-; there is no distance search. Each coupling holds a fuel assembly or a control rod, so an assembly with four fuel neighbours has no coupling left for a control rod. The couplings sit at (0, 6, 0) on the assembly and (0, 0, 0) on the control rod, with orientations 0, 1, 4 and 5 and alignment required; none is diagonal. Inference: in a normal block grid the neighbours are the four horizontal cardinal cells, and a control rod between two assemblies counts for both."
+        },
+        {
+          "title": "Settling and runaway layouts",
+          "body": "Inference from these steps, for equal rods with n fuel neighbours and c control rods at insertion I and fuel held fixed: a disturbance grows by g = 0.999 × (1 − 0.01 × c × I) × (0.002 × n + 0.997002) per update. With g < 1 the reaction settles; otherwise it climbs to the cap of 50. A rod with no or one fuel neighbour always settles, at 0.04999 and 0.1. With two neighbours any c × I above 0.0001 settles it; with three, c × I must exceed 0.1995. Four fuel neighbours leave no coupling for a control rod and climb from 0.1 to the cap in about 26 simulated seconds. Lines and two-wide blocks therefore stay controllable; a full grid with enclosed assemblies does not. In the report's 2 by 2 block with one control rod per assembly, coolant at 20: I = 0.1: r 0.2998, T 34.98; I = 0.25: r 0.1798, T 28.98; I = 1: r 0.1198, T 25.99."
+        },
+        {
+          "title": "Coolant",
+          "body": "With a rod inserted and the assembly's compartment holding a total amount A above 1, each update k = 0.001 × (q ÷ A) × w, where q is the compartment's liquid amount (every liquid counts alike) and w the share of the rod span, 2 to 11 blocks along the assembly axis, below the fill level y_min + (y_max − y_min) × q ÷ V. From the old temperatures the coolant moves k × (rod − coolant) and the rod moves min(q ÷ 100 × k, 0.5) × (coolant − rod). Inference: below that cap the exchange conserves q × T_coolant + 100 × T_rod, so per degree the rod holds as much heat as 100 liquid amount. Reading the fill level from the compartment bounds is also an inference. The coolant also gains 0.001 × the rod's working reaction ÷ A of radiation contamination per update, which a radiation detector in that compartment reads."
+        },
+        {
+          "title": "Fuel Rod Temperature",
+          "body": "The output is the inserted rod's temperature after the coolant step, or 0 with no rod."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Nuclear component vtable",
+          "value": "0x140b74140",
+          "detail": "The constructor installs this vtable (RTTI c_scene_vehicle_component_nuclear). Its slot +0x358 at 0x140b74498 holds the update 0x14041dc40, slot +0x360 the post-update 0x14041ed90 and slot +0x20 the damage setter 0x14041dc00; the extractor re-reads all three pointers. Report: investigation/nuclear.md. Function 0x14045fa70-0x14045fc98; instruction bytes 488d05b4467100488907 at 0x14045fa85. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/constructor.asm:L16-L17; ../nuclear/pseudocode/0x14045fa70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14045fa70@0x14045fa85",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045fa85"
+          }
+        },
+        {
+          "label": "Nuclear type dispatch",
+          "value": "0 → 0x14041e931, 1 → 0x14041dea2, 2 → 0x14041dcd4",
+          "detail": "The update reads nuclear_component_type at definition+0x2cc0: type 0 (fuel assembly) jumps to the assembly branch, type 1 (fuel rod) to the rod branch and type 2 (control rod) to the control branch; any other value ends the update. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 8b8ac02c000085c90f846f0c000083e9010f84d701000083f9010f8563100000 at 0x14041dcb4. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L38-L44; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dcb4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dcb4"
+          }
+        },
+        {
+          "label": "nuclear_component_type reader",
+          "value": "nuclear_component_type",
+          "detail": "The definition reader 0x1403168d0 passes definition+0x2cc0 to this routine (0x140318157), which reads the integer attribute nuclear_component_type and stores 0 when it is absent. Report: investigation/nuclear.md. Function 0x140940ea0-0x140940f98; it references the string 'nuclear_component_type' at 0x140b5d6b8. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140940ea0@0x140b5d6b8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b5d6b8"
+          }
+        },
+        {
+          "label": "Nuclear type selector",
+          "value": "nuclear type",
+          "detail": "The editor property panel registers a selector with this caption whose getter 0x14087fc10 and setter 0x14087fc20 access the edited definition's type field. Report: investigation/nuclear.md. Function 0x140872de0-0x14087e104; it references the string 'nuclear type' at 0x140b42498. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140872de0@0x140b42498",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b42498"
+          }
+        },
+        {
+          "label": "Nuclear type 0 name",
+          "value": "fuel assembly",
+          "detail": "The selector loads this label just before registering it with value 0 (bytes 33d2 at 0x14087dbb4); the game's own name for nuclear_component_type 0, not an inferred enum identifier. Report: investigation/nuclear.md. Function 0x140872de0-0x14087e104; it references the string 'fuel assembly' at 0x140b42450. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140872de0@0x140b42450",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b42450"
+          }
+        },
+        {
+          "label": "Assembly rod test",
+          "value": "no rod → no reaction step",
+          "detail": "The assembly branch reads its inserted rod at +0x4a0 and skips the reaction and coolant steps without one. All reaction fields below are the rod's. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 498b86a00400004885c00f84b8030000 at 0x14041e94d. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L788-L790; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e94d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e94d"
+          }
+        },
+        {
+          "label": "Assembly self relaxation",
+          "value": "0.999",
+          "detail": "A = b + this × (R − b), with b = 0.1 × F (0x14041e965-0x14041e96e) and R the rod's reaction; stored as the rod's working value (0x14041e98b). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f590535157900 at 0x14041e97f address binary32 0.999 (bytes 77be7f3f) at 0x140bafebc. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L799-L800; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e97f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e97f"
+          }
+        },
+        {
+          "label": "Assembly coupling walk",
+          "value": "count at +0x208",
+          "detail": "Walks the coupling records at +0x1f8, as many as the count at +0x208, takes each peer and reads its nuclear type (0x14041e9e7). There is no distance test. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 4539a6080200007676 at 0x14041e9aa. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L810-L811; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9aa",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e9aa"
+          }
+        },
+        {
+          "label": "Fuel neighbour sum",
+          "value": "S = S + peer rod's R",
+          "detail": "A type-0 peer with a rod adds that rod's reaction to S; a peer assembly without a rod adds nothing. The sum is not divided by the number of neighbours. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 488b48588b91c02c000085d27516488b88a00400004885c97421f30f58b12c040000eb17 at 0x14041e9e3. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L823-L832; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9e3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e9e3"
+          }
+        },
+        {
+          "label": "Control neighbour sum",
+          "value": "C' = C' + 0.25 × I",
+          "detail": "A type-2 peer adds its insertion (+0x434) times the 0.25 in xmm9 (0x140bafbbc, loaded at 0x14041e9a1). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 83fa027512f30f108034040000f3410f59c1f3440f58c0ffc3 at 0x14041ea07. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L833-L839; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea07",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea07"
+          }
+        },
+        {
+          "label": "Control rod weight",
+          "value": "0.25",
+          "detail": "Each coupled control rod adds this × its insertion to the control sum. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f100d12127900 at 0x14041e9a1 address binary32 0.25 (bytes 0000803e) at 0x140bafbbc. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L808-L809; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9a1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e9a1"
+          }
+        },
+        {
+          "label": "Neighbour relaxation",
+          "value": "0.998",
+          "detail": "B = S + this × (A − S) (0x14041ea30-0x14041ea48). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f590570147900 at 0x14041ea3c address binary32 0.998 (bytes ee7c7f3f) at 0x140bafeb4. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L846-L847; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea3c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea3c"
+          }
+        },
+        {
+          "label": "Control sum scale",
+          "value": "0.04",
+          "detail": "Multiplies the control sum by this: 0.25 × 0.04 = 0.01 per unit of insertion. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f5905b70f7900 at 0x14041ea64 address binary32 0.04 (bytes 0ad7233d) at 0x140bafa24. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L855-L856; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea64",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea64"
+          }
+        },
+        {
+          "label": "Assembly reaction result",
+          "value": "b + (1 − 0.01 × ΣI) × (B − b)",
+          "detail": "Stores b + (1 − scaled control sum) × (B − b) as the rod's working reaction. Insertion scales only the part above b. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 410f28cef3410f5cc8f30f108030040000f30f5cc2f30f59c8f30f58caf30f118830040000 at 0x14041ea76. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L859-L867; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea76",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea76"
+          }
+        },
+        {
+          "label": "Reaction commit",
+          "value": "R = next, assembly post pass",
+          "detail": "After the update pass, an assembly's post-update copies its rod's working reaction (+0x430) into the reaction (+0x42c) that neighbours read on the next update. Report: investigation/nuclear.md. Function 0x14041ed90-0x14041ee5b; instruction bytes 488b435883b8c02c0000007518488b8ba00400004885c9740c8b813004000089812c040000 at 0x14041edc7. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/post-update.asm:L21-L28; ../nuclear/pseudocode/0x14041ed90.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041ed90@0x14041edc7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041edc7"
+          }
+        },
+        {
+          "label": "Nuclear coupling type",
+          "value": "control_rod",
+          "detail": "The binder 0x14041c8e0 looks up couplings of this type for assemblies and control rods and allocates four slots at component+0x1f8 (0x14041c934), the list the assembly walks. Report: investigation/nuclear.md. Function 0x14041c8e0-0x14041d63d; it references the string 'control_rod' at 0x140b6f990. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041c8e0@0x140b6f990",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6f990"
+          }
+        },
+        {
+          "label": "Reaction relaxation",
+          "value": "0.999",
+          "detail": "The rod branch loads this factor for both relaxations below. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f101d371f7900 at 0x14041df7d address binary32 0.999 (bytes 77be7f3f) at 0x140bafebc. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L197-L198; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041df7d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041df7d"
+          }
+        },
+        {
+          "label": "Fuel baseline gain",
+          "value": "0.1",
+          "detail": "b = this × F, F the fuel fraction at +0x438. The rod then forms r = b + 0.999 × (next − b) (0x14041dfbe-0x14041dfc6). The same register supplies the heating factor. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f1025171b7900 at 0x14041dfb0 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L209-L210; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfb0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfb0"
+          }
+        },
+        {
+          "label": "Reaction cap",
+          "value": "50",
+          "detail": "r is clamped to 0 (maxss at 0x14041dfce) and to this (minss at 0x14041dfdc), then stored as the working reaction at +0x430 (0x14041dfe1). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f102d64277900 at 0x14041dfd3 address binary32 50 (bytes 00004842) at 0x140bb0740. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L217-L218; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfd3"
+          }
+        },
+        {
+          "label": "Assembly coolant gate",
+          "value": "compartment total > 1",
+          "detail": "The coolant step runs only with a compartment (+0x420) whose total amount A (+0x70) is above 1. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3410f104570410f2fc60f865a020000 at 0x14041eaab. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L871-L873; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041eaab",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041eaab"
+          }
+        },
+        {
+          "label": "Assembly rod span",
+          "value": "2 and 11 blocks along the axis",
+          "detail": "Takes the assembly's axis (+0x3c) times 11 here and times 2 (add at 0x14041eadf), offsets the grid position by each and transforms both points to world height. The lower and upper become the rod span. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 418b563c446bc20b at 0x14041eabb. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L874-L875; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041eabb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041eabb"
+          }
+        },
+        {
+          "label": "Immersion span margin",
+          "value": "0.00015",
+          "detail": "w = clamp((h − y_low) ÷ (y_high + this − y_low), 0, 1), with h = y_min + (y_max − y_min) × q ÷ V from the compartment bounds (+0x24, +0x28), its liquid amount q (0x1402eb5e0) and volume V (+0x38). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f5815560c7900 at 0x14041ec3d address binary32 0.00015 (bytes 52491d39) at 0x140baf89c. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L967-L968; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ec3d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ec3d"
+          }
+        },
+        {
+          "label": "Coolant exchange gain",
+          "value": "0.001",
+          "detail": "k = q ÷ A × this × w (0x14041ec69-0x14041ec7e). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f59357a0c7900 at 0x14041ec76 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L981-L982; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ec76",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ec76"
+          }
+        },
+        {
+          "label": "Coolant temperature step",
+          "value": "Tc + k × (Tr − Tc)",
+          "detail": "Moves the compartment temperature (+0x74) toward the rod temperature by k, stored at 0x14041ece3 after the rod step, both from the old temperatures. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 498b86a0040000f30f109828040000f3410f1055740f28e3f30f5ce2f30f59e6f30f58e2 at 0x14041ec82. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L984-L991; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ec82",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ec82"
+          }
+        },
+        {
+          "label": "Rod exchange capacity",
+          "value": "100",
+          "detail": "The rod moves by clamp(q ÷ this × k, 0, 0.5) × (Tc − Tr), stored at 0x14041ecd4. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f5e05d91a7900 at 0x14041ecaf address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L994-L995; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ecaf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ecaf"
+          }
+        },
+        {
+          "label": "Rod exchange cap",
+          "value": "0.5",
+          "detail": "Upper clamp of the rod's exchange fraction per update. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f5d05f40f7900 at 0x14041ecc0 address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L998-L999; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ecc0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ecc0"
+          }
+        },
+        {
+          "label": "Coolant contamination",
+          "value": "Z = Z + 0.001 × next ÷ A",
+          "detail": "Adds 0.001 × the rod's working reaction (loaded at 0x14041ecf6) ÷ A to the compartment radiation value at +0x78. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f5905f20b7900f30f5e4170f30f584178f30f114178 at 0x14041ecfe. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L1011-L1015; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ecfe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ecfe"
+          }
+        },
+        {
+          "label": "Liquid capacity helper",
+          "value": "q = sum of slots 0, 1, 2, 5, 6, 8, 9",
+          "detail": "0x1402eb5e0 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb60d (addss with coefficient 1) and skips it at 0x1402eb612. Added slots: 0, 1, 2, 5, 6, 8, 9. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb628 read as image-relative dwords. Function 0x1402eb5e0-0x1402eb6e0; instruction bytes 418b8c9128b62e00 at 0x1402eb600. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L7-L27; ../heat-exchangers/pseudocode/0x1402eb5e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb600"
+          }
+        },
+        {
+          "label": "Fuel Rod Temperature output",
+          "value": "rod temperature, or 0",
+          "detail": "Writes the inserted rod's temperature to the numeric output at +0x160, or 0 without a rod. Matching +0x160 to the Fuel Rod Temperature port follows the control rod, whose Insertion is written there too. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 498b86a00400004885c0740f8b802804000041898660010000eb074589a660010000 at 0x14041ed15. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L1016-L1022; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ed15",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ed15"
+          }
+        },
+        {
+          "label": "Nuclear Fuel Assembly · couplings",
+          "value": "x+, x-, z+, z- at (0, 6, 0)",
+          "detail": "steam_nuclear_fuel_assembly: four couplings of type control_rod named x+, x-, z+ and z-, orientations 0, 1, 4 and 5, at local (0, 6, 0), alignment required, bipolar alignment allowed. No diagonal coupling.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L221-L232",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+            "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+            "lineStart": 221,
+            "lineEnd": 232
+          }
+        },
+        {
+          "label": "Nuclear Control Rod · couplings",
+          "value": "x+, x-, z+, z- at (0, 0, 0)",
+          "detail": "steam_nuclear_control_rod: the same four control_rod couplings, orientations 0, 1, 4 and 5, at local (0, 0, 0).",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L152-L163",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 152,
+            "lineEnd": 163
+          }
+        },
+        {
+          "label": "Settling and runaway layouts",
+          "value": "n = 2: c × I > 0.0001; n = 3: c × I > 0.1995; n = 4: no slot for a control rod",
+          "detail": "Inference from the assembly and rod steps for equal rods, each with n fuel neighbours and c control rods at insertion I, F held fixed: a disturbance grows by g = 0.999 × (1 − 0.01 × c × I) × (0.002 × n + 0.997002) per update. With g < 1 the reaction settles at r = b + 0.001998 × (1 − 0.01 × c × I) × b × (n − 1) ÷ (1 − g), b = 0.1 × F; otherwise it climbs to the cap of 50. A lone rod settles at 0.04999 (T 22.5 in the coolant case) and a rod with one neighbour at 0.1 (T 25), whatever the insertion. Two neighbours give g = 1.000000998 at I = 0, growing by a factor e in about 4.6 simulated hours; any c × I above 0.0001 settles them. Three neighbours need c × I above 0.1995. Four fuel neighbours fill all four couplings, so g = 1.004: ×1.27 per simulated second, from 0.1 to the cap in about 26 s. In a finite block the outer rods have fewer neighbours, so the block behaves like an n between its smallest and largest neighbour count. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e97f, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9e3, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea07, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea3c, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea64, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea76, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfb0, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3, resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L221-L232, derived:6e6053727d4e, derived:7d3ff454a23f.",
+          "evidenceId": "derived:4d09fba547e4",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e97f"
+          }
+        },
+        {
+          "label": "2 by 2 fuel block, one control rod each",
+          "value": "I = 0.1: r 0.2998, T 34.98; I = 0.25: r 0.1798, T 28.98; I = 1: r 0.1198, T 25.99",
+          "detail": "Output of the report's 60 Hz model (tools/model.py, tools/examples.json), re-derived here in closed form: four fuel assemblies in a square, each with two fuel neighbours and one control rod, F = 1 held fixed, coolant and surroundings at 20, liquid and total amount 100, full immersion, controls before assemblies before rods. After 600 simulated seconds the rods settle at I = 0.1: r = 0.2998, T = 34.98; I = 0.25: r = 0.1798, T = 28.98; I = 1: r = 0.1198, T = 25.99. The model is not a game measurement, and an uncooled tank would warm up instead. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea76, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea3c, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ea64, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e9a1, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfb0, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfea, derived:6e6053727d4e.",
+          "evidenceId": "derived:9ba979d0d047",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ea76"
+          }
+        },
+        {
+          "label": "Rod settled temperature",
+          "value": "Ta + 0.0999 × r ÷ 0.001999 in coolant; Ta + 99.9 × r dry",
+          "detail": "Inference from the update order (coolant step, + 0.1 × r, then 0.001 of the gap to the surroundings), with coolant and surroundings both at Ta: fully immersed in liquid amount 100 of total amount 100, the rod's exchange fraction is 0.001 and T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r. Without coolant exchange it settles at Ta + 0.0999 × r ÷ 0.001 = Ta + 99.9 × r. At the cap r = 50 and Ta = 20 that is 2518.7 in coolant and 5015 dry, both above 1500. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfea, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e0fc, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ec76, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ecaf, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e117.",
+          "evidenceId": "derived:6e6053727d4e",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfea"
+          }
+        },
+        {
+          "label": "Nuclear Fuel Assembly · listed voxels",
+          "value": 12,
+          "detail": "steam_nuclear_fuel_assembly: 12 <voxel> element(s) in the definition. Listed voxel count.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L234-L283",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+            "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+            "lineStart": 234,
+            "lineEnd": 283
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
+        },
+        {
+          "label": "Nuclear Fuel Assembly · tooltip",
+          "value": "A fuel rod can be inserted into the assembly to facilitate a fission reaction. Fuel rods consume uranium ingots from the workbench inventory to fuel.",
+          "detail": "steam_nuclear_fuel_assembly: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L314-L314",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+            "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+            "lineStart": 314,
+            "lineEnd": 314
+          }
+        },
+        {
           "label": "Nuclear Fuel Assembly · port Fuel Rod Temperature",
           "value": "Fuel Rod Temperature",
           "detail": "steam_nuclear_fuel_assembly: output port. Label only; no description.",
@@ -123849,23 +125220,1076 @@
             "lineStart": 216,
             "lineEnd": 216
           }
+        },
+        {
+          "label": "Nuclear Fuel Assembly · port Release Fuel Rod",
+          "value": "Release Fuel Rod",
+          "detail": "steam_nuclear_fuel_assembly: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L213-L213",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+            "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+            "lineStart": 213,
+            "lineEnd": 213
+          }
+        },
+        {
+          "label": "Nuclear Fuel Assembly · nuclear_component_type",
+          "value": "0",
+          "detail": "steam_nuclear_fuel_assembly: definition attribute nuclear_component_type. Value 0, named fuel assembly by the editor selector.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_assembly.xml:110190bc94e5:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+            "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
         }
       ],
       "limitations": [
-        "Reaction kinetics not recovered."
+        "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
+        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
           "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
           "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
-          "lineStart": 265,
-          "lineEnd": 265
+          "lineStart": 152,
+          "lineEnd": 163
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+          "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+          "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+          "lineStart": 213,
+          "lineEnd": 213
         },
         {
           "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
           "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
           "lineStart": 216,
           "lineEnd": 216
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+          "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+          "lineStart": 221,
+          "lineEnd": 232
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+          "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+          "lineStart": 234,
+          "lineEnd": 283
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
+          "sha256": "110190bc94e5fa7607db3d259e85eac96d5a2d40c9735bb59decc04176b3bbbe",
+          "lineStart": 314,
+          "lineEnd": 314
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb600"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dcb4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041df7d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dfb0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dfd3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dfea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e94d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e97f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e9a1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e9aa"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e9e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea07"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea3c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea64"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ea76"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041eaab"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041eabb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ec3d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ec76"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ec82"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ecaf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ecc0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ecfe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ed15"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041edc7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045fa85"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b42450"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b42498"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b5d6b8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6f990"
+        }
+      ]
+    },
+    {
+      "id": "part-steam-nuclear-fuel-rod",
+      "summary": "Its reaction r, 0 to 50, heats it by 0.1 × r and burns 1e-8 × r of its fuel per update: a full rod held at the cap lasts 9.259 simulated hours. Above 1500 it takes damage.",
+      "sections": [
+        {
+          "title": "Setup and interactions",
+          "body": "Insert it into a fuel assembly. Spawned with full fuel its fuel fraction F is 1: the resource initializer divides its fuel quantity by its voxel count."
+        },
+        {
+          "title": "Reaction rate",
+          "body": "Native nuclear type 1, which the editor names fuel rod. After its assembly's step the rod sets r = clamp(b + 0.999 × (next − b), 0, 50), with b = 0.1 × F and next the working reaction. A rod outside an assembly first copies next into its reaction and multiplies next by 0.999, so its reaction decays. r is a rate in the game's own scale, not a power."
+        },
+        {
+          "title": "Heat and fuel",
+          "body": "Each update T rises by 0.1 × r and F falls by 1e-8 × r, then T moves 0.001 of the way toward the surrounding temperature, which the rod samples every 16 updates and ramps over 16 like the heat exchangers. Insertion acts only through r. At a constant r a full rod lasts 33333 s (9.259 simulated hours) at r = 50 and 1666667 s (463 hours) at r = 1. Inference: immersed in coolant held at Ta (liquid and total amount 100), T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r; with no coolant exchange at Ta + 99.9 × r. At the cap and Ta = 20 that is 2518.7 in coolant, above the damage limit."
+        },
+        {
+          "title": "Damage",
+          "body": "When T is strictly above 1500 after heating, the first such update raises damage by 1 and then every 300 hot updates (5 simulated seconds) add 1 more, up to 50. Cooling does not reset that counter. Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second, and deposits 10 times that as persistent contamination at the rod. From damage 2 a one-time event runs when two game settings are on; its save flag is named fire. Nothing in the rod update explodes at 1500: the threshold only drives damage."
+        },
+        {
+          "title": "Radiation",
+          "body": "While r is above 0.001 the rod is a live source of strength s = 0.1 × r at its position; at or below it the source is removed. A detector in the same compartment at distance d reads s × (1 − d ÷ (10 × s)) out to 10 × s metres, so the reach in metres equals r: 5 at the rod and 2.5 at 25 m for r = 50. In another compartment the reach drops by 200 m, so the live source does not reach it. Sources add, with linear falloff."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Nuclear component vtable",
+          "value": "0x140b74140",
+          "detail": "The constructor installs this vtable (RTTI c_scene_vehicle_component_nuclear). Its slot +0x358 at 0x140b74498 holds the update 0x14041dc40, slot +0x360 the post-update 0x14041ed90 and slot +0x20 the damage setter 0x14041dc00; the extractor re-reads all three pointers. Report: investigation/nuclear.md. Function 0x14045fa70-0x14045fc98; instruction bytes 488d05b4467100488907 at 0x14045fa85. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/constructor.asm:L16-L17; ../nuclear/pseudocode/0x14045fa70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14045fa70@0x14045fa85",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045fa85"
+          }
+        },
+        {
+          "label": "Nuclear type dispatch",
+          "value": "0 → 0x14041e931, 1 → 0x14041dea2, 2 → 0x14041dcd4",
+          "detail": "The update reads nuclear_component_type at definition+0x2cc0: type 0 (fuel assembly) jumps to the assembly branch, type 1 (fuel rod) to the rod branch and type 2 (control rod) to the control branch; any other value ends the update. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 8b8ac02c000085c90f846f0c000083e9010f84d701000083f9010f8563100000 at 0x14041dcb4. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L38-L44; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dcb4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dcb4"
+          }
+        },
+        {
+          "label": "nuclear_component_type reader",
+          "value": "nuclear_component_type",
+          "detail": "The definition reader 0x1403168d0 passes definition+0x2cc0 to this routine (0x140318157), which reads the integer attribute nuclear_component_type and stores 0 when it is absent. Report: investigation/nuclear.md. Function 0x140940ea0-0x140940f98; it references the string 'nuclear_component_type' at 0x140b5d6b8. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140940ea0@0x140b5d6b8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b5d6b8"
+          }
+        },
+        {
+          "label": "Nuclear type selector",
+          "value": "nuclear type",
+          "detail": "The editor property panel registers a selector with this caption whose getter 0x14087fc10 and setter 0x14087fc20 access the edited definition's type field. Report: investigation/nuclear.md. Function 0x140872de0-0x14087e104; it references the string 'nuclear type' at 0x140b42498. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140872de0@0x140b42498",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b42498"
+          }
+        },
+        {
+          "label": "Nuclear type 1 name",
+          "value": "fuel rod",
+          "detail": "The selector loads this label just before registering it with value 1 (bytes ba01000000 at 0x14087dbe1); the game's own name for nuclear_component_type 1, not an inferred enum identifier. Report: investigation/nuclear.md. Function 0x140872de0-0x14087e104; it references the string 'fuel rod' at 0x140b42648. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140872de0@0x140b42648",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b42648"
+          }
+        },
+        {
+          "label": "Reaction relaxation",
+          "value": "0.999",
+          "detail": "The rod branch loads this factor for both relaxations below. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f101d371f7900 at 0x14041df7d address binary32 0.999 (bytes 77be7f3f) at 0x140bafebc. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L197-L198; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041df7d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041df7d"
+          }
+        },
+        {
+          "label": "Loose fuel rod branch",
+          "value": "no assembly: R = next; next × 0.999",
+          "detail": "Without an associated assembly (+0x4a0 is 0) the rod copies its working reaction (+0x430) into its reaction (+0x42c) and multiplies the working value by 0.999 before the ordinary step, so a loose rod's reaction decays. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 4d39a6a0040000750df3410f11962c040000f30f59d3 at 0x14041df8e. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L201-L205; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041df8e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041df8e"
+          }
+        },
+        {
+          "label": "Fuel baseline gain",
+          "value": "0.1",
+          "detail": "b = this × F, F the fuel fraction at +0x438. The rod then forms r = b + 0.999 × (next − b) (0x14041dfbe-0x14041dfc6). The same register supplies the heating factor. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f1025171b7900 at 0x14041dfb0 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L209-L210; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfb0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfb0"
+          }
+        },
+        {
+          "label": "Reaction cap",
+          "value": "50",
+          "detail": "r is clamped to 0 (maxss at 0x14041dfce) and to this (minss at 0x14041dfdc), then stored as the working reaction at +0x430 (0x14041dfe1). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f102d64277900 at 0x14041dfd3 address binary32 50 (bytes 00004842) at 0x140bb0740. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L217-L218; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfd3"
+          }
+        },
+        {
+          "label": "Heat per reaction",
+          "value": "T = T + 0.1 × r",
+          "detail": "Multiplies r by the 0.1 in xmm12 (0x140bafad0) and adds it to the temperature at +0x428 every update. Insertion does not enter directly. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 0f28c2f3410f59c4f3410f588628040000f3410f118628040000 at 0x14041dfea. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L222-L227; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfea"
+          }
+        },
+        {
+          "label": "Fuel use per reaction",
+          "value": "1e-08",
+          "detail": "F = clamp(F − this × r, 0, 1), stored at +0x438 (0x14041e00c-0x14041e023). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f591548187900 at 0x14041e004 address binary32 1e-08 (bytes 77cc2b32) at 0x140baf854. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L228-L229; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e004",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e004"
+          }
+        },
+        {
+          "label": "Rod surrounding-temperature sample",
+          "value": "every 16 updates",
+          "detail": "On updates whose low four bits are 0 the rod calls the surrounding-temperature sample 0x14030fd60 (0x14041e07f) with the assembly's compartment and submits it to its controller at +0x470; every update then advances that controller with 0x1408cde20 (0x14041e0e1). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f640040f0f858f000000 at 0x14041e041. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L240-L241; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e041",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e041"
+          }
+        },
+        {
+          "label": "Surrounding temperature pull",
+          "value": "0.001",
+          "detail": "T = T + this × (controller output − T), every update after the heating (0x14041e0ef-0x14041e10e). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3440f101df3177900 at 0x14041e0fc address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L281-L282; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e0fc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e0fc"
+          }
+        },
+        {
+          "label": "Nuclear starting temperature",
+          "value": "20, reaction 0",
+          "detail": "The constructor writes 20 (0x41a00000) to the temperature at +0x428 and 0 to the reaction at +0x42c in one 8-byte store. Report: investigation/nuclear.md. Function 0x14045fa70-0x14045fc98; instruction bytes 48c787280400000000a041 at 0x14045fb80. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/constructor.asm:L66-L67; ../nuclear/pseudocode/0x14045fa70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14045fa70@0x14045fb80",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045fb80"
+          }
+        },
+        {
+          "label": "Nuclear ambient controller duration",
+          "value": "16 updates",
+          "detail": "The constructor gives the surrounding-temperature controller at +0x470 a duration of 16 and starts its target, output and start at 20 (0x14045fc00, 0x14045fc25, 0x14045fc30), as in the heat exchangers. Report: investigation/nuclear.md. Function 0x14045fa70-0x14045fc98; instruction bytes c7878c04000000008041 at 0x14045fc0a. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/constructor.asm:L93-L94; ../nuclear/pseudocode/0x14045fa70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14045fa70@0x14045fc0a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045fc0a"
+          }
+        },
+        {
+          "label": "Fuel rod spawn fraction",
+          "value": "F = quantity ÷ voxel count",
+          "detail": "When a vehicle spawns, the resource initializer divides the rod's fuel quantity by its definition voxel count (definition+0xb8) and stores the result as F (0x1405dc153). A fully supplied rod starts at F = 1. Report: investigation/nuclear.md. Function 0x1405dafa0-0x1405df408; instruction bytes 488b48588b81b80000000f57c0f3480f2ac0f30f5ef0 at 0x1405dc131. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/spawn-fuel.asm:L81-L85; ../nuclear/pseudocode/0x1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc131",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc131"
+          }
+        },
+        {
+          "label": "Damage temperature",
+          "value": "1500",
+          "detail": "Compares the temperature after heating and the surrounding pull with this and skips the damage step unless it is strictly above (jbe at 0x14041e11e). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 0f2f0d46277900 at 0x14041e117 address binary32 1500 (bytes 0080bb44) at 0x140bb0864. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L287; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e117",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e117"
+          }
+        },
+        {
+          "label": "Hot damage step",
+          "value": "counter 0 → damage + 1, at most 50",
+          "detail": "While hot, when the counter at +0x454 is 0 the rod calls its damage setter (slot +0x20) with min(damage + 1, 50). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 418b8e5404000085c97520498b06418b5608ffc2b9320000003bd10f47d1 at 0x14041e120. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L289-L297; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e120",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e120"
+          }
+        },
+        {
+          "label": "Hot damage counter",
+          "value": "counter = (counter + 1) mod 300",
+          "detail": "The counter advances only on hot updates and is not reset when the rod cools, so damage rises on the first hot update and then once per 300 hot updates. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes ffc1b8b5814e1bf7e1c1ea0569c22c0100002bc841898e54040000 at 0x14041e14b. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L301-L307; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e14b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e14b"
+          }
+        },
+        {
+          "label": "Nuclear damage setter",
+          "value": "first damage marks pending processing",
+          "detail": "When an undamaged component receives a nonzero damage the setter sets the pending flag at +0x450, which the post-update hands to 0x140325680. It then stores min(value, 50) at +0x8 (0x14041dc20). Report: investigation/nuclear.md. Function 0x14041dc00-0x14041dc40; instruction bytes 83790800750d85d2740dc6815004000001 at 0x14041dc00. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/damage-setter.asm:L8-L12; ../nuclear/pseudocode/0x14041dc00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc00@0x14041dc00",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dc00"
+          }
+        },
+        {
+          "label": "Damage event gate",
+          "value": "damage ≥ 2, once",
+          "detail": "The one-time event runs only when the saved byte at +0x451 (serialized as fire) is 0, two game setting bytes at settings+0x35 and settings+0x4a are nonzero (0x14041e178, 0x14041e187) and damage is at least 2. It sets +0x451 and calls the event creator 0x140288f70 (0x14041e46c). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 41837e08020f821b030000 at 0x14041e191. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L316-L317; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e191",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e191"
+          }
+        },
+        {
+          "label": "Damage event world record",
+          "value": "200 and 40000",
+          "detail": "After the event call the rod writes its position and the binary32 values 200 (0x43480000) and 40000 (0x471c4000) into a new world record. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes c7401800004843c7401c00401c47 at 0x14041e4a9. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L489-L490; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e4a9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e4a9"
+          }
+        },
+        {
+          "label": "Damaged fuel loss",
+          "value": "0.0001",
+          "detail": "h = this × clamp(0.1 × damage, 0, 1) (0x14041e4b7-0x14041e4d2). Only when F > h (0x14041e4e9) does the rod subtract h from F. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f590db8137900 at 0x14041e4d8 address binary32 0.0001 (bytes 17b7d138) at 0x140baf898. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L499-L500; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e4d8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e4d8"
+          }
+        },
+        {
+          "label": "Damage deposit scale",
+          "value": "10",
+          "detail": "The removed h × this is passed to the contamination deposit 0x14030f740 at the rod position (0x14041e515). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f590d3f217900 at 0x14041e505 address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L510-L511; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e505",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e505"
+          }
+        },
+        {
+          "label": "Contamination record",
+          "value": "radius 200, amplitude",
+          "detail": "A deposit that does not merge into a nearby record creates one with radius 200 and the deposited amount as amplitude. Report: investigation/nuclear.md. Function 0x14030f740-0x14030f9ba; instruction bytes 41c7411800004843f3410f117120 at 0x14030f8b6. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/contamination-deposit.asm:L108-L110; ../nuclear/pseudocode/0x14030f740.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f740@0x14030f8b6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030f8b6"
+          }
+        },
+        {
+          "label": "Live radiation threshold",
+          "value": "r ≤ 0.001 removes the source",
+          "detail": "Compares the 0.001 in xmm11 (0x140baf8f8) with r: at or below it the rod releases its live radiation source (+0x448); above it the rod creates one if needed and adds it to the radiation manager list. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes 450f2f9e300400007233 at 0x14041e6a1. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L613-L615; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e6a1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e6a1"
+          }
+        },
+        {
+          "label": "Live radiation strength",
+          "value": "s = 0.1 × r",
+          "detail": "Each update the source gets the rod position and strength s = r × the 0.1 in xmm12, and the compartment of the associated assembly (0x14041e897). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f3410f108e30040000f3410f59cc498b07488b08f30f114918 at 0x14041e86c. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L728-L733; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e86c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e86c"
+          }
+        },
+        {
+          "label": "Live source radius per strength",
+          "value": "10",
+          "detail": "radius = this × s for each live source (0x14030fb2c). Report: investigation/nuclear.md. Function 0x14030f9c0-0x14030fd5f; instruction bytes f3440f10254a0b8a00 at 0x14030faf9 address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/radiation-sample.asm:L84-L85; ../nuclear/pseudocode/0x14030f9c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030faf9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030faf9"
+          }
+        },
+        {
+          "label": "Other-compartment radius penalty",
+          "value": "200",
+          "detail": "A source whose compartment differs from the sample's loses this from its radius and is skipped unless the radius stays positive (0x14030fb31-0x14030fb40). Report: investigation/nuclear.md. Function 0x14030f9c0-0x14030fd5f; instruction bytes f3440f101dbd0d8a00 at 0x14030fa12 address binary32 200 (bytes 00004843) at 0x140bb07d8. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/radiation-sample.asm:L29-L30; ../nuclear/pseudocode/0x14030f9c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fa12",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fa12"
+          }
+        },
+        {
+          "label": "Live source falloff",
+          "value": "s × (1 − clamp(d ÷ radius, 0, 1))",
+          "detail": "Only sources with d² < radius² count (0x14030fb83). Each adds s × (1 − clamp(d ÷ radius, 0, 1)) to the reading (0x14030fbd8), linear in distance; sources add. Report: investigation/nuclear.md. Function 0x14030f9c0-0x14030fd5f; instruction bytes 410f28c1f30f5cc1f3440f59d0 at 0x14030fbcb. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/radiation-sample.asm:L138-L140; ../nuclear/pseudocode/0x14030f9c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fbcb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030fbcb"
+          }
+        },
+        {
+          "label": "Fuel lifetime at constant reaction",
+          "value": "33333 s (9.259 h) at r = 50; 1666667 s (463 h) at r = 1",
+          "detail": "At a constant reaction r an undamaged rod uses 1e-8 × r of its fuel per update, 6e-7 × r per simulated second, so a full rod lasts 1 ÷ (6e-7 × r) simulated seconds: 33333 s, 9.259 simulated hours, at the cap r = 50 and 1666667 s, 463 hours, at r = 1. Real r changes with F, neighbours and controls (investigation/native/nuclear/nuclear.json). Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e004, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3, derived:7d3ff454a23f.",
+          "evidenceId": "derived:b197eca0035d",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e004"
+          }
+        },
+        {
+          "label": "Rod settled temperature",
+          "value": "Ta + 0.0999 × r ÷ 0.001999 in coolant; Ta + 99.9 × r dry",
+          "detail": "Inference from the update order (coolant step, + 0.1 × r, then 0.001 of the gap to the surroundings), with coolant and surroundings both at Ta: fully immersed in liquid amount 100 of total amount 100, the rod's exchange fraction is 0.001 and T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r. Without coolant exchange it settles at Ta + 0.0999 × r ÷ 0.001 = Ta + 99.9 × r. At the cap r = 50 and Ta = 20 that is 2518.7 in coolant and 5015 dry, both above 1500. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfea, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e0fc, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ec76, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ecaf, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e117.",
+          "evidenceId": "derived:6e6053727d4e",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041dfea"
+          }
+        },
+        {
+          "label": "Damage cadence",
+          "value": "first hot update, then every 300 hot updates (5 s); 50 after 245 s of hot time",
+          "detail": "Above 1500 the first hot update adds 1 and then every 300 hot updates, 5 simulated seconds, add 1 more, up to 50 after 1 + 49 × 300 = 14701 hot updates, 245 s. Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second from damage 10. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e117, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e120, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e14b, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e4d8, derived:7d3ff454a23f.",
+          "evidenceId": "derived:af6a8f8a8b65",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e117"
+          }
+        },
+        {
+          "label": "Live radiation reach",
+          "value": "radius = r m; at r = 50: 5 at the rod, 2.5 at 25 m, 0 from 50 m",
+          "detail": "s = 0.1 × r and radius = 10 × s, so the radius in metres equals r. In the same compartment a rod at the cap r = 50 reads 5 at its position, 2.5 at 25 m and 0 from 50 m; in another compartment the radius drops by 200, so no live source reaches it. The 2 by 2 example at I = 0.25 has s = 0.018 and a radius of 0.18 m. Report: investigation/nuclear.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e86c, native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030faf9, native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fa12, native:stormworks64.exe:f9206d85c82f:0x14030f9c0@0x14030fbcb, native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041dfd3, derived:9ba979d0d047.",
+          "evidenceId": "derived:30096630cbb0",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e86c"
+          }
+        },
+        {
+          "label": "Coolant exchange gain",
+          "value": "0.001",
+          "detail": "k = q ÷ A × this × w (0x14041ec69-0x14041ec7e). Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f59357a0c7900 at 0x14041ec76 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L981-L982; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ec76",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ec76"
+          }
+        },
+        {
+          "label": "Rod exchange capacity",
+          "value": "100",
+          "detail": "The rod moves by clamp(q ÷ this × k, 0, 0.5) × (Tc − Tr), stored at 0x14041ecd4. Report: investigation/nuclear.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f5e05d91a7900 at 0x14041ecaf address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../nuclear/asm/update.asm:L994-L995; ../nuclear/pseudocode/0x14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041ecaf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041ecaf"
+          }
+        },
+        {
+          "label": "Exchanger surrounding temperature",
+          "value": "weather blend or enclosing compartment, plus local sources, ramped over 16 updates",
+          "detail": "Sampled every 16 updates (0.267 s) at the component's world position: Ta + clamp((h − y + 0.25) ÷ 24, 0, 1) × (Tw − Ta), replaced by the enclosing compartment's temperature when there is one, then raised by the strongest local source and pulled toward 400 by the strongest local factor. The controller reaches each new sample 16 updates after it arrives. A target sampled at the wave surface is 1/96 water. Report: investigation/heat-exchangers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cd8, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x1403100f1, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031010d, native:stormworks64.exe:f9206d85c82f:0x1403100a0@0x14031011c, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14030fdcd, native:stormworks64.exe:f9206d85c82f:0x14030fd60@0x14031002e, native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846, native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee, native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35, derived:7d3ff454a23f.",
+          "evidenceId": "derived:09c95b77a62a",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cd8"
+          }
+        },
+        {
+          "label": "Nuclear Fuel Rod · listed voxels",
+          "value": 9,
+          "detail": "steam_nuclear_fuel_rod: 9 <voxel> element(s) in the definition. The spawn conversion divides the fuel quantity by this count, so it is the rod's full-fuel quantity.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_rod.xml:915031cadbb9:L18-L55",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_rod.xml",
+            "sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
+            "lineStart": 18,
+            "lineEnd": 55
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
+        },
+        {
+          "label": "Nuclear Fuel Rod · tooltip",
+          "value": "Can be inserted into a fuel assembly to start the nuclear fission process.",
+          "detail": "steam_nuclear_fuel_rod: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_rod.xml:915031cadbb9:L86-L86",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_rod.xml",
+            "sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
+            "lineStart": 86,
+            "lineEnd": 86
+          }
+        },
+        {
+          "label": "Nuclear Fuel Rod · nuclear_component_type",
+          "value": "1",
+          "detail": "steam_nuclear_fuel_rod: definition attribute nuclear_component_type. Value 1, named fuel rod by the editor selector.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_fuel_rod.xml:915031cadbb9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_fuel_rod.xml",
+            "sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
+        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_rod.xml",
+          "sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_rod.xml",
+          "sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
+          "lineStart": 18,
+          "lineEnd": 55
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_fuel_rod.xml",
+          "sha256": "915031cadbb95f685ce18919235c2bf1ce47c87613e6cd95ef53d24cf3dc91c4",
+          "lineStart": 86,
+          "lineEnd": 86
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030f8b6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fa12"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030faf9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030fbcb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cd8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dc00"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dcb4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041df7d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041df8e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dfb0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dfd3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041dfea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e004"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e041"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e0fc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e117"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e120"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e14b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e191"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e4a9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e4d8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e505"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e6a1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e86c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ec76"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041ecaf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045fa85"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045fb80"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045fc0a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc131"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b42498"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b42648"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b5d6b8"
         }
       ]
     },
@@ -153418,7 +155842,7 @@
     "schemaVersion": 1,
     "categoryCount": 21,
     "categoriesInFamilies": 21,
-    "familyCount": 280,
+    "familyCount": 283,
     "familyTotal": 536,
     "familiesByCategory": {
       "Control surfaces": {
@@ -153470,7 +155894,7 @@
         "total": 16
       },
       "Other components": {
-        "withBehavior": 112,
+        "withBehavior": 113,
         "total": 269
       },
       "Propulsion": {
@@ -153482,7 +155906,7 @@
         "total": 15
       },
       "Steam": {
-        "withBehavior": 8,
+        "withBehavior": 10,
         "total": 14
       },
       "Structure": {
@@ -153659,7 +156083,6 @@
       "part-pressure-sensor",
       "part-radar-advanced-missile-laser",
       "part-radar-detector",
-      "part-radiation-detector",
       "part-railing-extension-angle",
       "part-railing-segment-angle",
       "part-railing-segment-angle-end",
@@ -153709,8 +156132,6 @@
       "part-steam-coal-flex",
       "part-steam-coal-funnel",
       "part-steam-coal-vacuum",
-      "part-steam-nuclear-fuel-assembly",
-      "part-steam-nuclear-fuel-rod",
       "part-steam-whistle",
       "part-torque-crank",
       "part-torque-meter",
@@ -153764,12 +156185,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8404,
+    "findingCount": 8542,
     "findingsByStatus": {
-      "derived": 704,
-      "observed": 7700
+      "derived": 720,
+      "observed": 7822
     },
-    "nativeFindingCount": 6038,
+    "nativeFindingCount": 6160,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -153820,9 +156241,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 410,
-      "native": 1253,
-      "resource": 2631
+      "derived": 417,
+      "native": 1315,
+      "resource": 2648
     }
   }
 }

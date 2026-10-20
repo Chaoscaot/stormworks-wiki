@@ -124,6 +124,11 @@ const FINDINGS = {
     'Force application cap', 'Keel downward force', 'Keel definition mass read', 'Keel mass multiplier', 'Keel upright hemisphere test',
     'Keel upright force scale', 'Keel upright lever', 'Keel upright and memory application limit', 'Cap scale S',
   ],
+  reactor: [
+    'Fuel baseline gain', 'Assembly self relaxation', 'Neighbour relaxation', 'Control rod weight', 'Control sum scale', 'Reaction relaxation',
+    'Reaction cap', 'Heat per reaction', 'Fuel use per reaction', 'Surrounding temperature pull', 'Coolant exchange gain', 'Rod exchange capacity',
+    'Rod exchange cap', 'Insertion step limit (+)', 'Damage temperature', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -150,6 +155,7 @@ const TITLES = {
   wheel: 'Wheel tread speed against RPS',
   winch: 'Winch reel speed and time to reel a length',
   keel: 'Keel water force and self-righting torque',
+  reactor: 'Reactor temperature and reaction rate over time',
 };
 
 /*
@@ -978,10 +984,47 @@ const KEEL_FORCE = {
   ],
 };
 
+const REACTOR = {
+  intro: (
+    <p>
+      Each fuel assembly relaxes its rod&apos;s reaction toward 0.1 × fuel fraction, adds the reactions of the fuel assemblies coupled to it
+      and scales the excess by 1 − 0.01 × the summed insertion of its coupled control rods. The rod then heats by 0.1 × r per update and
+      trades heat with the coolant and the surroundings. The chart runs these rules for a block of fuel rods from a cold start and plots
+      the hottest and coolest rod&apos;s temperature or reaction rate.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="a">{mi('A')}{mo('=')}{mi('b')}{mo('+')}{mn('0.999')}<mrow>{mo('(')}{mi('R')}{mo('−')}{mi('b')}{mo(')')}</mrow><mspace width="1em" />{mi('B')}{mo('=')}{mi('S')}{mo('+')}{mn('0.998')}<mrow>{mo('(')}{mi('A')}{mo('−')}{mi('S')}{mo(')')}</mrow><mspace width="1em" />{mi('b')}{mo('=')}{mn('0.1')}{mi('F')}</mrow>,
+        <mrow key="r">{mi('r')}{mo('=')}{fn('clamp')}<mrow>{mo('(')}{mi('b')}{mo('+')}{mn('0.999')}<mrow>{mo('(')}{mn('1')}{mo('−')}{mn('0.01')}{mi('C')}{mo(')')}</mrow><mrow>{mo('(')}{mi('B')}{mo('−')}{mi('b')}{mo(')')}</mrow>{mo(',')}{mn('0')}{mo(',')}{mn('50')}{mo(')')}</mrow></mrow>,
+        <mrow key="t">{mi('T')}{mo('←')}{mi('T')}{mo('+')}{mn('0.1')}{mi('r')}<mspace width="1em" />{mi('F')}{mo('←')}{mi('F')}{mo('−')}{mn('1e-8')}{mi('r')}<mspace width="1em" />{mi('T')}{mo('←')}{mi('T')}{mo('+')}{mn('0.001')}<mrow>{mo('(')}{sub('T', 'a')}{mo('−')}{mi('T')}{mo(')')}</mrow></mrow>,
+      ]}
+      text={[
+        'Each update, in this order:',
+        '  control rods: I = I + clamp(clamp(target, 0, 1) - I, -0.005, 0.005)',
+        '  each assembly: b = 0.1 * F; A = b + 0.999 * (R - b); B = S + 0.998 * (A - S), S = sum of R over coupled fuel assemblies',
+        '                 next = b + (1 - 0.01 * C) * (B - b), C = sum of I over coupled control rods',
+        '                 coolant step: k = 0.001 * q / A_total * w; T = T + min(q / 100 * k, 0.5) * (Tc - T)',
+        '  each rod: r = clamp(b + 0.999 * (next - b), 0, 50); T = T + 0.1 * r; F = F - 1e-8 * r; T = T + 0.001 * (Ta - T)',
+        '  post pass: R = r',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Fuel assemblies sit in rows of a block; two are neighbours when they share a side, and each assembly has four couplings for fuel and control rods together. Each control rod option fills the free couplings of every assembly with its own control rods. The game\'s coupling matcher is not emulated.',
+    'Every rod starts at 20 with full fuel and no reaction, and every control rod starts withdrawn and moves toward the Insertion Target at the decoded 0.005 per update.',
+    'The coolant is held at 20 with liquid and total amount 100, as in the report\'s worked example, so it never warms up. In a sealed tank the coolant warms and the rods run hotter. The surroundings stay at 20.',
+    'The update order is control rods, assemblies, rods, then the post pass, as in the report\'s model. Whether the game keeps this order on every vehicle is open.',
+    'Damage above 1500, its fuel loss and the damage event are left out, so the curve after the hatched point is the undamaged rule only. Temperatures and reaction are the game\'s internal values.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
   clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED, winch: WINCH_REEL, keel: KEEL_FORCE,
+  reactor: REACTOR,
 };
 
 function Evidence({ items }) {

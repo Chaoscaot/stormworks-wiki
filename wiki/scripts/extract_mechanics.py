@@ -15,6 +15,7 @@ import json
 import math
 from pathlib import Path
 import re
+import struct
 import sys
 import xml.etree.ElementTree as ET
 
@@ -36,8 +37,19 @@ EXAMPLES = 'investigation/native/config/worked-examples.json'
 SMALL_PARTS = 'investigation/small-parts.md'
 SMALL_PARTS_DATA = 'investigation/native/small-parts/parts.json'
 FORCE_CAP = 'investigation/force-cap.md'
+NUCLEAR = 'investigation/nuclear.md'
+NUCLEAR_DATA = 'investigation/native/nuclear/nuclear.json'
+# Open items of the nuclear decode, keyed by nuclear.json "open". The nuclear parts pages point here,
+# so this is the one place the wiki lists them.
+NUCLEAR_OPEN = {
+    'generic coupling positional/angular matching tolerance': 'the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range',
+    'global component order guarantee': 'whether assemblies and fuel rods update in the same order on every vehicle and loaded save',
+    'radiation contamination persistence/decay and physical dose units': ('how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, '
+                                                                          'the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading'),
+    'full downstream effects of gated damage event': 'what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments, and what the two game settings that gate it are',
+}
 # Articles whose body numbers must all occur in their findings, as in extract_behavior.py.
-CHECKED = ('aerodynamics', 'buoyancy-water-drag', 'resource-storage')
+CHECKED = ('aerodynamics', 'buoyancy-water-drag', 'resource-storage', 'nuclear-reactor-components')
 NUMBER = re.compile(r'(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)')
 CACHE: dict[str, tuple[str, str]] = {}
 BINARY: dict = {}
@@ -311,6 +323,83 @@ def storage_native():
     ]
 
 
+def g(x, digits=6):
+    return '%.*g' % (digits, x)
+
+
+def nuclear_native():
+    """Nuclear figures from the nuclear decode, checked against the definitions and re-read from the executable."""
+    data = json.loads((ROOT / NUCLEAR_DATA).read_text())
+    if data['build_sha256'] != EXE_SHA256 or data['component_hz'] != 60:
+        raise ValueError(f'{NUCLEAR_DATA} was built for a different executable')
+    if sorted(data['open']) != sorted(NUCLEAR_OPEN):
+        raise ValueError(f'Open items in {NUCLEAR_DATA} changed; update NUCLEAR_OPEN')
+    defs = {d['definition'].rsplit('/', 1)[1][:-4]: d for d in data['definitions']}
+    for name, d in defs.items():
+        a = attrs(re.search(r'<definition\b[^>]*>', read(d['definition']))[0])
+        if (CACHE[d['definition']][1] != d['source_sha256'] or a['name'] != d['name'] or int(a['type']) != d['type'] or float(a['mass']) != d['mass']
+                or float(a['value']) != d['value'] or any(int(a[k]) != d[k] for k in ('nuclear_component_type', 'logic_gate_type') if k in d)):
+            raise ValueError(f'{name} figures in {NUCLEAR_DATA} differ from the definition')
+    for addr, c in data['constants'].items():
+        if exe_bytes(int(addr, 16), 4) != bytes.fromhex(c['bytes']):
+            raise ValueError(f'Constant {addr} in {NUCLEAR_DATA} differs from the executable')
+    f32 = lambda addr: struct.unpack('<f', exe_bytes(addr, 4))[0]
+    A, R, C = (defs[k] for k in ('steam_nuclear_fuel_assembly', 'steam_nuclear_fuel_rod', 'steam_nuclear_control_rod'))
+    near = lambda x, y: math.isclose(x, y, rel_tol=1e-6)
+    if not all(near(x, f32(y)) for x, y in ((A['self_relaxation'], 0x140bafebc), (A['neighbour_relaxation'], 0x140bafeb4), (C['insertion_change_per_update'], 0x140baf92c),
+                                              (R['reaction_max'], 0x140bb0740), (R['fuel_fraction_per_update_per_reaction'], 0x140baf854), (R['damage_temperature_strictly_above_C'], 0x140bb0864),
+                                              (A['rod_exchange_capacity'], 0x140bb0790), (A['rod_exchange_cap'], 0x140bafcbc), (A['liquid_exchange_gain'], 0x140baf8f8),
+                                              (R['live_radiation_radius_per_strength_m'], 0x140bb064c), (R['radiation_cross_compartment_radius_penalty_m'], 0x140bb07d8))):
+        raise ValueError(f'Nuclear figures in {NUCLEAR_DATA} differ from the executable')
+    if not near(-A['control_multiplier_per_sum_insertion'], f32(0x140bafbbc) * f32(0x140bafa24)):
+        raise ValueError('Control rod scale differs')
+    life = R['nominal_full_fuel_lifetime_at_reaction50_seconds']
+    if not near(life, 1 / (60 * R['fuel_fraction_per_update_per_reaction'] * R['reaction_max'])) or C['full_stroke_updates'] != round(1 / C['insertion_change_per_update']):
+        raise ValueError(f'Derived figures in {NUCLEAR_DATA} differ')
+    labels = {int(k): v for k, v in data['nuclear_type_labels'].items()}
+    loads = {0: ('0x14087db9d', '48 8d 15 ac 48 2c 00', '0x14087dbb4', '33 d2'), 1: ('0x14087dbca', '48 8d 15 77 4a 2c 00', '0x14087dbe1', 'ba 01 00 00 00'),
+             2: ('0x14087dbf9', '48 8d 15 e0 48 2c 00', '0x14087dc0d', 'ba 02 00 00 00')}
+    r = NUCLEAR
+    out = [native(f'Nuclear type {k} name', labels[k]['name'],
+                  f'The editor selector loads this label and registers it with value {k} (bytes {loads[k][3]} at {loads[k][2]}): the game\'s own name for nuclear_component_type {k}.',
+                  loads[k][0], loads[k][1], report=r, literals={labels[k]['address']: labels[k]['bytes'], loads[k][2]: loads[k][3]}) for k in (0, 1, 2)]
+    stroke = C['full_stroke_seconds']
+    out += [
+        native('Nuclear type dispatch', '0 assembly, 1 rod, 2 control', 'The nuclear update reads nuclear_component_type at definition+0x2cc0 and branches to the assembly, rod or control step.',
+               '0x14041dcb4', '8b 8a c0 2c 00 00 85 c9 0f 84 6f 0c 00 00 83 e9 01 0f 84 d7 01 00 00 83 f9 01 0f 85 63 10 00 00', report=r),
+        native('Assembly self relaxation', g(A['self_relaxation']), 'A = b + 0.999 × (R − b), b = 0.1 × fuel fraction, R the inserted rod\'s reaction.',
+               '0x14041e97f', 'f3 0f 59 05 35 15 79 00', report=r, literals={'0x140bafebc': '77 be 7f 3f', '0x140bafad0': 'cd cc cc 3d'}),
+        native('Neighbour relaxation', g(A['neighbour_relaxation']), 'B = S + 0.998 × (A − S), S the summed reaction of the coupled fuel assemblies that hold a rod; the sum is not averaged.',
+               '0x14041ea3c', 'f3 0f 59 05 70 14 79 00', report=r, literals={'0x140bafeb4': 'ee 7c 7f 3f'}),
+        native('Control sum scale', '0.25 × 0.04 = 0.01', 'Each coupled control rod adds 0.25 × insertion; the sum is scaled by 0.04 and the result is b + (1 − 0.01 × C) × (B − b).',
+               '0x14041ea64', 'f3 44 0f 59 05 b7 0f 79 00', report=r, literals={'0x140bafa24': '0a d7 23 3d', '0x140bafbbc': '00 00 80 3e'}),
+        native('Coupling walk', 'four control_rod couplings', 'The assembly walks the couplings bound at component+0x1f8, x+, x-, z+ and z-, and reads each peer\'s nuclear type; there is no distance test.',
+               '0x14041e9aa', '45 39 a6 08 02 00 00 76 76', report=r),
+        native('Insertion step limit', g(C['insertion_change_per_update']),
+               f"Insertion moves toward clamp(Insertion Target, 0, 1) by at most 0.005 per update: 1 ÷ 0.005 = {C['full_stroke_updates']} updates, {g(stroke, 4)} s at 60 updates per second, for a full stroke.",
+               '0x14041dd13', 'f3 0f 5d 35 11 1c 79 00', report=r, literals={'0x140baf92c': '0a d7 a3 3b', '0x140bb0a08': '0a d7 a3 bb'}),
+        native('Reaction cap', g(R['reaction_max']), 'The rod clamps r = b + 0.999 × (next − b) to 0 to 50.', '0x14041dfd3', 'f3 44 0f 10 2d 64 27 79 00', report=r, literals={'0x140bb0740': '00 00 48 42'}),
+        native('Fuel use per reaction', '1e-8', f"F falls by 1e-8 × r per update, so a full rod lasts 1 ÷ (60 × 1e-8 × 50) = {g(life, 5)} s, {g(life / 3600, 4)} simulated hours, at r = 50.",
+               '0x14041e004', 'f3 0f 59 15 48 18 79 00', report=r, literals={'0x140baf854': '77 cc 2b 32'}),
+        native('Heat per reaction', '0.1 × r', 'T rises by 0.1 × r per update and then moves 0.001 of the way toward the surrounding temperature.',
+               '0x14041dfed', 'f3 41 0f 59 c4', report=r, literals={'0x140baf8f8': '6f 12 83 3a'}),
+        native('Rod exchange capacity and cap', '100 and 0.5', 'With compartment total amount A above 1: k = 0.001 × (q ÷ A) × w; the coolant moves k × (rod − coolant) and the rod min(q ÷ 100 × k, 0.5) × (coolant − rod).',
+               '0x14041ecaf', 'f3 0f 5e 05 d9 1a 79 00', report=r, literals={'0x140bb0790': '00 00 c8 42', '0x140bafcbc': '00 00 00 3f'}),
+        native('Coolant contamination', '0.001 × reaction ÷ A', 'The assembly adds 0.001 × the rod\'s working reaction ÷ A to the compartment radiation value at +0x78.',
+               '0x14041ecfe', 'f3 0f 59 05 f2 0b 79 00 f3 0f 5e 41 70 f3 0f 58 41 78', report=r),
+        native('Live source radius and penalty', '10 × s, −200 m', 'A rod with r above 0.001 is a live source of strength s = 0.1 × r; a sample within 10 × s metres reads s × (1 − d ÷ (10 × s)), and a source in another compartment loses 200 m of radius.',
+               '0x14030fb22', 'f3 44 0f 10 50 18 41 0f 28 f2 f3 41 0f 59 f4', report=r, literals={'0x140bb064c': '00 00 20 41', '0x140bb07d8': '00 00 48 43'}),
+        native('Radiation detector case', 'logic gate 59', 'Jump-table entry 59 (bytes 08 88 3c 00 at 0x1403c9640) leads to the detector case, which calls the radiation sampler and writes its result unscaled to the Radiation output.',
+               '0x1403c886e', 'e8 4d 71 f4 ff', report=r, literals={'0x1403c9640': '08 88 3c 00'}),
+        native('Damage temperature', g(R['damage_temperature_strictly_above_C']), 'Strictly above 1500 a rod takes 1 damage at once and then every 300 hot updates (5 simulated seconds), up to 50; cooling does not reset the counter.',
+               '0x14041e117', '0f 2f 0d 46 27 79 00', report=r, literals={'0x140bb0864': '00 80 bb 44', '0x14041e157': '69 c2 2c 01 00 00', '0x14041e134': 'b9 32 00 00 00'}),
+        finding('Nuclear Fuel Assembly: couplings', 'x+, x-, z+, z-', 'Four control_rod couplings at local (0, 6, 0), orientations 0, 1, 4 and 5, alignment required. No diagonal coupling.',
+                cite(A['definition'], 'coupling_name="x+"', 'coupling_name="z-"'), kind='component-configuration'),
+    ]
+    return out, dict(life=life, stroke=stroke, updates=C['full_stroke_updates'], open=[NUCLEAR_OPEN[k] for k in data['open']])
+
+
+
 def lua(label, val, detail, path, needle, end=None, status='observed'):
     return finding(label, val, detail, cite(path, needle, end), status)
 
@@ -573,11 +662,21 @@ def build_articles():
             'The render crank radii 0.075, 0.146 and 0.216 suggest strokes of 0.15, 0.292 and 0.432 world units (inference).',
             definition('steam_turbine', tooltip=True, labels=True) + definition('steam_piston', tooltip=True, labels=True),
             [block_limit, static_limit, 'The turbine and piston figures come from that native decode, not from these definitions alone. Still not decoded: how a piston crank group integrates its accumulated drive into phase and loaded shaft speed, and any N m torque or conversion-efficiency calibration; turbine and piston outputs are shaft-solver speeds and weights, not torques. Repeated port labels are preserved; the piston\'s first and second Steam In and Steam Out are matched to its chambers by definition order (inference).'])
+    nuc, nf = nuclear_native()
     article('nuclear-reactor-components', 'Nuclear fuel assemblies and control rods', 'Engines',
-            'Fuel and control rod tooltips document assembly and adjacent-rod reaction control.',
-            'A fuel rod can be inserted into a fuel assembly to begin fission. The assembly tooltip says fuel rods consume uranium ingots from workbench inventory to fuel. A control rod decreases the reaction rate of adjacent rods. The assembly labels Release Fuel Rod and Fuel Rod Temperature, while the control rod labels Insertion Target and Insertion. Their empty descriptions provide no units or input ranges.',
-            definition('steam_nuclear_fuel_rod', nodes=False, tooltip=True) + definition('steam_nuclear_fuel_assembly', tooltip=True, labels=True) + definition('steam_nuclear_control_rod', tooltip=True, labels=True),
-            [block_limit, static_limit, 'Reaction kinetics, adjacency radius, insertion direction and range, fuel lifetime, heat transfer, radiation and meltdown thresholds remain unresolved. No numeric nuclear type is translated into an inferred enum name.'])
+            'Fuel assemblies add the reactions of up to four coupled fuel assemblies, control rods scale the excess over 0.1 × fuel by 1 − 0.01 × insertion, and fuel rods heat by 0.1 × r per update and take damage above 1500.',
+            'A fuel rod can be inserted into a fuel assembly to begin fission. The assembly tooltip says fuel rods consume uranium ingots from workbench inventory to fuel. A control rod decreases the reaction rate of adjacent rods. The assembly labels Release Fuel Rod and Fuel Rod Temperature, while the control rod labels Insertion Target and Insertion; their port descriptions are empty. '
+            f'A native decode ({NUCLEAR}, shown on the Nuclear parts pages) names the three nuclear_component_type values from the editor selector: 0 fuel assembly, 1 fuel rod and 2 control rod. '
+            'Each update an assembly with a rod computes A = b + 0.999 × (R − b), B = S + 0.998 × (A − S) and b + (1 − 0.01 × C) × (B − b), with b = 0.1 × fuel fraction, R the rod\'s reaction, S the summed reaction of coupled fuel assemblies and C the summed insertion of coupled control rods; the rod then clamps its reaction r to 0 to 50. '
+            'Adjacency is the four control_rod couplings x+, x-, z+ and z-, not a radius, so an assembly sees at most four neighbours, fuel or control. '
+            f"Insertion follows Insertion Target clamped to 0 to 1 by at most 0.005 per update, {nf['updates']} updates or {g(nf['stroke'], 4)} s for a full stroke; larger insertion lowers the reaction but never below the 0.1 × fuel baseline. "
+            f"A rod uses 1e-8 × r of its fuel per update, so a full rod lasts {g(nf['life'], 5)} s, {g(nf['life'] / 3600, 4)} simulated hours, at r = 50. "
+            'It heats by 0.1 × r per update, exchanges heat with immersed coolant at k = 0.001 × (q ÷ A) × w, the rod counting as 100 liquid amount and its own step capped at 0.5, and moves 0.001 of the way to its surroundings. '
+            'A rod above r = 0.001 is a live radiation source of strength s = 0.1 × r with linear falloff over 10 × s metres, cut by 200 m across compartments, and assemblies add 0.001 × reaction ÷ A to their coolant\'s contamination, which a radiation detector inside reads. '
+            'Strictly above 1500 a rod takes damage at once and then every 300 hot updates, up to 50; the update has no separate meltdown or explosion temperature.',
+            definition('steam_nuclear_fuel_rod', nodes=False, tooltip=True) + definition('steam_nuclear_fuel_assembly', tooltip=True, labels=True) + definition('steam_nuclear_control_rod', tooltip=True, labels=True) + nuc,
+            [block_limit, static_limit, 'The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: ' + '; '.join(nf['open']) + '. '
+             'Temperatures, reaction and detector readings are internal game values.'])
     article('transmission-gears-clutches', 'Gear ratios and clutch engagement', 'Engines',
             'Gearboxes pull RPS B toward the selected ratio × RPS A, so for N:1 the A side is fast; the standalone clutch couples with strength input^6 and the modular clutch follows input^3 with a slew.',
             'The selected gearbox definitions expose power connections A and B, an electrical connection and a Gear Switch input. Their tooltips say the switch toggles between two property values. The torque_gearbox_2 tooltip states an operating torque difference up to 4000 without specifying a unit. The standard clutch takes engagement from 0 to 1 and says this controls transmitted power. The modular clutch attaches to a crankshaft to control torque made available to the connected system. '

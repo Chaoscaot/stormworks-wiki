@@ -8644,11 +8644,6 @@ def more_families(B, E):
     simple("part-electrolyser", "Splits fresh water into hydrogen and oxygen with electricity; the electrodes must be submerged.",
            [("Setup and interactions", "Feed its outputs to a fuel cell or a liquid fuel rocket's tanks.")], [T("electrolyser"), T("liquid_rocket_small")], [])
 
-    # Steam components; the decoded parts are in steam().
-    simple("part-steam-nuclear-control-rod", "Insertion lowers the reaction rate of adjacent fuel rods.",
-           [("Setup and interactions", "Place rods next to fuel assemblies and drive Insertion Target from fuel rod temperature.")], [T("steam_nuclear_control_rod"), P("steam_nuclear_fuel_assembly", "Fuel Rod Temperature")],
-           ["Reaction kinetics not recovered."])
-
     # Jet engine parts; the decoded parts are in jet_engines().
     simple("jet-intake", "More airflow when moving through the air; the large intake's turbofans add thrust.",
            [("Variant tradeoffs", "Only the large intake's tooltip mentions additional thrust from turbo fans.")], [T("jet_engine_intake_small"), T("jet_engine_intake_large")], [])
@@ -9854,12 +9849,442 @@ def small_parts(B, E):
              [SP_PLAIN, "The volume pumped per stroke and per simulated second was not decoded: the pumpjack's own pump branch, its pressure limit and the oil well supply are still open."])
 
 
+NU_REPORT = "investigation/nuclear.md"
+NU_DATA = "investigation/native/nuclear/nuclear.json"
+NU_EXAMPLES = "investigation/native/nuclear/tools/examples.json"
+F_NUCLEAR = 0x14041DC40     # nuclear component update, vtable 0x140b74140 slot +0x358, switch on nuclear_component_type
+F_NU_POST = 0x14041ED90     # nuclear post-update, slot +0x360: commits the rod's working reaction
+F_NU_CTOR = 0x14045FA70     # nuclear component constructor
+F_NU_BIND = 0x14041C8E0     # coupling binder: four control_rod couplings into component+0x1f8
+F_NU_DAMAGE = 0x14041DC00   # nuclear damage setter, slot +0x20 (leaf)
+F_NU_SELECT = 0x140872DE0   # editor property panel that registers the "nuclear type" selector
+F_NU_LOADER = 0x140940EA0   # definition reader for nuclear_component_type
+F_RAD_SAMPLE = 0x14030F9C0  # radiation sampler: live sources, compartment scalar, contamination index
+F_RAD_DEPOSIT = 0x14030F740  # persistent contamination deposit
+NU_VTABLE = 0x140B74140
+NU_SLOTS = ((NU_VTABLE + 0x358, F_NUCLEAR), (NU_VTABLE + 0x360, F_NU_POST), (NU_VTABLE + 0x20, F_NU_DAMAGE))
+NU_CASE = (59, 0x1403C8808)  # logic jump-table entry of the radiation detector
+_NU = "nuclear/asm/"
+NU_ASM = {
+    F_NUCLEAR: (_NU + "update.asm", "0x14041dc40.c"), F_NU_POST: (_NU + "post-update.asm", "0x14041ed90.c"),
+    F_NU_CTOR: (_NU + "constructor.asm", "0x14045fa70.c"), F_NU_BIND: (_NU + "coupling-bind.asm", "0x14041c8e0.c"),
+    F_NU_DAMAGE: (_NU + "damage-setter.asm", "0x14041dc00.c"), F_NU_SELECT: (_NU + "type-selector.asm", None),
+    F_NU_LOADER: (_NU + "type-loader.asm", "0x140940ea0.c"),
+    F_RAD_SAMPLE: (_NU + "radiation-sample.asm", "0x14030f9c0.c"), F_RAD_DEPOSIT: (_NU + "contamination-deposit.asm", "0x14030f740.c"),
+    F_LOGIC: (_NU + "sensor-case59.asm", None), F_FUEL_INIT: (_NU + "spawn-fuel.asm", "0x1405dafa0.c"),
+}
+NU_PARTS = ("steam_nuclear_fuel_assembly", "steam_nuclear_fuel_rod", "steam_nuclear_control_rod")
+NU_STATIC = ("Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: "
+             "reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.")
+NU_POINTER = ("Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the "
+              "Nuclear fuel assemblies and control rods mechanics article.")
+
+
+def reactor_steady(n, ci, fuel=1.0, f=0.001):
+    """Settled reaction and temperature of equal rods with n fuel neighbours and summed insertion ci, fuel held fixed.
+
+    Inference from the decoded update: returns (g, r, T) with g the per-update growth factor of a disturbance;
+    r and T are None when g >= 1 and the reaction climbs to the cap. f is the rod's coolant pull per update
+    (0.001 with liquid and total amount 100, full immersion); coolant and surroundings at 20."""
+    b, m = 0.1 * fuel, 1 - 0.01 * ci
+    g = 0.999 * m * (0.002 * n + 0.997002)
+    if g >= 1:
+        return g, None, None
+    r = b + 0.001998 * m * b * (n - 1) / (1 - g)
+    return g, r, 20 + 0.0999 * r / (1 - 0.999 * (1 - f))
+
+
+def nuclear_native(E):
+    """Nuclear fuel assembly, fuel rod and control rod update, radiation sampler and detector, verified once and shared."""
+    if hasattr(E, "nuclear"):
+        return E.nuclear
+    n = E.native
+    if not (E.root / NU_REPORT).is_file():
+        raise ValueError("Nuclear report missing: " + NU_REPORT)
+    for slot, target in NU_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Vtable slot %#x does not point to %#x" % (slot, target))
+    if _rtti(n, NU_VTABLE) != "c_scene_vehicle_component_nuclear":
+        raise ValueError("RTTI at %#x is not c_scene_vehicle_component_nuclear" % NU_VTABLE)
+    if n.base + struct.unpack("<I", n.raw(LOGIC_TABLE + 4 * NU_CASE[0], 4))[0] != NU_CASE[1]:
+        raise ValueError("Logic case %d no longer selects %#x" % NU_CASE)
+    rep = " Report: %s." % NU_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        _wheel_cite(E, func, address, hexbytes, table=NU_ASM)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=NU_ASM)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    near = lambda a, b: math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-12)
+    ups = update_rate(E)["ups"]
+    data = json.loads((E.root / NU_DATA).read_bytes())
+    if (data["build_sha256"] != EXE_SHA256 or data["component_hz"] != ups or data["rtti"] != "c_scene_vehicle_component_nuclear"
+            or int(data["vtable"], 16) != NU_VTABLE or int(data["update"], 16) != F_NUCLEAR or int(data["post_update"], 16) != F_NU_POST):
+        raise ValueError("Nuclear identity in %s differs from the verified bytes" % NU_DATA)
+    for addr, c in data["constants"].items():
+        if n.raw(int(addr, 16), 4).hex(" ") != c["bytes"] or ("float32" in c and n.f32(int(addr, 16)) != c["float32"]):
+            raise ValueError("Nuclear constant %s in %s differs from the executable" % (addr, NU_DATA))
+    defs = {d["definition"].rsplit("/", 1)[1][:-4]: d for d in data["definitions"]}
+    vox = {}
+    for bid, d in defs.items():
+        blk = E.block(bid)
+        a = blk["attributes"]
+        vox[bid] = E.voxels(bid, "The spawn conversion divides the fuel quantity by this count, so it is the rod's full-fuel quantity." if bid == "steam_nuclear_fuel_rod" else "Listed voxel count.")
+        if (blk["name"] != d["name"] or int(a["type"]) != d["type"] or float(a["mass"]) != d["mass"] or float(a["value"]) != d["value"]
+                or E.file(DEFS + bid + ".xml")[0] != d["source_sha256"] or vox[bid]["value"] != d["voxel_count"]
+                or any(int(a[k]) != d[k] for k in ("nuclear_component_type", "logic_gate_type") if k in d)):
+            raise ValueError("%s figures in %s differ from the definition" % (bid, NU_DATA))
+    if sorted(defs) != sorted(NU_PARTS + ("radiation_detector",)) or int(E.block("radiation_detector")["attributes"]["logic_gate_type"]) != NU_CASE[0]:
+        raise ValueError("Nuclear definitions in %s changed" % NU_DATA)
+    labels = {}
+    for k, lab in data["nuclear_type_labels"].items():
+        addr = int(lab["address"], 16)
+        raw = bytes.fromhex(lab["bytes"].replace(" ", ""))
+        if n.raw(addr, len(raw)) != raw or n.cstring(addr) != lab["name"] or defs[NU_PARTS[int(k)]]["nuclear_component_type"] != int(k):
+            raise ValueError("Nuclear type label %s differs" % k)
+        labels[int(k)] = (addr, lab["name"])
+    A, R, C = (defs[b] for b in NU_PARTS)
+    K = n.f32
+    step = K(0x140BAF92C)
+    hot = struct.unpack("<I", n.raw(0x14041E159, 4))[0]
+    cap = struct.unpack("<I", n.raw(0x14041E135, 4))[0]
+    life50 = 1 / (K(0x140BAF854) * ups * K(0x140BB0740))
+    pairs = [(C["insertion_change_per_update"], step), (-C["insertion_change_per_update"], K(0x140BB0A08)), (C["input_max"], K(0x140BAFECC)),
+             (C["insertion_max"], 1.0), (C["input_min"], 0.0), (C["insertion_min"], 0.0), (C["full_stroke_updates"], round(1 / step)),
+             (C["full_stroke_seconds"], round(1 / step) / ups), (A["self_relaxation"], K(0x140BAFEBC)), (A["neighbour_relaxation"], K(0x140BAFEB4)),
+             (A["neighbour_reaction_gain"], 1 - A["neighbour_relaxation"]), (A["control_multiplier_per_sum_insertion"], -K(0x140BAFBBC) * K(0x140BAFA24)),
+             (A["liquid_exchange_gain"], K(0x140BAF8F8)), (A["rod_exchange_capacity"], K(0x140BB0790)), (A["rod_exchange_cap"], K(0x140BAFCBC)),
+             (A["minimum_compartment_total_exclusive"], K(0x140BAFECC)), (A["coolant_radiation_injection"], K(0x140BAF8F8)), (A["neighbour_slots"], 4),
+             (R["reaction_min"], 0.0), (R["reaction_max"], K(0x140BB0740)), (R["fuel_baseline_gain"], K(0x140BAFAD0)), (R["reaction_relaxation"], K(0x140BAFEBC)),
+             (R["detached_extra_relaxation"], K(0x140BAFEBC)), (R["heat_per_update_per_reaction"], K(0x140BAFAD0)),
+             (R["fuel_fraction_per_update_per_reaction"], K(0x140BAF854)), (R["environment_relaxation"], K(0x140BAF8F8)),
+             (R["damage_temperature_strictly_above_C"], K(0x140BB0864)), (R["damage_increment_hot_updates"], hot), (R["damage_max"], cap),
+             (R["damaged_fuel_loss_max_per_update"], K(0x140BAF898)), (R["nominal_full_fuel_lifetime_at_reaction50_seconds"], life50),
+             (R["live_radiation_strength_per_reaction"], K(0x140BAFAD0)), (R["live_radiation_radius_per_strength_m"], K(0x140BB064C)),
+             (R["radiation_cross_compartment_radius_penalty_m"], K(0x140BB07D8))]
+    if any(not near(x, y) for x, y in pairs) or C["damaged_control"] != "insertion freezes" or (hot, cap) != (300, 50):
+        raise ValueError("Nuclear figures in %s differ from the verified bytes" % NU_DATA)
+    examples = json.loads((E.root / NU_EXAMPLES).read_bytes())
+    worked = []
+    for x in examples:
+        m = 0.999 * (1 - 0.01 * x["insertion"])
+        r = 0.1 * (1 - 0.999002 * m) / (1 - 1.001002 * m)
+        g, r2, t2 = reactor_steady(2, x["insertion"])
+        if (x["seconds"] != 600 or not near(r, x["frozen_fuel_equilibrium_react"]) or not near(r2, r) or not near(t2, x["frozen_fuel_equilibrium_temp"])
+                or not near(20 + 0.0999 * r / 0.001999, t2)):
+            raise ValueError("Nuclear worked example differs from the closed form")
+        if x["freeze_fuel"]:
+            if abs(x["rod"]["temp"] - t2) > 1e-7 or abs(x["rod"]["react"] - r2) > 1e-9 or x["rod"]["fuel"] != 1:
+                raise ValueError("Nuclear worked example has not settled")
+            worked.append((x["insertion"], r2, t2))
+        elif not (0 < 1 - x["rod"]["fuel"] < K(0x140BAF854) * x["seconds"] * ups * r2 and x["rod"]["temp"] < t2):
+            raise ValueError("Depleting nuclear example out of range")
+    if [w[0] for w in worked] != [0.1, 0.25, 1.0]:
+        raise ValueError("Nuclear worked examples changed")
+    f = {}
+
+    # Identity and type names.
+    f["slot"] = code(F_NU_CTOR, 0x14045FA85, "488d05b4467100488907", "Nuclear component vtable", "%#x" % NU_VTABLE,
+                     "The constructor installs this vtable (RTTI c_scene_vehicle_component_nuclear). Its slot +0x358 at %#x holds the update %#x, slot +0x360 the post-update %#x and slot +0x20 the damage setter %#x; the extractor re-reads all three pointers." % (
+                         NU_VTABLE + 0x358, F_NUCLEAR, F_NU_POST, F_NU_DAMAGE))
+    f["temp0"] = code(F_NU_CTOR, 0x14045FB80, "48c787280400000000a041", "Nuclear starting temperature", "20, reaction 0",
+                      "The constructor writes 20 (0x41a00000) to the temperature at +0x428 and 0 to the reaction at +0x42c in one 8-byte store.")
+    f["ramp0"] = code(F_NU_CTOR, 0x14045FC0A, "c7878c04000000008041", "Nuclear ambient controller duration", "16 updates",
+                      "The constructor gives the surrounding-temperature controller at +0x470 a duration of 16 and starts its target, output and start at 20 (0x14045fc00, 0x14045fc25, 0x14045fc30), as in the heat exchangers.")
+    f["loader"] = E.string(F_NU_LOADER, 0x140B5D6B8, "nuclear_component_type", "nuclear_component_type reader",
+                           "The definition reader 0x1403168d0 passes definition+0x2cc0 to this routine (0x140318157), which reads the integer attribute nuclear_component_type and stores 0 when it is absent." + rep)
+    f["select"] = E.string(F_NU_SELECT, 0x140B42498, "nuclear type", "Nuclear type selector",
+                           "The editor property panel registers a selector with this caption whose getter 0x14087fc10 and setter 0x14087fc20 access the edited definition's type field." + rep)
+    names = {}
+    for k, at, hexbytes in ((0, 0x14087DBB4, "33d2"), (1, 0x14087DBE1, "ba01000000"), (2, 0x14087DC0D, "ba02000000")):
+        addr, text = labels[k]
+        names[k] = E.string(F_NU_SELECT, addr, text, "Nuclear type %d name" % k,
+                            "The selector loads this label just before registering it with value %d (bytes %s at %#x); the game's own name for nuclear_component_type %d, not an inferred enum identifier." % (k, hexbytes, at, k) + rep)
+        if n.raw(at, len(hexbytes) // 2).hex() != hexbytes:
+            raise ValueError("Selector value at %#x differs" % at)
+    f["names"] = names
+    f["dispatch"] = code(F_NUCLEAR, 0x14041DCB4, "8b8ac02c000085c90f846f0c000083e9010f84d701000083f9010f8563100000", "Nuclear type dispatch",
+                         "0 → 0x14041e931, 1 → 0x14041dea2, 2 → 0x14041dcd4",
+                         "The update reads nuclear_component_type at definition+0x2cc0: type 0 (fuel assembly) jumps to the assembly branch, type 1 (fuel rod) to the rod branch and type 2 (control rod) to the control branch; any other value ends the update.")
+
+    # Control rod.
+    f["c_damage"] = code(F_NUCLEAR, 0x14041DCD4, "453966080f8559100000", "Control rod damage gate", "damage 0 only",
+                         "The control branch runs only while the damage count at component+0x8 is 0; a damaged control rod skips it and keeps its stored insertion.")
+    f["c_input"] = code(F_NUCLEAR, 0x14041DCE7, "f3410f10b6f0010000450f57e4f3410f5ff4f3440f1015ca217900f3410f5df2f30f5cf0", "Insertion Target clamp", "clamp(input, 0, 1) − I",
+                        "Loads the Insertion Target input (component+0x1f0), clamps it to 0 to 1 (1 from 0x140bafecc) and subtracts the stored insertion I (+0x434).")
+    f["c_down"] = op(F_NUCLEAR, 0x14041DD0B, "f30f5f35f52c7900", 0x140BB0A08, "Insertion step limit (−)", "Lower bound of the per-update change.")
+    f["c_up"] = op(F_NUCLEAR, 0x14041DD13, "f30f5d35111c7900", 0x140BAF92C, "Insertion step limit (+)", "Upper bound of the per-update change.")
+    f["c_store"] = code(F_NUCLEAR, 0x14041DD1B, "f30f58c6f3410f118634040000f3410f118660010000", "Insertion store", "I = I + step; Insertion = I",
+                        "Adds the clamped step to I, stores it at +0x434 and writes the same value to the numeric output at +0x160, the Insertion port.")
+
+    # Fuel rod.
+    f["r_relax"] = op(F_NUCLEAR, 0x14041DF7D, "f30f101d371f7900", 0x140BAFEBC, "Reaction relaxation",
+                      "The rod branch loads this factor for both relaxations below.")
+    f["r_loose"] = code(F_NUCLEAR, 0x14041DF8E, "4d39a6a0040000750df3410f11962c040000f30f59d3", "Loose fuel rod branch", "no assembly: R = next; next × 0.999",
+                        "Without an associated assembly (+0x4a0 is 0) the rod copies its working reaction (+0x430) into its reaction (+0x42c) and multiplies the working value by 0.999 before the ordinary step, so a loose rod's reaction decays.")
+    f["r_base"] = op(F_NUCLEAR, 0x14041DFB0, "f3440f1025171b7900", 0x140BAFAD0, "Fuel baseline gain",
+                     "b = this × F, F the fuel fraction at +0x438. The rod then forms r = b + 0.999 × (next − b) (0x14041dfbe-0x14041dfc6). The same register supplies the heating factor.")
+    f["r_cap"] = op(F_NUCLEAR, 0x14041DFD3, "f3440f102d64277900", 0x140BB0740, "Reaction cap",
+                    "r is clamped to 0 (maxss at 0x14041dfce) and to this (minss at 0x14041dfdc), then stored as the working reaction at +0x430 (0x14041dfe1).")
+    f["r_heat"] = code(F_NUCLEAR, 0x14041DFEA, "0f28c2f3410f59c4f3410f588628040000f3410f118628040000", "Heat per reaction", "T = T + 0.1 × r",
+                       "Multiplies r by the 0.1 in xmm12 (0x140bafad0) and adds it to the temperature at +0x428 every update. Insertion does not enter directly.")
+    f["r_fuel"] = op(F_NUCLEAR, 0x14041E004, "f30f591548187900", 0x140BAF854, "Fuel use per reaction",
+                     "F = clamp(F − this × r, 0, 1), stored at +0x438 (0x14041e00c-0x14041e023).")
+    f["r_tick"] = code(F_NUCLEAR, 0x14041E041, "f640040f0f858f000000", "Rod surrounding-temperature sample", "every 16 updates",
+                       "On updates whose low four bits are 0 the rod calls the surrounding-temperature sample 0x14030fd60 (0x14041e07f) with the assembly's compartment and submits it to its controller at +0x470; every update then advances that controller with 0x1408cde20 (0x14041e0e1).")
+    f["r_env"] = op(F_NUCLEAR, 0x14041E0FC, "f3440f101df3177900", 0x140BAF8F8, "Surrounding temperature pull",
+                    "T = T + this × (controller output − T), every update after the heating (0x14041e0ef-0x14041e10e).")
+    f["r_1500"] = op(F_NUCLEAR, 0x14041E117, "0f2f0d46277900", 0x140BB0864, "Damage temperature",
+                     "Compares the temperature after heating and the surrounding pull with this and skips the damage step unless it is strictly above (jbe at 0x14041e11e).")
+    f["r_hit"] = code(F_NUCLEAR, 0x14041E120, "418b8e5404000085c97520498b06418b5608ffc2b9320000003bd10f47d1", "Hot damage step", "counter 0 → damage + 1, at most 50",
+                      "While hot, when the counter at +0x454 is 0 the rod calls its damage setter (slot +0x20) with min(damage + 1, 50).")
+    f["r_300"] = code(F_NUCLEAR, 0x14041E14B, "ffc1b8b5814e1bf7e1c1ea0569c22c0100002bc841898e54040000", "Hot damage counter", "counter = (counter + 1) mod 300",
+                      "The counter advances only on hot updates and is not reset when the rod cools, so damage rises on the first hot update and then once per 300 hot updates.")
+    f["r_setter"] = code(F_NU_DAMAGE, F_NU_DAMAGE, "83790800750d85d2740dc6815004000001", "Nuclear damage setter", "first damage marks pending processing",
+                         "When an undamaged component receives a nonzero damage the setter sets the pending flag at +0x450, which the post-update hands to 0x140325680. It then stores min(value, 50) at +0x8 (0x14041dc20).")
+    f["r_event"] = code(F_NUCLEAR, 0x14041E191, "41837e08020f821b030000", "Damage event gate", "damage ≥ 2, once",
+                        "The one-time event runs only when the saved byte at +0x451 (serialized as fire) is 0, two game setting bytes at settings+0x35 and settings+0x4a are nonzero (0x14041e178, 0x14041e187) and damage is at least 2. It sets +0x451 and calls the event creator 0x140288f70 (0x14041e46c).")
+    f["r_record"] = code(F_NUCLEAR, 0x14041E4A9, "c7401800004843c7401c00401c47", "Damage event world record", "200 and 40000",
+                         "After the event call the rod writes its position and the binary32 values 200 (0x43480000) and 40000 (0x471c4000) into a new world record.")
+    f["r_dloss"] = op(F_NUCLEAR, 0x14041E4D8, "f30f590db8137900", 0x140BAF898, "Damaged fuel loss",
+                      "h = this × clamp(0.1 × damage, 0, 1) (0x14041e4b7-0x14041e4d2). Only when F > h (0x14041e4e9) does the rod subtract h from F.")
+    f["r_dep"] = op(F_NUCLEAR, 0x14041E505, "f30f590d3f217900", 0x140BB064C, "Damage deposit scale",
+                    "The removed h × this is passed to the contamination deposit 0x14030f740 at the rod position (0x14041e515).")
+    f["r_src"] = code(F_NUCLEAR, 0x14041E6A1, "450f2f9e300400007233", "Live radiation threshold", "r ≤ 0.001 removes the source",
+                      "Compares the 0.001 in xmm11 (0x140baf8f8) with r: at or below it the rod releases its live radiation source (+0x448); above it the rod creates one if needed and adds it to the radiation manager list.")
+    f["r_strength"] = code(F_NUCLEAR, 0x14041E86C, "f3410f108e30040000f3410f59cc498b07488b08f30f114918", "Live radiation strength", "s = 0.1 × r",
+                           "Each update the source gets the rod position and strength s = r × the 0.1 in xmm12, and the compartment of the associated assembly (0x14041e897).")
+    f["spawn"] = code(F_FUEL_INIT, 0x1405DC131, "488b48588b81b80000000f57c0f3480f2ac0f30f5ef0", "Fuel rod spawn fraction", "F = quantity ÷ voxel count",
+                      "When a vehicle spawns, the resource initializer divides the rod's fuel quantity by its definition voxel count (definition+0xb8) and stores the result as F (0x1405dc153). A fully supplied rod starts at F = 1.")
+
+    # Fuel assembly.
+    f["a_rod"] = code(F_NUCLEAR, 0x14041E94D, "498b86a00400004885c00f84b8030000", "Assembly rod test", "no rod → no reaction step",
+                      "The assembly branch reads its inserted rod at +0x4a0 and skips the reaction and coolant steps without one. All reaction fields below are the rod's.")
+    f["a_base"] = op(F_NUCLEAR, 0x14041E97F, "f30f590535157900", 0x140BAFEBC, "Assembly self relaxation",
+                     "A = b + this × (R − b), with b = 0.1 × F (0x14041e965-0x14041e96e) and R the rod's reaction; stored as the rod's working value (0x14041e98b).")
+    f["a_loop"] = code(F_NUCLEAR, 0x14041E9AA, "4539a6080200007676", "Assembly coupling walk", "count at +0x208",
+                       "Walks the coupling records at +0x1f8, as many as the count at +0x208, takes each peer and reads its nuclear type (0x14041e9e7). There is no distance test.")
+    f["a_fuel"] = code(F_NUCLEAR, 0x14041E9E3, "488b48588b91c02c000085d27516488b88a00400004885c97421f30f58b12c040000eb17", "Fuel neighbour sum", "S = S + peer rod's R",
+                       "A type-0 peer with a rod adds that rod's reaction to S; a peer assembly without a rod adds nothing. The sum is not divided by the number of neighbours.")
+    f["a_ctl"] = code(F_NUCLEAR, 0x14041EA07, "83fa027512f30f108034040000f3410f59c1f3440f58c0ffc3", "Control neighbour sum", "C' = C' + 0.25 × I",
+                      "A type-2 peer adds its insertion (+0x434) times the 0.25 in xmm9 (0x140bafbbc, loaded at 0x14041e9a1).")
+    f["a_quarter"] = op(F_NUCLEAR, 0x14041E9A1, "f3440f100d12127900", 0x140BAFBBC, "Control rod weight", "Each coupled control rod adds this × its insertion to the control sum.")
+    f["a_nb"] = op(F_NUCLEAR, 0x14041EA3C, "f30f590570147900", 0x140BAFEB4, "Neighbour relaxation", "B = S + this × (A − S) (0x14041ea30-0x14041ea48).")
+    f["a_sup"] = op(F_NUCLEAR, 0x14041EA64, "f3440f5905b70f7900", 0x140BAFA24, "Control sum scale",
+                    "Multiplies the control sum by this: 0.25 × 0.04 = 0.01 per unit of insertion.")
+    f["a_next"] = code(F_NUCLEAR, 0x14041EA76, "410f28cef3410f5cc8f30f108030040000f30f5cc2f30f59c8f30f58caf30f118830040000", "Assembly reaction result", "b + (1 − 0.01 × ΣI) × (B − b)",
+                       "Stores b + (1 − scaled control sum) × (B − b) as the rod's working reaction. Insertion scales only the part above b.")
+    f["a_post"] = code(F_NU_POST, 0x14041EDC7, "488b435883b8c02c0000007518488b8ba00400004885c9740c8b813004000089812c040000", "Reaction commit", "R = next, assembly post pass",
+                       "After the update pass, an assembly's post-update copies its rod's working reaction (+0x430) into the reaction (+0x42c) that neighbours read on the next update.")
+    f["a_bind"] = E.string(F_NU_BIND, 0x140B6F990, "control_rod", "Nuclear coupling type",
+                           "The binder 0x14041c8e0 looks up couplings of this type for assemblies and control rods and allocates four slots at component+0x1f8 (0x14041c934), the list the assembly walks." + rep)
+    f["a_amount"] = code(F_NUCLEAR, 0x14041EAAB, "f3410f104570410f2fc60f865a020000", "Assembly coolant gate", "compartment total > 1",
+                         "The coolant step runs only with a compartment (+0x420) whose total amount A (+0x70) is above 1.")
+    f["a_axis"] = code(F_NUCLEAR, 0x14041EABB, "418b563c446bc20b", "Assembly rod span", "2 and 11 blocks along the axis",
+                       "Takes the assembly's axis (+0x3c) times 11 here and times 2 (add at 0x14041eadf), offsets the grid position by each and transforms both points to world height. The lower and upper become the rod span.")
+    f["a_fill"] = op(F_NUCLEAR, 0x14041EC3D, "f3440f5815560c7900", 0x140BAF89C, "Immersion span margin",
+                     "w = clamp((h − y_low) ÷ (y_high + this − y_low), 0, 1), with h = y_min + (y_max − y_min) × q ÷ V from the compartment bounds (+0x24, +0x28), its liquid amount q (0x1402eb5e0) and volume V (+0x38).")
+    f["a_k"] = op(F_NUCLEAR, 0x14041EC76, "f30f59357a0c7900", 0x140BAF8F8, "Coolant exchange gain",
+                  "k = q ÷ A × this × w (0x14041ec69-0x14041ec7e).")
+    f["a_cool"] = code(F_NUCLEAR, 0x14041EC82, "498b86a0040000f30f109828040000f3410f1055740f28e3f30f5ce2f30f59e6f30f58e2", "Coolant temperature step", "Tc + k × (Tr − Tc)",
+                       "Moves the compartment temperature (+0x74) toward the rod temperature by k, stored at 0x14041ece3 after the rod step, both from the old temperatures.")
+    f["a_100"] = op(F_NUCLEAR, 0x14041ECAF, "f30f5e05d91a7900", 0x140BB0790, "Rod exchange capacity",
+                    "The rod moves by clamp(q ÷ this × k, 0, 0.5) × (Tc − Tr), stored at 0x14041ecd4.")
+    f["a_half"] = op(F_NUCLEAR, 0x14041ECC0, "f30f5d05f40f7900", 0x140BAFCBC, "Rod exchange cap", "Upper clamp of the rod's exchange fraction per update.")
+    f["a_rad"] = code(F_NUCLEAR, 0x14041ECFE, "f30f5905f20b7900f30f5e4170f30f584178f30f114178", "Coolant contamination", "Z = Z + 0.001 × next ÷ A",
+                      "Adds 0.001 × the rod's working reaction (loaded at 0x14041ecf6) ÷ A to the compartment radiation value at +0x78.")
+    f["a_out"] = code(F_NUCLEAR, 0x14041ED15, "498b86a00400004885c0740f8b802804000041898660010000eb074589a660010000", "Fuel Rod Temperature output", "rod temperature, or 0",
+                      "Writes the inserted rod's temperature to the numeric output at +0x160, or 0 without a rod. Matching +0x160 to the Fuel Rod Temperature port follows the control rod, whose Insertion is written there too.")
+    path = DEFS + "steam_nuclear_fuel_assembly.xml"
+    _, s1, _ = E.at(path, r'coupling_name="x\+"')
+    _, _, e1 = E.at(path, r'coupling_name="z-"[^\n]*\n[^\n]*\n[^\n]*</coupling>')
+    f["a_couplings"] = E.located(path, s1, e1, "Nuclear Fuel Assembly · couplings", "x+, x-, z+, z- at (0, 6, 0)",
+                                 "steam_nuclear_fuel_assembly: four couplings of type control_rod named x+, x-, z+ and z-, orientations 0, 1, 4 and 5, at local (0, 6, 0), alignment required, bipolar alignment allowed. No diagonal coupling.")
+    path = DEFS + "steam_nuclear_control_rod.xml"
+    _, s2, _ = E.at(path, r'coupling_name="x\+"')
+    _, _, e2 = E.at(path, r'coupling_name="z-"[^\n]*\n[^\n]*\n[^\n]*</coupling>')
+    f["c_couplings"] = E.located(path, s2, e2, "Nuclear Control Rod · couplings", "x+, x-, z+, z- at (0, 0, 0)",
+                                 "steam_nuclear_control_rod: the same four control_rod couplings, orientations 0, 1, 4 and 5, at local (0, 0, 0).")
+    for path, (s, e) in ((DEFS + "steam_nuclear_fuel_assembly.xml", (s1, e1)), (DEFS + "steam_nuclear_control_rod.xml", (s2, e2))):
+        block = "\n".join(E.file(path)[1].splitlines()[s - 1:e])
+        if re.findall(r'coupling_name="([^"]+)"', block) != ["x+", "x-", "z+", "z-"] or re.findall(r'orientation="(\d)"', block) != ["0", "1", "4", "5"]:
+            raise ValueError("Nuclear couplings changed in " + path)
+
+    # Radiation sampler and detector.
+    f["s_10"] = op(F_RAD_SAMPLE, 0x14030FAF9, "f3440f10254a0b8a00", 0x140BB064C, "Live source radius per strength", "radius = this × s for each live source (0x14030fb2c).")
+    f["s_200"] = op(F_RAD_SAMPLE, 0x14030FA12, "f3440f101dbd0d8a00", 0x140BB07D8, "Other-compartment radius penalty",
+                    "A source whose compartment differs from the sample's loses this from its radius and is skipped unless the radius stays positive (0x14030fb31-0x14030fb40).")
+    f["s_fall"] = code(F_RAD_SAMPLE, 0x14030FBCB, "410f28c1f30f5cc1f3440f59d0", "Live source falloff", "s × (1 − clamp(d ÷ radius, 0, 1))",
+                       "Only sources with d² < radius² count (0x14030fb83). Each adds s × (1 − clamp(d ÷ radius, 0, 1)) to the reading (0x14030fbd8), linear in distance; sources add.")
+    f["s_room"] = code(F_RAD_SAMPLE, 0x14030FD12, "f30f587e78", "Compartment radiation in the reading", "reading + compartment+0x78",
+                       "Inside a compartment the sampler adds that compartment's radiation value, the one assemblies raise. Outside a compartment (0x14030fbec) it instead queries the persistent contamination index and adds (1 − d ÷ radius) × amplitude per record (0x14030fcce-0x14030fce0).")
+    f["s_dep"] = code(F_RAD_DEPOSIT, 0x14030F8B6, "41c7411800004843f3410f117120", "Contamination record", "radius 200, amplitude",
+                      "A deposit that does not merge into a nearby record creates one with radius 200 and the deposited amount as amplitude.")
+    f["d_case"] = code(F_LOGIC, NU_CASE[1], "0f57c9498d8e00040000e8591af2ff", "Logic case 59", "output cleared first",
+                       "Jump-table entry 59 at %#x (bytes %s, image-relative) leads here; radiation_detector has logic_gate_type 59. The case starts by writing 0 to its numeric output." % (
+                           LOGIC_TABLE + 4 * NU_CASE[0], n.raw(LOGIC_TABLE + 4 * NU_CASE[0], 4).hex()))
+    f["d_gate"] = code(F_LOGIC, 0x1403C881A, "e8618ad7ff85c00f85cb0c0000", "Detector damage test", "damaged → 0",
+                       "Case 59 first clears its output, then skips the reading when 0x140141280 returns nonzero; that routine is the component damage state, as in the fuel cell case.")
+    f["d_read"] = code(F_LOGIC, 0x1403C886E, "e84d71f4ff", "Detector reading", "call 0x14030f9c0",
+                       "Transforms the component position to world space and calls the radiation sampler with its compartment.")
+    f["d_out"] = code(F_LOGIC, 0x1403C8873, "0f28c8498d8e00040000e8ee19f2ff", "Detector output", "sampler result → Radiation",
+                      "Passes the sampler's float straight to the numeric output through 0x1402ea270, with no scale factor.")
+
+    # Derived figures.
+    rate = update_rate(E)["findings"][:1]
+    f["x_stroke"] = E.derived("Control rod stroke", "%s per update, %s per simulated second; full stroke %d updates, %s s" % (fmt(step), _g(step * ups), round(1 / step), _g(round(1 / step) / ups, 4)),
+                              "Insertion moves at most %s per update toward clamp(Insertion Target, 0, 1): %s per simulated second, so 0 to 1 takes %d updates, %s simulated seconds (%s)." % (
+                                  fmt(step), _g(step * ups), round(1 / step), _g(round(1 / step) / ups, 4), NU_DATA) + rep,
+                              [f["c_up"], f["c_down"], f["c_store"]] + rate)
+    fuel_s = K(0x140BAF854) * ups
+    f["x_life"] = E.derived("Fuel lifetime at constant reaction", "%s s (%s h) at r = 50; %s s (%s h) at r = 1" % (_g(life50, 5), _g(life50 / 3600, 4), _g(life50 * 50, 7), _g(life50 * 50 / 3600, 4)),
+                            "At a constant reaction r an undamaged rod uses 1e-8 × r of its fuel per update, 6e-7 × r per simulated second, so a full rod lasts 1 ÷ (6e-7 × r) simulated seconds: "
+                            "%s s, %s simulated hours, at the cap r = 50 and %s s, %s hours, at r = 1. Real r changes with F, neighbours and controls (%s)." % (
+                                _g(life50, 5), _g(life50 / 3600, 4), _g(life50 * 50, 7), _g(life50 * 50 / 3600, 4), NU_DATA) + rep,
+                            [f["r_fuel"], f["r_cap"]] + rate)
+    if not near(fuel_s, 6e-7):
+        raise ValueError("Fuel use per second moved")
+    t_cap = 20 + 0.0999 * 50 / 0.001999
+    f["x_temp"] = E.derived("Rod settled temperature", "Ta + 0.0999 × r ÷ 0.001999 in coolant; Ta + 99.9 × r dry",
+                            "Inference from the update order (coolant step, + 0.1 × r, then 0.001 of the gap to the surroundings), with coolant and surroundings both at Ta: "
+                            "fully immersed in liquid amount 100 of total amount 100, the rod's exchange fraction is 0.001 and T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r. "
+                            "Without coolant exchange it settles at Ta + 0.0999 × r ÷ 0.001 = Ta + 99.9 × r. At the cap r = 50 and Ta = 20 that is %s in coolant and %s dry, both above 1500." % (_g(t_cap, 5), _g(20 + 99.9 * 50, 4)) + rep,
+                            [f["r_heat"], f["r_env"], f["a_k"], f["a_100"], f["r_cap"], f["r_1500"]])
+    f["x_worked"] = E.derived("2 by 2 fuel block, one control rod each", "; ".join("I = %s: r %s, T %s" % (_g(i), _g(r, 4), _g(t, 4)) for i, r, t in worked),
+                              "Output of the report's 60 Hz model (tools/model.py, tools/examples.json), re-derived here in closed form: four fuel assemblies in a square, each with two fuel neighbours and one control rod, F = 1 held fixed, "
+                              "coolant and surroundings at 20, liquid and total amount 100, full immersion, controls before assemblies before rods. After 600 simulated seconds the rods settle at "
+                              + "; ".join("I = %s: r = %s, T = %s" % (_g(i), _g(r, 4), _g(t, 4)) for i, r, t in worked)
+                              + ". The model is not a game measurement, and an uncooled tank would warm up instead." + rep,
+                              [f["a_next"], f["a_nb"], f["a_sup"], f["a_quarter"], f["r_base"], f["r_heat"], f["x_temp"]])
+    crit = {k: (1 - 1 / (0.999 * (0.002 * k + 0.997002))) / 0.01 for k in (2, 3)}
+    g2, g4 = reactor_steady(2, 0)[0], reactor_steady(4, 0)[0]
+    efold = 1 / (g2 - 1) / ups / 3600
+    climb = math.log(50 / 0.1) / math.log(g4) / ups
+    lone, one = reactor_steady(0, 0), reactor_steady(1, 0)
+    f["x_crit"] = E.derived("Settling and runaway layouts", "n = 2: c × I > %s; n = 3: c × I > %s; n = 4: no slot for a control rod" % (_g(crit[2], 1), _g(crit[3], 4)),
+                            "Inference from the assembly and rod steps for equal rods, each with n fuel neighbours and c control rods at insertion I, F held fixed: a disturbance grows by "
+                            "g = 0.999 × (1 − 0.01 × c × I) × (0.002 × n + 0.997002) per update. With g < 1 the reaction settles at r = b + 0.001998 × (1 − 0.01 × c × I) × b × (n − 1) ÷ (1 − g), b = 0.1 × F; "
+                            "otherwise it climbs to the cap of 50. A lone rod settles at %s (T %s in the coolant case) and a rod with one neighbour at %s (T %s), whatever the insertion. "
+                            "Two neighbours give g = %s at I = 0, growing by a factor e in about %s simulated hours; any c × I above %s settles them. Three neighbours need c × I above %s. "
+                            "Four fuel neighbours fill all four couplings, so g = %s: ×%s per simulated second, from 0.1 to the cap in about %s s. "
+                            "In a finite block the outer rods have fewer neighbours, so the block behaves like an n between its smallest and largest neighbour count." % (
+                                _g(lone[1], 4), _g(lone[2], 4), _g(one[1], 4), _g(one[2], 4), _g(g2, 10), _g(efold, 2), _g(crit[2], 1), _g(crit[3], 4), _g(g4, 4), _g(g4 ** ups, 3), _g(climb, 2)) + rep,
+                            [f["a_base"], f["a_fuel"], f["a_ctl"], f["a_nb"], f["a_sup"], f["a_next"], f["r_base"], f["r_cap"], f["a_couplings"], f["x_temp"]] + rate)
+    f["x_damage"] = E.derived("Damage cadence", "first hot update, then every 300 hot updates (5 s); 50 after %s s of hot time" % _g((1 + 49 * 300) / ups, 4),
+                              "Above 1500 the first hot update adds 1 and then every 300 hot updates, 5 simulated seconds, add 1 more, up to 50 after 1 + 49 × 300 = 14701 hot updates, %s s. "
+                              "Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second from damage 10." % _g((1 + 49 * 300) / ups, 4) + rep,
+                              [f["r_1500"], f["r_hit"], f["r_300"], f["r_dloss"]] + rate)
+    f["x_radius"] = E.derived("Live radiation reach", "radius = r m; at r = 50: 5 at the rod, 2.5 at 25 m, 0 from 50 m",
+                              "s = 0.1 × r and radius = 10 × s, so the radius in metres equals r. In the same compartment a rod at the cap r = 50 reads 5 at its position, 2.5 at 25 m and 0 from 50 m; "
+                              "in another compartment the radius drops by 200, so no live source reaches it. The 2 by 2 example at I = 0.25 has s = %s and a radius of %s m." % (_g(0.1 * worked[1][1], 3), _g(worked[1][1], 3)) + rep,
+                              [f["r_strength"], f["s_10"], f["s_200"], f["s_fall"], f["r_cap"], f["x_worked"]])
+    E.nuclear = {"f": f, "ups": ups, "vox": vox, "worked": worked, "crit": crit, "defs": defs, "life50": life50, "climb": climb, "lone": lone, "one": one}
+    return E.nuclear
+
+
+def nuclear(B, E):
+    S = nuclear_native(E)
+    f, worked = S["f"], S["worked"]
+    life50, lone, one = S["life50"], S["lone"][1], S["one"][1]
+    T, P, A = E.tooltip, E.port, E.attr
+    R = update_rate(E)["findings"]
+    h = heat_exchangers(E)
+    ident = [f["slot"], f["dispatch"], f["loader"], f["select"]]
+    reaction = [f[k] for k in ("a_rod", "a_base", "a_loop", "a_fuel", "a_ctl", "a_quarter", "a_nb", "a_sup", "a_next", "a_post", "a_bind", "r_relax", "r_base", "r_cap")]
+    coolant = [f[k] for k in ("a_amount", "a_axis", "a_fill", "a_k", "a_cool", "a_100", "a_half", "a_rad")] + [h["q_liquid"]]
+    (i1, r1, t1), (i2, r2, t2), (i3, r3, t3) = worked
+    ex = "; ".join("I = %s: r %s, T %s" % (_g(i), _g(r, 4), _g(t, 4)) for i, r, t in worked)
+
+    B.family("part-steam-nuclear-fuel-assembly",
+             "Runs the reaction of the fuel rod inside it: relaxes it toward 0.1 × fuel fraction, adds the reactions of coupled fuel assemblies, scales the excess by 1 − 0.01 × the summed insertion of coupled control rods, and trades heat with the liquid in its compartment.",
+             [section("Setup and interactions", "Insert a fuel rod, couple the assembly to other assemblies and control rods through its four side couplings, and read Fuel Rod Temperature to drive the control rods' Insertion Target."),
+              section("Reaction step",
+                      "Native nuclear type 0, which the editor names fuel assembly. Each update an assembly with a rod works on that rod's reaction R and fuel fraction F, with b = 0.1 × F. "
+                      "It computes A = b + 0.999 × (R − b), then B = S + 0.998 × (A − S), where S is the sum of R over coupled assemblies that hold a rod, and stores b + (1 − 0.01 × C) × (B − b) as the rod's working reaction, "
+                      "C being the summed insertion of coupled control rods (each adds 0.25 × I, scaled by 0.04). The rod then applies its own step and the 0 to 50 clamp, and after the update pass the assembly copies the result into R. "
+                      "Neighbours are added, not averaged, and an assembly without a rod adds nothing. Control rods scale only the part above b, so even full insertion leaves the baseline."),
+              section("Neighbours",
+                      "The assembly reads only the four couplings of type control_rod named x+, x-, z+ and z-; there is no distance search. Each coupling holds a fuel assembly or a control rod, "
+                      "so an assembly with four fuel neighbours has no coupling left for a control rod. The couplings sit at (0, 6, 0) on the assembly and (0, 0, 0) on the control rod, with orientations 0, 1, 4 and 5 and alignment required; none is diagonal. "
+                      "Inference: in a normal block grid the neighbours are the four horizontal cardinal cells, and a control rod between two assemblies counts for both."),
+              section("Settling and runaway layouts",
+                      "Inference from these steps, for equal rods with n fuel neighbours and c control rods at insertion I and fuel held fixed: a disturbance grows by g = 0.999 × (1 − 0.01 × c × I) × (0.002 × n + 0.997002) per update. "
+                      "With g < 1 the reaction settles; otherwise it climbs to the cap of 50. A rod with no or one fuel neighbour always settles, at %s and %s. "
+                      "With two neighbours any c × I above %s settles it; with three, c × I must exceed %s. Four fuel neighbours leave no coupling for a control rod and climb from 0.1 to the cap in about %s simulated seconds. "
+                      "Lines and two-wide blocks therefore stay controllable; a full grid with enclosed assemblies does not. "
+                      "In the report's 2 by 2 block with one control rod per assembly, coolant at 20: %s." % (_g(lone, 4), _g(one, 4), _g(S["crit"][2], 1), _g(S["crit"][3], 4), _g(S["climb"], 2), ex)),
+              section("Coolant",
+                      "With a rod inserted and the assembly's compartment holding a total amount A above 1, each update k = 0.001 × (q ÷ A) × w, where q is the compartment's liquid amount (every liquid counts alike) and w the share of the rod span, 2 to 11 blocks along the assembly axis, below the fill level y_min + (y_max − y_min) × q ÷ V. "
+                      "From the old temperatures the coolant moves k × (rod − coolant) and the rod moves min(q ÷ 100 × k, 0.5) × (coolant − rod). Inference: below that cap the exchange conserves q × T_coolant + 100 × T_rod, so per degree the rod holds as much heat as 100 liquid amount. Reading the fill level from the compartment bounds is also an inference. "
+                      "The coolant also gains 0.001 × the rod's working reaction ÷ A of radiation contamination per update, which a radiation detector in that compartment reads."),
+              section("Fuel Rod Temperature", "The output is the inserted rod's temperature after the coolant step, or 0 with no rod.")],
+             ident + [f["names"][0]] + reaction + coolant + [f["a_out"], f["a_couplings"], f["c_couplings"], f["x_crit"], f["x_worked"], f["x_temp"], S["vox"]["steam_nuclear_fuel_assembly"]] + R
+             + [T("steam_nuclear_fuel_assembly"), P("steam_nuclear_fuel_assembly", "Fuel Rod Temperature"), P("steam_nuclear_fuel_assembly", "Release Fuel Rod"),
+                A("steam_nuclear_fuel_assembly", "nuclear_component_type", "Value 0, named fuel assembly by the editor selector.")],
+             [NU_STATIC, NU_POINTER, TICK])
+
+    B.family("part-steam-nuclear-fuel-rod",
+             "Its reaction r, 0 to 50, heats it by 0.1 × r and burns 1e-8 × r of its fuel per update: a full rod held at the cap lasts %s simulated hours. Above 1500 it takes damage." % _g(life50 / 3600, 4),
+             [section("Setup and interactions", "Insert it into a fuel assembly. Spawned with full fuel its fuel fraction F is 1: the resource initializer divides its fuel quantity by its voxel count."),
+              section("Reaction rate",
+                      "Native nuclear type 1, which the editor names fuel rod. After its assembly's step the rod sets r = clamp(b + 0.999 × (next − b), 0, 50), with b = 0.1 × F and next the working reaction. "
+                      "A rod outside an assembly first copies next into its reaction and multiplies next by 0.999, so its reaction decays. r is a rate in the game's own scale, not a power."),
+              section("Heat and fuel",
+                      "Each update T rises by 0.1 × r and F falls by 1e-8 × r, then T moves 0.001 of the way toward the surrounding temperature, which the rod samples every 16 updates and ramps over 16 like the heat exchangers. Insertion acts only through r. "
+                      "At a constant r a full rod lasts %s s (%s simulated hours) at r = 50 and %s s (%s hours) at r = 1. Inference: immersed in coolant held at Ta (liquid and total amount 100), T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r; with no coolant exchange at Ta + 99.9 × r. "
+                      "At the cap and Ta = 20 that is %s in coolant, above the damage limit." % (
+                          _g(life50, 5), _g(life50 / 3600, 4), _g(life50 * 50, 7), _g(life50 * 50 / 3600, 4), _g(20 + 0.0999 * 50 / 0.001999, 5))),
+              section("Damage",
+                      "When T is strictly above 1500 after heating, the first such update raises damage by 1 and then every 300 hot updates (5 simulated seconds) add 1 more, up to 50. Cooling does not reset that counter. "
+                      "Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second, and deposits 10 times that as persistent contamination at the rod. "
+                      "From damage 2 a one-time event runs when two game settings are on; its save flag is named fire. Nothing in the rod update explodes at 1500: the threshold only drives damage."),
+              section("Radiation",
+                      "While r is above 0.001 the rod is a live source of strength s = 0.1 × r at its position; at or below it the source is removed. A detector in the same compartment at distance d reads s × (1 − d ÷ (10 × s)) out to 10 × s metres, so the reach in metres equals r: "
+                      "5 at the rod and 2.5 at 25 m for r = 50. In another compartment the reach drops by 200 m, so the live source does not reach it. Sources add, with linear falloff.")],
+             ident + [f["names"][1], f["r_relax"], f["r_loose"], f["r_base"], f["r_cap"], f["r_heat"], f["r_fuel"], f["r_tick"], f["r_env"], f["temp0"], f["ramp0"], f["spawn"],
+                      f["r_1500"], f["r_hit"], f["r_300"], f["r_setter"], f["r_event"], f["r_record"], f["r_dloss"], f["r_dep"], f["s_dep"], f["r_src"], f["r_strength"],
+                      f["s_10"], f["s_200"], f["s_fall"], f["x_life"], f["x_temp"], f["x_damage"], f["x_radius"], f["a_k"], f["a_100"], h["ambient"], S["vox"]["steam_nuclear_fuel_rod"]] + R
+             + [T("steam_nuclear_fuel_rod"), A("steam_nuclear_fuel_rod", "nuclear_component_type", "Value 1, named fuel rod by the editor selector.")],
+             [NU_STATIC, NU_POINTER, TICK])
+
+    B.family("part-steam-nuclear-control-rod",
+             "Insertion follows Insertion Target, clamped to 0 to 1, by at most 0.005 per update (a full stroke takes %s s); each coupled fuel assembly scales the reaction above 0.1 × fuel by 1 − 0.01 × the summed insertion." % _g(S["defs"]["steam_nuclear_control_rod"]["full_stroke_seconds"], 4),
+             [section("Setup and interactions", "Couple it to fuel assemblies through its side couplings and drive Insertion Target, for example from an assembly's Fuel Rod Temperature."),
+              section("Insertion",
+                      "Native nuclear type 2, which the editor names control rod. While undamaged, each update I moves toward clamp(Insertion Target, 0, 1) by at most 0.005: 0.3 per simulated second, 200 updates or %s s for a full stroke. "
+                      "The Insertion output is I. A damaged control rod skips this step, so its insertion stays where it was." % _g(200 / S["ups"], 4)),
+              section("Effect on the reaction",
+                      "Every coupled assembly adds 0.25 × I per control rod and multiplies the sum by 0.04, so each rod contributes 0.01 × I to C in b + (1 − 0.01 × C) × (B − b). Larger insertion lowers the reaction, but full insertion of one rod removes only 1%% of the part above b per update. "
+                      "How many fuel neighbours an assembly has matters as much (see the fuel assembly page): with two, c × I above %s settles the reaction; with three, above %s. "
+                      "In the report's 2 by 2 block with one control rod per assembly, coolant at 20: %s." % (_g(S["crit"][2], 1), _g(S["crit"][3], 4), ex))],
+             ident + [f["names"][2], f["c_damage"], f["c_input"], f["c_down"], f["c_up"], f["c_store"], f["a_ctl"], f["a_quarter"], f["a_sup"], f["a_next"], f["a_bind"],
+                      f["c_couplings"], f["x_stroke"], f["x_crit"], f["x_worked"]] + R
+             + [T("steam_nuclear_control_rod"), P("steam_nuclear_control_rod", "Insertion Target"), P("steam_nuclear_control_rod", "Insertion"),
+                A("steam_nuclear_control_rod", "nuclear_component_type", "Value 2, named control rod by the editor selector.")],
+             [NU_STATIC, NU_POINTER, TICK])
+
+    B.family("part-radiation-detector",
+             "Outputs the sum of live sources within reach, s × (1 − d ÷ (10 × s)), plus the contamination of the compartment it sits in; outside compartments it adds persistent contamination records instead.",
+             [section("Reading",
+                      "Logic case 59 transforms the detector's position to world space, calls the radiation sampler and writes the result unscaled to the Radiation output. A damaged detector outputs 0. "
+                      "Each fuel rod with a reaction above 0.001 is a live source of strength s = 0.1 × r and reach 10 × s metres, reduced by 200 m when it sits in another compartment; sources add with linear falloff. "
+                      "Inside a compartment the detector also adds that compartment's contamination, which fuel assemblies raise by 0.001 × reaction ÷ total amount per update. "
+                      "Outside a compartment it adds persistent contamination records instead, each (1 − d ÷ radius) × amplitude; damaged fuel rods create them with radius 200."),
+              section("Example", "A fuel rod at the cap r = 50 in the detector's compartment reads 5 at the rod, 2.5 at 25 m and 0 from 50 m. A rod settled at r = %s, as in the 2 by 2 example at insertion 0.25, reaches only %s m, so most of a reactor's reading comes from its coolant contamination." % (_g(r2, 3), _g(r2, 3)))],
+             [f["d_case"], f["d_gate"], f["d_read"], f["d_out"], f["s_10"], f["s_200"], f["s_fall"], f["s_room"], f["s_dep"], f["r_strength"], f["r_src"], f["a_rad"], f["x_radius"], f["x_worked"],
+              T("radiation_detector"), P("radiation_detector", "Radiation"), A("radiation_detector", "logic_gate_type", "Value 59 selects case 59 of the logic update.")],
+             [NU_STATIC, NU_POINTER])
+
+
 def build(root):
     E = Evidence(root)
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 winches, fluid_links, connectors, air_scoop, displays, logic, keels, window_families, small_parts):
+                 winches, fluid_links, connectors, air_scoop, displays, logic, keels, window_families, small_parts, nuclear):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.

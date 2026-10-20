@@ -11,6 +11,7 @@ import {
   WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelShaftWeight,
   WINCH, WINCH_GROUPS, WINCHES, reelTime, winchFor, winchRate,
   KEEL, KEELS, keelFor, keelLateral, keelScale, keelUpright,
+  NUCLEAR, REACTOR_CONTROLS, REACTOR_SHAPES, reactorCritical, reactorRun,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -2692,10 +2693,141 @@ function KeelGraph({ variant }) {
   );
 }
 
+/* ---------- nuclear reactor ---------- */
+
+const REACTOR_PLOTS = {
+  temperature: { label: 'Rod temperature', axis: 'Temperature (internal)', hot: 'tMax', cold: 'tMin' },
+  reaction: { label: 'Reaction rate', axis: 'Reaction r (0 to 50)', hot: 'rMax', cold: 'rMin' },
+};
+const REACTOR_DURATIONS = [60, 300, 600, 1800];
+const minutes = (d) => (d >= 60 ? `${d / 60} min` : `${d} s`);
+const span = (lo, hi) => (lo === hi ? `${lo}` : `${lo} to ${hi}`);
+
+function ReactorGraph() {
+  const uid = useUid();
+  const [count, setCount] = useState(4);
+  const [shape, setShape] = useState('square');
+  const [controls, setControls] = useState('one');
+  const [insertion, setInsertion] = useState(0.25);
+  const [immersion, setImmersion] = useState(1);
+  const [plot, setPlot] = useState('temperature');
+  const [duration, setDuration] = useState(600);
+  const [time, setTime] = useState(120);
+  const run = useMemo(
+    () => reactorRun({ count, shape, controls, insertion, immersion, seconds: duration, every: Math.max(1, Math.round((duration * UPDATES_PER_SECOND) / 600)) }),
+    [count, shape, controls, insertion, immersion, duration],
+  );
+  const { rows, layout, damageAt } = run;
+  const P = REACTOR_PLOTS[plot];
+  const pickT = Math.min(time, duration);
+  const at = rows.reduce((a, r) => (Math.abs(r.t - pickT) < Math.abs(a.t - pickT) ? r : a), rows[0]);
+  const last = rows.at(-1);
+  const counts = layout.fuel.map((f) => f.length);
+  const nMax = Math.max(...counts);
+  const ctl = layout.control.map((c) => c.length);
+  const same = rows.every((r) => Math.abs(r[P.hot] - r[P.cold]) < 1e-9 * Math.max(1, Math.abs(r[P.hot])));
+  const lines = same
+    ? [{ key: P.hot, label: `Every rod, ${P.label.toLowerCase()}`, className: 'graph-line-a', dot: 'graph-dot-a' }]
+    : [
+      { key: P.hot, label: `Hottest rod, ${P.label.toLowerCase()}`, className: 'graph-line-a', dot: 'graph-dot-a' },
+      { key: P.cold, label: `Coolest rod, ${P.label.toLowerCase()}`, className: 'graph-line-b', dot: 'graph-dot-b' },
+    ];
+  const limit = plot === 'temperature' ? NUCLEAR.damageTemperature : NUCLEAR.cap;
+  const showLimit = rows.some((r) => r[P.hot] > 0.5 * limit);
+  const y = forceDomain(rows.flatMap((r) => lines.map((l) => r[l.key])).concat(showLimit ? [limit] : []));
+  const bands = damageAt === null ? [] : [{ from: damageAt, to: duration }];
+  const critical = reactorCritical(nMax);
+  const worst = Math.min(...layout.fuel.map((f, i) => (f.length === nMax ? ctl[i] : Infinity)));
+  const settles = nMax < NUCLEAR.couplings && (critical === 0 || worst * insertion > critical);
+  const shapeText = `${count} fuel ${count === 1 ? 'rod' : 'rods'}, ${REACTOR_SHAPES[shape].label.toLowerCase()}, control rods ${REACTOR_CONTROLS[controls].toLowerCase()} at insertion ${fixed(insertion, 2)}`;
+  const summary = `${shapeText}. At ${fixed(at.t, 1)} s: hottest rod ${fixed(at.tMax, 1)} with r ${fixed(at.rMax, 4)}, coolest ${fixed(at.tMin, 1)} with r ${fixed(at.rMin, 4)}, insertion ${fixed(at.insertion, 3)}. ${damageAt === null ? 'No rod passes 1500 in this window.' : `A rod passes 1500 at ${fixed(damageAt, 1)} s.`}`;
+  const status = useSettled(summary);
+  const desc = `${P.label} over ${duration} simulated seconds from a cold start at 20, coolant and surroundings held at 20. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[...lines.map((l) => ({ label: l.label, className: l.className })), ...(showLimit ? [{ label: plot === 'temperature' ? 'Damage limit 1500' : 'Reaction cap 50', className: 'graph-line-c' }] : []),
+        ...(bands.length ? [{ label: 'A rod is above 1500; damage is left out of the model', band: true }] : [])]}
+      controls={(
+        <>
+          <Range id={`${uid}-n`} label="Fuel rods" value={count} min={1} max={12} step={1} onChange={setCount} valueText={`${count}`} hint={`Fuel neighbours per assembly: ${span(Math.min(...counts), nMax)}. Each assembly has ${NUCLEAR.couplings} couplings for fuel and control rods together.`} />
+          <div className="graph-field">
+            <label htmlFor={`${uid}-shape`}>Arrangement</label>
+            <select id={`${uid}-shape`} value={shape} onChange={(e) => setShape(e.target.value)}>
+              {Object.entries(REACTOR_SHAPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-ctl`}>Control rods</label>
+            <select id={`${uid}-ctl`} value={controls} onChange={(e) => setControls(e.target.value)} aria-describedby={`${uid}-ctl-hint`}>
+              {Object.entries(REACTOR_CONTROLS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <span id={`${uid}-ctl-hint`} className="graph-field-hint">{`${layout.controlCount} control ${layout.controlCount === 1 ? 'rod' : 'rods'}, ${span(Math.min(...ctl), Math.max(...ctl))} per assembly on its free couplings.`}</span>
+          </div>
+          <Range id={`${uid}-i`} label="Insertion Target" value={insertion} min={0} max={1} step={0.01} onChange={setInsertion} valueText={fixed(insertion, 2)} hint="Every control rod starts withdrawn and moves at most 0.005 per update toward this." />
+          <Range id={`${uid}-w`} label="Immersion" value={immersion} min={0} max={1} step={0.05} onChange={setImmersion} valueText={pct(immersion)} hint="Share of each rod span below the coolant. At 0 only the 0.001 pull toward the surroundings cools the rods." />
+          <div className="graph-field">
+            <label htmlFor={`${uid}-plot`}>Plot</label>
+            <select id={`${uid}-plot`} value={plot} onChange={(e) => setPlot(e.target.value)}>
+              {Object.entries(REACTOR_PLOTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-d`}>Simulated time</label>
+            <select id={`${uid}-d`} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+              {REACTOR_DURATIONS.map((d) => <option key={d} value={d}>{minutes(d)}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-x`} label="Selected time" value={pickT} min={0} max={duration} step={duration / 300} onChange={(v) => setTime(+v.toFixed(3))} valueText={`${fixed(pickT, 1)} s`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`${P.label} over time, ${shapeText}`}
+          desc={desc}
+          bands={bands}
+          x={{ min: 0, max: duration, ticks: steps(0, duration, duration / 4), format: (v) => `${fixed(v, 0)} s`, label: 'Simulated time (s)' }}
+          y={{ ...y, format: tick }}
+          series={[...lines.map((l) => ({ key: l.key, className: l.className, points: rows.map((r) => [r.t, r[l.key]]) })),
+            ...(showLimit ? [{ key: 'limit', className: 'graph-line-c', points: [[0, limit], [duration, limit]] }] : [])]}
+          selected={{ x: at.t, points: lines.map((l) => ({ key: l.key, y: at[l.key], className: l.dot })) }}
+          onSelect={(v) => setTime(snap(v, 0, duration, duration / 300))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At ${fixed(at.t, 1)} s`}
+          rows={[
+            ['Hottest rod', `${fixed(at.tMax, 2)}, r ${fixed(at.rMax, 4)}`, at.tMax > NUCLEAR.damageTemperature ? 'graph-no' : 'graph-ok'],
+            ['Coolest rod', `${fixed(at.tMin, 2)}, r ${fixed(at.rMin, 4)}`],
+            ['Control rod insertion', fixed(at.insertion, 3)],
+            ['Lowest fuel fraction', fixed(at.fuel, 6)],
+            ['First rod above 1500', damageAt === null ? 'not in this window' : `${fixed(damageAt, 1)} s`, damageAt === null ? 'graph-ok' : 'graph-no'],
+            ['Most fuel neighbours', nMax === NUCLEAR.couplings ? `${nMax}: no coupling left for a control rod` : `${nMax}: settles when c × I > ${fixed(critical, 4)} (inference)`, settles ? 'graph-ok' : 'graph-no'],
+            ['End of the window', `hottest ${fixed(last.tMax, 1)}, r ${fixed(last.rMax, 3)}`],
+          ]}
+        />
+      )}
+      table={{
+        caption: shapeText,
+        cols: ['Time (s)', 'Hottest rod', 'Coolest rod', 'Highest r', 'Lowest r', 'Insertion'],
+        rows: steps(0, duration, duration / 10).map((t) => {
+          const r = rows.reduce((a, x) => (Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a), rows[0]);
+          return [fixed(t, 0), fixed(r.tMax, 2), fixed(r.tMin, 2), fixed(r.rMax, 4), fixed(r.rMin, 4), fixed(r.insertion, 3)];
+        }),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
   clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph, winch: WinchGraph, keel: KeelGraph,
+  reactor: ReactorGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

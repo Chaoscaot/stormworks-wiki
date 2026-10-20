@@ -19,6 +19,7 @@
 // Wheels: investigation/wheels.md (advanced wheel update 0x1403aa4a0, track pass 0x14049e060).
 // Winches and the Hose: investigation/winches.md (rope-node cable update 0x140524c80, legacy reel callback 0x1403e3b30).
 // Keels: investigation/keel-windows.md (rudder update 0x1403dfd20, rudder_type 2 water branch).
+// Nuclear reactor: investigation/nuclear.md (nuclear update 0x14041dc40, post-update 0x14041ed90).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -1367,6 +1368,111 @@ export function keelMemory({ keel, scale, step, updates = 1 }) {
   return -KEEL.momentum * keelScale(keel, scale) * step * (1 - KEEL.memoryRate) ** updates;
 }
 
+// Nuclear reactor, investigation/nuclear.md (nuclear update 0x14041dc40, post-update 0x14041ed90), ported from
+// investigation/native/nuclear/tools/model.py in double precision with the same operation order: control rods,
+// then every assembly, then every fuel rod, then the post-update commit. The neighbour graph is supplied directly,
+// four couplings per assembly; the game's coupling matcher is not emulated. Coolant and surroundings are held fixed.
+export const NUCLEAR = {
+  baseline: 0.1, relax: 0.999, neighbourRelax: 0.998, controlWeight: 0.25, controlScale: 0.04, insertionStep: 0.005, cap: 50,
+  heat: 0.1, fuelUse: 1e-8, ambient: 0.001, exchange: 0.001, rodCapacity: 100, rodCap: 0.5, minTotal: 1, damageTemperature: 1500,
+  damageEvery: 300, couplings: 4,
+};
+export const REACTOR_SHAPES = {
+  line: { label: 'Line', width: (n) => n },
+  double: { label: 'Two-wide block', width: (n) => Math.ceil(n / 2) },
+  square: { label: 'Square block', width: (n) => Math.ceil(Math.sqrt(n)) },
+};
+export const REACTOR_CONTROLS = { none: 'None', one: 'One per assembly', all: 'On every free side' };
+export const REACTOR_FAMILIES = ['part-steam-nuclear-fuel-assembly', 'part-steam-nuclear-fuel-rod', 'part-steam-nuclear-control-rod'];
+
+// Fuel assemblies filled row by row; fuel neighbours share a side. Each assembly gets its own control rods on free sides.
+export function reactorLayout(count, shape = 'square', controls = 'one') {
+  if (!Number.isInteger(count) || count < 1) throw new RangeError('Fuel rod count must be a positive integer.');
+  if (!REACTOR_SHAPES[shape] || !REACTOR_CONTROLS[controls]) throw new RangeError('Unknown reactor layout.');
+  const w = REACTOR_SHAPES[shape].width(count);
+  const cells = Array.from({ length: count }, (_, i) => [i % w, Math.floor(i / w)]);
+  const fuel = cells.map(([x, z]) => cells.flatMap(([a, b], j) => (Math.abs(a - x) + Math.abs(b - z) === 1 ? [j] : [])));
+  const control = [];
+  let next = 0;
+  for (const f of fuel) {
+    const free = NUCLEAR.couplings - f.length;
+    const n = controls === 'none' ? 0 : controls === 'one' ? Math.min(1, free) : free;
+    control.push(Array.from({ length: n }, () => next++));
+  }
+  return { cells, fuel, control, controlCount: next };
+}
+
+// One update of model.py's step(). rods: [{ react, next, fuel, temp }], insertions: one value per control rod.
+export function reactorStep(rods, layout, insertions, { target, coolant = 20, environment = 20, liquid = 100, total = 100, immersion = 1, freezeFuel = false }) {
+  for (let c = 0; c < insertions.length; c += 1) {
+    insertions[c] += clamp(clamp(target, 0, 1) - insertions[c], -NUCLEAR.insertionStep, NUCLEAR.insertionStep);
+  }
+  const old = rods.map((r) => r.react);
+  rods.forEach((rod, i) => {
+    const b = NUCLEAR.baseline * rod.fuel;
+    let nxt = NUCLEAR.relax * (old[i] - b) + b;
+    let s = 0;
+    for (const j of layout.fuel[i]) s += old[j];
+    nxt = NUCLEAR.neighbourRelax * (nxt - s) + s;
+    let c = 0;
+    for (const j of layout.control[i]) c += insertions[j];
+    nxt = (1 - 0.01 * c) * (nxt - b) + b;
+    rod.next = nxt;
+    if (total > NUCLEAR.minTotal) {
+      const k = (NUCLEAR.exchange * liquid) / total * clamp(immersion, 0, 1);
+      rod.temp += clamp((liquid / NUCLEAR.rodCapacity) * k, 0, NUCLEAR.rodCap) * (coolant - rod.temp);
+    }
+  });
+  for (const rod of rods) {
+    const b = NUCLEAR.baseline * rod.fuel;
+    const rate = clamp(NUCLEAR.relax * (rod.next - b) + b, 0, NUCLEAR.cap);
+    rod.next = rate;
+    rod.temp += NUCLEAR.heat * rate;
+    if (!freezeFuel) rod.fuel = clamp(rod.fuel - NUCLEAR.fuelUse * rate, 0, 1);
+    rod.temp += NUCLEAR.ambient * (environment - rod.temp);
+    rod.react = rod.next;
+  }
+}
+
+// Reactor from a cold start: every rod at 20 with full fuel and no reaction, every control rod withdrawn.
+export function reactorRun({ count = 4, shape = 'square', controls = 'one', insertion = 0.25, seconds = 600, coolant = 20, environment = 20, liquid = 100, total = 100, immersion = 1, freezeFuel = false, every = 60 }) {
+  finite([count, insertion, seconds, coolant, environment, liquid, total, immersion, every]);
+  if (seconds <= 0 || every < 1 || liquid < 0 || total < 0) throw new RangeError('Duration, sampling and amounts must be positive.');
+  const layout = reactorLayout(count, shape, controls);
+  const rods = layout.cells.map(() => ({ react: 0, next: 0, fuel: 1, temp: 20 }));
+  const insertions = Array(layout.controlCount).fill(0);
+  const updates = Math.round(seconds * UPDATES_PER_SECOND);
+  const opts = { target: insertion, coolant, environment, liquid, total, immersion, freezeFuel };
+  const row = (tick) => ({
+    t: tick / UPDATES_PER_SECOND,
+    tMax: Math.max(...rods.map((r) => r.temp)), tMin: Math.min(...rods.map((r) => r.temp)),
+    rMax: Math.max(...rods.map((r) => r.react)), rMin: Math.min(...rods.map((r) => r.react)),
+    fuel: Math.min(...rods.map((r) => r.fuel)), insertion: insertions.length ? insertions[0] : 0,
+  });
+  const rows = [row(0)];
+  let damageAt = null;
+  for (let tick = 1; tick <= updates; tick += 1) {
+    reactorStep(rods, layout, insertions, opts);
+    if (damageAt === null && rods.some((r) => r.temp > NUCLEAR.damageTemperature)) damageAt = tick / UPDATES_PER_SECOND;
+    if (tick % every === 0 || tick === updates) rows.push(row(tick));
+  }
+  return { rows, rods, layout, damageAt };
+}
+
+// Inference from the decoded steps for equal rods, n fuel neighbours each, summed insertion ci, fuel held fixed:
+// g is the per-update growth factor of a disturbance; below 1 the reaction settles at r. f is the rod's coolant pull per update.
+export function reactorSteady(n, ci, fuel = 1, f = 0.001, ambient = 20) {
+  finite([n, ci, fuel, f, ambient]);
+  const b = NUCLEAR.baseline * fuel;
+  const m = 1 - 0.01 * ci;
+  const g = 0.999 * m * (0.002 * n + 0.997002);
+  if (g >= 1) return { g, r: null, temp: null };
+  const r = b + (0.001998 * m * b * (n - 1)) / (1 - g);
+  return { g, r, temp: ambient + (0.0999 * r) / (1 - 0.999 * (1 - f)) };
+}
+// Summed insertion above which equal rods with n fuel neighbours settle; 0 when they always do.
+export const reactorCritical = (n) => Math.max(0, (1 - 1 / (0.999 * (0.002 * n + 0.997002))) / 0.01);
+
 const FAMILY_GRAPHS = {
   'part-torque-clutch': ['clutch'],
   'modular-engine-clutch': ['clutch'],
@@ -1400,5 +1506,6 @@ const FAMILY_GRAPHS = {
   ...Object.fromEntries(WHEEL_GROUPS.map((g) => [g.family, ['wheel']])),
   ...Object.fromEntries(WINCHES.map((w) => [w.family, ['winch']])),
   keel: ['keel'],
+  ...Object.fromEntries(REACTOR_FAMILIES.map((id) => [id, ['reactor']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];
