@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1037,4 +1037,128 @@ test('shaft bridge pass matches investigation/native/transmission/tools/examples
   check(shaftBridge(A, B, 1, standaloneClutch({ input: 0.3 }).coupling), ex.input_0_3_below_path_cutoff, 'input 0.3');
   check(shaftBridge(A, B, 1, 0), ex.off, 'off');
   check(shaftBridge([30, 201], [10, 101], 1 / 3), ex.ratio_matched, 'ratio matched');
+});
+
+test('gun classes and weapon constants remain tied to the verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const all = data.families.flatMap((f) => f.findings);
+  const any = (label) => all.find((x) => x.label === label);
+  const blocks = new Map(JSON.parse(readFileSync(new URL('../../data/blocks.json', import.meta.url), 'utf8')).blocks.map((b) => [b.id, b]));
+  for (const g of GUN_CLASSES) {
+    const b = blocks.get(g.id);
+    assert.equal(b.name, g.label, g.id);
+    assert.equal(Number(b.attributes.weapon_class), g.cls, `${g.id} weapon_class`);
+    const row = any(`${g.label} gun record`);
+    assert.ok(row?.source?.address, `${g.label} gun record`);
+    const field = (re) => Number(row.detail.match(re)[1]);
+    assert.equal(field(/muzzle speed ([\d.]+) m\/s/), g.muzzle);
+    assert.equal(Math.fround(field(/heat per shot ([\d.]+)/)), g.heat);
+    assert.equal(Math.fround(field(/dispersion ([\d.]+) rad/)), g.dispersion);
+    assert.equal(Math.fround(field(/recoil coefficient ([\d.]+)/)), g.recoil);
+    assert.equal(field(/breech transition (\d+) updates/), g.transition);
+    assert.equal(field(/projectile type (\d+)/), g.projectile);
+    const shell = any(`${g.label} projectile record`).detail;
+    assert.equal(Number(shell.match(/lifetime (\d+) updates/)[1]), g.lifetime);
+    assert.equal(Math.fround(Number(shell.match(/velocity kept per update ([\d.]+)/)[1])), g.retention);
+    assert.deepEqual(graphKindsForFamily(g.families[0]), g.id === 'gun_v' ? ['ballistics', 'heat'] : ['ballistics']);
+  }
+  assert.equal(Number(any('Gravity step in air').value), WEAPON.gravityStep);
+  assert.equal(Number(any('Gravity radius constant').value), WEAPON.radius);
+  assert.equal(Number(any('Speed deletion threshold').value), WEAPON.speedFloor ** 2);
+  assert.equal(Math.fround(Number(any('Heat cooling per update').value)), WEAPON.heatCooling);
+  assert.equal(Number(any('Heat stop threshold').value), WEAPON.heatStop);
+  assert.equal(Number(any('Heat resume threshold').value), WEAPON.heatResume);
+  assert.equal(Math.fround(Number(any('Heat zero snap').value)), WEAPON.heatSnap);
+  assert.equal(Number(any('Fuel units per volume unit').value), WEAPON.fuelPerVolume);
+  assert.equal(Number(any('Fuel use factor').value), WEAPON.fuelUse);
+  assert.equal(Number(any('Thrust per fuel unit').value), WEAPON.thrustPerUnit);
+  assert.equal(Number(any('Solid rocket thrust application limit').value), WEAPON.capLimit);
+  for (const r of SOLID_ROCKETS) {
+    for (const id of [r.id, ...r.fuel]) {
+      assert.equal(Number(blocks.get(id).attributes.door_side_dist), r.width, id);
+      assert.equal(Number(blocks.get(id).attributes.door_up_dist), r.length, id);
+      assert.equal(solidRocketFor(id).id, r.id);
+    }
+  }
+  for (const id of ['solid-rocket-booster', 'solid-rocket-fuel', 'solid-rocket-fuel-fins']) assert.deepEqual(graphKindsForFamily(id), ['booster']);
+  assert.deepEqual(graphKindsForFamily('weapon-m-barrel'), []);
+  assert.equal(gunClassFor('part-gun-xl').id, 'gun_xl');
+  assert.deepEqual(GUN_CLASSES.filter((g) => g.speedGate).map((g) => g.id), ['gun_xs', 'gun_s', 'gun_v', 'gun_m']);
+  assert.deepEqual(GUN_CLASSES.filter((g) => g.automatic).map(gunCycle), [4, 8, 2, 38]);
+});
+
+test('flight, heat and booster models match investigation/native/weapons/tools/worked-examples.txt when present', (t) => {
+  const dir = new URL('../../../investigation/native/weapons/', import.meta.url);
+  if (!existsSync(new URL('tools/worked-examples.txt', dir))) return t.skip('investigation/ is not in this checkout');
+  const ex = readFileSync(new URL('tools/worked-examples.txt', dir), 'utf8');
+  const by = Object.fromEntries(GUN_CLASSES.map((g) => [g.label, g]));
+  const ends = { 'ground plane': 'ground', 'speed <50 m/s': 'speed', lifetime: 'lifetime' };
+  let n = 0;
+  for (const m of ex.matchAll(/^(.+?)\s+angle=\s*(\d+)deg t=\s*([\d.]+)s x=\s*([\d.]+)m y=\s*([\d.]+)m end=(.+)$/gm)) {
+    const run = projectileFlight({ gun: by[m[1].trim()], angle: Number(m[2]) });
+    const last = run.rows.at(-1);
+    assert.deepEqual([last.t.toFixed(3), last.x.toFixed(3), last.y.toFixed(3), run.end], [m[3], m[4], m[5], ends[m[6]]], m[0]);
+    n += 1;
+  }
+  for (const m of ex.matchAll(/^(.+?) (\d+) m: t=([\d.]+)s drop=([\d.]+)m$/gm)) {
+    const at = flightAt(projectileFlight({ gun: by[m[1]], angle: 0, height: 100 }).rows, Number(m[2]));
+    assert.deepEqual([at.t.toFixed(4), (100 - at.y).toFixed(4)], [m[3], m[4]], m[0]);
+    n += 1;
+  }
+  assert.equal(n, 29);
+  // Independent closed form with constant gravity, as in model.py --check.
+  const heavy = by['Heavy Autocannon'];
+  const flat = projectileFlight({ gun: heavy, angle: 20, height: 1000, flatGravity: true }).rows;
+  const r = heavy.retention;
+  for (const k of [1, 10, 30]) {
+    const q = (1 - r ** k) / (1 - r);
+    const vx = heavy.muzzle * Math.cos((20 * Math.PI) / 180);
+    const vy = heavy.muzzle * Math.sin((20 * Math.PI) / 180);
+    assert.ok(Math.abs(flat[k].x - (vx * q) / 60) < 1e-7);
+    assert.ok(Math.abs(flat[k].y - (1000 + (vy * q) / 60 - ((0.5 * r) / (1 - r)) * (k - q) / 60)) < 1e-7);
+  }
+  for (const line of ex.split('\n').filter((l) => l.startsWith('{"burn_seconds"'))) {
+    const want = JSON.parse(line);
+    const size = SOLID_ROCKETS.find((x) => x.width === want.width);
+    const got = solidRocket({ width: size.width, length: size.length, sections: want.segments });
+    assert.deepEqual([got.capacity, got.use, got.thrust, got.updates, got.last], [want.fuel_units, want.units_per_update, want.raw_thrust_internal, want.burn_updates, want.last_update_units]);
+  }
+  const trace = JSON.parse(readFileSync(new URL('tools/heat-trace.json', dir), 'utf8'));
+  const heat = gunHeat({ gun: by['Rotary Autocannon'], period: 2, updates: trace.rows.length });
+  assert.deepEqual(heat.events, trace.events.map(({ event, tick, shots }) => ({ event, tick, shots })));
+  heat.rows.forEach((row, i) => assert.deepEqual(row, trace.rows[i], `heat row ${i}`));
+  const tables = JSON.parse(readFileSync(new URL('weapons.json', dir), 'utf8'));
+  for (const g of GUN_CLASSES) {
+    const w = tables.weapon_table[g.cls];
+    const p = tables.projectile_table[w.projectile_type];
+    assert.deepEqual([w.muzzle_velocity_m_s, w.breech_transition_updates, w.load_transfer_delay_updates, w.heat_per_shot, w.dispersion_base_radians, w.recoil_coefficient, w.spin_up_updates],
+      [g.muzzle, g.transition, g.delay, g.heat, g.dispersion, g.recoil, g.spinUp], g.id);
+    assert.deepEqual([p.type, p.lifetime_updates, p.velocity_retention_per_update], [g.projectile, g.lifetime, g.retention], g.id);
+    if (g.automatic) assert.equal(gunCycle(g), w.ideal_auto_cycle_updates, g.id);
+  }
+  for (const d of tables.solid_rockets.filter((x) => x.rocket_type === '0')) {
+    const size = solidRocketFor(d.path.split('/').at(-1).replace('.xml', ''));
+    const one = solidRocket({ width: size.width, length: size.length });
+    const own = solidRocket({ width: size.width, length: size.length, sections: 0 });
+    assert.deepEqual([one.use, one.thrust, own.updates, one.updates],
+      [d.consumption_units_per_update_at_burn_rate_1, d.raw_thrust_at_burn_rate_1, d.own_fuel_only_burn_updates, d.nozzle_plus_one_matching_segment_burn_updates], size.id);
+  }
+});
+
+test('gun heat stops at 1, resumes below 0.25 and respects a released trigger', () => {
+  const rotary = GUN_CLASSES.find((g) => g.id === 'gun_v');
+  const held = gunHeat({ gun: rotary, period: 2 });
+  assert.equal(held.events[0].shots, 166);
+  assert.equal(held.events[0].tick - rotary.spinUp, 330);
+  assert.equal(held.events[1].tick - held.events[0].tick, 376);
+  assert.ok(held.rows.every((r) => r.heat >= 0 && r.heat <= 1));
+  const burst = gunHeat({ gun: rotary, period: 2, hold: 180 });
+  assert.deepEqual(burst.events, []);
+  assert.equal(burst.rows.at(-1).heat, 0);
+  assert.equal(burst.rows.at(-1).shots, 75);
+  assert.deepEqual(gunHeat({ gun: rotary, period: 4 }).events, []);
+  assert.throws(() => gunHeat({ gun: rotary, period: 0 }), RangeError);
+  const half = solidRocket({ width: 3, length: 3, sections: 1, burnRate: 0.5 });
+  assert.deepEqual([half.use, half.thrust, half.updates], [1801, 108060, 600]);
+  assert.throws(() => projectileFlight({ gun: rotary, angle: 5, height: 0 }), RangeError);
 });

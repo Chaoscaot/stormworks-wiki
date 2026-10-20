@@ -272,6 +272,14 @@ class Evidence:
                             "instruction bytes %s at %#x address binary%d %s (bytes %s) at %#x." % (
                                 hexbytes, address, width * 8, value, n.raw(target, width).hex(), target))
 
+    def record(self, func, table, offset, hexbytes, label, value, detail):
+        """Bytes of one row of a native data table that the cited function addresses RIP-relative."""
+        n = self.native
+        if not n.references(func, table) or n.raw(table + offset, len(hexbytes) // 2).hex() != hexbytes:
+            raise ValueError("Table row differs at %#x" % (table + offset))
+        return self._native(func, table + offset, label, value, detail,
+                            "it addresses the table at %#x; row bytes %s at %#x." % (table, hexbytes, table + offset))
+
     def voxels(self, bid, meaning):
         """Count of <voxel> elements: the listed voxel count the game keeps at definition+0xb8."""
         path = DEFS + bid + ".xml"
@@ -4348,13 +4356,13 @@ def propulsion(B, E):
                         "Rotors with Power Connection A and B link the two port nodes to each other. The shaft solver then mixes the two groups' speeds across that link with fraction 0.95 and ratio 1, as it does across a gearbox. "
                         "The rotor's own load goes on A. The ports do not share a fixed part of the power and do not jump to one speed: groups of weight 11 at 10 RPS and 21 at rest publish %s and %s RPS." % (
                             _num(round(f["through"][0], 6)), _num(round(f["through"][1], 6)))),
-                section("Rockets", "Solid rocket boosters burn once; a slower burn-rate setting lasts longer but gives less thrust."),
+                section("Rockets", "Solid rocket boosters burn once. Each update a nozzle of width w uses trunc(400 × w² × burn rate) + 1 fuel units and pushes with 60 times that, so a slower burn rate pushes less for longer, and fuel sections lengthen the burn without adding thrust."),
                 section("Open questions",
                         "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; "
                         "the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, "
                         "cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); "
                         "the editor-arrow sign table for reflected parts. No figure here was measured in a running game.")],
-               core + rotor + coax + shaft + [f["through_fig"]] + [fe(b) for _, bids in PROP_PARTS for b in bids] + list(figs.values()) + [srb, E.tooltip("propeller")] + rate,
+               core + rotor + coax + shaft + [f["through_fig"]] + [fe(b) for _, bids in PROP_PARTS for b in bids] + list(figs.values()) + [srb, E.tooltip("propeller")] + [weapons_native(E)[k] for k in ("r_400", "r_60", "r_sum", "r_units")] + rate,
                ["Static analysis of one build. Forces are in the game's internal force unit before the 100 × S application cap.", TICK])
 
     def family(fid, summary, sections, findings, limits=()):
@@ -4495,10 +4503,6 @@ def propulsion(B, E):
                     "It removes the same speed per RPS as the small marine propeller: with the same blade_physics_length 0.25, twice the blade_efficiency (0.15) and twice the F (40000), its load and K both double and q is unchanged. "
                     "Each removed RPS therefore pushes twice as hard.")],
            [E.tooltip("azimuth_thruster")])
-    B.family("solid-rocket-booster", "Single-use boosters; stacked fuel segments extend the burn, slower burn rates trade thrust for duration.",
-             [section("Setup and interactions", "Stack solid rocket fuel segments above the nozzle to lengthen the burn; set Burn Rate in the properties. Medium and larger nozzles report Fuel Remaining.")],
-             [srb, E.port("solid_rocket_nozzle_medium", "Fuel Remaining")],
-             ["Thrust and burn time per segment were not recovered."])
 
 
 def control_surfaces(B, E):
@@ -4755,26 +4759,653 @@ def steam(B, E):
              [tips[3], E.port("steam_piston", "Piston Position")], ["Torque per pressure was not recovered."])
 
 
+# weapons pass; files under investigation/native/weapons/, report investigation/weapons.md.
+WP = "../weapons/"
+WP_REPORT = "investigation/weapons.md"
+WP_DATA = "investigation/native/weapons/weapons.json"
+WP_EXAMPLES = "investigation/native/weapons/tools/worked-examples.txt"
+WP_HEAT = "investigation/native/weapons/tools/heat-trace.json"
+F_GUN = 0x140427390         # gun component update: firing, spread, recoil, heat, fuse
+F_BREECH = 0x14042B310      # breech state request: loads the class transition time
+F_AMMO_MOVE = 0x14042BA60   # ammunition transfer between adjacent parts
+F_BARREL = 0x1404B2DC0      # forward attachment walk: barrel extensions and muzzle brakes
+F_RECOIL_EV = 0x1401A16A0   # queued recoil event: body force accumulator call
+F_SHELL = 0x140591D80       # projectile ring update: gates, fuse, AP, gravity, retention
+F_IMPACT = 0x140593B50      # impact magnitude by damage kind
+F_BLAST = 0x140597950       # explosion handling
+F_MASS_GET = 0x140328EA0    # base component mass getter (leaf)
+F_ROCKET = 0x140437570      # solid rocket nozzle update
+F_ROCKET_UI = 0x14043D870   # solid rocket property UI: Burn Rate slider
+F_FUEL_SUM = 0x1404B143C    # chained chunk of the rocket fuel walk 0x1404b1400: w × w × h per fuel section
+F_FUEL_INIT = 0x1405DAFA0   # resource initializer: fuel units per volume unit
+GUN_TABLE = 0x140CC0870     # 7 gun-class records, 52 bytes each, indexed by weapon_class
+SHELL_TABLE = 0x140CC0540   # 15 projectile records, 52 bytes each, indexed by projectile type
+GUN_PARTS = ("gun_xs", "gun_s", "gun_v", "gun_m", "gun_l", "gun_xl", "gun_xxl")
+BARRELS = {"weapon-s-barrel": 1, "weapon-v-barrel": 2, "weapon-m-barrel": 3, "weapon-l-barrel": 4, "weapon-xl-barrel": 5, "weapon-xxl-barrel": 6}
+NOZZLES = (("solid_rocket_nozzle_small", "solid_rocket_small", "Small"), ("solid_rocket_nozzle_medium", "solid_rocket_medium", "Medium"),
+           ("solid_rocket_nozzle_large", "solid_rocket_large", "Large"), ("solid_rocket_nozzle_huge", "solid_rocket_huge", "Huge"))
+_WA, _WP = WP + "asm/", WP + "pseudocode/"
+_WG, _WGC = _WA + "gun-update.asm", "; " + _WP + "0x140427390.c"
+_WS, _WSC = _WA + "projectile-update.asm", "; " + _WP + "0x140591d80.c"
+_WR, _WRC = _WA + "rocket-update.asm", "; " + _WP + "0x140437570.c"
+WHERE.update({
+    (F_GUN, 0x140428AED): _WG + ":L1424-L1446" + _WGC, (F_GUN, 0x140428926): _WG + ":L1318-L1360; " + _WA + "spread-rotation.asm" + _WGC,
+    (F_GUN, 0x140428934): _WG + ":L1318-L1360" + _WGC, (F_GUN, 0x140428C19): _WG + ":L1499-L1503" + _WGC,
+    (F_GUN, 0x1404274E6): _WG + ":L84,L1944,L2142" + _WGC, (F_GUN, 0x14042935A): _WG + ":L1937-L1946" + _WGC,
+    (F_GUN, 0x140429675): _WG + ":L2127-L2131" + _WGC, (F_GUN, 0x140429695): _WG + ":L2132-L2143" + _WGC,
+    (F_GUN, 0x14042969D): _WG + ":L2136-L2143" + _WGC, (F_GUN, 0x140428C50): _WG + ":L1504-L1536" + _WGC,
+    (F_GUN, 0x140428C8E): _WG + ":L1515-L1536" + _WGC, (F_GUN, 0x140428C96): _WG + ":L1515-L1536" + _WGC,
+    (F_GUN, 0x140428CA5): _WG + ":L1534-L1536; " + _WA + "projectile-spawn.asm" + _WGC,
+    (F_GUN, 0x140429092): _WG + ":L1137,L1765-L1785" + _WGC, (F_GUN, 0x1404290A9): _WG + ":L1775-L1785" + _WGC,
+    (F_RECOIL_EV, None): _WA + "recoil-force-handler.asm:L40-L50",
+    (F_BREECH, None): _WA + "breech-transition.asm:L8-L46; " + _WP + "0x14042b310.c",
+    (F_AMMO_MOVE, None): _WA + "ammo-transfer.asm; " + _WP + "0x14042ba60.c",
+    (F_BARREL, None): _WA + "barrel-traversal.asm:L21-L71,L200-L236; " + _WP + "0x1404b2dc0.c",
+    (F_SHELL, 0x140592080): _WS + ":L179-L186" + _WSC, (F_SHELL, 0x14059208E): _WS + ":L186-L212" + _WSC,
+    (F_SHELL, 0x1405920CD): _WS + ":L200-L212" + _WSC, (F_SHELL, 0x140593207): _WS + ":L1216-L1237" + _WSC,
+    (F_SHELL, 0x14059325D): _WS + ":L1235-L1245" + _WSC, (F_SHELL, 0x14059327D): _WS + ":L1225-L1245" + _WSC,
+    (F_SHELL, 0x140592FCE): _WS + ":L1093,L1226-L1232" + _WSC, (F_SHELL, 0x140593242): _WS + ":L1225-L1232" + _WSC,
+    (F_SHELL, 0x1405932A2): _WS + ":L1246-L1268" + _WSC, (F_SHELL, 0x140593298): _WS + ":L1246-L1268" + _WSC,
+    (F_SHELL, 0x1405932B7): _WS + ":L1246-L1268" + _WSC, (F_SHELL, 0x140592BB8): _WS + ":L842-L898" + _WSC,
+    (F_SHELL, 0x14059292A): _WS + ":L670-L722; " + _WA + "penetration-material-getter.asm; " + _WA + "definition-mass.asm" + _WSC,
+    (F_IMPACT, None): _WA + "impact-magnitude.asm:L28-L66; " + _WP + "0x140593b50.c",
+    (F_BLAST, None): _WA + "explosion.asm:L50-L60; " + _WA + "impact-dispatch.asm; " + _WP + "0x140597950.c",
+    (F_MASS_GET, None): _WA + "penetration-material-getter.asm; " + _WA + "definition-mass.asm",
+    (F_ROCKET, 0x140437AF1): _WR + ":L343-L364" + _WRC, (F_ROCKET, 0x140437B02): _WR + ":L350-L364" + _WRC,
+    (F_ROCKET, 0x140437B0E): _WR + ":L350-L364" + _WRC, (F_ROCKET, 0x140437B22): _WR + ":L343-L364" + _WRC,
+    (F_ROCKET, 0x140437A37): _WR + ":L305,L465-L475" + _WRC, (F_ROCKET, 0x140437DAD): _WR + ":L512-L523; " + _WA + "force-cap-helper.asm" + _WRC,
+    (F_ROCKET, 0x140437D3C): _WR + ":L480-L500" + _WRC, (F_ROCKET, 0x140437D50): _WR + ":L480-L500" + _WRC,
+    (F_ROCKET, 0x140437D24): _WR + ":L480-L500" + _WRC, (F_ROCKET, 0x140437DD9): _WR + ":L523-L526" + _WRC,
+    (F_ROCKET_UI, None): _WA + "rocket-properties.asm:L20-L60; " + MJ + "asm/0x140358b30.asm:L82-L116",
+    (F_FUEL_SUM, None): _WA + "rocket-fuel-graph.asm:L20-L33; " + _WA + "connection-build.asm:L515-L530; " + _WP + "0x1404b1400.c",
+    (F_FUEL_INIT, None): _WA + "resource-fuel-initialize.asm:L78,L1505-L1525; " + _WA + "fuel-serialization.asm; " + _WP + "0x1405dafa0.c",
+    (F_DEFSER, 0x140B5D268): _WA + "definition-weapons.asm:L8-L40", (F_DEFSER, 0x140B5D408): _WA + "definition-weapons.asm:L8-L40",
+    (F_DEFSER, 0x140B5C9C8): _WA + "definition-rocket-dimensions.asm:L18-L33", (F_DEFSER, 0x140B5C9F0): _WA + "definition-rocket-dimensions.asm:L18-L33",
+})
+
+
+def shell_flight(muzzle, r, lifetime, ptype, angle, height=1.0, flat=False):
+    """Port of investigation/native/weapons/tools/model.py flight(): dry air, no wind, stationary gun, doubles.
+    The speed gate follows the bytes at 0x14059208e: projectile types 3, 10 and 11 never take it, types 12 and up only with the
+    water flag, so out of water it applies to machine-gun and autocannon rounds (types 6 to 9) only. Rows are (t, x, y, vx, vy);
+    the run ends on the plane y = 0, the speed gate or the lifetime."""
+    vx, vy = muzzle * math.cos(math.radians(angle)), muzzle * math.sin(math.radians(angle))
+    x, y = 0.0, float(height)
+    rows = [(0.0, x, y, vx, vy)]
+    gated = ptype not in (3, 10, 11) and ptype < 10
+    for tick in range(lifetime):
+        if gated and vx * vx + vy * vy < 2500:
+            return rows, "speed"
+        nx, ny = x + vx / 60, y + vy / 60
+        if ny <= 0 < y:
+            a = y / (y - ny)
+            rows.append(((tick + a) / 60, x + (nx - x) * a, 0.0, vx, vy))
+            return rows, "ground"
+        g = 0.5 if flat else 0.5 * (138750 / (138750 + ny)) ** 2
+        vx, vy = vx * r, (vy - g) * r
+        x, y = nx, ny
+        rows.append(((tick + 1) / 60, x, y, vx, vy))
+    return rows, "lifetime"
+
+
+def shell_drop(rows, distance, height):
+    """Time and drop below the launch height where a level shot passes the distance, or None if deleted first."""
+    for a, b in zip(rows, rows[1:]):
+        if a[1] <= distance <= b[1]:
+            u = (distance - a[1]) / (b[1] - a[1])
+            return a[0] + u * (b[0] - a[0]), height - (a[2] + u * (b[2] - a[2]))
+    return None
+
+
+def gun_heat(per_shot, period, spin=0, ticks=3600):
+    """Port of model.py heat_trace() in binary32: shot first, stop at heat >= 1, resume below 0.25, cool 0.002, snap below 0.001."""
+    h, stopped, shots, events = 0.0, False, 0, []
+    for tick in range(ticks):
+        if tick >= spin and (tick - spin) % period == 0 and not stopped:
+            h = _f32(h + _f32(per_shot))
+            shots += 1
+        if not stopped and h >= 1:
+            stopped = True
+            events.append(("stop", tick, shots))
+        if stopped and h < _f32(0.25):
+            stopped = False
+            events.append(("recover", tick, shots))
+        h = _f32(h - _f32(0.002))
+        if h < _f32(0.001):
+            h = 0.0
+        h = min(1.0, max(0.0, h))
+    return events
+
+
+def booster(width, length, sections=1, burn_rate=1.0, fuel_factor=1.0):
+    """Port of model.py booster(): one burning nozzle plus sections of its size, binary32 consumption in instruction order."""
+    volume = width * width * length * (1 + sections)
+    capacity = int(_f32(_f32(volume * _f32(fuel_factor)) * _f32(20000)))
+    use = int(_f32(_f32(_f32(width * _f32(burn_rate)) * width) * 400)) + 1
+    updates = -(-capacity // use)
+    return {"capacity": capacity, "use": use, "thrust": 60 * use, "updates": updates, "last": capacity - (updates - 1) * use}
+
+
+def _g(x, digits=6):
+    return "%.*g" % (digits, x)
+
+
+def weapons_native(E):
+    """Gun table, projectile flight, spread, recoil, heat, fuses, loading and the solid rocket, verified once and shared."""
+    if hasattr(E, "wp"):
+        return E.wp
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / WP_REPORT).is_file():
+        raise ValueError("Weapons report missing: " + WP_REPORT)
+    data = json.loads((E.root / WP_DATA).read_bytes())
+    if data["sha256"] != EXE_SHA256 or data["updates_per_second"] != update_rate(E)["ups"]:
+        raise ValueError("Weapon tables were built for a different executable or update rate")
+    rep = " Report: %s." % WP_REPORT
+    # weapons.json must hold the bytes of this executable and match the shipped definitions.
+    guns, shells = data["weapon_table"], data["projectile_table"]
+    if len(guns) != 7 or [s["type"] for s in shells] != list(range(15)):
+        raise ValueError("Unexpected table sizes in " + WP_DATA)
+    for i, g in enumerate(guns):
+        raw = n.raw(GUN_TABLE + 52 * i, 52)
+        v = struct.unpack("<8i5f", raw)
+        if (int(g["address"], 16) != GUN_TABLE + 52 * i or raw.hex() != g["bytes"].replace(" ", "") or v[0] != i
+                or (v[1], v[4], v[6], v[7]) != (g["projectile_type"], g["breech_transition_updates"], g["spin_up_updates"], g["group_shot_limit"])
+                or v[9:] != (g["muzzle_velocity_m_s"], g["recoil_coefficient"], g["heat_per_shot"], g["dispersion_base_radians"])):
+            raise ValueError("Gun record %d differs from %s" % (i, WP_DATA))
+    for s in shells:
+        raw = n.raw(SHELL_TABLE + 52 * s["type"], 52)
+        v = struct.unpack("<3i3f4i3f", raw)
+        if (int(s["address"], 16) != SHELL_TABLE + 52 * s["type"] or raw.hex() != s["bytes"].replace(" ", "")
+                or (v[1], v[3], v[4], v[7], v[8], v[9], v[10]) != (s["lifetime_updates"], s["velocity_retention_per_update"], s["impact_magnitude_base"],
+                                                                 s["explosive_ammo_supported"], s["fragment_projectile_type"], s["fragment_projectile_count"],
+                                                                 s["penetration_speed_loss_multiplier"])):
+            raise ValueError("Projectile record %d differs from %s" % (s["type"], WP_DATA))
+    defs = {}
+    for d in data["definitions"]:
+        bid = d["path"].rsplit("/", 1)[1][:-4]
+        b = E.block(bid)
+        if E.file(d["path"])[0] != d["sha256"]:
+            raise ValueError("Definition differs from %s: %s" % (WP_DATA, bid))
+        for key in ("type", "mass", "door_side_dist", "door_up_dist", "weapon_type", "weapon_class", "weapon_ammo_capacity", "weapon_barrel_length_voxels", "rocket_type"):
+            if key in d and str(b["attributes"].get(key, b.get(key))) != d[key]:
+                raise ValueError("%s %s differs from %s" % (bid, key, WP_DATA))
+        defs[bid] = d
+    for i, bid in enumerate(GUN_PARTS):
+        nc = defs[bid].get("native_class") or {}
+        if defs[bid]["weapon_type"] != "2" or int(defs[bid]["weapon_class"]) != i or nc.get("bytes") != guns[i]["bytes"]:
+            raise ValueError("Gun definition %s does not select record %d" % (bid, i))
+    for d in data["solid_rockets"]:
+        bid = d["path"].rsplit("/", 1)[1][:-4]
+        w, h = int(defs[bid]["door_side_dist"]), int(defs[bid]["door_up_dist"])
+        if (d["width_voxels"], d["length_voxels"], d["fuel_volume"], d["full_fuel_units"]) != (w, h, w * w * h, 20000 * w * w * h):
+            raise ValueError("Solid rocket figures differ from the definition: " + bid)
+        if d["rocket_type"] == "0":
+            one, own = booster(w, h), booster(w, h, 0)
+            if (d["consumption_units_per_update_at_burn_rate_1"], d["raw_thrust_at_burn_rate_1"], d["own_fuel_only_burn_updates"],
+                    d["nozzle_plus_one_matching_segment_burn_updates"]) != (one["use"], one["thrust"], own["updates"], one["updates"]):
+                raise ValueError("Booster figures differ from the model: " + bid)
+    f = {}
+    # Definition fields.
+    f["d_cap"] = E.string(F_DEFSER, 0x140B5D268, "weapon_ammo_capacity", "weapon_ammo_capacity binding",
+                          "In the type-44 branch (cmp at 0x140317f04) the loader binds weapon_type at definition+0x2930, weapon_class at +0x2934 and this name at +0x293c. The gun update indexes its class table with +0x2934." + rep)
+    f["d_len"] = E.string(F_DEFSER, 0x140B5D408, "weapon_barrel_length_voxels", "weapon_barrel_length_voxels binding",
+                          "Bound at definition+0x2c64 (0x140317f83). The barrel walk reads it for the muzzle offset; the firing velocity does not." + rep)
+    f["d_w"] = E.string(F_DEFSER, 0x140B5C9C8, "door_side_dist", "door_side_dist binding",
+                        "Bound at definition+0xe30 (0x1403179ea). Solid rocket parts use it as the width w in voxels." + rep)
+    f["d_h"] = E.string(F_DEFSER, 0x140B5C9F0, "door_up_dist", "door_up_dist binding",
+                        "Bound at definition+0xe34 (0x140317a0b). Solid rocket parts use it as the length h in voxels." + rep)
+    # Table rows.
+    f["guns"], f["shells"] = [], {}
+    for i, g in enumerate(guns):
+        f["guns"].append(E.record(F_GUN, GUN_TABLE, 52 * i, g["bytes"].replace(" ", ""), "%s gun record" % g["name"],
+                                  "%s m/s, recoil %s, heat %s, dispersion %s" % (fmt(g["muzzle_velocity_m_s"]), fmt(g["recoil_coefficient"]), fmt(g["heat_per_shot"]), fmt(g["dispersion_base_radians"])),
+                                  "Row %d of the 7-row gun table, 52 bytes per row, selected by weapon_class %d: projectile type %d (offset 4), breech transition %d updates (offset 16), "
+                                  "spin-up limit %d (offset 24), grouped-shot limit %d (offset 28), muzzle speed %s m/s (offset 36), recoil coefficient %s (offset 40), heat per shot %s (offset 44), "
+                                  "dispersion %s rad (offset 48). Offsets 8, 12, 20 and 32 are kept by position only." % (
+                                      i, i, g["projectile_type"], g["breech_transition_updates"], g["spin_up_updates"], g["group_shot_limit"], fmt(g["muzzle_velocity_m_s"]),
+                                      fmt(g["recoil_coefficient"]), fmt(g["heat_per_shot"]), fmt(g["dispersion_base_radians"])) + rep))
+    for g in guns:
+        s = shells[g["projectile_type"]]
+        f["shells"][g["class_id"]] = E.record(F_SHELL, SHELL_TABLE, 52 * s["type"], s["bytes"].replace(" ", ""), "%s projectile record" % g["name"],
+                                              "type %d: retention %s, lifetime %d updates" % (s["type"], fmt(s["velocity_retention_per_update"]), s["lifetime_updates"]),
+                                              "Row %d of the 15-row projectile table: lifetime %d updates (offset 4), velocity kept per update %s (offset 12), impact base B %s (offset 16), "
+                                              "explosive support %d (offset 28), %d fragments of projectile type %d (offsets 36 and 32), AP speed loss multiplier p %s (offset 40). "
+                                              "The update promotes the binary32 retention to double." % (
+                                                  s["type"], s["lifetime_updates"], fmt(s["velocity_retention_per_update"]), fmt(s["impact_magnitude_base"]), s["explosive_ammo_supported"],
+                                                  s["fragment_projectile_count"], s["fragment_projectile_type"], fmt(s["penetration_speed_loss_multiplier"])) + rep)
+    # Firing: velocity, spread, recoil.
+    f["muzzle"] = code(F_GUN, 0x140428AED, "f3430f10441724", "Muzzle speed read", "gun record offset 36",
+                       "The firing path indexes the gun table (lea r10 at 0x140428ae6) with weapon_class × 52, reads offset 36, multiplies the dispersed forward vector by it and adds the firing body's velocity (+0x98, +0xa0, from 0x140428b06): "
+                       "V = muzzle speed × direction + body velocity. weapon_barrel_length_voxels does not enter this calculation." + rep)
+    f["spread"] = code(F_GUN, 0x140428926, "f30f10540830", "Dispersion read", "gun record offset 48 × m × 0.25",
+                       "The dispersion is multiplied by the spread multiplier m at component+0x37c (0x14042892c) and by 0.25, giving the half-width. Two successive draws of the component generator, state × 0x343fd + 0x269ec3, "
+                       "become u = ((state >> 16) & 32767) ÷ 32767 and angle = (2u - 1) × half-width radians, one for each of two axes, so the spread is a square of independent per-axis angles, not a circular cone." + rep)
+    f["quarter"] = op(F_GUN, 0x140428934, "f30f591580727800", 0x140BAFBBC, "Dispersion half-width factor",
+                      "Half-width = 0.25 × dispersion × m radians per axis." + rep)
+    f["recoil_mul"] = code(F_GUN, 0x140429092, "f30f108680030000", "Recoil multiplier", "component+0x380, starts at 1",
+                           "The recoil vector is the negated projectile velocity times the recoil coefficient (record offset 40, loaded at 0x14042860e), times this multiplier and times 50. "
+                           "The barrel walk writes the spread multiplier and muzzle offset, not +0x380." + rep)
+    f["recoil_50"] = op(F_GUN, 0x1404290A9, "f30f10058f767800", 0x140BB0740, "Recoil force factor",
+                        "F = -50 × recoil coefficient × multiplier × V, in internal force units. With a stationary gun |V| is the muzzle speed." + rep)
+    f["recoil_ev"] = code(F_RECOIL_EV, 0x1401A1750, "e81b8cffff", "Recoil force submission", "call 0x14019a370",
+                          "The queued recoil event calls the body force accumulator once, for the update it was queued in, so one shot's impulse is the force ÷ 60." + rep)
+    # Heat.
+    f["heat_add"] = code(F_GUN, 0x140428C19, "f3430f1044172c", "Heat per shot read", "gun record offset 44",
+                         "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20)." + rep)
+    f["heat_one"] = op(F_GUN, 0x1404274E6, "f3440f1015dd897800", 0x140BAFECC, "Heat stop threshold",
+                       "xmm10 holds 1 through the update: with the stop flag clear, heat at or above it sets the flag (comiss at 0x140429350), and the final minss caps heat at it (0x1404296b3)." + rep)
+    f["heat_stop"] = code(F_GUN, 0x14042935A, "c6868803000001", "Heat stop flag", "component+0x388 = 1",
+                          "Set when the heat reaches 1. While it is set the gun does not fire; it is a reversible stop, not a random jam." + rep)
+    f["heat_resume"] = op(F_GUN, 0x140429675, "f30f10053f657800", 0x140BAFBBC, "Heat resume threshold",
+                          "When 0.25 is above the heat (strict comiss at 0x14042967d) the stop flag is cleared (0x140429686)." + rep)
+    f["heat_cool"] = op(F_GUN, 0x140429695, "f30f5c0d6f627800", 0x140BAF90C, "Heat cooling per update",
+                        "After the flag tests the update subtracts this from the heat, every update, firing or not; 0.12 per simulated second." + rep)
+    f["heat_snap"] = op(F_GUN, 0x14042969D, "f30f100553627800", 0x140BAF8F8, "Heat zero snap",
+                        "A cooled heat below this is set to 0, then the heat is clamped to 0 to 1 and stored at +0x384 (0x1404296b8)." + rep)
+    # Fuse.
+    f["fuse_in"] = code(F_GUN, 0x140428C50, "f30f108ea0010000", "Fuse Timer input", "component+0x1a0, seconds",
+                        "Read only when the loaded round's damage kind (+0x3f4) is 2 (fragmentation), or 1 (high explosive) with weapon_class 3 or more (cmp eax,3; jl at 0x140428c41), so high-explosive fuses work on the heavy autocannon and the cannons. "
+                        "Otherwise, or with an input of 0 or less, the fuse time T is 0." + rep)
+    f["fuse_span"] = op(F_GUN, 0x140428C8E, "f30f59051a6d7800", 0x140BAF9B0, "Fuse jitter span",
+                        "T = input + 0.02 × u - 0.01, u a 15-bit draw of the component generator ÷ 32767." + rep)
+    f["fuse_off"] = op(F_GUN, 0x140428C96, "f30f5c05ba6c7800", 0x140BAF958, "Fuse jitter offset", "Subtracted after the span, so the jitter is ±0.01 s." + rep)
+    f["fuse_min"] = op(F_GUN, 0x140428CA5, "f30f5f0ddf6c7800", 0x140BAF98C, "Fuse minimum",
+                       "maxss with binary32 1/60: a positive fuse is at least one update. The spawned projectile keeps T at +0x4c." + rep)
+    f["fuse_det"] = code(F_SHELL, 0x140592BB8, "0f2fc8", "Fuse detonation test", "(n + 1) ÷ 60 ≥ T",
+                         "At age n with T > 0 and n ≠ 0, when (n + 1) ÷ 60 reaches T the update computes a = clamp((T - n ÷ 60) ÷ (1/60), 0, 1) (0x140592bc1-0x140592bd2), queues an impact at position + a × V ÷ 60 through 0x140593b50 and removes the projectile. "
+                         "The detonation point is interpolated within the update; lifetime and speed deletion can come first." + rep)
+    # Loading.
+    f["breech"] = code(F_BREECH, 0x14042B379, "488d0d00558900", "Breech transition time", "gun record offset 16",
+                       "A requested breech change (actual state +0x334, requested +0x335) is accepted only while the timers at +0x330 and +0x3c4 are 0; it then loads the record's offset 16 into +0x330, which counts down once per update." + rep)
+    delays = n.raw(0x14042BD13, 0x14042BD42 - 0x14042BD13).hex()
+    f["delay"] = code(F_AMMO_MOVE, 0x14042BD13, delays, "Receiver load delay", "class 4: 30, 5: 90, 6: 240; heavy autocannon round: 6; else 0",
+                      "After a round moves into a gun, the receiver timer at +0x3c4 is set to 4 + 0x1a = 30 updates for weapon_class 4, 5 + 0x55 = 90 for class 5 and 0xf0 = 240 for class 6; "
+                      "otherwise 6 when the calibre at +0x3f0 is 9 (heavy autocannon) and 0 for the other calibres (0x14042bd42)." + rep)
+    if delays != "83f80475058d581aeb2583f80575058d5855eb1b83f8067507bbf0000000eb0f83bef003000009b8060000000f44d8":
+        raise ValueError("Receiver delay bytes differ")
+    f["cap_v"] = code(F_AMMO_MOVE, 0x14042BB10, "83f8087504d1e9", "Store capacity for rotary rounds", "weapon_ammo_capacity ÷ 2",
+                      "Before a store accepts a round it sums its five damage-kind bins (+0x4fc to +0x50c) and compares them with weapon_ammo_capacity, halved (shr 1) when the calibre at +0x328 is 8, the rotary autocannon round." + rep)
+    f["cap_m"] = code(F_AMMO_MOVE, 0x14042BB19, "83f809750cb8cdccccccf7e18bcac1e902", "Store capacity for heavy rounds", "weapon_ammo_capacity ÷ 5",
+                      "For calibre 9, the heavy autocannon round, the capacity is multiplied by 0xcccccccd and shifted right by 34 bits: unsigned division by 5." + rep)
+    # Projectile update.
+    f["life"] = code(F_SHELL, 0x140592080, "428b443204", "Lifetime test", "age ≥ record offset 4 → removed",
+                     "Before moving, cmp [rdi+8],eax; jae removes a projectile whose age has reached its lifetime, so it moves while age < lifetime. Ordinary shells expire without an explosion." + rep)
+    f["gate"] = code(F_SHELL, 0x14059208E, "83f90374548d41f683f801764c83f90a7c064438475474", "Speed gate selection", "types 0 to 9 except 3; 12 and up only in water",
+                     "Projectile types 3, 10 and 11 skip the speed test. Types 10 and up reach it only when the water flag at +0x54 is set (cmp ecx,0xa; jl; cmp byte [rdi+0x54],0; je). "
+                     "Machine-gun and autocannon rounds (types 6 to 9) always take it, while battle, artillery and Bertha shells (types 12 to 14) take it only in water." + rep)
+    f["floor"] = op(F_SHELL, 0x1405920CD, "f20f10051be46100", 0x140BB04F0, "Speed deletion threshold",
+                    "A projectile that takes the gate is removed when this is above its speed squared, that is below 50 m/s." + rep, kind="f64")
+    f["age"] = code(F_SHELL, 0x140593207, "ff4708", "Age and position step", "age + 1; position += V ÷ 60",
+                    "The age increments, then the position advances by the velocity held at the start of the update ÷ 60 (0x14059320a-0x140593237); gravity and retention change the velocity afterwards." + rep)
+    f["g_air"] = op(F_SHELL, 0x140592FCE, "f30f1035e6cc6100", 0x140BAFCBC, "Gravity step in air",
+                    "Reloaded into xmm6 after an earlier 0.25 use and taken as the gravity step without the water flag: 0.5 m/s per update is 30 m/s² at sea level, 60 updates per second." + rep)
+    f["g_water"] = op(F_SHELL, 0x140593242, "f3440f100d25c96100", 0x140BAFB70, "Gravity step in water", "Used instead of 0.5 when the water flag at +0x54 is set: 12 m/s² at sea level." + rep)
+    f["radius"] = op(F_SHELL, 0x14059325D, "f20f100da3d36100", 0x140BB0608, "Gravity radius constant",
+                     "The step is scaled by (138750 ÷ (138750 + y))², y the new height above sea level (+0x18): 1 at sea level, 0.986 at 1000 m." + rep, kind="f64")
+    f["g_sub"] = code(F_SHELL, 0x14059327D, "f20f5cc1", "Gravity subtraction", "Vy -= step × (138750 ÷ (138750 + y))²", "Subtracted from the stored vertical velocity (+0x30) in double precision." + rep)
+    f["w_mul"] = op(F_SHELL, 0x1405932A2, "f30f100526cb6100", 0x140BAFDD0, "Water retention factor",
+                    "With the water flag set the retention is multiplied by this for all types but type 3, which uses 0.98 (0x140593298); out of water the factor is 1." + rep)
+    f["retain"] = code(F_SHELL, 0x1405932B7, "f3420f5944290c", "Velocity retention", "V × record offset 12 × water factor",
+                       "All three velocity components are multiplied by the same factor (mulpd at 0x1405932c9, mulsd for z): linear retention per update, not a speed-squared drag. Without gravity or wind Vx(n) = Vx(0) × r^n." + rep)
+    f["ap"] = op(F_SHELL, 0x14059292A, "f30f59355ede6100", 0x140BB0790, "AP speed loss factor",
+                 "For each struck cell an AP round's speed becomes max(0, v - 100 × p × mass ÷ max(1, listed cells)), direction kept: p is record offset 40 (0x140592939), mass the component's mass getter (call [rax+0x298] at 0x1405928c0), "
+                 "divided by definition+0xb8 when above 1 (0x1405928d2). This is a speed loss, not an armour thickness rating." + rep)
+    f["mass"] = code(F_MASS_GET, 0x140328EA4, "f30f1080b0020000", "Component mass getter", "definition+0x2b0 (mass)",
+                     "The base getter returns definition+0x2b0, the field the loader binds to the mass attribute." + rep)
+    # Impact and explosions.
+    f["imp"] = op(F_IMPACT, 0x140593BCE, "f30f5e1586cc6100", 0x140BB085C, "Impact speed divisor",
+                  "M = speed ÷ 1000 × B, B the projectile record's offset 16, for kinetic rounds (kind 0); AP multiplies that by 0.4 and incendiary by 0.65. "
+                  "High explosive uses M = B and fragmentation M = 0.4 × B, both only when the record's explosive support (offset 28) is set." + rep)
+    f["imp_04"] = op(F_IMPACT, 0x140593C0A, "f30f591542c06100", 0x140BAFC54, "AP and fragmentation magnitude factor", "Shared by kind 3 (AP, speed-scaled) and kind 2 (fragmentation, from B)." + rep)
+    f["imp_inc"] = op(F_IMPACT, 0x140593BF1, "f30f59155fc16100", 0x140BAFD58, "Incendiary magnitude factor", "Kind 4 multiplies the speed-scaled magnitude by this." + rep)
+    f["blast_f"] = op(F_BLAST, 0x140597A2A, "f3440f5925ed8e6100", 0x140BB0920, "Explosion force scale", "Raw radial force scale 50000 × M, before the routine's force and mass caps." + rep)
+    f["blast_r"] = op(F_BLAST, 0x140597A3A, "f30f59355e8b6100", 0x140BB05A0, "Explosion broadphase radius factor",
+                      "Explosions search for targets within 7.5 × M metres; one target-specific branch uses 5 × M, and several use the falloff u²(3 - 2u) with u = max(0, 1 - distance ÷ radius). "
+                      "A target inside the broadphase radius is not guaranteed damage." + rep)
+    # Barrel extensions.
+    f["b_reset"] = code(F_BARREL, 0x1404B2E96, "c7877c0300000000803f", "Spread multiplier reset", "m = 1",
+                        "For a gun (weapon_type 2, 0x1404b2e7c) the walk first sets m at component+0x37c to 1 and the muzzle offset at +0x378 to 0.175 + 0.25 × the gun's weapon_barrel_length_voxels (0x1404b2ec5)." + rep)
+    f["b_base"] = op(F_BARREL, 0x1404B2E29, "f3440f101512cd6f00", 0x140BAFB44, "Muzzle offset base", "Constant term of the gun's own muzzle offset." + rep)
+    f["b_len"] = op(F_BARREL, 0x1404B2DE1, "f30f1035d3cd6f00", 0x140BAFBBC, "Muzzle offset per voxel",
+                    "Each accepted forward attachment, barrel extension or muzzle brake, adds 0.25 × its weapon_barrel_length_voxels to the muzzle offset (0x1404b30d0)." + rep)
+    f["b_type"] = code(F_BARREL, 0x1404B3114, "83ba3029000004", "Barrel extension test", "weapon_type 4",
+                       "Only an accepted attachment with weapon_type 4, of the gun's class and collinear, takes the spread step: subss 0.2 at 0x1404b3129, maxss 0.5 at 0x1404b312d, minss 1 at 0x1404b3132. "
+                       "Muzzle brakes (weapon_type 7) are walked but skip it. There is no branch on tooltip text or on the extension's mass." + rep)
+    f["b_step"] = op(F_BARREL, 0x1404B2DF0, "f30f103d78cd6f00", 0x140BAFB70, "Barrel extension spread step", "Subtracted from m per accepted extension, not per voxel." + rep)
+    f["b_floor"] = op(F_BARREL, 0x1404B2E01, "f3440f1005b2ce6f00", 0x140BAFCBC, "Spread multiplier floor", "m never falls below this: one extension gives 0.8, two 0.6, three or more 0.5." + rep)
+    f["b_one"] = op(F_BARREL, 0x1404B2E12, "f3440f100db1d06f00", 0x140BAFECC, "Spread multiplier ceiling", "Upper clamp of m." + rep)
+    # Solid rocket.
+    f["r_w"] = code(F_ROCKET, 0x140437AF1, "8b81300e0000", "Nozzle width read", "definition+0xe30 (door_side_dist)",
+                    "A burning nozzle (fuel burned at group+12 below capacity at group+4, 0x140437ae4) converts its width w to binary32." + rep)
+    f["r_rate"] = code(F_ROCKET, 0x140437B02, "f30f598fa4070000", "Burn rate factor", "w × burn rate (component+0x7a4)", "Then × w (0x140437b0a) and × 400, in that binary32 order." + rep)
+    f["r_400"] = op(F_ROCKET, 0x140437B0E, "f30f590dfe8c7700", 0x140BB0814, "Fuel use factor",
+                    "Truncated (0x140437b16) plus 1 (0x140437b1b): D = trunc(400 × w² × burn rate) + 1 fuel units per update." + rep)
+    f["r_min"] = code(F_ROCKET, 0x140437B22, "0f42f0", "Fuel use limit", "q = min(D, capacity - burned)", "The last update burns only what is left." + rep)
+    f["r_60"] = op(F_ROCKET, 0x140437A37, "f3440f103d208d7700", 0x140BB0760, "Thrust per fuel unit",
+                   "The thrust is the nozzle axis × q × 60 (0x140437ce5-0x140437cef): raw thrust 60 × q internal force units per update." + rep)
+    f["r_burn"] = code(F_ROCKET, 0x140437DD9, "01700c", "Fuel burned", "group+12 += q", "Added after the force is submitted; the nozzle stops when burned reaches capacity." + rep)
+    f["r_cap"] = op(F_ROCKET, 0x140437DAD, "f30f1005a78a7700", 0x140BB085C, "Solid rocket thrust application limit",
+                    "Passed (0x140437db5) to the force limiter 0x1401a7ad0 (call at 0x140437dcd), which caps the applied force at 1000 × S, S the caller's scale; the jet exhaust passes 5 and the propellers 100." + rep)
+    f["r_ceil"] = op(F_ROCKET, 0x140437D24, "660f2f0554887700", 0x140BB0580, "Thrust altitude ceiling", "Above this height the altitude factor is 0." + rep, kind="f64")
+    f["r_slope"] = op(F_ROCKET, 0x140437D3C, "f30f590d3c7b7700", 0x140BAF880, "Thrust altitude factor slope", "P(y) = (1 - slope × y)^exponent multiplies the thrust vector, the same curve as propellers and control surfaces." + rep)
+    f["r_exp"] = op(F_ROCKET, 0x140437D50, "f30f100dac877700", 0x140BB0504, "Thrust altitude factor exponent", "Passed with 1 - slope × y to the power routine 0x1409b9c10." + rep)
+    f["r_ui"] = op(F_ROCKET_UI, 0x14043D8AC, "f30f103da4207700", 0x140BAF958, "Burn Rate slider scale",
+                   "The nozzle's Burn Rate slider writes component+0x7a4 (0x14043d91a) with display scale 0.01 and format %.0f%%, and passes 1 and 100 (0x14043d8b4, 0x14043d8bc) in the bound positions of the slider helper 0x1408b3890, "
+                   "as the suspension Max Power slider does. The burn rate therefore runs from 0.01 to 1, shown as 1% to 100%." + rep)
+    f["r_sum"] = code(F_FUEL_SUM, 0x1404B144F, "8b8a300e00008bc10faf82340e00000fafc141014008", "Fuel section volume", "group+8 += w × h × w",
+                      "Each connected part with rocket_type 1 adds w × w × h (door_side_dist² × door_up_dist) to the group's volume; the group builder 0x1404bbca0 adds the nozzle's own w × w × h." + rep)
+    f["r_units"] = op(F_FUEL_INIT, 0x1405DB0D1, "f3440f103d12585d00", 0x140BB08EC, "Fuel units per volume unit",
+                      "The resource initializer sets capacity = trunc(volume × fuel factor × 20000) (mulss at 0x1405dc827) and stores it at group+4 (0x1405dc844); fuel factor 1 is a full load." + rep)
+    # Model ports, checked against the retained worked examples.
+    ex = (E.root / WP_EXAMPLES).read_text()
+    names = {g["name"]: g for g in guns}
+    seen = 0
+    for m in re.finditer(r"^(.+?)\s+angle=\s*(\d+)deg t=\s*([\d.]+)s x=\s*([\d.]+)m y=\s*([\d.]+)m end=(.+)$", ex, re.M):
+        g = names[m.group(1).strip()]
+        s = shells[g["projectile_type"]]
+        rows, end = shell_flight(g["muzzle_velocity_m_s"], s["velocity_retention_per_update"], s["lifetime_updates"], s["type"], int(m.group(2)))
+        t, x, y = rows[-1][:3]
+        want = {"ground plane": "ground", "speed <50 m/s": "speed", "lifetime": "lifetime"}[m.group(6)]
+        if (end, "%.3f" % t, "%.3f" % x, "%.3f" % y) != (want, m.group(3), m.group(4), m.group(5)):
+            raise ValueError("Flight port differs from %s: %s" % (WP_EXAMPLES, m.group()))
+        seen += 1
+    for m in re.finditer(r"^(.+?) (\d+) m: t=([\d.]+)s drop=([\d.]+)m$", ex, re.M):
+        g = names[m.group(1)]
+        s = shells[g["projectile_type"]]
+        rows, _ = shell_flight(g["muzzle_velocity_m_s"], s["velocity_retention_per_update"], s["lifetime_updates"], s["type"], 0, 100)
+        t, d = shell_drop(rows, int(m.group(2)), 100)
+        if ("%.4f" % t, "%.4f" % d) != (m.group(3), m.group(4)):
+            raise ValueError("Drop port differs from %s: %s" % (WP_EXAMPLES, m.group()))
+        seen += 1
+    heat = json.loads((E.root / WP_HEAT).read_bytes())["events"]
+    rot = gun_heat(guns[2]["heat_per_shot"], 2, guns[2]["spin_up_updates"], 1200)
+    if [(e["event"], e["tick"], e["shots"]) for e in heat] != rot or seen != 29:
+        raise ValueError("Heat or flight port differs from the retained worked examples")
+    ups = update_rate(E)["ups"]
+    R = update_rate(E)["findings"][:1]
+    flight_in = [f[k] for k in ("muzzle", "age", "g_air", "radius", "g_sub", "retain", "life", "gate", "floor")]
+    f["flight"], f["drop"], f["impact"], f["spread_fig"], f["recoil_fig"], f["cycle"], f["heat_fig"] = {}, {}, {}, {}, {}, {}, {}
+    endings = {"ground": "lands", "speed": "removed below 50 m/s", "lifetime": "lifetime ends"}
+    f["landing"] = {}
+    for i, g in enumerate(guns):
+        s = shells[g["projectile_type"]]
+        name, v, r, life = g["name"], g["muzzle_velocity_m_s"], s["velocity_retention_per_update"], s["lifetime_updates"]
+        parts = []
+        for angle in (0, 5, 20, 45):
+            rows, end = shell_flight(v, r, life, s["type"], angle)
+            t, x, y = rows[-1][:3]
+            parts.append("%d°: %.1f m in %.2f s, %s%s" % (angle, x, t, endings[end], "" if end == "ground" else " at %.0f m height" % y))
+            f["landing"][i, angle] = "%.1f m out after %.2f s" % (x, t)
+        f["flight"][i] = E.derived("%s flight examples" % name, "; ".join(parts),
+                                   "From 1 m above a flat plane at sea level, dry air, no wind, stationary gun, gravity scaled with height, binary32 retention promoted to double, the lifetime and the byte-level speed gate. "
+                                   "Port of investigation/native/weapons/tools/model.py flight(); it reproduces every line of %s. The plane is a stand-in for terrain." % WP_EXAMPLES + rep,
+                                   [f["guns"][i], f["shells"][i]] + flight_in)
+        rows, _ = shell_flight(v, r, life, s["type"], 0, 100)
+        drops = []
+        for dist in (100, 300, 500, 1000):
+            hit = shell_drop(rows, dist, 100)
+            drops.append("%d m: %.2f m at %.3f s" % (dist, hit[1], hit[0]) if hit else "%d m: removed before it gets there" % dist)
+        f["drop"][i] = E.derived("%s drop from a level shot" % name, "; ".join(drops),
+                                 "Level shot from 100 m above sea level; drop below the launch height where the round passes each distance." + rep, [f["guns"][i], f["shells"][i]] + flight_in)
+        B_, ex_ = s["impact_magnitude_base"], s["explosive_ammo_supported"]
+        k = B_ * v / 1000
+        text = "kinetic %s, AP %s, incendiary %s" % (_g(k, 4), _g(0.4 * k, 4), _g(_f32(0.65) * k, 4))
+        if ex_:
+            text += "; HE %s (broadphase %s m), fragmentation %s (%s m) plus %d fragments" % (_g(B_, 4), _g(7.5 * B_, 4), _g(_f32(0.4) * B_, 4), _g(7.5 * _f32(0.4) * B_, 4), s["fragment_projectile_count"])
+        else:
+            text += "; no HE or fragmentation blast (explosive support 0)"
+        f["impact"][i] = E.derived("%s impact magnitudes" % name, text,
+                                   "At muzzle speed %s m/s against a stationary target, B = %s. Internal magnitudes passed to the damage routines, not hit points." % (fmt(v), fmt(B_)) + rep,
+                                   [f["shells"][i], f["imp"], f["imp_04"], f["imp_inc"], f["blast_r"]])
+        hw = 0.25 * g["dispersion_base_radians"]
+        f["spread_fig"][i] = E.derived("%s spread half-width" % name, "%s rad per axis; %s, %s and %s with 1, 2 and 3 or more extensions" % (_g(hw, 4), _g(hw * 0.8, 4), _g(hw * 0.6, 4), _g(hw * 0.5, 4)),
+                                       "0.25 × dispersion %s × m, m = 1, 0.8, 0.6, 0.5. %s rad is %s degrees." % (fmt(g["dispersion_base_radians"]), _g(hw, 4), _g(math.degrees(hw), 3)) + rep,
+                                       [f["guns"][i], f["spread"], f["quarter"], f["b_step"], f["b_floor"]])
+        force = 50 * g["recoil_coefficient"] * v
+        f["recoil_fig"][i] = E.derived("%s stationary recoil force" % name, _g(force, 6),
+                                       "50 × %s × %s m/s with the multiplier at 1, internal force units for one update; impulse %s per shot at %d updates per second." % (
+                                           fmt(g["recoil_coefficient"]), fmt(v), _g(force / ups, 5), ups) + rep, [f["guns"][i], f["recoil_mul"], f["recoil_50"], f["recoil_ev"]] + R)
+        T, delay = g["breech_transition_updates"], g["load_transfer_delay_updates"]
+        if i <= 3:
+            period = 2 * T + delay
+            f["cycle"][i] = E.derived("%s ideal automatic cycle" % name, "%d updates, %s rounds per minute (inference)" % (period, _g(3600 / period, 5)),
+                                      "Inference from the state machine, not a measurement: with a matching round always ready the breech opens and closes in %d updates each and the receiver adds %d, "
+                                      "so period = 2 × %d + %d = %d updates and 3600 ÷ %d = %s rounds per minute at %d updates per second.%s" % (
+                                          T, delay, T, delay, period, period, _g(3600 / period, 5), ups,
+                                          " The rotary barrels first spin up for 30 updates (spin-up limit at record offset 24)." if i == 2 else "") + rep,
+                                      [f["guns"][i], f["breech"], f["delay"]] + R)
+            ev = gun_heat(g["heat_per_shot"], period, g["spin_up_updates"], 7200)
+            stop = next((e for e in ev if e[0] == "stop"), None)
+            if stop:
+                rec = next(e for e in ev if e[0] == "recover")
+                first = g["spin_up_updates"]
+                value = "stops on shot %d, %d updates (%s s) after the first shot; fires again %d updates (%s s) later" % (
+                    stop[2], stop[1] - first, _g((stop[1] - first) / ups, 4), rec[1] - stop[1], _g((rec[1] - stop[1]) / ups, 4))
+            else:
+                value = "does not reach 1 within 120 s"
+            f["heat_fig"][i] = E.derived("%s heat with ideal feeding" % name, value,
+                                         "Inference from the ideal %d-update cycle with the trigger held and ammunition always ready: heat + %s per shot, -0.002 per update, binary32 in the update's order. "
+                                         "Port of model.py heat_trace()%s." % (period, fmt(g["heat_per_shot"]), "; it reproduces the events in " + WP_HEAT if i == 2 else "") + rep,
+                                         [f["guns"][i], f["heat_add"], f["heat_one"], f["heat_resume"], f["heat_cool"], f["heat_snap"], f["cycle"][i]])
+        else:
+            f["cycle"][i] = E.derived("%s breech and receiver timing" % name, "breech %d updates each way, receiver delay %d updates" % (T, delay),
+                                      "%s s per breech transition and %s s after a round arrives. The breech follows its external open control, and artillery and Bertha have extra half-transition shortcuts for an empty chamber, "
+                                      "so no single rounds-per-minute figure follows from these timers." % (_g(T / ups, 4), _g(delay / ups, 4)) + rep, [f["guns"][i], f["breech"], f["delay"]] + R)
+            f["heat_fig"][i] = E.derived("%s heat per shot" % name, "%s per shot, cooled in %d updates" % (fmt(g["heat_per_shot"]), round(g["heat_per_shot"] / 0.002)),
+                                         "Inference: one shot's heat cools at 0.002 per update in %d updates, far less than the %d-update breech transition, so this cannon does not reach heat 1." % (
+                                             round(g["heat_per_shot"] / 0.002), T) + rep, [f["guns"][i], f["heat_add"], f["heat_cool"], f["breech"]])
+    rot_ev = gun_heat(guns[2]["heat_per_shot"], 2, 30, 1200)
+    f["rot_heat"] = f["heat_fig"][2]
+    f["rot_shots"] = rot_ev[0][2]
+    # Drum capacity per calibre.
+    caps = {b: int(E.block(b)["attributes"]["weapon_ammo_capacity"]) for b in ("gun_drum_small", "gun_drum_medium", "gun_drum_large")}
+    f["drums"] = E.derived("Drum capacity by calibre", "light %s; rotary %s; heavy %s rounds" % (
+        "/".join(str(c) for c in caps.values()), "/".join(str(c // 2) for c in caps.values()), "/".join(str(c // 5) for c in caps.values())),
+        "Small, medium and large drums with weapon_ammo_capacity %s: the light autocannon round fills the full capacity, the rotary round half (÷ 2) and the heavy round a fifth (÷ 5)." % "/".join(str(c) for c in caps.values()) + rep,
+        [f["cap_v"], f["cap_m"], f["d_cap"]])
+    # Solid rocket figures.
+    f["boost"] = {}
+    for nozzle, fuel, label in NOZZLES:
+        a = E.block(nozzle)["attributes"]
+        w, h = int(a["door_side_dist"]), int(a["door_up_dist"])
+        runs = [booster(w, h, k) for k in range(4)]
+        half = booster(w, h, 1, 0.5)
+        f["boost"][nozzle] = E.derived("%s solid rocket figures" % label,
+                                       "D %d units per update, raw thrust %d; %d, %d, %d and %d updates with 0 to 3 matching fuel sections" % (
+                                           runs[0]["use"], runs[0]["thrust"], *[x["updates"] for x in runs]),
+                                       "w = %d, h = %d: one part holds 20000 × %d × %d × %d = %d fuel units. At burn rate 1 the nozzle uses D = trunc(400 × %d²) + 1 = %d units per update and pushes with 60 × %d = %d. "
+                                       "With full fuel: nozzle alone %d updates (%s s), plus one matching section %d (%s s), two %d (%s s), three %d (%s s); the last update burns %d units. "
+                                       "At burn rate 0.5 with one section: D = %d, raw thrust %d, %d updates (%s s). One burning nozzle, no damaged sections, fixed burn rate." % (
+                                           w, h, w, w, h, 20000 * w * w * h, w, runs[0]["use"], runs[0]["use"], runs[0]["thrust"],
+                                           runs[0]["updates"], _g(runs[0]["updates"] / ups, 4), runs[1]["updates"], _g(runs[1]["updates"] / ups, 4),
+                                           runs[2]["updates"], _g(runs[2]["updates"] / ups, 4), runs[3]["updates"], _g(runs[3]["updates"] / ups, 4), runs[1]["last"],
+                                           half["use"], half["thrust"], half["updates"], _g(half["updates"] / ups, 4)) + rep,
+                                       [f["r_units"], f["r_sum"], f["r_400"], f["r_min"], f["r_60"], f["d_w"], f["d_h"]] + R)
+    f["data"] = {"guns": guns, "shells": shells}
+    E.wp = f
+    return f
+
+
 def weapons(B, E):
-    drums = [E.attr(b, "weapon_ammo_capacity", "Ammunition capacity.") for b in ("gun_drum_small", "gun_drum_medium", "gun_drum_large")]
-    boxes = [E.attr(b, "weapon_ammo_capacity", "Ammunition capacity.") for b in ("gun_drum_xsmall", "gun_drum_xsmall_2")]
-    barrel = E.tooltip("gun_l_barrel")
-    muzzle = E.tooltip("gun_l_muzzle")
+    f = weapons_native(E)
+    guns, shells = f["data"]["guns"], f["data"]["shells"]
+    R = update_rate(E)["findings"]
+    N = lambda i: guns[i]["name"]
+    gv = lambda i, k: fmt(guns[i][k])
+    sv = lambda i, k: fmt(shells[guns[i]["projectile_type"]][k])
+    tables = f["guns"] + list(f["shells"].values())
+    flight = [f[k] for k in ("muzzle", "age", "g_air", "g_water", "radius", "g_sub", "w_mul", "retain", "life", "gate", "floor")]
+    spread = [f[k] for k in ("spread", "quarter", "b_reset", "b_base", "b_len", "b_type", "b_step", "b_floor", "b_one", "d_len")]
+    recoil = [f[k] for k in ("recoil_mul", "recoil_50", "recoil_ev")]
+    heat = [f[k] for k in ("heat_add", "heat_one", "heat_stop", "heat_resume", "heat_cool", "heat_snap")]
+    fuse = [f[k] for k in ("fuse_in", "fuse_span", "fuse_off", "fuse_min", "fuse_det")]
+    hit = [f[k] for k in ("imp", "imp_04", "imp_inc", "blast_f", "blast_r", "ap", "mass")]
+    load = [f[k] for k in ("breech", "delay", "cap_v", "cap_m", "d_cap", "drums")]
+    per_gun = [x for d in ("flight", "drop", "impact", "spread_fig", "recoil_fig", "cycle", "heat_fig") for x in f[d].values()]
+    classes = "; ".join("%s %s m/s, keeps %s per update, removed after %s updates" % (N(i), gv(i, "muzzle_velocity_m_s"), sv(i, "velocity_retention_per_update"), sv(i, "lifetime_updates"))
+                        for i in range(7))
+    flight_body = ("Each update a round first moves by its velocity ÷ 60, then loses 0.5 × (138750 ÷ (138750 + y))² m/s of vertical speed, y being its height above sea level, then keeps a fixed fraction r of its velocity. "
+                   "That is 30 m/s² of gravity at sea level, and r is a linear retention per update, not a speed-squared drag law. Under water the gravity step is 0.2 and r is multiplied by 0.8. "
+                   "Machine-gun and autocannon rounds are removed once they slow below 50 m/s; battle, artillery and Bertha shells skip that test until they are in water. Every round is removed at the end of its lifetime.")
+    examples = ("Fired level from 1 m above a flat plane at sea level, a rotary autocannon round lands %s. At 20° a battle cannon shell lands %s, and at 45° a Bertha shell %s. "
+                "A machine-gun round at 5° slows below 50 m/s after about 500 m and is removed in the air." % (f["landing"][2, 0], f["landing"][4, 20], f["landing"][6, 45]))
+    spread_body = ("The firing direction turns by two independent random angles, each uniform within ±0.25 × dispersion × m radians. Dispersion is 0.01 for the machine gun, light and heavy autocannon and battle cannon, "
+                   "0.02 for the rotary autocannon and 0.005 for the artillery and Bertha cannons, so a bare gun spreads ±0.0025, ±0.005 or ±0.00125 rad per axis. "
+                   "m starts at 1 and each barrel extension of the gun's class subtracts 0.2, down to 0.5: one extension gives 0.8, two 0.6, three or more 0.5. "
+                   "Extensions and muzzle brakes move the muzzle forward by 0.25 per voxel of their length; muzzle brakes do not change m, and nothing in the walk changes muzzle speed.")
+    recoil_body = ("A shot submits F = -50 × recoil coefficient × multiplier × V for one update, V being the projectile's velocity and the multiplier 1. "
+                   "The coefficients run 0.1, 0.2, 0.3, 0.5, 2, 4 and 8 from the machine gun to the Bertha, so a stationary gun pushes back with %s internal force units in that order. "
+                   "Barrel extensions do not change the coefficient or the multiplier; their added mass changes how the vehicle responds." % ", ".join(f["recoil_fig"][i]["value"] for i in range(7)))
+    hit_body = ("The impact magnitude M is B × speed ÷ 1000 for kinetic rounds, 0.4 times that for armour-piercing and 0.65 times that for incendiary. High explosive uses M = B and fragmentation 0.4 × B, "
+                "where the projectile supports explosives; the machine-gun round does not. B is 0.1, 0.2, 0.3, 0.6, 1, 2 and 4 from the machine gun to the Bertha. "
+                "Explosions search within 7.5 × M m and push with up to 50000 × M before caps, and fragmentation rounds also release 2 to 80 fragments. "
+                "An armour-piercing round loses 100 × p × mass ÷ cells of speed per component cell it passes, keeping its direction. These magnitudes are inputs to the damage routines, not hit points.")
+    fuse_body = ("Fuse Timer is read for fragmentation rounds on any gun that fires them and for high-explosive rounds on the heavy autocannon and the cannons. A positive input sets T = max(1/60, input + 0.02 × u - 0.01) s, u random from 0 to 1. "
+                 "The round detonates in the update where (age + 1) ÷ 60 reaches T, at a point interpolated within that update. The lifetime or the 50 m/s removal can end the flight first.")
+    load_body = ("Breech transitions take 2, 4, 1, 16, 75, 250 and 600 updates from the machine gun to the Bertha. After a round arrives the receiver waits 30, 90 and 240 updates on the battle, artillery and Bertha cannons, "
+                 "6 for heavy autocannon rounds and none otherwise. Inference from that state machine, not a measurement: with a round always ready the automatic guns cycle every 2 × transition + delay updates, "
+                 "%s, %s, %s and %s rounds per minute for the machine gun, light, rotary and heavy autocannon. Drums hold their full weapon_ammo_capacity of light rounds, half of it in rotary rounds and a fifth in heavy rounds: %s." % (
+                     *[f["cycle"][i]["value"].split(", ")[1].split(" rounds")[0] for i in range(4)], f["drums"]["value"]))
+    heat_body = ("Every gun adds its heat per shot, 0.0125, 0.025, 0.01, 0.08 and 0.02 for the machine gun, light, rotary and heavy autocannon and the three cannons. Each update then removes 0.002, 0.12 per second. "
+                 "At heat 1 the gun stops firing until heat drops below 0.25. Inference with ideal feeding and the trigger held: the rotary autocannon stops on shot %d, the light autocannon on shot %s and the machine gun on shot %s." % (
+                     f["rot_shots"], f["heat_fig"][1]["value"].split()[3].rstrip(","), f["heat_fig"][0]["value"].split()[3].rstrip(",")))
+    open_body = ("Not decoded: a throughput model for arbitrary belt networks, combining direction, order, junctions and neighbour search; the fastest schedule for cannons whose breech is opened and loaded by external control; "
+                 "the final voxel damage, armour incidence and blast occlusion applied to a target; and what writes the recoil multiplier, so how a muzzle brake reduces recoil as its tooltip says. "
+                 "The walk over barrels and muzzle brakes leaves that multiplier at 1. No figure here was measured in a running game.")
+    common = tables + flight + spread + recoil + heat + fuse + hit + load + per_gun + R
     B.category("Weapons",
-               "Autocannon drums hold 100, 200 or 500 rounds and machine-gun boxes 100 or 400; barrels add accuracy and recoil, muzzle brakes cut recoil.",
-               [section("Ammunition",
-                        "Drums hold one caliber each; machine-gun boxes take only kinetic, armour-piercing and incendiary rounds and must be refilled by hand. Autocannons need electricity to feed from belts or drums."),
-                section("Barrel tuning",
-                        "Barrel extensions increase accuracy but also recoil (some heavy and rotary barrels add weight instead); a muzzle brake at the end reduces recoil. Fuse Timer sets a delay in seconds for high-explosive and fragmentation rounds."),
-                section("Measurement questions",
-                        "Spread and recoil per barrel extension, projectile velocity and damage.")],
-               drums + boxes + [barrel, muzzle, E.tooltip("gun_m"), E.port("gun_l", "Fuse Timer")],
-               ["Ballistics were not decoded."])
-    B.family("ammunition-drum", "Capacities 100, 200 and 500 rounds of a single caliber.",
-             [section("Variant tradeoffs", "Medium holds twice and large five times the small drum.")],
-             drums + [E.tooltip("gun_drum_small")], [])
-    B.family("machine-gun-ammo-box", "Capacities 100 and 400 rounds; hand-reloaded only.",
-             [section("Variant tradeoffs", "The larger box holds four times as much.")], boxes + [E.tooltip("gun_drum_xsmall")], [])
+               "Each gun fires from a fixed per-class record: 800 to 1000 m/s for the machine gun and autocannons and 600 to 800 m/s for the cannons, added to the firing body's velocity. "
+               "Rounds keep a fixed fraction of their velocity each update and fall at 30 m/s² at sea level. Barrel extensions narrow the spread, not the muzzle speed, and a gun stops at heat 1 until it cools below 0.25.",
+               [section("Gun classes", "weapon_class selects one row of a 7-row native table, and that row names the projectile row: " + classes + ". "
+                        "weapon_barrel_length_voxels is not part of the velocity: V = muzzle speed × direction + firing body velocity."),
+                section("Flight", flight_body, examples),
+                section("Spread and barrel extensions", spread_body),
+                section("Recoil", recoil_body),
+                section("Impact and explosions", hit_body),
+                section("Timed fuses", fuse_body),
+                section("Loading and firing rate", load_body),
+                section("Heat", heat_body),
+                section("Open questions", open_body)],
+               common + [E.tooltip("gun_l_barrel"), E.tooltip("gun_l_muzzle"), E.port("gun_l", "Fuse Timer")],
+               ["Static analysis of one build. Forces and impact magnitudes are internal units.", TICK])
+
+    shared = "Belt throughput, controlled cannon cadence and final target damage are open items listed under Weapons on the parts index."
+    auto = {0: "machine gun", 1: "light autocannon", 2: "rotary autocannon", 3: "heavy autocannon"}
+    for i, bid in enumerate(GUN_PARTS):
+        fid = "part-" + bid.replace("_", "-")
+        g, s = guns[i], shells[guns[i]["projectile_type"]]
+        fl, dr = f["flight"][i]["value"], f["drop"][i]["value"]
+        ballistics = section("Ballistics",
+                             "Muzzle speed %s m/s plus the firing body's velocity. The round keeps %s of its velocity each update and falls 0.5 m/s per update at sea level, and it is removed after %s updates (%s s)%s." % (
+                                 gv(i, "muzzle_velocity_m_s"), sv(i, "velocity_retention_per_update"), sv(i, "lifetime_updates"), _g(s["lifetime_updates"] / 60, 3),
+                                 " or once it slows below 50 m/s" if i <= 3 else "; out of water it is not removed for being slow"),
+                             "From 1 m above a flat sea-level plane: %s. Level from 100 m up, drop below the launch height: %s." % (fl, dr))
+        spread_sec = section("Spread and recoil",
+                             "Two independent random angles of up to ±%s, so ±%s rad per axis on a bare gun (%s). "
+                             "A shot from a stationary gun pushes back with %s internal force units for one update." % (
+                                 "0.25 × " + gv(i, "dispersion_base_radians") + " × m", f["spread_fig"][i]["value"].split(" rad")[0],
+                                 f["spread_fig"][i]["value"].split("; ")[1], f["recoil_fig"][i]["value"]))
+        if i <= 3:
+            rate = section("Loading and firing rate",
+                           "Breech transition %d update%s, receiver delay %d. Inference, not a measurement: with a round always ready it cycles every %s.%s" % (
+                               g["breech_transition_updates"], "" if g["breech_transition_updates"] == 1 else "s", g["load_transfer_delay_updates"], f["cycle"][i]["value"].replace(" (inference)", ""),
+                               " The barrels spin up for 30 updates before the first shot." if i == 2 else ""))
+            heat_sec = section("Heat", "Each shot adds %s heat and every update removes 0.002. At 1 it stops firing until heat is below 0.25. With ideal feeding and the trigger held it %s (inference)." % (
+                gv(i, "heat_per_shot"), f["heat_fig"][i]["value"]))
+        else:
+            rate = section("Loading and firing rate",
+                           "Breech transition %d updates each way; after a round arrives the receiver waits %d updates. Open Breech drives the breech, so the firing rate depends on how the loading is controlled." % (
+                               g["breech_transition_updates"], g["load_transfer_delay_updates"]))
+            heat_sec = section("Heat", "Each shot adds %s heat, which cools in %s updates at 0.002 per update, much less than one breech transition, so it does not reach the stop at 1 (inference)." % (
+                gv(i, "heat_per_shot"), f["heat_fig"][i]["value"].split()[-2]))
+        ammo = section("Ammunition and fuses",
+                       "Impact magnitudes at muzzle speed: %s. %s" % (
+                           f["impact"][i]["value"],
+                           "Fuse Timer applies to fragmentation rounds only; high-explosive rounds on this gun ignore it." if i <= 2 and s["explosive_ammo_supported"]
+                           else "Fuse Timer applies to high-explosive and fragmentation rounds." if s["explosive_ammo_supported"] else "It has no explosive rounds, so Fuse Timer has no effect."))
+        sections = [ballistics, spread_sec, rate, heat_sec, ammo]
+        summary = "%s m/s muzzle speed, %s of its velocity kept per update, %s heat per shot" % (gv(i, "muzzle_velocity_m_s"), sv(i, "velocity_retention_per_update"), gv(i, "heat_per_shot"))
+        if i == 2:
+            summary = ("1000 m/s rounds every 2 updates at best (inference); heat rises 0.01 per shot and falls 0.002 per update, so it stops on shot %d and fires again once heat is below 0.25." % f["rot_shots"])
+            sections.insert(3, section("Overheat cycle",
+                                       "With ideal feeding and the trigger held it %s. Startup, belt routing and slower feeding change these times and can keep it below the stop. "
+                                       "Releasing the trigger earlier lets heat fall 0.12 per second; firing short bursts keeps it running." % f["heat_fig"][2]["value"]))
+            sections.pop(4)
+        else:
+            summary += "; %s." % ("removed below 50 m/s or after %s s" % _g(s["lifetime_updates"] / 60, 3) if i <= 3 else "lifetime %s s" % _g(s["lifetime_updates"] / 60, 3))
+        B.family(fid, summary[0].upper() + summary[1:], sections,
+                 [f["guns"][i], f["shells"][i], f["flight"][i], f["drop"][i], f["impact"][i], f["spread_fig"][i], f["recoil_fig"][i], f["cycle"][i], f["heat_fig"][i]]
+                 + flight + spread[:2] + recoil + heat + fuse + hit[:5] + load[:2] + [E.tooltip(bid)] + R,
+                 [shared, TICK])
+
+    for fid, cls in BARRELS.items():
+        members = [v["id"] for v in E.families[fid]["variants"]]
+        lens = sorted({int(E.block(b)["attributes"]["weapon_barrel_length_voxels"]) for b in members})
+        attrs = [E.attr(b, a, m) for b in members for a, m in (("weapon_type", "Value 4 takes the spread step."), ("weapon_class", "Must match the gun's class."),
+                                                                  ("weapon_barrel_length_voxels", "Adds 0.25 per voxel to the muzzle offset."))]
+        name = N(cls)
+        hw = [_g(0.25 * guns[cls]["dispersion_base_radians"] * m, 4) for m in (1, 0.8, 0.6, 0.5)]
+        body = [section("Accuracy",
+                        "Each accepted extension of the %s's class subtracts 0.2 from its spread multiplier m, down to 0.5. The %s's spread goes from ±%s rad per axis to ±%s, ±%s and ±%s with one, two and three or more extensions." % (
+                            name.lower(), name.lower(), *hw)),
+                section("What it does not change",
+                        "Muzzle speed comes from the gun's class record and the firing body only, so an extension does not make rounds faster. "
+                        "It moves the muzzle forward by 0.25 × %s = %s per part and adds its mass to the vehicle; the recoil coefficient and multiplier stay as they are." % (
+                            lens[0], _g(0.25 * lens[0], 3)))]
+        offset = E.derived("%s muzzle offset per part" % E.block(members[0])["name"], _g(0.25 * lens[0], 3),
+                           "0.25 × weapon_barrel_length_voxels %d added to the gun's muzzle offset by each accepted part." % lens[0], [f["b_len"]] + attrs[2:3])
+        finds = attrs + spread + [offset, f["muzzle"], f["recoil_mul"], f["guns"][cls], f["spread_fig"][cls]]
+        if fid == "weapon-m-barrel":
+            body.append(section("Tooltip wording",
+                                "gun_m_barrel's tooltip says extensions add weight; gun_m_barrel_1 to gun_m_barrel_3 say they produce more recoil force, as the light autocannon extension does. "
+                                "All four are weapon_type 4 with weapon_class 3, and the walk has no branch on tooltip text, so they share one accuracy rule. "
+                                "None raises the recoil coefficient; the extra mass of 20 per part changes how the vehicle responds."))
+            finds += [E.tooltip(b) for b in members] + [E.attr("gun_m_barrel", "mass", "Mass of each heavy autocannon extension.")]
+        B.family(fid, "Each extension cuts the %s's spread multiplier by 0.2, to no less than 0.5, without changing muzzle speed or the recoil coefficient." % name.lower(),
+                 body, finds, [shared])
+
+    drums = [E.attr(b, "weapon_ammo_capacity", "Store capacity before the calibre scaling.") for b in ("gun_drum_small", "gun_drum_medium", "gun_drum_large")]
+    boxes = [E.attr(b, "weapon_ammo_capacity", "Store capacity; machine-gun rounds are not scaled.") for b in ("gun_drum_xsmall", "gun_drum_xsmall_2")]
+    B.family("ammunition-drum", "Holds 100, 200 or 500 light autocannon rounds, half as many rotary rounds and a fifth as many heavy rounds.",
+             [section("Capacity by calibre",
+                      "The store counts its five damage-kind bins against weapon_ammo_capacity, halved for rotary rounds and divided by 5 for heavy rounds: %s." % f["drums"]["value"]),
+              section("Feeding", "A round moves into a gun only while the gun's breech and receiver timers are 0 and the calibres match. The heavy autocannon then waits 6 updates before the next transition.")],
+             drums + [f["cap_v"], f["cap_m"], f["d_cap"], f["drums"], f["breech"], f["delay"], E.tooltip("gun_drum_small")], [shared])
+    B.family("machine-gun-ammo-box", "Capacities 100 and 400 machine-gun rounds; refilled by hand only.",
+             [section("Variant tradeoffs", "The larger box holds four times as much. Machine-gun rounds take the full weapon_ammo_capacity; only rotary and heavy autocannon rounds are scaled down.")],
+             boxes + [f["cap_v"], f["cap_m"], E.tooltip("gun_drum_xsmall")], [shared])
+
+    law = [f[k] for k in ("r_w", "r_rate", "r_400", "r_min", "r_60", "r_burn", "r_cap", "r_ceil", "r_slope", "r_exp", "r_ui", "r_sum", "r_units", "d_w", "d_h")]
+    figs = [f["boost"][nz] for nz, _, _ in NOZZLES]
+    rows = []
+    for (nz, _, label), fig in zip(NOZZLES, figs):
+        use, thrust = fig["value"].split(", ")[0].split()[1], fig["value"].split(", ")[1].split("; ")[0].split()[-1]
+        ups_ = fig["value"].split("; ")[1].split(" updates")[0].replace(" and", ",").split(", ")
+        rows.append("%s: D %s, raw thrust %s, %s updates with no section and %s with one" % (label, use, thrust, ups_[0], ups_[1]))
+    burn = section("Fuel use and thrust",
+                   "Each burning update uses q = min(D, fuel left) units with D = trunc(400 × w² × burn rate) + 1, w the nozzle width in voxels, and pushes along its axis with raw thrust 60 × q. "
+                   "At burn rate 1: " + "; ".join(rows) + ". The last update can push less.")
+    fuel_sec = section("Fuel and burn time",
+                       "The nozzle and every connected fuel section of rocket_type 1 add w² × h to the fuel volume, and a full load is 20000 units per volume unit. "
+                       "Fuel sections extend the burn without raising thrust: at burn rate 1 each matching section adds about 150 updates (2.5 s) to the medium, large and huge sizes and 50 updates to the small. "
+                       "Halving the burn rate roughly halves thrust and doubles the burn time.")
+    rate_sec = section("Burn Rate, altitude and force cap",
+                       "The Burn Rate slider runs from 1% to 100%, stored as 0.01 to 1. Thrust is multiplied by (1 - 2.2413793e-5 × y)^5.3595023 of the altitude y and is 0 above 40000. "
+                       "The applied force is capped at 1000 × S, S being the force helper's scale, as the jet exhaust is capped at 5 × S.")
+    B.family("solid-rocket-booster",
+             "Burns trunc(400 × w² × burn rate) + 1 fuel units per update and pushes with 60 times that; at burn rate 1 a full nozzle plus one matching fuel section burns 300 updates (5 s), the small size 100 updates.",
+             [burn, fuel_sec, rate_sec], law + figs + [E.tooltip("solid_rocket_nozzle_small"), E.port("solid_rocket_nozzle_medium", "Fuel Remaining")] + R,
+             ["Forces are internal units before the 1000 × S cap. One burning nozzle per fuel group is assumed; several nozzles on one group share its fuel.", TICK])
+    for fid, suffix in (("solid-rocket-fuel", ""), ("solid-rocket-fuel-fins", "_fins")):
+        units = ", ".join("%s %d" % (label.lower(), 20000 * int(E.block(fuel + suffix)["attributes"]["door_side_dist"]) ** 2 * int(E.block(fuel + suffix)["attributes"]["door_up_dist"]))
+                          for _, fuel, label in NOZZLES)
+        B.family(fid,
+                 "Each section adds 20000 × w² × h fuel units (%s) to the nozzle it connects to, lengthening the burn without changing thrust." % units,
+                 [fuel_sec, section("Sizes", "Widths 1, 3, 5 and 7 voxels match the small, medium, large and huge nozzles. At burn rate 1 a matching section adds about 150 updates, 2.5 s, of burn to the larger sizes and 50 updates to the small one."
+                                    + (" Finned sections hold the same fuel as plain ones." if suffix else ""))],
+                 [f["r_sum"], f["r_units"], f["d_w"], f["d_h"]] + figs + [E.attr(fuel + suffix, a, "Fuel section size in voxels.") for _, fuel, _ in NOZZLES for a in ("door_side_dist", "door_up_dist")]
+                 + [E.attr(fuel + suffix, "rocket_type", "Value 1 marks a fuel section.") for _, fuel, _ in NOZZLES] + R,
+                 ["Burn time assumes one burning nozzle and full fuel.", TICK])
 
 
 # sensor pass; files under investigation/native/sensors-radio/, report investigation/sensors-radio.md.
@@ -5829,11 +6460,6 @@ def more_families(B, E):
     simple("part-gun-rocket-launcher", "Four rockets, no reload; rockets can be shot down in flight.",
            [("Setup and interactions", "Trigger Passthrough outputs the trigger once all four are expended, so you can chain launchers.")],
            [A("gun_rocket_launcher", "weapon_ammo_capacity", "Rocket count."), T("gun_rocket_launcher"), P("gun_rocket_launcher", "Trigger Passthrough")], [])
-    simple("part-gun-v", "Very high rate of fire but overheats quickly; needs electricity to feed.",
-           [("Operating conditions", "Allow cooldown between bursts; the overheat threshold was not recovered.")], [T("gun_v")], ["Overheat model not decoded."])
-    simple("weapon-m-barrel", "Heavy autocannon barrels increase accuracy; gun_m_barrel's tooltip mentions added weight and gun_m_barrel_1's added recoil.",
-           [("Variant tradeoffs", "gun_m_barrel's tooltip says it adds weight; gun_m_barrel_1 says it adds recoil force.")], [T("gun_m_barrel"), T("gun_m_barrel_1")],
-           ["Whether the wording difference reflects different mechanics is unknown."])
 
     # Seating.
     simple("part-seat-medical", "Heals occupants; seat_health_per_sec is 1 where ordinary seats carry 0.",

@@ -6,6 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
   exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce, standaloneClutch, standaloneClutchOnset, TRANSMISSION,
+  GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1868,10 +1869,289 @@ function ClutchGraph() {
   );
 }
 
+/* ---------- gun ballistics ---------- */
+
+const FLIGHT_PLOTS = {
+  height: { label: 'Height above the plane', axis: 'Height (m)' },
+  drop: { label: 'Drop below the bore line', axis: 'Drop below the bore line (m)' },
+};
+const FLIGHT_END = {
+  ground: 'Reaches the plane at y = 0',
+  speed: 'Removed in the air: slower than 50 m/s',
+  lifetime: 'Removed in the air: lifetime ends',
+};
+const flightMetres = (m) => (Math.abs(m) >= 10000 ? `${fixed(m / 1000, 1)} km` : `${fixed(m, Math.abs(m) < 10 ? 2 : 1)} m`);
+const axisMetres = (m) => (Math.abs(m) >= 1000 ? `${+(m / 1000).toPrecision(3)} km` : `${+m.toPrecision(3)}`);
+
+/* Range 0 to a 1, 2 or 5 × 10^k multiple at or above max, with four or five steps. */
+function niceRange(max) {
+  const raw = Math.max(max, 1) / 5;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((k) => k * mag).find((k) => k >= raw);
+  const top = Math.ceil(max / step) * step || step;
+  return { max: top, step, ticks: steps(0, top, step) };
+}
+
+function BallisticsGraph({ family, variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => gunClassFor(family, variant).id);
+  const [angle, setAngle] = useState(5);
+  const [height, setHeight] = useState(1);
+  const [plot, setPlot] = useState('height');
+  const [pick, setPick] = useState(0.5);
+  const gun = GUN_CLASSES.find((g) => g.id === part);
+  const tan = Math.tan((angle * Math.PI) / 180);
+  const flight = useMemo(() => projectileFlight({ gun, angle, height }), [gun, angle, height]);
+  const last = flight.rows.at(-1);
+  const xr = niceRange(last.x);
+  const distance = +(pick * last.x).toFixed(1);
+  const at = flightAt(flight.rows, distance) ?? { ...last, speed: Math.hypot(last.vx, last.vy) };
+  const value = (r) => (plot === 'drop' ? height + r.x * tan - r.y : r.y);
+  const ys = flight.rows.map(value);
+  const y = forceDomain(ys);
+  const apex = flight.rows.reduce((a, r) => (r.y > a.y ? r : a), flight.rows[0]);
+  const thin = Math.max(1, Math.floor(flight.rows.length / 600));
+  const points = flight.rows.filter((_, i) => i % thin === 0 || i === flight.rows.length - 1).map((r) => [r.x, value(r)]);
+  const summary = `${gun.label} at ${fixed(angle, 1)}° from ${fixed(height, 0)} m: ${FLIGHT_END[flight.end].toLowerCase()} after ${flightMetres(last.x)} and ${fixed(last.t, 2)} s. At ${flightMetres(distance)}: ${fixed(at.t, 3)} s, height ${flightMetres(at.y)}, drop below the bore line ${flightMetres(height + distance * tan - at.y)}, speed ${fixed(at.speed, 0)} m/s.`;
+  const status = useSettled(summary);
+  const desc = `${FLIGHT_PLOTS[plot].label} against horizontal distance for one round in dry air with no wind, fired from a stationary gun. ${summary}`;
+  const tableRows = steps(0, 10, 1).map((k) => {
+    const d = (k / 10) * last.x;
+    const r = flightAt(flight.rows, d) ?? { ...last, speed: Math.hypot(last.vx, last.vy) };
+    return [flightMetres(d), fixed(r.t, 3), flightMetres(r.y), flightMetres(height + d * tan - r.y), fixed(r.speed, 0)];
+  });
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[{ label: `${FLIGHT_PLOTS[plot].label}, ${gun.label}`, className: 'graph-line-a' }]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Gun</label>
+            <select id={`${uid}-part`} value={part} onChange={(e) => setPart(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {GUN_CLASSES.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`Muzzle speed ${gun.muzzle} m/s, keeps ${+gun.retention.toPrecision(6)} of its velocity per update, removed after ${gun.lifetime} updates${gun.speedGate ? ' or below 50 m/s' : ''}.`}</span>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-plot`}>Plot</label>
+            <select id={`${uid}-plot`} value={plot} onChange={(e) => setPlot(e.target.value)} aria-describedby={`${uid}-plot-hint`}>
+              {Object.entries(FLIGHT_PLOTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <span id={`${uid}-plot-hint`} className="graph-field-hint">The bore line is the straight line along the barrel. Drop is how far the round falls below it.</span>
+          </div>
+          <Range id={`${uid}-a`} label="Elevation" value={angle} min={-10} max={80} step={0.5} onChange={setAngle} valueText={`${fixed(angle, 1)}°`} />
+          <Range id={`${uid}-h`} label="Launch height" value={height} min={1} max={500} step={1} onChange={setHeight} valueText={`${height} m`} hint="Height above a flat plane at sea level that stands in for terrain or water." />
+          <Range id={`${uid}-x`} label="Selected distance" value={pick} min={0} max={1} step={0.005} onChange={setPick} valueText={flightMetres(distance)} hint="Share of the distance the round covers before the run ends." />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`${FLIGHT_PLOTS[plot].label} against distance, ${gun.label}`}
+          desc={desc}
+          x={{ min: 0, max: xr.max, ticks: xr.ticks, format: axisMetres, label: 'Horizontal distance (m)' }}
+          y={{ ...y, format: axisMetres }}
+          series={[{ key: 'flight', className: 'graph-line-a', points }]}
+          selected={{ x: distance, points: [{ key: 'flight', y: plot === 'drop' ? height + distance * tan - at.y : at.y, className: 'graph-dot-a' }] }}
+          onSelect={(x) => setPick(snap(clamp(x / last.x, 0, 1), 0, 1, 0.005))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${gun.label} at ${fixed(angle, 1)}°, ${flightMetres(distance)}`}
+          rows={[
+            ['Time of flight', `${fixed(at.t, 3)} s`],
+            ['Height', flightMetres(at.y)],
+            ['Drop below the bore line', flightMetres(height + distance * tan - at.y)],
+            ['Speed', `${fixed(at.speed, 1)} m/s`],
+            ['Highest point', `${flightMetres(apex.y)} at ${flightMetres(apex.x)}`],
+            ['End of the run', `${FLIGHT_END[flight.end]}, ${flightMetres(last.x)} after ${fixed(last.t, 2)} s`, flight.end === 'ground' ? 'graph-ok' : 'graph-no'],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${gun.label}, elevation ${fixed(angle, 1)}°, launched ${height} m above the plane`,
+        cols: ['Distance', 'Time (s)', 'Height', 'Drop below bore line', 'Speed (m/s)'],
+        rows: tableRows,
+      }}
+    />
+  );
+}
+
+/* ---------- rotary autocannon heat ---------- */
+
+const HEAT_SECONDS = 20;
+
+function HeatGraph() {
+  const uid = useUid();
+  const gun = GUN_CLASSES.find((g) => g.id === 'gun_v');
+  const [period, setPeriod] = useState(gunCycle(gun));
+  const [hold, setHold] = useState(HEAT_SECONDS);
+  const [time, setTime] = useState(6);
+  const run = useMemo(() => gunHeat({ gun, period, updates: HEAT_SECONDS * UPDATES_PER_SECOND, hold: hold * UPDATES_PER_SECOND }), [gun, period, hold]);
+  const tick = Math.min(run.rows.length - 1, Math.round(time * UPDATES_PER_SECOND));
+  const at = run.rows[tick];
+  const stop = run.events.find((e) => e.event === 'stop');
+  const back = run.events.find((e) => e.event === 'recover');
+  const bands = [];
+  run.rows.forEach((r) => {
+    if (!r.stopped) return;
+    const t = r.tick / UPDATES_PER_SECOND;
+    const lastBand = bands.at(-1);
+    if (lastBand && Math.abs(lastBand.to - t) < 1e-9) lastBand.to = t + 1 / UPDATES_PER_SECOND;
+    else bands.push({ from: t, to: t + 1 / UPDATES_PER_SECOND });
+  });
+  const thin = run.rows.filter((r) => r.tick % 2 === 0 || r.shot);
+  const rpm = (60 * UPDATES_PER_SECOND) / period;
+  const stopText = stop ? `Firing stops on shot ${stop.shots} at ${fixed(stop.tick / UPDATES_PER_SECOND, 2)} s${back ? ` and resumes at ${fixed(back.tick / UPDATES_PER_SECOND, 2)} s` : ''}.` : 'Heat stays below 1, so firing never stops.';
+  const summary = `A shot every ${period} update${period === 1 ? '' : 's'} (${fixed(rpm, 0)} rounds per minute), trigger held for ${fixed(hold, 1)} s. ${stopText} At ${fixed(time, 2)} s: heat ${fixed(at.heat, 3)}, ${at.shots} shots fired${at.stopped ? ', stopped' : ''}.`;
+  const status = useSettled(summary);
+  const desc = `Rotary autocannon heat over ${HEAT_SECONDS} s. Each shot adds 0.01 and every update removes 0.002. Hatched spans are where the gun has stopped at heat 1 and waits for heat below 0.25. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Heat', className: 'graph-line-a' },
+        { label: 'Stopped: reached 1, waiting for heat below 0.25', band: true },
+      ]}
+      controls={(
+        <>
+          <Range id={`${uid}-p`} label="Updates per shot" value={period} min={1} max={12} step={1} onChange={setPeriod} valueText={`${period} (${fixed(rpm, 0)} rounds per minute)`} hint="2 is the ideal loaded cycle inferred from the breech timers. Belt routing and feeding can make it slower." />
+          <Range id={`${uid}-h`} label="Trigger held for" value={hold} min={0} max={HEAT_SECONDS} step={0.5} onChange={setHold} valueText={`${fixed(hold, 1)} s`} hint="Includes the 30-update spin-up before the first shot." />
+          <Range id={`${uid}-x`} label="Selected time" value={time} min={0} max={HEAT_SECONDS} step={1 / 30} onChange={(x) => setTime(+x.toFixed(4))} valueText={`${fixed(time, 2)} s`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Rotary autocannon heat over a burst"
+          desc={desc}
+          x={{ min: 0, max: HEAT_SECONDS, ticks: steps(0, HEAT_SECONDS, 4), format: (v) => `${fixed(v, 0)} s`, label: 'Simulated time (s)' }}
+          y={{ min: 0, max: 1, ticks: steps(0, 1, 0.25), format: (v) => fixed(v, 2) }}
+          bands={bands}
+          series={[{ key: 'heat', className: 'graph-line-a', points: thin.map((r) => [r.tick / UPDATES_PER_SECOND, r.heat]) }]}
+          selected={{ x: tick / UPDATES_PER_SECOND, points: [{ key: 'heat', y: at.heat, className: 'graph-dot-a' }] }}
+          onSelect={(x) => setTime(snap(x, 0, HEAT_SECONDS, 1 / 30))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At ${fixed(tick / UPDATES_PER_SECOND, 2)} s (update ${tick})`}
+          rows={[
+            ['Heat', fixed(at.heat, 4)],
+            ['Shots fired', String(at.shots)],
+            ['Firing', at.stopped ? 'Stopped until heat is below 0.25' : tick < hold * UPDATES_PER_SECOND ? 'Allowed' : 'Trigger released', at.stopped ? 'graph-no' : 'graph-ok'],
+            ['First stop', stop ? `Shot ${stop.shots}, ${fixed(stop.tick / UPDATES_PER_SECOND, 2)} s` : 'None'],
+            ['Resumes', back ? `${fixed(back.tick / UPDATES_PER_SECOND, 2)} s` : 'n/a'],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Rotary autocannon, a shot every ${period} updates, trigger held ${fixed(hold, 1)} s`,
+        cols: ['Time (s)', 'Heat', 'Shots fired', 'Stopped'],
+        rows: steps(0, HEAT_SECONDS, 1).map((t) => {
+          const r = run.rows[Math.min(run.rows.length - 1, Math.round(t * UPDATES_PER_SECOND))];
+          return [fixed(t, 0), fixed(r.heat, 3), String(r.shots), r.stopped ? 'Yes' : 'No'];
+        }),
+      }}
+    />
+  );
+}
+
+/* ---------- solid rocket booster ---------- */
+
+const BOOSTER_PLOTS = {
+  seconds: { label: 'Burn time (s)' },
+  thrust: { label: 'Raw thrust per update' },
+};
+const BURN_RATES = steps(1, 100, 1);
+
+function BoosterGraph({ variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => solidRocketFor(variant).id);
+  const [sections, setSections] = useState(1);
+  const [plot, setPlot] = useState('seconds');
+  const [rate, setRate] = useState(100);
+  const r = SOLID_ROCKETS.find((x) => x.id === part);
+  const pl = BOOSTER_PLOTS[plot];
+  const run = (pct) => solidRocket({ width: r.width, length: r.length, sections, burnRate: pct / 100 });
+  const samples = useMemo(() => BURN_RATES.map((p) => ({ p, ...solidRocket({ width: r.width, length: r.length, sections, burnRate: p / 100 }) })), [r, sections]);
+  const at = run(rate);
+  const y = forceDomain(samples.map((s) => s[plot]));
+  const summary = `${r.label} nozzle with ${sections} matching fuel section${sections === 1 ? '' : 's'} at Burn Rate ${rate}%: ${num(at.capacity, 0)} fuel units, ${num(at.use, 0)} used per update, raw thrust ${num(at.thrust, 0)}, burns ${at.updates} updates (${fixed(at.seconds, 2)} s).`;
+  const status = useSettled(summary);
+  const desc = `${pl.label} against Burn Rate from 1% to 100%. Fuel use per update steps up with trunc(400 × w² × burn rate) + 1, so thrust rises and burn time falls with the rate. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[{ label: `${pl.label}, ${r.label} nozzle plus ${sections} section${sections === 1 ? '' : 's'}`, className: 'graph-line-a' }]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Nozzle</label>
+            <select id={`${uid}-part`} value={part} onChange={(e) => setPart(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {SOLID_ROCKETS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`Width w ${r.width}, length h ${r.length} voxels: ${num(WEAPON.fuelPerVolume * r.width * r.width * r.length, 0)} fuel units per part.`}</span>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-plot`}>Plot</label>
+            <select id={`${uid}-plot`} value={plot} onChange={(e) => setPlot(e.target.value)}>
+              {Object.entries(BOOSTER_PLOTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-s`} label="Matching fuel sections" value={sections} min={0} max={10} step={1} onChange={setSections} valueText={String(sections)} hint="Sections of the nozzle's size, plain or finned, all full." />
+          <Range id={`${uid}-x`} label="Selected Burn Rate" value={rate} min={1} max={100} step={1} onChange={setRate} valueText={`${rate}%`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`Solid rocket ${pl.label.toLowerCase()} against Burn Rate`}
+          desc={desc}
+          x={{ min: 0, max: 100, ticks: steps(0, 100, 20), format: (v) => `${v}%`, label: 'Burn Rate setting' }}
+          y={{ ...y, format: propTick }}
+          series={[{ key: 'b', className: 'graph-line-a', points: samples.map((s) => [s.p, s[plot]]) }]}
+          selected={{ x: rate, points: [{ key: 'b', y: at[plot], className: 'graph-dot-a' }] }}
+          onSelect={(x) => setRate(snap(x, 1, 100, 1))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${r.label} nozzle, ${sections} section${sections === 1 ? '' : 's'}, Burn Rate ${rate}%`}
+          rows={[
+            ['Fuel units', num(at.capacity, 0)],
+            ['Used per update D', num(at.use, 0)],
+            ['Raw thrust 60 × D', num(at.thrust, 0)],
+            ['Burn time', `${at.updates} updates, ${fixed(at.seconds, 2)} s`],
+            ['Last update', `${num(at.last, 0)} units, thrust ${num(at.lastThrust, 0)}`],
+            ['Applied force cap', '1000 × S'],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${r.label} nozzle with ${sections} matching fuel section${sections === 1 ? '' : 's'}`,
+        cols: ['Burn Rate', 'Used per update', 'Raw thrust', 'Burn time (s)'],
+        rows: [10, 25, 50, 75, 100].map((p) => {
+          const x = run(p);
+          return [`${p}%`, num(x.use, 0), num(x.thrust, 0), fixed(x.seconds, 2)];
+        }),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
-  clutch: ClutchGraph,
+  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

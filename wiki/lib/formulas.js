@@ -14,6 +14,7 @@
 // Legacy radar and sonar, signature and FOV sliders: investigation/sensors-legacy.md (logic case 50, helper 0x14090a290).
 // Radio: investigation/radio.md (receive routine 0x14054a780).
 // Propellers, rotors and ducted fans: investigation/propulsion.md (force-emitter force and load phase 0x14033efb0).
+// Guns and solid rockets: investigation/weapons.md (gun update 0x140427390, projectile update 0x140591d80, nozzle update 0x140437570).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -928,6 +929,136 @@ export function shaftBridge(a, b, q, c = 1) {
   return { A: (ia * va + s * vb * ib * h) / (ia + ib * h * Math.abs(q)), B: (ib * vb + s * va * ia * h) / (ib + ia * h / Math.abs(q)), h };
 }
 
+// Guns and solid rockets (investigation/weapons.md), ported from investigation/native/weapons/tools/model.py. Gun and projectile
+// rows come from the native tables at 0x140cc0870 and 0x140cc0540; retention is binary32 promoted to double, as in the projectile
+// update 0x140591d80. Speeds are m/s, heights metres above sea level; recoil and thrust stay in internal force units.
+export const WEAPON = {
+  gravityStep: 0.5, radius: 138750, speedFloor: 50, spreadFactor: 0.25, extensionStep: 0.2, spreadFloor: 0.5, recoilFactor: 50,
+  heatCooling: f32(0.002), heatStop: 1, heatResume: f32(0.25), heatSnap: f32(0.001),
+  fuelPerVolume: 20000, fuelUse: 400, thrustPerUnit: 60, capLimit: 1000, burnRateMin: 0.01, burnRateMax: 1,
+};
+// Rounds below 50 m/s are removed only for projectile types under 10 other than 3; cannon shells (12 to 14) take that
+// test only in water (0x14059208e), and these models are dry.
+const gunClass = (id, label, cls, projectile, muzzle, retention, lifetime, transition, delay, heat, dispersion, recoil, spinUp = 0) => ({
+  id, label, cls, projectile, muzzle, retention: f32(retention), lifetime, transition, delay, heat: f32(heat), dispersion: f32(dispersion), recoil: f32(recoil), spinUp,
+  families: [`part-${id.replaceAll('_', '-')}`], automatic: cls <= 3, speedGate: projectile < 10 && projectile !== 3,
+});
+export const GUN_CLASSES = [
+  gunClass('gun_xs', 'Machine Gun', 0, 6, 800, 0.975, 300, 2, 0, 0.0125, 0.01, 0.1),
+  gunClass('gun_s', 'Light Autocannon', 1, 7, 1000, 0.98, 300, 4, 0, 0.025, 0.01, 0.2),
+  gunClass('gun_v', 'Rotary Autocannon', 2, 8, 1000, 0.99, 300, 1, 0, 0.01, 0.02, 0.3, 30),
+  gunClass('gun_m', 'Heavy Autocannon', 3, 9, 900, 0.995, 600, 16, 6, 0.08, 0.01, 0.5),
+  gunClass('gun_l', 'Battle Cannon', 4, 12, 800, 0.998, 3600, 75, 30, 0.02, 0.01, 2),
+  gunClass('gun_xl', 'Artillery Cannon', 5, 13, 700, 0.999, 3600, 250, 90, 0.02, 0.005, 4),
+  gunClass('gun_xxl', 'Bertha Cannon', 6, 14, 600, 0.9995, 3600, 600, 240, 0.02, 0.005, 8),
+];
+export const gunClassFor = (family, variant = null) =>
+  GUN_CLASSES.find((g) => g.id === variant) ?? GUN_CLASSES.find((g) => g.families.includes(family)) ?? GUN_CLASSES[2];
+
+// Ideal automatic cycle, an inference from the breech state machine: 2 × transition + receiver delay updates per shot.
+export const gunCycle = (gun) => 2 * gun.transition + gun.delay;
+
+// Dry flight from a stationary gun, no wind. Each update: remove if gated and slower than 50 m/s, move by V ÷ 60, then
+// Vy -= 0.5 × (138750 ÷ (138750 + y))² and V × r. The run ends at the plane y = 0, the speed gate or the lifetime.
+export function projectileFlight({ gun, angle, height = 1, flatGravity = false }) {
+  finite([angle, height]);
+  if (height <= 0) throw new RangeError('Launch height must be above the plane.');
+  const a = (angle * Math.PI) / 180;
+  let vx = gun.muzzle * Math.cos(a);
+  let vy = gun.muzzle * Math.sin(a);
+  let x = 0;
+  let y = height;
+  const rows = [{ t: 0, x, y, vx, vy }];
+  for (let tick = 0; tick < gun.lifetime; tick += 1) {
+    if (gun.speedGate && vx * vx + vy * vy < WEAPON.speedFloor ** 2) return { rows, end: 'speed' };
+    const nx = x + vx / UPDATES_PER_SECOND;
+    const ny = y + vy / UPDATES_PER_SECOND;
+    if (ny <= 0 && y > 0) {
+      const k = y / (y - ny);
+      rows.push({ t: (tick + k) / UPDATES_PER_SECOND, x: x + (nx - x) * k, y: 0, vx, vy });
+      return { rows, end: 'ground' };
+    }
+    const g = flatGravity ? WEAPON.gravityStep : WEAPON.gravityStep * (WEAPON.radius / (WEAPON.radius + ny)) ** 2;
+    vx *= gun.retention;
+    vy = (vy - g) * gun.retention;
+    x = nx;
+    y = ny;
+    rows.push({ t: (tick + 1) / UPDATES_PER_SECOND, x, y, vx, vy });
+  }
+  return { rows, end: 'lifetime' };
+}
+
+// The flight interpolated where it passes a horizontal distance, or null when it ends first.
+export function flightAt(rows, distance) {
+  for (let i = 1; i < rows.length; i += 1) {
+    const a = rows[i - 1];
+    const b = rows[i];
+    if (a.x <= distance && distance <= b.x) {
+      const u = b.x > a.x ? (distance - a.x) / (b.x - a.x) : 0;
+      const lerp = (k) => a[k] + u * (b[k] - a[k]);
+      return { t: lerp('t'), x: distance, y: lerp('y'), vx: lerp('vx'), vy: lerp('vy'), speed: Math.hypot(lerp('vx'), lerp('vy')) };
+    }
+  }
+  return null;
+}
+
+// Heat of one gun with the trigger held for `hold` updates and a round ready every `period` updates after the spin-up.
+// binary32 in the update's order: shot, stop at heat >= 1, resume below 0.25, cool 0.002, zero below 0.001, clamp to 0..1.
+export function gunHeat({ gun, period = gunCycle(gun), updates = 1200, hold = Infinity }) {
+  finite([period, updates]);
+  if (!(period >= 1)) throw new RangeError('A shot needs at least one update.');
+  let h = 0;
+  let stopped = false;
+  let shots = 0;
+  const rows = [];
+  const events = [];
+  for (let tick = 0; tick < updates; tick += 1) {
+    const shot = tick < hold && tick >= gun.spinUp && (tick - gun.spinUp) % period === 0 && !stopped;
+    if (shot) {
+      h = f32(h + gun.heat);
+      shots += 1;
+    }
+    if (!stopped && h >= WEAPON.heatStop) {
+      stopped = true;
+      events.push({ event: 'stop', tick, shots });
+    }
+    if (stopped && h < WEAPON.heatResume) {
+      stopped = false;
+      events.push({ event: 'recover', tick, shots });
+    }
+    h = f32(h - WEAPON.heatCooling);
+    if (h < WEAPON.heatSnap) h = 0;
+    h = clamp(h, 0, 1);
+    rows.push({ tick, heat: h, shot, stopped, shots });
+  }
+  return { rows, events };
+}
+
+// Solid rocket nozzles; matching fuel sections share the width w (door_side_dist) and length h (door_up_dist).
+const rocket = (size, width, length) => ({
+  id: `solid_rocket_nozzle_${size}`, label: size[0].toUpperCase() + size.slice(1), width, length,
+  fuel: [`solid_rocket_${size}`, `solid_rocket_${size}_fins`],
+});
+export const SOLID_ROCKETS = [rocket('small', 1, 1), rocket('medium', 3, 3), rocket('large', 5, 3), rocket('huge', 7, 3)];
+export const SOLID_ROCKET_FAMILIES = ['solid-rocket-booster', 'solid-rocket-fuel', 'solid-rocket-fuel-fins'];
+export const solidRocketFor = (variant = null) =>
+  SOLID_ROCKETS.find((r) => r.id === variant || r.fuel.includes(variant)) ?? SOLID_ROCKETS[1];
+
+// One burning nozzle with `sections` matching fuel sections: capacity 20000 × volume × fuel factor, use per update
+// D = trunc(400 × w² × burn rate) + 1 in binary32 order, raw thrust 60 × D before the altitude factor and the 1000 × S cap.
+export function solidRocket({ width, length, sections = 1, burnRate = 1, fuelFactor = 1 }) {
+  finite([width, length, sections, burnRate, fuelFactor]);
+  if (width <= 0 || length <= 0 || sections < 0 || burnRate < 0 || fuelFactor < 0) throw new RangeError('Sizes, sections, burn rate and fuel must be nonnegative.');
+  const volume = width * width * length * (1 + sections);
+  const capacity = Math.trunc(f32(f32(volume * f32(fuelFactor)) * f32(WEAPON.fuelPerVolume)));
+  const use = Math.trunc(f32(f32(f32(width * f32(burnRate)) * width) * WEAPON.fuelUse)) + 1;
+  const updates = Math.ceil(capacity / use);
+  return {
+    volume, capacity, use, thrust: WEAPON.thrustPerUnit * use, updates, seconds: updates / UPDATES_PER_SECOND,
+    last: capacity - (updates - 1) * use, lastThrust: WEAPON.thrustPerUnit * (capacity - (updates - 1) * use),
+  };
+}
+
 const FAMILY_GRAPHS = {
   'part-torque-clutch': ['clutch'],
   'modular-engine-clutch': ['clutch'],
@@ -952,5 +1083,7 @@ const FAMILY_GRAPHS = {
   ...Object.fromEntries(LEGACY_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['legacy']])),
   ...Object.fromEntries(RADIO_ANTENNAS.flatMap((a) => a.families).map((id) => [id, ['radio']])),
   ...Object.fromEntries(PROPELLER_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['propeller']])),
+  ...Object.fromEntries(GUN_CLASSES.flatMap((g) => g.families).map((id) => [id, id === 'part-gun-v' ? ['ballistics', 'heat'] : ['ballistics']])),
+  ...Object.fromEntries(SOLID_ROCKET_FAMILIES.map((id) => [id, ['booster']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

@@ -84,6 +84,19 @@ const FINDINGS = {
     'Clutch input', 'Clutch input exponent', 'Clutch power call', 'Clutch coupling', 'Clutch availability divisor', 'Clutch availability factor',
     'Bridge edge factor', 'Bridge path cutoff', 'Clutch target exponent', 'Clutch engagement slew', 'Component updates per simulated second',
   ],
+  ballistics: [
+    'Muzzle speed read', 'Age and position step', 'Gravity step in air', 'Gravity radius constant', 'Gravity subtraction', 'Velocity retention',
+    'Lifetime test', 'Speed gate selection', 'Speed deletion threshold', 'Component updates per simulated second',
+  ],
+  heat: [
+    'Rotary Autocannon gun record', 'Heat per shot read', 'Heat stop threshold', 'Heat stop flag', 'Heat resume threshold', 'Heat cooling per update',
+    'Heat zero snap', 'Breech transition time', 'Rotary Autocannon ideal automatic cycle', 'Component updates per simulated second',
+  ],
+  booster: [
+    'Fuel section volume', 'Fuel units per volume unit', 'Nozzle width read', 'Burn rate factor', 'Fuel use factor', 'Fuel use limit',
+    'Thrust per fuel unit', 'Burn Rate slider scale', 'Thrust altitude factor slope', 'Thrust altitude factor exponent', 'Thrust altitude ceiling',
+    'Solid rocket thrust application limit', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -102,6 +115,9 @@ const TITLES = {
   radio: 'Radio signal strength against distance, height and power',
   propeller: 'Propeller and rotor force and shaft load against RPS',
   clutch: 'Clutch coupling against Clutch Pressure',
+  ballistics: 'Projectile height and drop against distance',
+  heat: 'Rotary autocannon heat over a burst',
+  booster: 'Solid rocket thrust and burn time against Burn Rate',
 };
 
 /*
@@ -678,10 +694,105 @@ const CLUTCH = {
   ],
 };
 
+const BALLISTICS = {
+  intro: (
+    <p>
+      Every gun reads its muzzle speed, velocity retention r and lifetime from its class record. Each update the round moves by its
+      velocity ÷ 60, then gravity takes 0.5 m/s of vertical speed, scaled down slightly with height, and the round keeps r of what
+      is left. The chart follows one round and plots its height, or its drop below the bore line, against horizontal distance.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="p"><mi mathvariant="bold">p</mi>{mo('←')}<mi mathvariant="bold">p</mi>{mo('+')}<mfrac><mi mathvariant="bold">v</mi>{mn('60')}</mfrac></mrow>,
+        <mrow key="g">{sub('v', 'y')}{mo('←')}{sub('v', 'y')}{mo('−')}{mn('0.5')}<msup><mrow>{mo('(')}<mfrac>{mn('138750')}<mrow>{mn('138750')}{mo('+')}{mi('y')}</mrow></mfrac>{mo(')')}</mrow>{mn('2')}</msup></mrow>,
+        <mrow key="r"><mi mathvariant="bold">v</mi>{mo('←')}{mi('r')}<mi mathvariant="bold">v</mi><mspace width="1em" /><mtext>removed at the lifetime, or below 50 m/s for machine-gun and autocannon rounds</mtext></mrow>,
+      ]}
+      text={[
+        'v0 = muzzle speed * (cos elevation, sin elevation) + firing body velocity (0 here)',
+        'Each update: removed if age >= lifetime, or if speed < 50 m/s for projectile types below 10 other than 3',
+        'p = p + v / 60',
+        'v_y = v_y - 0.5 * (138750 / (138750 + y))^2, y = new height above sea level; 0.2 instead of 0.5 in water',
+        'v = r * v; r times 0.8 in water',
+        'r: 0.975, 0.98, 0.99, 0.995, 0.998, 0.999, 0.9995 from the machine gun to the Bertha',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Dry air, no wind, a stationary gun and a flat plane at sea level standing in for terrain or water. The game samples wind and adds the firing body\'s velocity; neither is modelled here.',
+    'One round along the barrel axis. Spread turns each round by up to ±0.25 × dispersion × m radians per axis, which the chart leaves out.',
+    'Battle, artillery and Bertha shells are not removed for being slow until they reach water, so a steep cannon shot keeps flying through its slowest point.',
+    'The run ends where the round meets the plane, slows below 50 m/s or reaches its lifetime. What it hits and the damage it does are not modelled.',
+  ],
+};
+
+const HEAT = {
+  intro: (
+    <p>
+      Every gun keeps a heat value. Each shot adds the class&apos;s heat per shot, 0.01 on the rotary autocannon, and every update
+      removes 0.002 whether or not it fires. At heat 1 the gun stops firing and waits until heat falls below 0.25. The chart runs that
+      rule with a round ready every few updates, after the 30-update spin-up, and the trigger released at a chosen time.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="s">{mi('h')}{mo('←')}{mi('h')}{mo('+')}{mn('0.01')}<mspace width="0.5em" /><mtext>on a shot</mtext><mspace width="1em" /><mtext>stop when </mtext>{mi('h')}{mo('≥')}{mn('1')}<mtext>, resume when </mtext>{mi('h')}{mo('<')}{mn('0.25')}</mrow>,
+        <mrow key="c">{mi('h')}{mo('←')}{fn('clamp')}<mrow>{mo('(')}{mi('h')}{mo('−')}{mn('0.002')}{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}</mrow><mspace width="1em" /><mtext>every update; below 0.001 becomes 0</mtext></mrow>,
+      ]}
+      text={[
+        'Each update, in order:',
+        '  if firing: h = h + 0.01 (rotary autocannon; 0.0125, 0.025, 0.08 and 0.02 on the other guns)',
+        '  if not stopped and h >= 1: stopped',
+        '  if stopped and h < 0.25: not stopped',
+        '  h = h - 0.002; h = 0 if h < 0.001; h = clamp(h, 0, 1)',
+        'Ideal loaded cycle (inference from the breech timers): 2 updates per shot, 1800 rounds per minute',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'A round is ready at every shot opportunity. Two updates per shot is the fastest cycle the breech timers allow, an inference from the state machine rather than a measured rate; belts and drums can feed more slowly.',
+    'Heat is computed in single precision in the update\'s order, as the gun update does.',
+    'The 30-update spin-up runs once at the start. How the spin-up counter behaves after the trigger is released and pressed again is not modelled.',
+    'No game process was run; the times are model output, not measurements.',
+  ],
+};
+
+const BOOSTER = {
+  intro: (
+    <p>
+      A solid rocket group holds 20000 fuel units per unit of volume, counting the nozzle and every connected fuel section as w² × h.
+      Each burning update the nozzle uses D = trunc(400 × w² × burn rate) + 1 units and pushes with 60 units of force per unit used.
+      The chart shows burn time or raw thrust against the Burn Rate setting for one nozzle and a number of matching full sections.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="c">{mi('C')}{mo('=')}{mn('20000')}<msup>{mi('w')}{mn('2')}</msup>{mi('h')}<mrow>{mo('(')}{mn('1')}{mo('+')}{mi('n')}{mo(')')}</mrow><mspace width="1em" />{mi('D')}{mo('=')}<mo>⌊</mo>{mn('400')}<msup>{mi('w')}{mn('2')}</msup>{mi('b')}<mo>⌋</mo>{mo('+')}{mn('1')}</mrow>,
+        <mrow key="t">{mi('q')}{mo('=')}{fn('min')}<mrow>{mo('(')}{mi('D')}{mo(',')}{mi('C')}{mo('−')}<mtext>burned</mtext>{mo(')')}</mrow><mspace width="1em" />{mi('F')}{mo('=')}{mn('60')}{mi('q')}<mspace width="1em" /><mtext>burn time</mtext>{mo('=')}<mo>⌈</mo><mfrac>{mi('C')}{mi('D')}</mfrac><mo>⌉</mo><mtext> updates</mtext></mrow>,
+      ]}
+      text={[
+        'w = width (door_side_dist), h = length (door_up_dist) in voxels; n matching fuel sections; b = Burn Rate, 0.01 to 1',
+        'C = trunc(20000 * w^2 * h * (1 + n) * fuel factor), fuel factor 1 when full',
+        'D = trunc(400 * w * w * b) + 1, evaluated in single precision as (w * b) * w * 400',
+        'Each update: q = min(D, C - burned); raw thrust F = 60 * q along the nozzle axis',
+        'Applied: F * (1 - 2.2413793e-5 * y)^5.3595023 (0 above 40000), then capped at 1000 * S',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'One burning nozzle with full, undamaged sections of its own size. Several nozzles on one fuel group share its fuel and burn it faster.',
+    'Raw thrust is in the game\'s internal force unit at sea level, before the altitude factor and the 1000 × S application cap; S comes from the force helper\'s caller and is not plotted.',
+    'The burn rate is held fixed for the whole burn.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
-  clutch: CLUTCH,
+  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER,
 };
 
 function Evidence({ items }) {

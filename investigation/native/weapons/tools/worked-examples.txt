@@ -1,0 +1,44 @@
+Checks: closed-form flight at 1/10/30 updates; heat stop/recovery and bounds passed.
+Dry air, zero wind, launch y=1 m; native lifetime and speed cutoff; hypothetical sea-level plane.
+Machine Gun          angle= 0deg t=  0.287s x=  188.198m y=    0.000m end=ground plane
+Machine Gun          angle= 5deg t=  1.867s x=  500.125m y=   20.600m end=speed <50 m/s
+Machine Gun          angle=20deg t=  1.800s x=  468.625m y=  148.655m end=speed <50 m/s
+Machine Gun          angle=45deg t=  1.700s x=  348.617m y=  328.547m end=speed <50 m/s
+Rotary Autocannon    angle= 0deg t=  0.274s x=  253.910m y=    0.000m end=ground plane
+Rotary Autocannon    angle= 5deg t=  4.274s x= 1534.138m y=    0.000m end=ground plane
+Rotary Autocannon    angle=20deg t=  5.000s x= 1489.350m y=  374.766m end=lifetime
+Rotary Autocannon    angle=45deg t=  4.400s x= 1095.522m y=  956.694m end=speed <50 m/s
+Heavy Autocannon     angle= 0deg t=  0.270s x=  234.224m y=    0.000m end=ground plane
+Heavy Autocannon     angle= 5deg t=  4.372s x= 2186.136m y=    0.000m end=ground plane
+Heavy Autocannon     angle=20deg t= 10.000s x= 2679.779m y=  300.870m end=lifetime
+Heavy Autocannon     angle=45deg t= 10.000s x= 2016.499m y= 1348.455m end=lifetime
+Battle Cannon        angle= 0deg t=  0.268s x=  211.273m y=    0.000m end=ground plane
+Battle Cannon        angle= 5deg t=  4.325s x= 2690.832m y=    0.000m end=ground plane
+Battle Cannon        angle=20deg t= 14.457s x= 5161.345m y=    0.000m end=ground plane
+Battle Cannon        angle=45deg t= 26.539s x= 4519.607m y=    0.000m end=ground plane
+Bertha Cannon        angle= 0deg t=  0.267s x=  159.614m y=    0.000m end=ground plane
+Bertha Cannon        angle= 5deg t=  3.466s x= 1968.283m y=    0.000m end=ground plane
+Bertha Cannon        angle=20deg t= 12.957s x= 6054.196m y=    0.000m end=ground plane
+Bertha Cannon        angle=45deg t= 25.723s x= 7606.438m y=    0.000m end=ground plane
+
+Horizontal shots from y=100 m: interpolated drop from launch height at distance.
+Machine Gun 100 m: t=0.1367s drop=0.2283m
+Machine Gun 300 m: t=0.5442s drop=3.2956m
+Machine Gun 500 m: t=1.8252s drop=23.3731m
+Rotary Autocannon 100 m: t=0.1026s drop=0.1295m
+Rotary Autocannon 300 m: t=0.3291s drop=1.4389m
+Rotary Autocannon 500 m: t=0.5915s drop=4.5229m
+Battle Cannon 100 m: t=0.1258s drop=0.2056m
+Battle Cannon 300 m: t=0.3833s drop=2.0718m
+Battle Cannon 500 m: t=0.6490s drop=5.9871m
+
+Full solid fuel, default burn rate 1, one nozzle plus one matching segment:
+{"burn_seconds": 1.6666666666666667, "burn_updates": 100, "fuel_units": 40000, "last_update_units": 301, "raw_thrust_internal": 24060, "segments": 1, "units_per_update": 401, "width": 1}
+{"burn_seconds": 5.0, "burn_updates": 300, "fuel_units": 1080000, "last_update_units": 3301, "raw_thrust_internal": 216060, "segments": 1, "units_per_update": 3601, "width": 3}
+{"burn_seconds": 5.0, "burn_updates": 300, "fuel_units": 3000000, "last_update_units": 9701, "raw_thrust_internal": 600060, "segments": 1, "units_per_update": 10001, "width": 5}
+{"burn_seconds": 5.0, "burn_updates": 300, "fuel_units": 5880000, "last_update_units": 19301, "raw_thrust_internal": 1176060, "segments": 1, "units_per_update": 19601, "width": 7}
+
+Rotary model, loaded cycle=2 updates, spin-up=30 updates:
+{"event": "stop", "heat_before_cooling": 1.0000027418136597, "shots": 166, "tick": 360, "time_s": 6.0}
+{"event": "recover", "heat_before_cooling": 0.24800866842269897, "shots": 166, "tick": 736, "time_s": 12.266666666666667}
+{"event": "stop", "heat_before_cooling": 1.0040113925933838, "shots": 292, "tick": 988, "time_s": 16.466666666666665}
