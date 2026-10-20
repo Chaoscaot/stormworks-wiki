@@ -939,19 +939,37 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/2",
-        "text": "Final vehicle and character damage was not traced: the consumer of the tornado's server-side damage record, and any damage from whirlpool and tsunami water through collision, flooding or drowning. Meteor impact, blast and secondary tsunami, volcano eruption, lava, projectiles and heat, and forest fire ignition, spread, heat and damage were not decoded, so no meteor, volcano or fire radius is given.",
+        "text": "Final vehicle and character damage was not traced: the consumer of the tornado's deferred damage record, how the volcano damage message becomes HP, and any damage from whirlpool and tsunami water beyond collision, flooding or drowning.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/3",
-        "text": "Whether native code schedules natural disasters besides the two addons was not established; the tornado initializer has a single network-handler caller, but other native, virtual or save-loading paths were not ruled out.",
+        "text": "Meteor block damage falloff, the largest radius of every explosion consumer and the reach of the main meteor's ocean event were not established.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/4",
-        "text": "The chain from hazard wind and current to body forces was not traced in full (the cached water grid, surface weights, torque application and character consumers), and safe distances from debris, projectiles, secondary events and collisions were not established.",
+        "text": "Volcano lava and projectile paths and their contact damage, the full eruption acceptance test and its height-map helper were not decoded.",
+        "scope": "Shipped-resource mechanics article"
+      },
+      {
+        "file": "wiki/data/mechanics.json",
+        "pointer": "/articles/15/limitations/5",
+        "text": "Forest fire scheduling and damage were not established: how initial fires start, including the lightning and explosion ignition chances, how often the tree update runs, vehicle and character heat and damage, and how far a fire spreads over several generations.",
+        "scope": "Shipped-resource mechanics article"
+      },
+      {
+        "file": "wiki/data/mechanics.json",
+        "pointer": "/articles/15/limitations/6",
+        "text": "Whether native code schedules natural disasters besides the two addons was not established: indirect calls, save restore paths and every writer of the volcano activation flag were not ruled out.",
+        "scope": "Shipped-resource mechanics article"
+      },
+      {
+        "file": "wiki/data/mechanics.json",
+        "pointer": "/articles/15/limitations/7",
+        "text": "The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, other wind and current consumers, and the kilograms per editor mass unit.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

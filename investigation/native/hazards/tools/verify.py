@@ -14,7 +14,7 @@ expected = 'f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699'
 assert hashlib.sha256(exe.read_bytes()).hexdigest() == expected
 p = PE(exe)
 count = 0
-for asm in sorted((root / 'asm').glob('*.asm')):
+for asm in sorted([*(root / 'asm').glob('*.asm'), *(root / 'followup').glob('*.asm')]):
     for line in asm.read_text().splitlines():
         m = re.match(r'\s*([0-9a-f]{9,16}):\s+((?:[0-9a-f]{2} )*[0-9a-f]{2})\s', line)
         if not m:
