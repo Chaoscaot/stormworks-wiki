@@ -16,6 +16,7 @@
 // Propellers, rotors and ducted fans: investigation/propulsion.md (force-emitter force and load phase 0x14033efb0).
 // Guns and solid rockets: investigation/weapons.md (gun update 0x140427390, projectile update 0x140591d80, nozzle update 0x140437570).
 // Steam: investigation/steam.md (steam update 0x14040cbd0, phase helper 0x1402eb350).
+// Wheels: investigation/wheels.md (advanced wheel update 0x1403aa4a0, track pass 0x14049e060).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -1191,6 +1192,54 @@ export function steamCycle({ voxels = 175, seconds = 600, water = 8, coolant = 4
   return { rows, cap };
 }
 
+// Road and tank wheels, investigation/wheels.md (advanced wheel update 0x1403aa4a0). The working radius is
+// r = wheel_radius - 0.125 + 0.125 × wheel_size metres and the tread moves at 2π × r × RPS m/s with binary32 π, in double
+// precision like investigation/native/wheels/wheels.json. Mass is the shaft weight, × 0.7 for wheels with suspension.
+export const WHEEL = { sizeStep: 0.125, pi: Math.fround(Math.PI), kmh: 3.6, defaultSize: 1, suspendedWeight: 0.7, slipLimit: 5 };
+export const WHEEL_GROUPS = [
+  { family: 'wheel-no-suspension', label: 'Wheels without suspension', sized: true, suspension: false },
+  { family: 'wheel-with-suspension', label: 'Wheels with suspension', sized: true, suspension: true },
+  { family: 'tank-wheel', label: 'Tank wheels', sized: false, suspension: false },
+  { family: 'tank-drive-wheel', label: 'Tank drive wheels', sized: false, suspension: false },
+];
+const wheelPart = (id, label, family, radius, mass) => {
+  const g = WHEEL_GROUPS.find((x) => x.family === family);
+  return { id, label, family, radius, mass, sized: g.sized, suspension: g.suspension };
+};
+export const WHEELS = [
+  wheelPart('wheel_advanced_3', 'Wheel 3x3', 'wheel-no-suspension', 0.35, 10),
+  wheelPart('wheel_advanced_5', 'Wheel 5x5', 'wheel-no-suspension', 0.58, 20),
+  wheelPart('wheel_advanced_7', 'Wheel 7x7', 'wheel-no-suspension', 0.85, 40),
+  wheelPart('wheel_advanced_9', 'Wheel 9x9', 'wheel-no-suspension', 1.05, 80),
+  wheelPart('wheel_advanced_3_sus', 'Wheel 3x3 (Suspension)', 'wheel-with-suspension', 0.35, 15),
+  wheelPart('wheel_advanced_5_sus', 'Wheel 5x5 (Suspension)', 'wheel-with-suspension', 0.58, 30),
+  wheelPart('wheel_advanced_7_sus', 'Wheel 7x7 (Suspension)', 'wheel-with-suspension', 0.85, 60),
+  wheelPart('wheel_advanced_9_sus', 'Wheel 9x9 (Suspension)', 'wheel-with-suspension', 1.05, 120),
+  wheelPart('wheel_tank_1', 'Tank Wheel (Small)', 'tank-wheel', 0.4, 20),
+  wheelPart('wheel_tank_1_wide', 'Tank Wheel (Small/Wide)', 'tank-wheel', 0.4, 25),
+  wheelPart('wheel_tank_5_2', 'Tank Wheel (Medium)', 'tank-wheel', 0.625, 30),
+  wheelPart('wheel_tank_5', 'Tank Wheel (Large)', 'tank-wheel', 0.625, 40),
+  wheelPart('wheel_tank_7', 'Tank Wheel (Huge)', 'tank-wheel', 1, 80),
+  wheelPart('wheel_tank_drive_1', 'Tank Drive Wheel (Small)', 'tank-drive-wheel', 0.4, 20),
+  wheelPart('wheel_tank_drive_1_wide', 'Tank Drive Wheel (Small/Wide)', 'tank-drive-wheel', 0.4, 25),
+  wheelPart('wheel_tank_drive_5_2', 'Tank Drive Wheel (Medium)', 'tank-drive-wheel', 0.625, 30),
+  wheelPart('wheel_tank_drive_5', 'Tank Drive Wheel (Large)', 'tank-drive-wheel', 0.625, 40),
+  wheelPart('wheel_tank_drive_7', 'Tank Drive Wheel (Huge)', 'tank-drive-wheel', 1, 80),
+];
+export const wheelFor = (family, variant = null) =>
+  WHEELS.find((w) => w.id === variant) ?? WHEELS.find((w) => w.family === family) ?? WHEELS[0];
+export const wheelRadius = (wheel, size = WHEEL.defaultSize) => wheel.radius - WHEEL.sizeStep + WHEEL.sizeStep * size;
+export const wheelShaftWeight = (wheel) => wheel.mass * (wheel.suspension ? WHEEL.suspendedWeight : 1);
+
+// No-slip tread speed: 2π × r × RPS in m/s, × 3.6 in km/h. Tank wheels stay at wheel_size 1.
+export function treadSpeed({ wheel, rps, size = WHEEL.defaultSize }) {
+  finite([rps, size]);
+  const r = wheelRadius(wheel, wheel.sized ? size : WHEEL.defaultSize);
+  if (r <= 0) throw new RangeError('wheel_size leaves no positive radius.');
+  const ms = 2 * WHEEL.pi * r * rps;
+  return { radius: r, ms, kmh: ms * WHEEL.kmh, perRps: 2 * WHEEL.pi * r };
+}
+
 const FAMILY_GRAPHS = {
   'part-torque-clutch': ['clutch'],
   'modular-engine-clutch': ['clutch'],
@@ -1221,5 +1270,6 @@ const FAMILY_GRAPHS = {
   'part-steam-boiler': ['steam'],
   'part-steam-turbine': ['steam'],
   'steam-piston': ['piston'],
+  ...Object.fromEntries(WHEEL_GROUPS.map((g) => [g.family, ['wheel']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

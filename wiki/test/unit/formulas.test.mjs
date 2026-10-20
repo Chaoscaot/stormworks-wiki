@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1272,4 +1272,83 @@ test('steam cycle reproduces investigation/native/steam/tools/examples.json when
   assert.equal(turbineFlowCap(2, 1), ex.turbine_PA2_PB1.q_cap);
   assert.ok(Math.abs((0.985 * 1000 * turbineFlowCap(2, 1)) / 0.015 - ex.turbine_PA2_PB1.steady_target_RPS) < 1e-12);
   assert.equal(pistonDrive({ pa: 1, pb: 2, phase: 0.25 }), ex.piston_PA1_PB2_phase_quarter);
+});
+
+test('wheel constants and parts remain tied to the verified native findings and shipped definitions', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const all = data.families.flatMap((f) => f.findings);
+  const value = (label) => {
+    const x = all.find((f) => f.label === label);
+    assert.ok(x?.source?.address, label);
+    return Number(x.value);
+  };
+  assert.equal(Math.fround(value('Wheel radius size step')), Math.fround(WHEEL.sizeStep));
+  assert.equal(Math.fround(value('Tread speed pi factor')), WHEEL.pi);
+  assert.equal(Math.fround(value('Suspended wheel shaft weight factor')), Math.fround(WHEEL.suspendedWeight));
+  assert.equal(value('Wheel slip velocity limit'), WHEEL.slipLimit);
+  assert.equal(value('Wheel angle step divisor'), 60);
+  const blocks = new Map(JSON.parse(readFileSync(new URL('../../data/blocks.json', import.meta.url), 'utf8')).blocks.map((b) => [b.id, b]));
+  const families = new Map(JSON.parse(readFileSync(new URL('../../data/families.json', import.meta.url), 'utf8')).families.map((f) => [f.id, f]));
+  for (const g of WHEEL_GROUPS) {
+    assert.deepEqual(WHEELS.filter((w) => w.family === g.family).map((w) => w.id), families.get(g.family).variants.map((v) => v.id), g.family);
+    assert.deepEqual(graphKindsForFamily(g.family), ['wheel']);
+  }
+  for (const w of WHEELS) {
+    const b = blocks.get(w.id);
+    assert.equal(Number(b.attributes.wheel_radius), w.radius, w.id);
+    assert.equal(Number(b.attributes.mass), w.mass, w.id);
+    assert.equal(w.suspension, !(Number(b.attributes.flags) & 0x800000), `${w.id} suspension flag`);
+    assert.equal(b.name, w.label, w.id);
+    // The extractor's per-definition figures use the same law.
+    const t = treadSpeed({ wheel: w, rps: 1 });
+    const speed = all.find((f) => f.label === `${w.label} tread speed per RPS`);
+    assert.equal(speed.value, `${+t.ms.toPrecision(4)} m/s, ${+t.kmh.toPrecision(4)} km/h`, w.id);
+    assert.equal(Number(all.find((f) => f.label === `${w.label} shaft weight`).value), +wheelShaftWeight(w).toPrecision(4), w.id);
+  }
+  for (const id of ['tyre', 'part-wheel-small', 'part-wheel-medium', 'part-wheel-coaster']) assert.deepEqual(graphKindsForFamily(id), []);
+  assert.equal(wheelFor('tank-drive-wheel').id, 'wheel_tank_drive_1');
+  assert.equal(wheelFor('wheel-no-suspension', 'wheel_advanced_9').id, 'wheel_advanced_9');
+});
+
+test('wheel tread speed is linear in RPS and wheel_size and fixed at size 1 for tank wheels', () => {
+  const near = (a, b) => assert.ok(Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(b)), `${a} != ${b}`);
+  const w3 = wheelFor(null, 'wheel_advanced_3');
+  near(treadSpeed({ wheel: w3, rps: 1 }).ms, 2.1991149187088013);
+  near(treadSpeed({ wheel: w3, rps: 10 }).kmh, 79.16813707351685);
+  assert.equal(treadSpeed({ wheel: w3, rps: 0 }).ms, 0);
+  near(treadSpeed({ wheel: w3, rps: -2 }).ms, -2 * treadSpeed({ wheel: w3, rps: 1 }).ms);
+  near(wheelRadius(w3, 0), 0.225);
+  near(wheelRadius(w3, 2), 0.475);
+  near(treadSpeed({ wheel: w3, rps: 1, size: 1.1 }).perRps - treadSpeed({ wheel: w3, rps: 1 }).perRps, 2 * WHEEL.pi * 0.0125);
+  const tank = wheelFor('tank-wheel', 'wheel_tank_7');
+  near(treadSpeed({ wheel: tank, rps: 1, size: 0 }).ms, 2 * WHEEL.pi);
+  assert.equal(wheelShaftWeight(wheelFor(null, 'wheel_advanced_3_sus')), 15 * 0.7);
+  assert.equal(wheelShaftWeight(w3), 10);
+  assert.throws(() => treadSpeed({ wheel: w3, rps: Number.NaN }), RangeError);
+  near(wheelRadius(w3, -1), 0.1);
+  assert.throws(() => treadSpeed({ wheel: w3, rps: 1, size: -2 }), RangeError);
+});
+
+test('wheel model reproduces investigation/native/wheels/wheels.json when present', (t) => {
+  const file = new URL('../../../investigation/native/wheels/wheels.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  assert.equal(data.native_pi_float, WHEEL.pi);
+  const advanced = data.definitions.filter((d) => d.type === 41);
+  assert.deepEqual(advanced.map((d) => d.definition.split('/').pop().replace('.xml', '')).sort(), WHEELS.map((w) => w.id).sort());
+  for (const d of advanced) {
+    const w = wheelFor(null, d.definition.split('/').pop().replace('.xml', ''));
+    const s1 = treadSpeed({ wheel: w, rps: 1 });
+    assert.equal(s1.ms, d.speed_m_s_per_rps_native_pi_at_size_1, w.id);
+    assert.equal(s1.kmh, d.speed_km_h_per_rps_native_pi_at_size_1, w.id);
+    assert.equal(wheelRadius(w, 1), d.effective_radius_m_at_size_1, w.id);
+    assert.equal(wheelRadius(w, 0), d.effective_radius_m_at_size_0, w.id);
+    assert.equal(w.suspension, d.suspension_enabled, w.id);
+    assert.equal(String(w.mass), d.mass_resource, w.id);
+  }
+  for (const ex of data.examples.speed) {
+    const w = WHEELS.find((x) => x.radius === ex.radius_m);
+    const r = treadSpeed({ wheel: w, rps: ex.rps });
+    assert.ok(Math.abs(r.ms - ex.m_s) <= 1e-12 * ex.m_s && Math.abs(r.kmh - ex.km_h) <= 1e-12 * ex.km_h, `${ex.radius_m} m at ${ex.rps} RPS`);
+  }
 });

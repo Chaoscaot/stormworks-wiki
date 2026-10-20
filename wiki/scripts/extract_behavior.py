@@ -4710,34 +4710,469 @@ def jet_engines(B, E):
              ex_limits)
 
 
+# wheels pass; files under investigation/native/wheels/, report investigation/wheels.md.
+WH_REPORT = "investigation/wheels.md"
+WH_DATA = "investigation/native/wheels/wheels.json"
+F_WHEEL = 0x1403AA4A0         # advanced wheel update (definition type 41), vtable 0x140b82258 slot +0x358
+F_WHEEL_LEGACY = 0x1403A5D70  # legacy wheel update (definition type 4), vtable 0x140aeaea8 slot +0x358
+F_WHEEL_CTOR = 0x1403A84B0    # advanced wheel constructor: saved-setting defaults
+F_WHEEL_SER = 0x1403A8FB0     # advanced wheel serializer: grip_factor, stiffness_factor, damping_factor, wheel_size, tyre_pressure, double_wheel
+F_WHEEL_BODY = 0x1403A9750    # advanced wheel physics setup: child sphere body, friction and damping events
+F_TIRE = 0x1403AFE40          # tyre factor helper (leaf)
+F_TRACK_SYNC = 0x14049E085         # chained chunk of the track group pass 0x14049e060: signed RPS and weight averages
+F_WORLD = 0x1401A37F0         # physics world construction: solver, world, gravity
+F_SOLVER = 0x1401281D0        # btSequentialImpulseConstraintSolver constructor
+F_SOFT_WORLD = 0x140159B50    # btSoftRigidDynamicsWorld constructor
+F_DAMPING = 0x140139DE0       # Bullet body damping: v × (1 - d)^dt
+F_DAMP_SET = 0x1401A1A20      # damping event: clamp to 0..1 and store (leaf)
+F_CINFO = 0x1401397B0         # Bullet rigid-body construction-info defaults
+F_COMBINE = 0x1400F42E7       # chained chunk of the contact routine: material friction and restitution combination
+F_VEH_BODY = 0x1404A8B50      # vehicle body build: damping and friction events
+F_VEH_CFG = 0x140294050       # vehicle tuning defaults copy
+F_VEH_INIT = 0x140497B10      # vehicle constructor: gravity field
+WHEEL_SLOTS = ((0x140B825B0, F_WHEEL), (0x140AEB200, F_WHEEL_LEGACY))
+WHEEL_RTTI = ((0x140B82258, "c_scene_vehicle_component_wheel_advanced"), (0x140AEAEA8, "c_scene_vehicle_component_wheel"),
+              (0x140AE2C58, "btSequentialImpulseConstraintSolver"), (0x140AE3760, "btSoftRigidDynamicsWorld"))
+# Retained listing (under investigation/native/) and pseudocode for each cited routine.
+WHEEL_ASM = {
+    F_WHEEL: ("wheels/asm/1403aa4a0.asm", "1403aa4a0.c"), F_WHEEL_CTOR: ("wheels/asm/1403a84b0.asm", "1403a84b0.c"),
+    F_WHEEL_SER: ("wheels/asm/1403a8fb0.asm", "1403a8fb0.c"), F_WHEEL_BODY: ("wheels/asm/1403a9750.asm", "1403a9750.c"),
+    F_TIRE: ("wheels/asm/1403afe40.asm", "1403afe40.c"), F_TRACK_SYNC: ("wheels/asm/14049e060.asm", "14049e060.c"),
+    F_WORLD: ("wheels/asm/1401a37f0.asm", "1401a37f0.c"), F_SOLVER: ("wheels/asm/1401281d0.asm", "1401281d0.c"),
+    F_SOFT_WORLD: ("wheels/asm/140159b50.asm", "140159b50.c"), F_DAMPING: ("wheels/asm/bullet-damping.asm", "140139de0.c"),
+    F_DAMP_SET: ("wheels/asm/1401a1a20.asm", "1401a1a20.c"), F_CINFO: ("wheels/asm/1401397b0.asm", "1401397b0.c"),
+    F_COMBINE: ("wheels/asm/bullet-combine-material.asm", "1400f42e7.c"), F_VEH_BODY: ("wheels/asm/vehicle-body-defaults.asm", "1404a8b50.c"),
+    F_VEH_CFG: ("wheels/asm/140294050.asm", "140294050.c"), F_VEH_INIT: ("wheels/asm/vehicle-gravity-initializer.asm", "140497b10.c"),
+    F_TUNING: ("wheels/asm/140293a40.asm", "140293a40.c"), F_DEFSER: ("wheels/asm/definition-wheel.asm", None),
+}
+WHEEL_MASS_ASM = "weapons/asm/definition-mass.asm"  # loader binding of mass to definition+0x2b0
+WHEEL_FAMILIES = {
+    "wheel-no-suspension": ("wheel_advanced_3", "wheel_advanced_5", "wheel_advanced_7", "wheel_advanced_9"),
+    "wheel-with-suspension": ("wheel_advanced_3_sus", "wheel_advanced_5_sus", "wheel_advanced_7_sus", "wheel_advanced_9_sus"),
+    "tank-wheel": ("wheel_tank_1", "wheel_tank_1_wide", "wheel_tank_5_2", "wheel_tank_5", "wheel_tank_7"),
+    "tank-drive-wheel": ("wheel_tank_drive_1", "wheel_tank_drive_1_wide", "wheel_tank_drive_5_2", "wheel_tank_drive_5", "wheel_tank_drive_7"),
+}
+WHEEL_LEGACY = ("wheel_coaster", "wheel_coaster_large", "wheel_medium", "wheel_small")
+NO_SUSPENSION = 0x800000  # definition flag tested at 0x1403aaf09 and 0x1403acef0
+
+
+def _wheel_cite(E, func, address, hexbytes, key=None, listing=None):
+    """Point WHERE at the retained listing lines of the cited bytes, after checking that the listing shows the same bytes."""
+    path, pseudo = (listing, None) if listing else WHEEL_ASM[func]
+    cache = E.__dict__.setdefault("wheel_asm", {})
+    if path not in cache:
+        rows = []
+        for i, line in enumerate((E.root / "investigation/native" / path).read_text().splitlines(), 1):
+            m = re.match(r"\s*([0-9a-f]+):\t((?:[0-9a-f]{2} )*[0-9a-f]{2})", line)
+            if m:
+                rows.append((int(m.group(1), 16), bytes.fromhex(m.group(2).replace(" ", "")), i))
+        cache[path] = rows
+    rows = cache[path]
+    i = next((k for k, r in enumerate(rows) if r[0] == address), None)
+    if i is None:
+        raise ValueError("Retained listing %s lacks %#x" % (path, address))
+    want, got, j = bytes.fromhex(hexbytes), b"", i
+    while len(got) < len(want) and j < len(rows) and rows[j][0] == address + len(got):
+        got += rows[j][1]
+        j += 1
+    if not got.startswith(want):
+        raise ValueError("Retained listing %s shows other bytes at %#x" % (path, address))
+    lines = "L%d" % rows[i][2] if j - 1 == i else "L%d-L%d" % (rows[i][2], rows[j - 1][2])
+    where = "../" + path + ":" + lines
+    if pseudo:
+        where += "; ../wheels/pseudocode/" + pseudo
+    WHERE[(func, address if key is None else key)] = where
+
+
+def _rtti(n, vtable):
+    """MSVC RTTI class name of a vtable: complete object locator at vtable-8, type descriptor name at +0x10."""
+    col = struct.unpack("<Q", n.raw(vtable - 8, 8))[0]
+    name = n.cstring(n.base + struct.unpack("<I", n.raw(col + 12, 4))[0] + 16)
+    return re.sub(r"^\.\?A[UV](.*)@@$", r"\1", name)
+
+
+def wheels_native(E):
+    """Advanced wheel radius, tread speed, contact, shaft exchange, springs, tracks and the Bullet world, verified once and shared."""
+    if hasattr(E, "wheel"):
+        return E.wheel
+    n = E.native
+    if not (E.root / WH_REPORT).is_file():
+        raise ValueError("Wheel report missing: " + WH_REPORT)
+    for slot, target in WHEEL_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Wheel vtable slot %#x does not point to %#x" % (slot, target))
+    for vtable, name in WHEEL_RTTI:
+        if _rtti(n, vtable) != name:
+            raise ValueError("RTTI at %#x is not %s" % (vtable, name))
+    rep = " Report: %s." % WH_REPORT
+
+    def code(func, address, hexbytes, label, value, detail, listing=None):
+        _wheel_cite(E, func, address, hexbytes, listing=listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail, kind="f32"):
+        _wheel_cite(E, func, address, hexbytes)
+        return E.operand(func, address, hexbytes, target, label, detail + rep, kind)
+
+    def name(func, lea, hexbytes, target, expected, label, detail, listing=None):
+        if n.raw(lea, len(hexbytes) // 2).hex() != hexbytes or lea + len(hexbytes) // 2 + struct.unpack("<i", n.raw(lea + 3, 4))[0] != target:
+            raise ValueError("lea at %#x does not address %#x" % (lea, target))
+        _wheel_cite(E, func, lea, hexbytes, key=target, listing=listing)
+        return E.string(func, target, expected, label, detail + rep)
+
+    f = {}
+    # Radius and tread speed.
+    f["radius_name"] = name(F_DEFSER, 0x140317659, "4c8d05a84b8400", 0x140B5C208, "wheel_radius", "wheel_radius binding",
+                            "The definition loader binds wheel_radius to definition+0x894 (lea r9 at 0x14031764c), the field the wheel update reads at 0x1403aabb3.")
+    f["mass_name"] = name(F_DEFSER, 0x140316AF6, "4c8d05f77f8900", 0x140BAEAF4, "mass", "mass binding",
+                          "The definition loader binds the mass attribute to definition+0x2b0 (lea r9 at 0x140316ae6), the field the wheel reads as its shaft weight.", listing=WHEEL_MASS_ASM)
+    f["offset"] = op(F_WHEEL, 0x1403AABC0, "f30f5c05384f8000", 0x140BAFB00, "Wheel radius size step",
+                     "The update loads R = wheel_radius (definition+0x894) at 0x1403aabb3 and subtracts this, so xmm0 = R - 0.125 and xmm12 = R - xmm0 = 0.125.")
+    f["size"] = code(F_WHEEL, 0x1403AABCD, "f3440f59a7f4060000", "Wheel size scaling", "0.125 × wheel_size",
+                     "Multiplies the 0.125 step by wheel_size (component+0x6f4) and adds R - 0.125 at 0x1403aabd6: the working radius r = R - 0.125 + 0.125 × wheel_size, stored at rbp+0x18 (0x1403aabdb). "
+                     "Every speed, slip limit and contact offset below uses this r.")
+    f["size_name"] = name(F_WHEEL_SER, 0x1403A921B, "4c8d0576177c00", 0x140B6A998, "wheel_size", "wheel_size binding",
+                          "The wheel serializer saves and loads component+0x6f4 under this name (lea r9 at 0x1403a9214) and copies the stored float without a clamp (0x1403a924b).")
+    f["defaults"] = code(F_WHEEL_CTOR, 0x1403A8751, "c786e806000000" "00803f" "c786ec060000cdcccc3e" "c786f0060000ae47e13d" "c786f406000000" "00803f" "c786f806000000" "00803f",
+                         "Wheel setting defaults", "grip 1, stiffness 0.4, damping 0.11, wheel_size 1, tyre_pressure 1",
+                         "The constructor stores grip_factor 1 (+0x6e8), stiffness_factor 0.4 (+0x6ec, bytes cdcccc3e), damping_factor 0.11 (+0x6f0, bytes ae47e13d), wheel_size 1 (+0x6f4) and tyre_pressure 1 (+0x6f8). "
+                         "With wheel_size 1 the working radius equals wheel_radius.")
+    f["tyre_enum"] = code(F_WHEEL_CTOR, 0x1403A888B, "c78614080000" "01000000", "Tyre type default", "1",
+                          "The constructor sets the tyre type enum (component+0x814) to 1. Its labels in the editor are not stored here, so the wiki uses the numbers 0, 1 and 2.")
+    f["rps"] = code(F_WHEEL, 0x1403ABB74, "f3440f108f58040000", "Wheel RPS read", "component+0x458",
+                    "Loads the wheel's RPS and doubles it (addss at 0x1403abb7d).")
+    f["pi"] = op(F_WHEEL, 0x1403ABB82, "f3440f590d25488000", 0x140BB03B0, "Tread speed pi factor",
+                 "Multiplies 2 × RPS by binary32 π.")
+    f["tread"] = code(F_WHEEL, 0x1403ABB8B, "f3440f594d18", "Tread speed", "2π × r × RPS",
+                      "Multiplies by the working radius r (rbp+0x18): u = 2π × r × RPS. The update adds u along the wheel tangent to the contact-point velocity (linear velocity plus angular velocity × offset), "
+                      "and r also places the ground ray and the wheel's sphere body in world coordinates, so r is in metres and u in m/s, the unit of the linear speed sensor's point velocity.")
+    f["angle"] = op(F_WHEEL, 0x1403ACE6E, "f30f5e0dea388000", 0x140BB0760, "Wheel angle step divisor",
+                    "The visual wheel angle (component+0x454) advances by 2π × RPS ÷ 60 per update and wraps into -π to π (0x1403ace8e..0x1403aceb0), so RPS is turns per simulated second at 60 updates.")
+    # Contact and grip.
+    f["ray"] = code(F_WHEEL, 0x1403AAFE2, "41b97f000000", "Wheel ground ray", "line query, mask 0x7f",
+                    "The update passes collision mask 0x7f to the line query 0x1401a4300 (call at 0x1403aaff6); a second query at 0x1403ab2ef serves the wheel-axis orientation branch. "
+                    "The wheel also has a physical sphere body, so contact combines this ray with ordinary Bullet body contact.")
+    f["body_mu"] = op(F_WHEEL_BODY, 0x1403A9CBA, "f30f1015365c8000", 0x140BAF8F8, "Wheel sphere body friction",
+                      "The wheel's child sphere body (created through 0x1401a5260 at 0x1403a9c4c) gets this friction through 0x1401a7170 (0x1403a9ccc).")
+    f["body_damp"] = op(F_WHEEL_BODY, 0x1403A9CD1, "f30f101d1b5f8000", 0x140BAFBF4, "Wheel sphere body angular damping",
+                        "Passed with linear damping 0 to the damping event 0x1401a7530 (0x1403a9ce6).")
+    f["slip"] = op(F_WHEEL, 0x1403ABE5E, "f30f100d7a468000", 0x140BB04E0, "Wheel slip velocity limit",
+                   "The relative velocity v_rel between the hit body's point and the wheel's contact point, tread speed included, is scaled down to length 5 when longer (0x1403abe66..0x1403abe79). "
+                   "Its component along the ray direction n is then removed: u = clip5(v_rel) - (clip5(v_rel) · n) n, so faster slip than 5 m/s asks for no more grip.")
+    f["slip_r"] = op(F_WHEEL, 0x1403AAEA6, "f30f5915e2588000", 0x140BB0790, "Wheel tangential slip limit per radius",
+                     "The tangential slip u is also limited to length 100 × r. At the shipped radii 100 × r is larger than 5, so this limit does not bite after the first one.")
+    f["memory_r"] = op(F_WHEEL, 0x1403AC055, "f30f5905733a8000", 0x140BAFAD0, "Contact memory limit per radius",
+                       "Contact memory q = brake × (previous contact anchor, in the current body - hit point), limited to length 0.1 × r. The anchor lives at component+0x7a8..+0x7d8 and is kept only while the hit body stays the same.")
+    f["grip"] = op(F_WHEEL, 0x1403AC390, "f30f590da8438000", 0x140BB0740, "Grip request scale",
+                   "xmm1 = grip_factor (component+0x6e8) × 50, multiplied by the tyre factor from 0x1403afe40 (call at 0x1403ac380) and divided by r (0x1403ac3a1).")
+    f["gain_u"] = op(F_WHEEL, 0x1403AC3CB, "f30f5905bd438000", 0x140BB0790, "Slip velocity gain",
+                     "Each component of the slip u is multiplied by 100.")
+    f["gain_q"] = op(F_WHEEL, 0x1403AC3DF, "f30f10158d448000", 0x140BB0874, "Contact memory gain",
+                     "Each component of q is multiplied by 2000 and added to 100 u, then everything by the scale: Q = (50 × grip_factor × tyre factor ÷ r) × (2000 q + 100 u), stored at component+0x7e0..+0x7e8. "
+                     "The terms added at 0x1403ac407 and 0x1403ac40d are multiplied by xmm10, which is zeroed at 0x1403aa560. "
+                     "Longitudinal and lateral slip share one gain, and the request has no normal-load input. Q is an internal impulse request: the helpers 0x1401a7c70 and 0x1401a7ad0 cap it with a caller scale B before it reaches the body, so it is not in newtons.")
+    f["brake"] = code(F_WHEEL, 0x1403AA564, "f3410f5fc2f3410f5dc6", "Brake input clamp", "0 to 1",
+                      "Variable Brake (component+0x428), or 1 while Brake is on (+0x450), is clamped to 0..1 by maxss and minss and kept at rbp+0x1c.")
+    f["tire_base"] = op(F_TIRE, 0x1403AFE47, "f30f10057d008000", 0x140BAFECC, "Tyre factor base",
+                        "The tyre factor starts at this, or at 1.75 when double_wheel (component+0x6fc) is set.")
+    f["tire_double"] = op(F_TIRE, 0x1403AFE51, "f30f1005a3028000", 0x140BB00FC, "Double wheel tyre factor",
+                          "Start value with double_wheel set (je at 0x1403afe4f skips it otherwise).")
+    f["tire_1"] = op(F_TIRE, 0x1403AFE7B, "f30f5905cdfc7f00", 0x140BAFB50, "Tyre type 1 factor",
+                     "For wheel_type values other than 1 to 4 and 8 the factor is multiplied by the tyre type's value: this for type 1, the constructor default.")
+    f["tire_2"] = op(F_TIRE, 0x1403AFE89, "f30f59056ffc7f00", 0x140BAFB00, "Tyre type 2 factor", "Tyre type 2.")
+    f["tire_0"] = op(F_TIRE, 0x1403AFE92, "f30f590522fd7f00", 0x140BAFBBC, "Tyre type 0 factor", "Tyre type 0 and any other value.")
+    f["tire_track"] = op(F_TIRE, 0x1403AFEA4, "f30f590510fe7f00", 0x140BAFCBC, "Tank wheel tyre factor without a track",
+                         "For wheel_type 1 to 4 and 8, the tank wheels, the factor is halved when the track flag (component+0x80c) is clear and kept otherwise; the tyre type is not read. The helper reads no terrain material or normal force.")
+    f["react"] = op(F_WHEEL, 0x1403AC5B6, "f30f5935923f8000", 0x140BB0550, "Contact RPS correction circumference",
+                    "After the grip request the update takes d = (slip · wheel tangent) ÷ (2π × r), the slip as turns per second.")
+    f["react_k"] = op(F_WHEEL, 0x1403AC5D3, "f30f590de1368000", 0x140BAFCBC, "Contact RPS correction factor",
+                      "RPS += d × tyre factor × grip_factor × 0.5, stored at component+0x458 (0x1403ac5fb). Ground contact thus pulls the wheel's own RPS toward the ground speed before it meets the shaft.")
+    # Shaft exchange and retention.
+    f["sign"] = op(F_WHEEL, 0x1403ACE36, "f30f1025ea3d8000", 0x140BB0C28, "Reversed wheel speed sign",
+                   "The sign s is -1 when the orientation flag component+0x460 is set and 1 otherwise (0x1403ace56..0x1403ace5f).")
+    f["weight"] = code(F_WHEEL, 0x1403ACEDE, "f30f1081b0020000", "Wheel shaft weight", "definition mass",
+                       "The weight comes from definition+0x2b0 through the definition pointer component+0x58, the field the loader binds to mass. "
+                       "When definition flag 0x800000 (no suspension) is clear (test at 0x1403acef0) it is multiplied by 0.7.")
+    f["weight_sus"] = op(F_WHEEL, 0x1403ACE3E, "f30f101d362f8000", 0x140BAFD7C, "Suspended wheel shaft weight factor",
+                         "Multiplier of the shaft weight for wheels whose definition lacks flag 0x800000 (mulss at 0x1403acef8).")
+    f["submit"] = code(F_WHEEL, 0x1403ACEFC, "f30f1187c8030000f30f1197cc030000", "Wheel shaft submission", "weight +0x3c8, s × RPS +0x3cc",
+                       "With an RPS connection (component+0x3c0) the wheel submits its weight and s × RPS, its contact-corrected speed, to the shaft node, like any shaft member: "
+                       "the group speed is (v_prev + Σ F × v) ÷ (1 + Σ F).")
+    f["read"] = code(F_WHEEL, 0x1403ACF0C, "f30f59a7d0030000f30f11a758040000", "Wheel shaft speed read", "s × group RPS",
+                     "Then it takes s × the published group speed (node+0x30, component+0x3d0) as its RPS. Without a connection it keeps its own RPS. The node's effective weight (component+0x3d4) is copied to component+0x808 at 0x1403aced8.")
+    f["keep_0"] = op(F_WHEEL, 0x1403ACF3E, "f30f1005662f8000", 0x140BAFEAC, "Wheel speed retention, tyre type 0",
+                     "Last, the RPS is multiplied by a retention: this for tyre type 0, 0.995 for type 1 and 1 for any other type.")
+    f["keep_1"] = op(F_WHEEL, 0x1403ACF4D, "f30f10055b2f8000", 0x140BAFEB0, "Wheel speed retention, tyre type 1", "Tyre type 1, the default.")
+    f["keep_track"] = op(F_WHEEL, 0x1403ACF66, "f30f10052a2f8000", 0x140BAFE98, "Tank wheel speed retention in a track",
+                         "wheel_type 1 to 4 and 8 use this when the track flag is set.")
+    f["keep_alone"] = op(F_WHEEL, 0x1403ACF70, "f30f1005042e8000", 0x140BAFD7C, "Tank wheel speed retention without a track",
+                         "And this when it is clear.")
+    f["brake_mul"] = code(F_WHEEL, 0x1403ACF7C, "f3440f5c751c", "Brake speed factor", "1 - brake",
+                          "The stored RPS is retention × (1 - brake) × the RPS after the shaft read (0x1403acf82, store at 0x1403acf87). It is the wheel's local state for the next update; other shaft members see the group speed.")
+    # Wheel springs.
+    f["k"] = op(F_WHEEL, 0x1403AAECD, "f30f593dbf4d8000", 0x140BAFC94, "Spring stiffness scale",
+                "k = 0.05 + 0.45 × stiffness_factor (component+0x6ec; addss at 0x1403aaed5).")
+    f["k0"] = op(F_WHEEL, 0x1403AAED5, "f30f583d634b8000", 0x140BAFA40, "Spring stiffness base", "Added to 0.45 × stiffness_factor.")
+    f["c"] = op(F_WHEEL, 0x1403AAEEA, "f30f593dce558000", 0x140BB04C0, "Spring damping scale",
+                "c = 0.5 + 4.5 × damping_factor (component+0x6f0; addss at 0x1403aaef2).")
+    f["c0"] = op(F_WHEEL, 0x1403AAEF2, "f30f583dc24d8000", 0x140BAFCBC, "Spring damping base", "Added to 4.5 × damping_factor.")
+    f["reach"] = op(F_WHEEL, 0x1403AAE8B, "f30f5905294e8000", 0x140BAFCBC, "Spring reach",
+                    "a = 0.5 × r; the spring rest length L is r (stored at 0x1403aae9c), so the chassis spring acts while the ray distance is below 1.5 × r.")
+    f["flat"] = code(F_WHEEL, 0x1403AAF09, "48a900008000", "No-suspension flag", "0x800000",
+                     "With definition flag 0x800000 set the update clears k and c (0x1403aaf11, 0x1403aaf17), sets L = 0.1 × r + 0.2 × r = 0.3 × r (0x1403aaf1d..0x1403aaf29) and a = 0.8 × r (0x1403aaf33). "
+                     "The tread speed and the tyre contact still run.")
+    f["rate"] = op(F_WHEEL, 0x1403AB6A7, "f30f101db1508000", 0x140BB0760, "Spring request rate factor",
+                   "With ray distance l, previous distance l_old (component+0x718) and tyre_pressure p (component+0x6f8), the chassis request is 60 × p × (k × max(0, L + a - l) + c × (l_old - l)) (0x1403ab8ef..0x1403ab923) "
+                   "and the tyre request 60 × p × (max(0, 0.2 × r + a - l) + 4 × (l_old - l)) (0x1403ab6bc..0x1403ab6ee), both along the ray axis.")
+    f["tire_d"] = op(F_WHEEL, 0x1403AB6D6, "f30f5925aa4d8000", 0x140BB0488, "Tyre spring damping factor", "Multiplies l_old - l in the tyre request.")
+    f["mode"] = code(F_WHEEL, 0x1403AB92B, "803dcdfd930000", "Wheel physics mode gate", "byte 0x140ceb6ff",
+                     "Both spring requests are submitted only while this global byte is nonzero; the impulse helpers then scale them by B. The report leaves the byte's source and the alternate mode open.")
+    # Tracks.
+    f["t_rps"] = code(F_TRACK_SYNC, 0x14049E242, "f30f5ec8", "Track RPS average", "Σ s × RPS ÷ count",
+                      "The track pass walks each wheel group (vehicle+0x1350, count +0x1360), sums s × RPS (s = -1 for a reversed member, 0x14049e20d) and each member's component+0x808, and divides both by the member count. "
+                      "That field holds the definition mass, or the shaft group's effective weight for a member with an RPS connection; it is not the weight the member submits.")
+    f["t_w"] = code(F_TRACK_SYNC, 0x14049E246, "f30f5ed0", "Track weight average", "Σ weight ÷ count", "Divides the summed component+0x808 values by the count, separately from the RPS.")
+    f["t_pub"] = code(F_TRACK_SYNC, 0x14049E289, "f30f118258040000", "Track RPS publish", "s × mean RPS",
+                      "Writes s × the mean RPS back to every member, then the mean of component+0x808 (0x14049e2a7).")
+    f["t_mark"] = code(F_TRACK_SYNC, 0x14049E2C4, "c6810c08000001", "Track flag", "set for every member",
+                       "Marks each member as connected (component+0x80c), the flag that keeps the tank tyre factor and selects retention 0.975.")
+    # Bullet world.
+    f["solver"] = code(F_SOLVER, 0x1401281DF, "488d0572aa9b00", "Constraint solver class", "btSequentialImpulseConstraintSolver",
+                       "The constructor installs vtable 0x140ae2c58, whose RTTI names btSequentialImpulseConstraintSolver; world construction calls it at 0x1401a38e9.")
+    f["world"] = code(F_SOFT_WORLD, 0x140159B72, "488d05e79b9800", "Dynamics world class", "btSoftRigidDynamicsWorld",
+                      "The constructor installs vtable 0x140ae3760, RTTI btSoftRigidDynamicsWorld; world construction calls it at 0x1401a396e.")
+    gravity = n.raw(0x140BB2230, 16)
+    if gravity != struct.pack("<2d", 0.0, -10.0):
+        raise ValueError("World gravity constant at 0x140bb2230 differs")
+    f["gravity"] = code(F_WORLD, 0x1401A3995, "0f280594e8a000", "World gravity vector", "(0, -10, 0) m/s²",
+                        "movaps loads the binary64 pair 0 and -10 (bytes %s) from 0x140bb2230; xorps at 0x1401a39a1 zeroes z and w, and the vector is passed to world vtable slot +0x88 at 0x1401a39b4. "
+                        "Y is up, so bodies fall at 10 m/s² unless their own gravity is set." % gravity.hex())
+    f["veh_g"] = code(F_VEH_INIT, 0x140497F87, "8b485c898e30070000", "Vehicle gravity field", "configuration gravity",
+                      "Vehicle construction copies the configuration gravity, 10 by default, to vehicle+0x730, which the body build passes to the per-body gravity event 0x1401a75f0. "
+                      "A vehicle's bodies therefore fall at the configured gravity, and 0x1404be190 can rewrite it when mass is redistributed.")
+    f["g_name"] = name(F_TUNING, 0x140293A66, "4c8d056bf28b00", 0x140B52CD8, "gravity", "gravity binding", "The game_constants binder reads gravity under this name.")
+    f["g_default"] = op(F_TUNING, 0x140293A6D, "f3440f1005d6cb9100", 0x140BB064C, "gravity default",
+                        "Fallback passed with the gravity name (stored to the argument slot at 0x140293a8c) when game_constants omits it.")
+    f["ld_name"] = name(F_TUNING, 0x140293DA0, "4c8d0529fb8b00", 0x140B538D0, "vehicle_linear_damping", "vehicle_linear_damping binding", "Bound by the game_constants binder.")
+    f["ad_name"] = name(F_TUNING, 0x140293DBD, "4c8d056cfb8b00", 0x140B53930, "vehicle_angular_damping", "vehicle_angular_damping binding", "Bound by the game_constants binder.")
+    f["mu_name"] = name(F_TUNING, 0x140293DDB, "4c8d0536fb8b00", 0x140B53918, "vehicle_friction", "vehicle_friction binding", "Bound by the game_constants binder.")
+    if n.raw(0x140BB18D8, 8) != struct.pack("<2f", 0.1, 0.1) or n.raw(0x140BB19A0, 4) != struct.pack("<f", 0.8):
+        raise ValueError("Vehicle tuning defaults differ")
+    f["veh_damp"] = code(F_VEH_CFG, 0x1402940F3, "0f2805d6d79100", "Vehicle damping defaults", "0.1 linear, 0.1 angular",
+                         "Copies 16 bytes from 0x140bb18d0 into the tuning block; the floats at 0x140bb18d8 and 0x140bb18dc (bytes cdcccc3d) are the linear and angular damping defaults.")
+    f["veh_mu"] = code(F_VEH_CFG, 0x140294101, "0f280d98d89100", "Vehicle friction default", "0.8",
+                       "Copies 16 bytes from 0x140bb19a0; the first float (bytes cdcc4c3f) is the vehicle friction default.")
+    f["veh_mu_use"] = code(F_VEH_BODY, 0x1404A957E, "f30f1090c0000000", "Vehicle body friction", "vehicle_friction",
+                           "The body build passes the tuning friction to the friction event 0x1401a7170 (0x1404a9590).")
+    f["veh_ld_use"] = code(F_VEH_BODY, 0x1404A9558, "f30f5983b8000000", "Vehicle body linear damping", "vehicle_linear_damping × height factor",
+                           "Multiplies the tuning linear damping by the height factor and passes it with the angular damping (0x1404a950d) to the damping event 0x1401a7530 (0x1404a9574).")
+    f["h_max"] = op(F_VEH_BODY, 0x1404A9520, "66440f2f2557707000", 0x140BB0580, "Damping height limit",
+                    "Above this transformed height y (xmm12) the factor is 0 (ja at 0x1404a9529).", kind="f64")
+    f["h_slope"] = op(F_VEH_BODY, 0x1404A9537, "f30f590d41637000", 0x140BAF880, "Damping height slope",
+                      "Below the limit the factor is (1 - y × this) raised to 5.3595023 through 0x1409b9c10 (0x1404a9553); this is about 0.0000224138.")
+    f["h_exp"] = op(F_VEH_BODY, 0x1404A954B, "f30f100db16f7000", 0x140BB0504, "Damping height exponent",
+                    "Exponent of the height factor, about 5.3595. 0.0065 ÷ 290 is 2.2413793e-05, the form of a standard-atmosphere lapse term (inference).")
+    f["damp"] = code(F_DAMPING, 0x140139E13, "f20f5c81a0040000", "Linear damping retention", "(1 - d)^dt",
+                     "Each solver step computes 1 - linear damping (body+0x4a0) and passes it with the step dt (xmm1, kept in xmm6 at 0x140139dfb) to 0x1409b8570 (call at 0x140139e1b, read as pow, inference). "
+                     "The linear velocity is multiplied by the result: v × (1 - d)^dt. So d = 0.1 keeps 0.9 of the speed per simulated second whatever the solver rate.")
+    f["damp_a"] = code(F_DAMPING, 0x140139E4D, "f20f5c83a8040000", "Angular damping retention", "(1 - d)^dt",
+                       "The same for the angular velocity with body+0x4a8.")
+    f["damp_clamp"] = code(F_DAMP_SET, 0x1401A1A95, "f20f1199a0040000", "Damping clamp", "0 to 1",
+                           "The damping event clamps linear and angular damping to 0..1 before storing them in the body.")
+    f["cinfo"] = code(F_CINFO, 0x140139821, "48b8000000000000e03f", "Construction default friction", "0.5",
+                      "Bullet's construction info starts friction at binary64 0.5 (+0xd0), damping at 0 and restitution at 0, before the game's own events override them.")
+    f["mu"] = code(F_COMBINE, 0x1400F4713, "f20f5982c0010000", "Contact friction product", "μA × μB",
+                   "Multiplies the friction of body A (+0x1c0, loaded at 0x1400f470b) by that of body B.")
+    f["mu_lo"] = op(F_COMBINE, 0x1400F46E0, "0f102591c7ab00", 0x140BB0E78, "Contact friction lower bound", "maxsd at 0x1400f4730.", kind="f64")
+    f["mu_hi"] = op(F_COMBINE, 0x1400F46E7, "f20f101d41bcab00", 0x140BB0330, "Contact friction upper bound",
+                    "minsd at 0x1400f4737: μ = clamp(μA × μB, -10, 10).", kind="f64")
+    f["e"] = code(F_COMBINE, 0x1400F4753, "f20f5981c8010000", "Contact restitution product", "eA × eB",
+                  "Restitution combines as the product of the two bodies' values (+0x1c8). The game leaves restitution at 0 on the traced vehicle and wheel bodies.")
+    # Linear speed sensor, for the unit.
+    f["sensor"] = E.port("linear_speed_sensor", "Linear Speed")
+    f["sensor_out"] = E.code(F_LOGIC, 0x1403C5664, "f3410f11b694060000", "Linear speed output", "component+0x694, unscaled",
+                             "The linear speed sensor stores the body point velocity at component+0x694 without a unit conversion; its port reads m/s. Report: %s." % SCOOP2_REPORT)
+
+    # wheels.json must agree with the bytes above and with the shipped definitions.
+    data = json.loads((E.root / WH_DATA).read_bytes())
+    pi = n.f32(0x140BB03B0)
+    near = lambda a, b: math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-12)
+    if (data["sha256"] != EXE_SHA256 or data["native_pi_float"] != pi or data["world_gravity_m_s2"] != [0, -10, 0]
+            or data["body_defaults"]["vehicle_config"] != {"linear_damping": 0.1, "angular_damping": 0.1, "friction": 0.8, "restitution": 0}
+            or data["body_defaults"]["wheel_child"]["friction"] != float(f["body_mu"]["value"]) or data["body_defaults"]["wheel_child"]["angular_damping"] != float(f["body_damp"]["value"])):
+        raise ValueError("Wheel figures were built for a different executable or other body defaults")
+    step = float(f["offset"]["value"])
+    parts = {}
+    for d in data["definitions"]:
+        bid = d["definition"].rsplit("/", 1)[1][:-4]
+        b = E.block(bid)
+        a = b["attributes"]
+        flags, kind = int(a["flags"]), int(a["type"])
+        R = float(a["wheel_radius"])
+        if (kind != d["type"] or flags != d["flags"] or R != d["wheel_radius"] or a["mass"] != d["mass_resource"]
+                or int(a.get("wheel_type", 0)) != d["wheel_type"] or E.file(d["definition"])[0] != d["source_sha256"]):
+            raise ValueError("Wheel definition %s differs from %s" % (bid, WH_DATA))
+        if kind == 41:
+            v = 2 * pi * R
+            if (not near(d["speed_m_s_per_rps_native_pi_at_size_1"], v) or not near(d["speed_km_h_per_rps_native_pi_at_size_1"], 3.6 * v)
+                    or not near(d["effective_radius_m_at_size_1"], R) or not near(d["effective_radius_m_at_size_0"], R - step)
+                    or d["suspension_enabled"] != (not flags & NO_SUSPENSION)):
+                raise ValueError("Wheel speed for %s differs from the verified radius law" % bid)
+        elif kind != 4 or bid not in WHEEL_LEGACY:
+            raise ValueError("Unexpected wheel definition " + bid)
+        parts[bid] = dict(d, flags=flags, wheel_type=int(a.get("wheel_type", 0)), radius=R, mass=float(a["mass"]))
+    if sorted(parts) != sorted(WHEEL_LEGACY + sum(WHEEL_FAMILIES.values(), ())):
+        raise ValueError("Unexpected wheel definitions in " + WH_DATA)
+
+    # Figures per definition.
+    fig = {}
+    for fid, bids in WHEEL_FAMILIES.items():
+        for bid in bids:
+            p, nm = parts[bid], E.block(bid)["name"]
+            v = p["speed_m_s_per_rps_native_pi_at_size_1"]
+            rad = E.attr(bid, "wheel_radius", "Resource radius R; the working radius is R - 0.125 + 0.125 × wheel_size metres.")
+            mass = E.attr(bid, "mass", "Definition mass; the wheel submits it as its shaft weight.")
+            fig[bid] = {
+                "radius": rad, "mass": mass,
+                "speed": E.derived("%s tread speed per RPS" % nm, "%s m/s, %s km/h" % (_g(v, 4), _g(3.6 * v, 4)),
+                                   "At wheel_size 1, r = %s m: 2π × %s = %s m/s per RPS, × 3.6 = %s km/h per RPS (binary32 π; investigation/native/wheels/wheels.json). "
+                                   "Each 0.1 of wheel_size adds 0.0125 m to r and %s m/s per RPS. This is tread speed with no slip, not a measured vehicle speed." % (
+                                       _g(p["radius"], 4), _g(p["radius"], 4), _g(v, 7), _g(3.6 * v, 7), _g(2 * pi * 0.0125, 4)),
+                                   [rad, f["offset"], f["size"], f["defaults"], f["pi"], f["tread"]]),
+                "weight": E.derived("%s shaft weight" % nm, _g(p["mass"] * (1 if p["flags"] & NO_SUSPENSION else float(f["weight_sus"]["value"])), 4),
+                                    ("Definition mass %s, submitted unchanged because the definition has flag 0x800000." % _g(p["mass"], 4)) if p["flags"] & NO_SUSPENSION else
+                                    ("Definition mass %s × 0.7 = %s, because the definition lacks flag 0x800000." % (_g(p["mass"], 4), _g(p["mass"] * 0.7, 4))),
+                                    [mass, f["weight"], f["weight_sus"], f["mass_name"]]),
+            }
+    r35 = parts["wheel_advanced_3"]["radius"]
+    t1 = float(f["tire_base"]["value"]) * float(f["tire_1"]["value"])
+    fig["grip_example"] = E.derived("Grip request example, Wheel 3x3", "%s internal units per m/s of slip" % _g(50 * t1 / r35 * 100, 7),
+                                    "r = 0.35, grip_factor 1, tyre type 1 (factor %s), no contact memory: Q = 50 × %s ÷ 0.35 × 100 × u = %s × u up to the slip limit of 5 m/s, so at most %s. "
+                                    "These are internal impulse-request units, not newtons." % (_g(t1, 4), _g(t1, 4), _g(50 * t1 / r35 * 100, 7), _g(50 * t1 / r35 * 100 * 5, 8)),
+                                    [f["grip"], f["gain_u"], f["gain_q"], f["tire_base"], f["tire_1"], f["slip"], fig["wheel_advanced_3"]["radius"]])
+    k = 0.05 + 0.45 * 0.4
+    c = 0.5 + 4.5 * 0.11
+    fig["spring"] = E.derived("Default spring coefficients", "k %s, c %s" % (_g(k, 4), _g(c, 4)),
+                              "stiffness_factor 0.4 and damping_factor 0.11 give k = 0.05 + 0.45 × 0.4 = %s and c = 0.5 + 4.5 × 0.11 = %s." % (_g(k, 4), _g(c, 4)),
+                              [f["k"], f["k0"], f["c"], f["c0"], f["defaults"]])
+    R = update_rate(E)
+    fig["damping"] = E.derived("Default vehicle damping per simulated second", "0.9 of the speed kept",
+                               "(1 - 0.1)^1 = 0.9 after one simulated second at any of the 60, 120 or 180 Hz solver rates, because the exponent is the step length; "
+                               "at 60 Hz that is 0.9^(1/60) = %s per step." % _g(0.9 ** (1 / 60), 7),
+                               [f["damp"], f["damp_a"], f["veh_damp"]] + R["findings"][-1:])
+    fig["mu_pairs"] = E.derived("Contact friction examples", "0.64 vehicle on vehicle; 0.0008 wheel body on vehicle",
+                                "clamp(0.8 × 0.8, -10, 10) = 0.64 and clamp(0.001 × 0.8, -10, 10) = 0.0008. Wheel grip on the ground comes from the ray request, not from the sphere body's 0.001.",
+                                [f["mu"], f["mu_lo"], f["mu_hi"], f["veh_mu"], f["body_mu"]])
+    fig["track"] = E.derived("Track average example", "10 and 0 RPS → 5 each",
+                             "Two members in the same direction at 10 and 0 RPS both leave at 5, and component+0x808 values 20 and 40 both become 30. The RPS mean ignores radius and weight.",
+                             [f["t_rps"], f["t_w"], f["t_pub"]])
+    E.wheel = {"f": f, "fig": fig, "parts": parts, "data": data}
+    return E.wheel
+
+
 def wheels(B, E):
-    r = [E.attr(b, "wheel_radius", "Wheel radius configuration (wheel_radius, definition+0x894).") for b in
-         ("wheel_advanced_3", "wheel_advanced_5", "wheel_advanced_7", "wheel_advanced_9")]
-    tr = [E.attr(b, "wheel_radius", "Track wheel radius configuration.") for b in ("wheel_tank_1", "wheel_tank_5", "wheel_tank_7")]
-    grip = [E.realtime("tire_grip_multiplier", "Tyre grip scale."), E.realtime("wheel_drive_torque_multiplier", "Drive torque scale.")]
-    blocks = E.port("wheel_advanced_3", "Variable Brake")
+    W = wheels_native(E)
+    f, fig, parts = W["f"], W["fig"], W["parts"]
+    R = update_rate(E)["findings"]
+    sh = electricity_native(E)["f"]
+    shaft = [sh[k] for k in ("shaft_one", "shaft_mul", "shaft_div")]
+    T, P = E.tooltip, E.port
+    speed = [f[k] for k in ("radius_name", "offset", "size", "size_name", "defaults", "rps", "pi", "tread", "angle", "sensor", "sensor_out")]
+    contact = [f[k] for k in ("ray", "body_mu", "body_damp", "slip", "slip_r", "memory_r", "grip", "gain_u", "gain_q", "brake",
+                              "tire_base", "tire_double", "tire_1", "tire_2", "tire_0", "tire_track", "tyre_enum", "defaults")] + [fig["grip_example"]]
+    exchange = [f[k] for k in ("react", "react_k", "sign", "weight", "weight_sus", "mass_name", "submit", "read", "keep_0", "keep_1", "keep_track", "keep_alone", "brake_mul")] + shaft
+    springs = [f[k] for k in ("k", "k0", "c", "c0", "reach", "flat", "rate", "tire_d", "mode", "defaults")] + [fig["spring"]]
+    tracks = [f[k] for k in ("t_rps", "t_w", "t_pub", "t_mark", "tire_track", "keep_track", "keep_alone")] + [fig["track"]]
+    of = lambda fid, key: [fig[b][key] for b in WHEEL_FAMILIES[fid]]
+    every = lambda key: [x for fid in WHEEL_FAMILIES for x in of(fid, key)]
+    v = lambda bid: _g(parts[bid]["speed_m_s_per_rps_native_pi_at_size_1"], 4)
+    kmh = lambda bid: _g(3.6 * parts[bid]["speed_m_s_per_rps_native_pi_at_size_1"], 4)
+    shared = "Open items for wheels and tracks are listed under Wheels on the parts index."
+    static = "Static analysis of one build. Tread speeds are the no-slip speed of the tyre surface; no vehicle speed, slip or force was measured in a running game."
+    road = ("wheel_advanced_3", "wheel_advanced_5", "wheel_advanced_7", "wheel_advanced_9")
+    tank = ("wheel_tank_1", "wheel_tank_5_2", "wheel_tank_7")
+
+    speed_body = ("Road and tank wheels run one update. Its working radius is r = wheel_radius - 0.125 + 0.125 × wheel_size in metres, and the tyre surface moves at 2π × r × RPS m/s. "
+                  "wheel_size starts at 1, which leaves r = wheel_radius. At that size the 3x3, 5x5, 7x7 and 9x9 wheels give %s, %s, %s and %s m/s per RPS (%s, %s, %s and %s km/h), with or without suspension. "
+                  "Tank wheels give %s m/s per RPS for the small sizes, %s for medium and large and %s for huge. "
+                  "Each 0.1 of wheel_size adds 0.0125 m to r. A vehicle reaches this speed only while its wheels do not slip." % (
+                      tuple(v(b) for b in road) + tuple(kmh(b) for b in road) + tuple(v(b) for b in tank)))
+    contact_body = ("Each wheel casts a ray to the ground and also has a sphere body with friction 0.001. From the ray hit the update takes the velocity of the ground point relative to the tyre point, tread speed included, "
+                    "scales it down to 5 m/s when longer and drops its part along the ray. That slip u asks for Q = (50 × grip_factor × tyre factor ÷ r) × (2000 q + 100 u), "
+                    "where q is the drift of the contact point since the last update, multiplied by the brake and at most 0.1 × r. "
+                    "Forward and sideways slip share one gain, and no normal load enters it. The tyre factor starts at 1, 1.75 for a double wheel, and is multiplied by 0.25, 0.1875 or 0.125 for tyre type 0, 1 or 2. "
+                    "For a Wheel 3x3 with the default type 1 that is 2678.571 internal units per m/s of slip, capped by the 5 m/s limit. Q is an internal impulse request that the impulse helpers scale and cap with a factor B before it reaches a body, so it is not a force in newtons.")
+    exchange_body = ("Contact also corrects the wheel's RPS: it adds (slip along the tyre) ÷ (2π × r) × tyre factor × grip_factor × 0.5, which moves the RPS toward the ground speed (inference from the sign of the slip term). "
+                     "The wheel then joins its shaft group like any member, submitting that RPS with a weight equal to its definition mass, × 0.7 for wheels with suspension: "
+                     "10, 20, 40 and 80 without suspension and 10.5, 21, 42 and 84 with it. It takes the group speed back. "
+                     "So a slipping wheel drags on the engine and a coasting vehicle drives the shaft (inference); there is no fixed gear between shaft and ground. "
+                     "Finally the RPS is multiplied by 1 - brake and by a retention: 0.99 for tyre type 0, 0.995 for type 1, 1 for type 2.")
+    spring_body = ("Wheels with suspension push the chassis along the ray with 60 × tyre_pressure × (k × max(0, r + 0.5 × r - l) + c × (l_old - l)), l being the ray distance, "
+                   "k = 0.05 + 0.45 × stiffness_factor and c = 0.5 + 4.5 × damping_factor: 0.23 and 0.995 at the defaults 0.4 and 0.11. "
+                   "Wheels without suspension carry flag 0x800000, which sets k and c to 0, so this chassis spring adds nothing, and sets L = 0.3 × r and a = 0.8 × r. "
+                   "A second request, 60 × tyre_pressure × (max(0, 0.2 × r + a - l) + 4 × (l_old - l)), uses the hit body's own scale and runs in both. Both are internal requests that the helpers scale by B again, and the wheel's sphere body also collides normally.")
+    track_body = ("Tank wheels in one track share speed by a plain mean: the track pass adds each member's signed RPS, divides by the count and writes the mean back to every member. "
+                  "Two members at 10 and 0 RPS both leave at 5, whatever their radii, so tank wheels of different sizes in one track turn at one RPS but their treads move at different speeds. "
+                  "A tank wheel keeps its tyre factor 1 inside a track and halves it outside one, and keeps 0.975 of its RPS per update in a track and 0.7 outside one; the tyre type is ignored.")
+    world = [f[k] for k in ("solver", "world", "gravity", "veh_g", "g_name", "g_default", "ld_name", "ad_name", "mu_name", "veh_damp", "veh_mu", "veh_mu_use", "veh_ld_use",
+                            "h_max", "h_slope", "h_exp", "damp", "damp_a", "damp_clamp", "cinfo", "mu", "mu_lo", "mu_hi", "e", "body_mu")] + [fig["damping"], fig["mu_pairs"]]
+    world_body = ("The physics world is a Bullet btSoftRigidDynamicsWorld with a btSequentialImpulseConstraintSolver. World gravity is (0, -10, 0) m/s² with Y up, and each vehicle passes its configured gravity, 10 by default, to its bodies. "
+                  "The solver runs fixed substeps at 60, 120 or 180 Hz, up to 1000 per tick, while components update 60 times per simulated second. "
+                  "Each solver step multiplies a body's velocity by (1 - d)^dt with d clamped to 0 to 1, so the default vehicle damping 0.1 keeps 0.9 of the speed per simulated second at any solver rate. "
+                  "Vehicle linear damping is also multiplied by (1 - 0.0000224138 × y)^5.3595 and is 0 above y = 40000 (inference: y is height in metres). "
+                  "Bullet contact friction is clamp(μA × μB, -10, 10): 0.64 for two vehicle bodies at the default 0.8 and 0.0008 for a wheel's sphere body on a vehicle, so wheels get their grip from the ray request, not from the body contact.")
+    open_body = ("Not measured: vehicle speed and slip under load in a running game. Not recovered: the physical scale B the impulse helpers apply, so wheel grip has no newton or N m figure and no load curve; "
+                 "what sets the physics mode byte that gates the spring requests, and the other contact cases; how wheels are grouped into tracks, what Track Tension changes and how the belt touches the ground; "
+                 "what reads the track mean of component+0x808; and the speed law of the legacy Small, Medium and landing wheels, which run a separate update.")
     B.category("Wheels",
-               "Wheel radius fields (0.35 to 1.05 for road wheels) set ground speed per RPS if they are rolling radii in metres; track wheels only form tracks with matching wheels in line.",
-               [section("Choosing a size",
-                        "Road wheels carry wheel_radius 0.35, 0.58, 0.85 and 1.05. The distance sensor tooltip equates one metre with four blocks, so if this is a rolling radius in metres the no-slip speed is 2π × radius × RPS: about 2.2 m/s per RPS for the smallest and 6.6 m/s per RPS for the largest."),
-                section("Tracks",
-                        "Track wheels form a track only with wheels of the same size and orientation placed in line on the same body; at least one drive wheel must receive power."),
-                section("Measurement questions",
-                        "Confirm the radius unit with a linear speed sensor at known RPS; measure slip under load.")],
-               r + tr + grip + [blocks, E.tooltip("wheel_tank_1"),
-                                E.derived("Speed per RPS, wheel_advanced_3", "2.2 m/s", "2π × 0.35 = 2.199, assuming metres.", [r[0]]),
-                                E.derived("Speed per RPS, wheel_advanced_9", "6.6 m/s", "2π × 1.05 = 6.597, assuming metres.", [r[3]]),
-                                E.tooltip("distance_sensor")],
-               ["The metre interpretation of wheel_radius is unverified; speed figures are no-slip geometry, not measurements."])
-    B.family("wheel-no-suspension", "Radius fields 0.35, 0.58, 0.85 and 1.05; if these are rolling radii, larger wheels cover more ground per RPS.",
-             [section("Variant tradeoffs", "Assuming metres, ground speed per RPS is about 2.2 m/s for the smallest and 6.6 m/s for the largest."),
-              section("Open measurement questions", "Verify speed per RPS with a linear speed sensor.")],
-             r + [E.derived("Speed per RPS, wheel_advanced_3", "2.2 m/s", "2π × 0.35 = 2.199, assuming metres.", [r[0]]),
-                  E.derived("Speed per RPS, wheel_advanced_9", "6.6 m/s", "2π × 1.05 = 6.597, assuming metres.", [r[3]])],
-             ["The metre interpretation is unverified."])
-    B.family("tank-wheel", "Idler wheels with radius fields 0.4, 0.625 and 1; they need a drive wheel of the same size in line.",
-             [section("Setup and interactions", "Place same-size wheels in a line on one body; tracks do not form across bodies or mixed sizes.")],
-             tr + [E.tooltip("wheel_tank_1")], ["Track physics was not decoded."])
+               "The tyre surface moves at 2π × r × RPS m/s with r = wheel_radius - 0.125 + 0.125 × wheel_size metres. Grip pulls ground and tread speed together from bounded slip, and the wheel feeds its RPS back into the shaft.",
+               [section("Speed per RPS", speed_body),
+                section("Grip", contact_body),
+                section("Shaft feedback and braking", exchange_body),
+                section("Suspension springs", spring_body),
+                section("Tracks", track_body),
+                section("Gravity, damping and contact friction", world_body),
+                section("Open questions", open_body)],
+               speed + contact + exchange + springs + tracks + world + every("speed") + every("weight") + every("radius") + every("mass") + R
+               + [T("wheel_tank_1"), P("wheel_advanced_3", "Variable Brake")],
+               [static, TICK])
+
+    def sizes(fid):
+        return "; ".join("%s %s m/s (%s km/h)" % (E.block(b)["name"], v(b), kmh(b)) for b in WHEEL_FAMILIES[fid])
+
+    def weights(fid):
+        return ", ".join(_g(float(fig[b]["weight"]["value"]), 4) for b in WHEEL_FAMILIES[fid])
+
+    common = speed + contact + exchange + shaft
+    for fid, flat in (("wheel-no-suspension", True), ("wheel-with-suspension", False)):
+        bids = WHEEL_FAMILIES[fid]
+        spring = ("The definitions carry flag 0x800000. The update then sets the ray spring's stiffness and damping to 0, so it adds no chassis force, and moves its offsets to L = 0.3 × r and a = 0.8 × r. "
+                  "The second request, 60 × tyre_pressure × (max(0, 0.2 × r + 0.8 × r - l) + 4 × (l_old - l)), and the wheel's sphere body remain. The flag changes neither the tread speed nor the grip.") if flat else (
+                  "The chassis spring pushes with 60 × tyre_pressure × (k × max(0, 1.5 × r - l) + c × (l_old - l)), l being the ray distance, k = 0.05 + 0.45 × stiffness_factor and c = 0.5 + 4.5 × damping_factor. "
+                  "The defaults 0.4 and 0.11 give k = 0.23 and c = 0.995. Raise stiffness_factor for less sag and damping_factor for less bounce (inference); tyre_pressure scales both.")
+        B.family(fid,
+                 "Tread speed per RPS at wheel_size 1: %s." % sizes(fid),
+                 [section("Speed per RPS", "r = wheel_radius - 0.125 + 0.125 × wheel_size metres and the tyre surface moves at 2π × r × RPS m/s: %s. "
+                                           "Each 0.1 of wheel_size adds 0.0125 m to r. Under drive or braking the wheel slips, so the vehicle's speed differs from the tread speed." % sizes(fid)),
+                  section("Grip and shaft", "Slip relative to the ground, capped at 5 m/s, asks for grip in proportion to grip_factor × tyre factor ÷ r; the default tyre type 1 has factor 0.1875 and double wheels start at 1.75 instead of 1. "
+                                            "Contact also pulls the wheel's RPS toward the ground speed (inference). The wheel submits that RPS to its shaft with weight %s (%s), so grip loads the engine. "
+                                            "Brake multiplies the RPS by 1 - brake each update." % (weights(fid), "its definition mass" if flat else "0.7 × its definition mass")),
+                  section("Suspension", spring)],
+                 common + springs + of(fid, "speed") + of(fid, "weight") + of(fid, "radius") + of(fid, "mass")
+                 + [T(bids[0]), P(bids[0], "Variable Brake"), P(bids[0], "RPS")] + R,
+                 [shared, static, TICK])
+    for fid, drive in (("tank-wheel", False), ("tank-drive-wheel", True)):
+        bids = WHEEL_FAMILIES[fid]
+        B.family(fid,
+                 "Tread speed per RPS: %s. Wheels in one track share one mean RPS." % sizes(fid),
+                 [section("Speed per RPS", "Tank wheels use the road wheel's radius law at wheel_size 1: %s. Medium and Large share radius 0.625 m, Small and Small/Wide 0.4 m." % sizes(fid)),
+                  section("Tracks", track_body),
+                  section("Shaft", (("A drive wheel submits its RPS to the shaft with weight equal to its definition mass, %s, and the track mean spreads the shaft speed to every member. " % weights(fid))
+                                    if drive else "Idler wheels have no RPS port. They take the track mean, which carries the drive wheels' shaft speed to them. ")
+                          + "Slip against the ground still corrects each member's RPS before the mean.")],
+                 common + tracks + of(fid, "speed") + of(fid, "weight") + of(fid, "radius") + of(fid, "mass")
+                 + [T(bids[0])] + ([P(bids[0], "RPS")] if drive else []) + R,
+                 [shared, static, TICK])
 
 
 # steam pass; files under investigation/native/steam/, report investigation/steam.md.

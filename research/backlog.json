@@ -333,14 +333,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/19/limitations/0",
-        "text": "The metre interpretation of wheel_radius is unverified; speed figures are no-slip geometry, not measurements.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/19/sections/2/body",
-        "text": "Confirm the radius unit with a linear speed sensor at known RPS; measure slip under load.",
+        "pointer": "/categories/19/sections/6/body",
+        "text": "Not measured: vehicle speed and slip under load in a running game. Not recovered: the physical scale B the impulse helpers apply, so wheel grip has no newton or N m figure and no load curve; what sets the physics mode byte that gates the spring requests, and the other contact cases; how wheels are grouped into tracks, what Track Tension changes and how the belt touches the ground; what reads the track mean of component+0x808; and the speed law of the legacy Small, Medium and landing wheels, which run a separate update.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1275,38 +1269,6 @@
     ]
   },
   {
-    "key": "family:tank-wheel",
-    "title": "Tank Wheel: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/tank-wheel",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/244/limitations/0",
-        "text": "Track physics was not decoded.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:wheel-no-suspension",
-    "title": "Wheel without Suspension: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/wheel-no-suspension",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/254/limitations/0",
-        "text": "The metre interpretation is unverified.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/254/sections/1/body",
-        "text": "Verify speed per RPS with a linear speed sensor.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "mechanics:aerodynamics",
     "title": "Air drag and lift tuning: resolve missing mechanics",
     "wiki": "https://sw-wiki.maxsp.de/mechanics/aerodynamics",
@@ -1617,7 +1579,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/3/limitations/1",
-        "text": "Units, speed dependence, contact handling and the meaning of maximum friction require native analysis or runtime tests.",
+        "text": "The units, slip limit, grip, shaft and spring figures come from that native decode. Still not recovered: the impulse helpers' scale B, so grip has no newton figure and no curve against normal load; what sets the physics mode byte that gates the springs, and the other contact cases; track grouping and Track Tension; and the legacy wheels' speed law. No speed or slip was measured in a running game.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1643,7 +1605,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/0/limitations/2",
-        "text": "No integration timestep, collision solver or friction equation was recovered.",
+        "text": "The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: the solver's normal and tangent impulse iterations, its friction-row bounds, collision-shape coverage and restitution threshold, and the rule by which mass redistribution rewrites a vehicle's gravity.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

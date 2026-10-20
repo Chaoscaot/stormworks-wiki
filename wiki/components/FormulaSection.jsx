@@ -107,6 +107,11 @@ const FINDINGS = {
     'Piston phase wrap', 'Piston angle factor', 'Piston valve switch phase', 'Piston drive scale', 'Piston drive factor', 'Piston damaged drive',
     'Piston damage bypass', 'Piston shaft weight per voxel', 'Piston chamber volume per voxel',
   ],
+  wheel: [
+    'wheel_radius binding', 'Wheel radius size step', 'Wheel size scaling', 'wheel_size binding', 'Wheel setting defaults', 'Wheel RPS read',
+    'Tread speed pi factor', 'Tread speed', 'Wheel angle step divisor', 'Linear speed output', 'Wheel slip velocity limit',
+    'Wheel shaft weight', 'Suspended wheel shaft weight factor', 'Track RPS average',
+  ],
 };
 
 const TITLES = {
@@ -130,6 +135,7 @@ const TITLES = {
   booster: 'Solid rocket thrust and burn time against Burn Rate',
   steam: 'Firebox, boiler and turbine warm-up over time',
   piston: 'Steam piston drive against crank phase',
+  wheel: 'Wheel tread speed against RPS',
 };
 
 /*
@@ -867,10 +873,39 @@ const STEAM_PISTON = {
   ],
 };
 
+const WHEEL_SPEED = {
+  intro: (
+    <p>
+      Road and tank wheels share one update. Its working radius is the definition&apos;s wheel_radius minus 0.125 plus 0.125 × wheel_size,
+      in metres, and the tyre surface moves at 2π × r × RPS m/s. That is the ground speed with no slip. The chart draws it against the
+      wheel&apos;s RPS for each wheel and size, in m/s or km/h, with wheel_size for road wheels.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="r">{mi('r')}{mo('=')}{mi('R')}{mo('−')}{mn('0.125')}{mo('+')}{mn('0.125')}{mi('s')}<mspace width="1em" /><mtext>m, R = wheel_radius, s = wheel_size</mtext></mrow>,
+        <mrow key="v">{mi('v')}{mo('=')}{mn('2')}{mi('π')}{mi('r')}{mo('×')}<mtext>RPS</mtext><mspace width="1em" /><mtext>m/s</mtext><mspace width="1em" />{sub('v', 'km/h')}{mo('=')}{mn('3.6')}{mi('v')}</mrow>,
+      ]}
+      text={[
+        'r = wheel_radius - 0.125 + 0.125 * wheel_size   (metres; wheel_size starts at 1, so r = wheel_radius)',
+        'v = 2 * pi * r * RPS   (m/s; pi is binary32 3.1415927)',
+        'km/h = 3.6 * v',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'No slip. Grip comes from slip between tyre and ground, so a driven or braked wheel turns faster or slower than its vehicle moves. Slip under load was not measured.',
+    'RPS is the wheel\'s own speed. On a shaft it follows the group speed, corrected by contact; in a track every member takes the track\'s mean RPS, so wheels of different sizes in one track give different tread speeds.',
+    'wheel_size runs from 0 to 2 here, a model range. The game copies the saved value without a clamp; the editor\'s own range is not shown. Tank wheels are drawn at wheel_size 1.',
+    'The figures are the decoded formula, not measured vehicle speeds. The legacy Small, Medium and landing wheels run a different update and are not drawn.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
-  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON,
+  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED,
 };
 
 function Evidence({ items }) {

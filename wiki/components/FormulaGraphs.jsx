@@ -8,6 +8,7 @@ import {
   exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce, standaloneClutch, standaloneClutchOnset, TRANSMISSION,
   GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON,
   FIREBOXES, STEAM, fireboxFor, pistonDrive, pistonValves, steamCycle, steamPistonFor,
+  WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelShaftWeight,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -2339,10 +2340,105 @@ function PistonGraph({ variant }) {
   );
 }
 
+/* ---------- wheel tread speed ---------- */
+
+const WHEEL_RPS_MAX = 40;
+const WHEEL_RPS = steps(0, WHEEL_RPS_MAX, 0.5);
+const WHEEL_UNITS = { ms: { label: 'm/s', axis: 'Tread speed (m/s)', digits: 2 }, kmh: { label: 'km/h', axis: 'Tread speed (km/h)', digits: 1 } };
+
+function WheelGraph({ family, variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => wheelFor(family, variant).id);
+  const [size, setSize] = useState(WHEEL.defaultSize);
+  const [unit, setUnit] = useState('ms');
+  const [rps, setRps] = useState(10);
+  const w = WHEELS.find((x) => x.id === part);
+  const u = WHEEL_UNITS[unit];
+  const resized = w.sized && size !== WHEEL.defaultSize;
+  const at = (r, s) => treadSpeed({ wheel: w, rps: r, size: s })[unit];
+  const here = treadSpeed({ wheel: w, rps, size });
+  const base = treadSpeed({ wheel: w, rps, size: WHEEL.defaultSize });
+  const lines = [{ key: 'set', size, className: 'graph-line-a', dot: 'graph-dot-a', label: w.sized ? `${w.label}, wheel_size ${fixed(size, 2)}` : w.label }];
+  if (resized) lines.push({ key: 'base', size: WHEEL.defaultSize, className: 'graph-line-b', dot: 'graph-dot-b', label: `${w.label}, wheel_size 1 (default)` });
+  const y = forceDomain(lines.map((l) => at(WHEEL_RPS_MAX, l.size)));
+  const group = WHEELS.filter((x) => x.family === w.family);
+  const summary = `${w.label}${w.sized ? ` at wheel_size ${fixed(size, 2)}` : ''}: radius ${fixed(here.radius, 4)} m, ${fixed(here.perRps, 3)} m/s (${fixed(here.perRps * WHEEL.kmh, 2)} km/h) per RPS. At ${fixed(rps, 1)} RPS the tread moves ${fixed(here.ms, 2)} m/s, ${fixed(here.kmh, 1)} km/h.`;
+  const status = useSettled(summary);
+  const desc = `No-slip tread speed in ${u.label} against the wheel's RPS from 0 to ${WHEEL_RPS_MAX}, a straight line through zero. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={lines.map((l) => ({ label: l.label, className: l.className }))}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Wheel</label>
+            <select id={`${uid}-part`} value={part} onChange={(e) => setPart(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {WHEEL_GROUPS.map((g) => (
+                <optgroup key={g.family} label={g.label}>
+                  {WHEELS.filter((x) => x.family === g.family).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`wheel_radius ${w.radius} m, mass ${w.mass}, shaft weight ${fixed(wheelShaftWeight(w), 1)}.`}</span>
+          </div>
+          {w.sized ? (
+            <Range id={`${uid}-s`} label="wheel_size" value={size} min={0} max={2} step={0.05} onChange={(v) => setSize(+v.toFixed(2))} valueText={`${fixed(size, 2)}, radius ${fixed(here.radius, 4)} m`}
+              hint="Each 0.1 adds 0.0125 m to the radius. New wheels start at 1. The editor's own range for this setting is not shown here; 0 to 2 is a model range." />
+          ) : (
+            <p className="graph-field-hint">Tank wheels are drawn at wheel_size 1. The update would apply the same 0.125 step to them; whether the editor offers the setting for tank wheels is not shown here.</p>
+          )}
+          <div className="graph-field">
+            <label htmlFor={`${uid}-u`}>Unit</label>
+            <select id={`${uid}-u`} value={unit} onChange={(e) => setUnit(e.target.value)}>
+              {Object.entries(WHEEL_UNITS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-x`} label="Selected wheel speed" value={rps} min={0} max={WHEEL_RPS_MAX} step={0.5} onChange={setRps} valueText={`${fixed(rps, 1)} RPS`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`Tread speed of the ${w.label} against RPS`}
+          desc={desc}
+          x={{ min: 0, max: WHEEL_RPS_MAX, ticks: steps(0, WHEEL_RPS_MAX, 5), format: (r) => fixed(r, 0), label: 'Wheel speed (RPS)' }}
+          y={{ ...y, format: tick }}
+          series={lines.map((l) => ({ key: l.key, className: l.className, points: WHEEL_RPS.map((r) => [r, at(r, l.size)]) }))}
+          selected={{ x: rps, points: lines.map((l) => ({ key: l.key, y: at(rps, l.size), className: l.dot })) }}
+          onSelect={(r) => setRps(snap(r, 0, WHEEL_RPS_MAX, 0.5))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${w.label} at ${fixed(rps, 1)} RPS`}
+          rows={[
+            ['Working radius', `${fixed(here.radius, 4)} m`],
+            ['Tread speed', `${fixed(here.ms, 2)} m/s, ${fixed(here.kmh, 1)} km/h`],
+            ['Per RPS', `${fixed(here.perRps, 4)} m/s, ${fixed(here.perRps * WHEEL.kmh, 3)} km/h`],
+            ...(resized ? [['At wheel_size 1', `${fixed(base.ms, 2)} m/s, ${fixed(base.kmh, 1)} km/h`]] : []),
+            ['Shaft weight', `${fixed(wheelShaftWeight(w), 1)} (${w.suspension ? '0.7 × mass' : 'mass'})`],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Tread speed per RPS and at ${fixed(rps, 1)} RPS, ${WHEEL_GROUPS.find((g) => g.family === w.family).label.toLowerCase()}${w.sized ? `, wheel_size ${fixed(size, 2)}` : ''}`,
+        cols: ['Wheel', 'Radius (m)', 'm/s per RPS', 'km/h per RPS', `m/s at ${fixed(rps, 1)} RPS`, `km/h at ${fixed(rps, 1)} RPS`],
+        rows: group.map((x) => {
+          const t = treadSpeed({ wheel: x, rps, size });
+          return [x.label, fixed(t.radius, 4), fixed(t.perRps, 4), fixed(t.perRps * WHEEL.kmh, 3), fixed(t.ms, 2), fixed(t.kmh, 1)];
+        }),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
-  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph,
+  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {
