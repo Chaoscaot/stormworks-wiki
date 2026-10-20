@@ -1,0 +1,248 @@
+[
+  {
+    "address": "0x1402eb7ca",
+    "bytes": "4c 8d 05 57 df 86 00",
+    "instruction": "lea    r8,[rip+0x86df57]        # 0x140b59728",
+    "meaning": "vol_total tag"
+  },
+  {
+    "address": "0x1402eb837",
+    "bytes": "4c 8d 05 32 df 86 00",
+    "instruction": "lea    r8,[rip+0x86df32]        # 0x140b59770",
+    "meaning": "temp tag"
+  },
+  {
+    "address": "0x1402eb8a4",
+    "bytes": "4c 8d 05 91 38 7f 00",
+    "instruction": "lea    r8,[rip+0x7f3891]        # 0x140adf13c",
+    "meaning": "rad tag"
+  },
+  {
+    "address": "0x1402eb924",
+    "bytes": "f3 41 0f 11 46 44",
+    "instruction": "movss  DWORD PTR [r14+0x44],xmm0",
+    "meaning": "store validated temperature"
+  },
+  {
+    "address": "0x1402eb95b",
+    "bytes": "48 8d 15 ea dd 86 00",
+    "instruction": "lea    rdx,[rip+0x86ddea]        # 0x140b5974c",
+    "meaning": "vol_ prefix"
+  },
+  {
+    "address": "0x1402ebaf2",
+    "bytes": "41 83 fd 0d",
+    "instruction": "cmp    r13d,0xd",
+    "meaning": "13 species loop"
+  },
+  {
+    "address": "0x14038ff0c",
+    "bytes": "3b 41 44",
+    "instruction": "cmp    eax,DWORD PTR [rcx+0x44]",
+    "meaning": "Z dimension bound"
+  },
+  {
+    "address": "0x14038ff11",
+    "bytes": "83 7a 24 00",
+    "instruction": "cmp    DWORD PTR [rdx+0x24],0x0",
+    "meaning": "require Y zero"
+  },
+  {
+    "address": "0x1403ee777",
+    "bytes": "c7 86 88 05 00 00 01 00 00 00",
+    "instruction": "mov    DWORD PTR [rsi+0x588],0x1",
+    "meaning": "default diesel selection"
+  },
+  {
+    "address": "0x1403ee781",
+    "bytes": "c6 86 8c 05 00 00 01",
+    "instruction": "mov    BYTE PTR [rsi+0x58c],0x1",
+    "meaning": "fill pending defaults true"
+  },
+  {
+    "address": "0x1403ee788",
+    "bytes": "48 c7 86 90 05 00 00 00 00 80 3f",
+    "instruction": "mov    QWORD PTR [rsi+0x590],0x3f800000",
+    "meaning": "fill fraction defaults one"
+  },
+  {
+    "address": "0x1403ee7a1",
+    "bytes": "48 c7 86 dc 05 00 00 00 00 a0 41",
+    "instruction": "mov    QWORD PTR [rsi+0x5dc],0x41a00000",
+    "meaning": "initial temperature 20 Celsius"
+  },
+  {
+    "address": "0x1403eec18",
+    "bytes": "4c 89 81 a4 05 00 00",
+    "instruction": "mov    QWORD PTR [rcx+0x5a4],r8",
+    "meaning": "reset clears amounts"
+  },
+  {
+    "address": "0x1403eec73",
+    "bytes": "c6 81 8c 05 00 00 01",
+    "instruction": "mov    BYTE PTR [rcx+0x58c],0x1",
+    "meaning": "reset re-arms pending fill"
+  },
+  {
+    "address": "0x1403f6988",
+    "bytes": "4c 8d 0d 39 ca 76 00",
+    "instruction": "lea    r9,[rip+0x76ca39]        # 0x140b633c8",
+    "meaning": "contained_volume tag"
+  },
+  {
+    "address": "0x1403f699a",
+    "bytes": "e8 e1 64 50 00",
+    "instruction": "call   0x1408fce80",
+    "meaning": "serialize primary compartment"
+  },
+  {
+    "address": "0x1403f69a9",
+    "bytes": "4c 8d 0d 10 70 77 00",
+    "instruction": "lea    r9,[rip+0x777010]        # 0x140b6d9c0",
+    "meaning": "contained_volume_secondary tag"
+  },
+  {
+    "address": "0x1404b84ed",
+    "bytes": "4c 8b 91 60 02 00 00",
+    "instruction": "mov    r10,QWORD PTR [rcx+0x260]",
+    "meaning": "component serializer virtual slot +0x260"
+  },
+  {
+    "address": "0x1404b8502",
+    "bytes": "41 ff d2",
+    "instruction": "call   r10",
+    "meaning": "component serializer invocation"
+  },
+  {
+    "address": "0x1404bc38a",
+    "bytes": "e8 b1 b2 ff ff",
+    "instruction": "call   0x1404b7640",
+    "meaning": "pending-fill call"
+  },
+  {
+    "address": "0x1405dc46e",
+    "bytes": "83 b8 88 05 00 00 01",
+    "instruction": "cmp    DWORD PTR [rax+0x588],0x1",
+    "meaning": "diesel selection"
+  },
+  {
+    "address": "0x1405dc483",
+    "bytes": "83 b8 88 05 00 00 02",
+    "instruction": "cmp    DWORD PTR [rax+0x588],0x2",
+    "meaning": "jet fuel selection"
+  },
+  {
+    "address": "0x1405dc4b5",
+    "bytes": "f3 0f 59 b8 90 05 00 00",
+    "instruction": "mulss  xmm7,DWORD PTR [rax+0x590]",
+    "meaning": "multiply by fill fraction"
+  },
+  {
+    "address": "0x1405dc4bd",
+    "bytes": "f3 41 0f 59 fe",
+    "instruction": "mulss  xmm7,xmm14",
+    "meaning": "multiply by 0.99"
+  },
+  {
+    "address": "0x1405dc5bf",
+    "bytes": "f3 0f 5d bc 8b 4c 01 00 00",
+    "instruction": "minss  xmm7,DWORD PTR [rbx+rcx*4+0x14c]",
+    "meaning": "cap to available inventory"
+  },
+  {
+    "address": "0x1405dc5f1",
+    "bytes": "f3 0f 11 84 8b 4c 01 00 00",
+    "instruction": "movss  DWORD PTR [rbx+rcx*4+0x14c],xmm0",
+    "meaning": "subtract inventory"
+  },
+  {
+    "address": "0x1405dc62d",
+    "bytes": "f3 0f 11 84 8b a4 05 00 00",
+    "instruction": "movss  DWORD PTR [rbx+rcx*4+0x5a4],xmm0",
+    "meaning": "add selected species"
+  },
+  {
+    "address": "0x1405dc64a",
+    "bytes": "f3 0f 11 b8 d8 05 00 00",
+    "instruction": "movss  DWORD PTR [rax+0x5d8],xmm7",
+    "meaning": "add fuel to total"
+  },
+  {
+    "address": "0x1405dc687",
+    "bytes": "f3 44 0f 11 80 d8 05 00 00",
+    "instruction": "movss  DWORD PTR [rax+0x5d8],xmm8",
+    "meaning": "add ambient air to total"
+  },
+  {
+    "address": "0x1407c3eb3",
+    "bytes": "b9 58 00 00 00",
+    "instruction": "mov    ecx,0x58",
+    "meaning": "allocate external node"
+  },
+  {
+    "address": "0x1407c3ec8",
+    "bytes": "e8 83 df b1 ff",
+    "instruction": "call   0x1402e1e50",
+    "meaning": "initialize external node"
+  },
+  {
+    "address": "0x1407c3eda",
+    "bytes": "ff 47 74",
+    "instruction": "inc    DWORD PTR [rdi+0x74]",
+    "meaning": "increment node ID"
+  },
+  {
+    "address": "0x1407c3f60",
+    "bytes": "8b 4f 58",
+    "instruction": "mov    ecx,DWORD PTR [rdi+0x58]",
+    "meaning": "load list count"
+  },
+  {
+    "address": "0x1407c65e1",
+    "bytes": "41 83 bc 24 58 01 00 00 06",
+    "instruction": "cmp    DWORD PTR [r12+0x158],0x6",
+    "meaning": "width upper bound six"
+  },
+  {
+    "address": "0x1407c65ec",
+    "bytes": "41 83 bc 24 5c 01 00 00 06",
+    "instruction": "cmp    DWORD PTR [r12+0x15c],0x6",
+    "meaning": "length upper bound six"
+  },
+  {
+    "address": "0x1407c676f",
+    "bytes": "e8 6c 97 bc ff",
+    "instruction": "call   0x14038fee0",
+    "meaning": "validate port placement"
+  },
+  {
+    "address": "0x140907d7a",
+    "bytes": "44 8b 30",
+    "instruction": "mov    r14d,DWORD PTR [rax]",
+    "meaning": "read 32-bit component count"
+  },
+  {
+    "address": "0x140907d92",
+    "bytes": "44 89 30",
+    "instruction": "mov    DWORD PTR [rax],r14d",
+    "meaning": "write 32-bit component count"
+  },
+  {
+    "address": "0x140908d17",
+    "bytes": "0f b7 10",
+    "instruction": "movzx  edx,WORD PTR [rax]",
+    "meaning": "read unsigned 16-bit node count"
+  },
+  {
+    "address": "0x140908d4f",
+    "bytes": "0f b7 57 10",
+    "instruction": "movzx  edx,WORD PTR [rdi+0x10]",
+    "meaning": "truncate list count to 16 bits"
+  },
+  {
+    "address": "0x140908d76",
+    "bytes": "66 89 10",
+    "instruction": "mov    WORD PTR [rax],dx",
+    "meaning": "write 16-bit node count"
+  }
+]

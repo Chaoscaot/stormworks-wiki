@@ -4062,15 +4062,16 @@ def fluids(B, E):
                         "Fluid arriving in a compartment is mixed by the compartment's amount after the move: T = (A' × T + q × T_donor) ÷ (A' + q). So 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not the 46.7 °C of ordinary mixing. Below 0.01 amount per update, radiator, manifold and two-way pump ports also exchange temperature directly at a rate of up to 0.1 ÷ volume per update, so heat crosses a port even with no net flow."),
                 section("Storage and temperature",
                         "Each listed voxel of a tank gives 15.625 L. Liquid tanks hold 31.25, 187.5 and 703.125 L and gas tanks 46.875, 109.375, 984.375 and 3515.625 L. Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s.",
-                        "A fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4."),
+                        "A fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4.",
+                        "Diesel and jet-fuel tanks are filled by a separate spawn step: 0.99 × fill × V, capped to the fuel in stock on its inventory branch, plus V ÷ 60 of air. Saved tanks keep each compartment's 13 species amounts, total and temperature and the fill-pending flag."),
                 section("Identifying fluids",
                         "The liquid and gas meters share one composite layout: 1 water, 2 diesel, 3 jet fuel, 4 air, 5 CO2, 6 oil, 7 seawater, 8 steam, 9 slurry, 10 saturated slurry, 11 oxygen, 12 nitrogen, 13 hydrogen. Air is reported as the sum of oxygen, carbon dioxide and nitrogen."),
                 section("Measurement questions",
                         "The shipped realtime file lists gas and liquid base damping 0.99 and 0.9999, but none of the four fluid damping names occurs in the executable, so no setting binding was recovered. To test for an effect, compare two values of a setting on the same layout and starting inventory. Check Flow Rate against the solver bounds on the actual network graph: pipe length adds no volume, and hoses and connectors link networks at factor 1 or 0.5. Check a prefab gas tank's start (59.4 atm decoded) separately from a fluid-spawner compartment (60 atm in its tooltip).")],
                p + [spawn, tank_leak, tank_s] + meters + N["damping"] + T["solver"] + T["electric"][:2] + T["impeller"][:2] + T["modular"][:1] + R +
-               vols + links + law + start + manual + rooms,
+               vols + links + law + start + manual + rooms + [tanks_ports_native(E)[k] for k in ("sp_099", "sp_60", "sp_cap", "sv_species", "sv_loop", "sv_pending")],
                ["Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. "
-                "Custom-compartment volume from wall geometry and hull flooding were not decoded. Diesel and jet-fuel tank startup, startup from saved inventory, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
+                "Custom-compartment volume from wall geometry and hull flooding were not decoded. The spawns that run the diesel and jet-fuel tank fill, the order of saved-content restore, rebuild and reset, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
                 "The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.", TICK])
     B.family("electric-fluid-pump",
              "Pushes fluid with a bias of electrical supply × pump_pressure × Max Power; at equal pressure the small pump moves at most 200 L/s and the large one 400 L/s.",
@@ -4100,6 +4101,14 @@ def fluids(B, E):
     gas = [N["vol"][b][1] for b in GAS_TANKS]
     tank_common = [tank_leak, tank_s, N["t_factor"], N["t_ports"], N["t_content"], N["t_pressure"], N["law"], N["phase"], N["fill_default"], N["fill_call"],
                    N["fill_099"], N["fill_q"], N["fill_gas"], N["fill_add"], N["fill_skip"]] + R
+    t = tanks_ports_native(E)
+    spawn_fuel = [t[k] for k in ("sp_gate", "sp_type", "sp_fuel", "sp_099", "sp_60", "sp_cap", "sp_add", "sp_air", "sp_litres")]
+    saved = [t[k] for k in ("sv_pending", "sv_primary", "sv_secondary", "sv_total", "sv_temp", "sv_species", "sv_loop", "sv_hi", "sv_lo", "sv_call", "rs_clear", "rs_arm", "ct_temp")]
+    saved_s = section("Saved contents and reset",
+                      "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. "
+                      "The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.",
+                      "A separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. "
+                      "The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call.")
     B.family("fluid-tank",
              "Small, medium and large tanks have 31.25, 187.5 and 703.125 L compartments that exchange with each port's pipe network; liquid pressure stays low until the last 80 L of room fills; contents drift toward ambient temperature with a time constant of 16.7 simulated seconds.",
              [section("Operating conditions",
@@ -4107,10 +4116,16 @@ def fluids(B, E):
               section("Pressure and fill",
                       "Pressure follows the compartment law, not the fill fraction. The medium and large tanks are above volume 8, so pure liquid in them reads under 0.5 atm until less than 80 L of room is left, then 7.5 atm more per 75 L, 60 when full. The small tank (volume 3.125) reads 60 × amount ÷ 3.125. Gas in the tank counts toward the same pressure."),
               section("Initial contents",
-                      "A new tank component starts with fluid index 1, diesel, and fill 1. For a liquid other than diesel or jet fuel, the first build adds 0.99 × fill × V of it plus V ÷ 60 of air, split into nitrogen, oxygen and CO2. Inference from the decoded equations: before any exchange that reads about 60.4, 60.9 and 63.5 atm for the three sizes, because the air takes the last 1 % of room. Set to a gas, a fluid tank receives only 0.99 × fill × V ÷ 60 of it, 0.99 atm at full fill.")],
-             liquid + tank_common + [N["start_liquid"], N["v_liquid"], N["v_gas_100"], E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"),
+                      "A new tank component starts with fluid index 1, diesel, and fill 1. For a liquid other than diesel or jet fuel, the first build adds 0.99 × fill × V of it plus V ÷ 60 of air, split into nitrogen, oxygen and CO2. Inference from the decoded equations: before any exchange that reads about 60.4, 60.9 and 63.5 atm for the three sizes, because the air takes the last 1 % of room. Set to a gas, a fluid tank receives only 0.99 × fill × V ÷ 60 of it, 0.99 atm at full fill."),
+              section("Diesel and jet fuel at spawn",
+                      "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. "
+                      "On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. "
+                      "This operation adds to the existing contents and does not clear them."),
+              saved_s],
+             liquid + tank_common + spawn_fuel + saved + [N["start_liquid"], N["v_liquid"], N["v_gas_100"], E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"),
                                      E.attr("fluid_tank_small", "water_component_type", "Selects case 8 of the fluid update.")],
-             ["Diesel and jet-fuel startup was not traced: the decoded fill skips both, and diesel is a new tank's default selection. Startup from a saved inventory or after a rebuild was not traced.", TICK])
+             ["Which spawns run the diesel and jet-fuel fill was not traced: request byte +0x45 and the inventory branch are not yet mapped to editor placement, career or creative settings, missions or save loading. "
+              "The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a tank's contents and which refill it is unknown.", TICK])
     B.family("gas-tank",
              "Small, medium, large and huge gas tanks have 46.875, 109.375, 984.375 and 3515.625 L compartments; pressure is 60 × amount ÷ volume, and a fresh tank starts at 59.4 atm at full fill.",
              [section("Operating conditions",
@@ -4118,10 +4133,15 @@ def fluids(B, E):
               section("Pressure and readouts",
                       "Pressure is 60 × stored amount ÷ volume for any gas or gas mixture, so a full compartment reads 60 atm. Tank Content reads 10 × the stored amount. The tooltip's species list multiplies each gas amount by 60 and then 10, 600 per amount; inference: that is the gas's volume in litres at 1 atm. The two readouts differ by a factor of 60 for the same gas."),
               section("Setup and interactions",
-                      "A new gas tank selects the air slot; the editor offers air, oxygen, nitrogen and hydrogen and a fill setting from 0 to 100. The first build adds 0.99 × fill × V of the selected gas, so a fresh tank reads 59.4 atm at full fill before any exchange, and Tank Content reads 0.99 of the litre volume. Air is split into nitrogen, oxygen and CO2 at that point. Custom tanks filled by the fluid spawner take a separate path; its tooltip says 60 atm.")],
-             gas + tank_common + [N["start_gas"], N["species_60"], N["gas_air"], N["v_gas_k"], N["v_gas_100"], spawn,
+                      "A new gas tank selects the air slot; the editor offers air, oxygen, nitrogen and hydrogen and a fill setting from 0 to 100. The first build adds 0.99 × fill × V of the selected gas, so a fresh tank reads 59.4 atm at full fill before any exchange, and Tank Content reads 0.99 of the litre volume. Air is split into nitrogen, oxygen and CO2 at that point. Custom tanks filled by the fluid spawner take a separate path; its tooltip says 60 atm."),
+              saved_s,
+              section("Pressure limits",
+                      "No maximum safe pressure, rupture threshold or pressure damage rule was found. The pressure law has no limit, the tank update moves contents and sets its outputs without a pressure test, and the saved fields and the shipped definitions have no pressure limit. "
+                      "The 59.4 atm start and the 100000 temperature bound are not safety ratings. General vehicle damage code lies outside these checks, so they do not show that tanks cannot fail.")],
+             gas + tank_common + saved + [N["start_gas"], N["species_60"], N["gas_air"], N["v_gas_k"], N["v_gas_100"], spawn,
                                   E.attr("fluid_tank_compressed_gas_1_3", "water_component_type", "Selects case 0x14 of the fluid update."), E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")],
-             ["Startup from a saved inventory or after a rebuild was not traced.", TICK])
+             ["The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a gas tank's contents and which refill it is unknown.",
+              "No maximum safe pressure or pressure-triggered damage was recovered. The generic max pressure and high_pressure strings and the common vehicle damage paths were not traced to tanks.", TICK])
 
 
 # winches pass; files under investigation/native/winches/, report investigation/winches.md.
@@ -9411,6 +9431,11 @@ def logic(B, E):
     # Microprocessor.
     mp = microprocessor(E)
     co = composite_native(E)
+    tp = tanks_ports_native(E)
+    per_cell = E.derived("Ports per position for the bridged kinds", "at most 4; 144 on a 6 by 6 grid (not confirmed)",
+                         "Inference from the placement rule: the five kinds the bridge builder 0x1403929f0 supports are 0, 1, 5, 6 and 7 (on/off, number, composite, video, audio). "
+                         "Kinds 0 and 1 conflict, so one position holds at most one of them plus one each of 5, 6 and 7: 4 ports, or 4 × 36 = 144 on the largest grid. "
+                         "No accepted 144-port microcontroller was built or loaded. Report: %s." % TP_REPORT, [co["port_kind"], co["port_xz"], co["dim_max"]])
     B.family("part-microprocessor",
              "A microcontroller in a block: each update it copies its connected inputs into an embedded logic graph, runs the graph, then copies the graph outputs back out. Composite bridges copy all 32 on/off and 32 number channels, video bridges a descriptor and audio bridges the samples.",
              [section("How it updates",
@@ -9426,6 +9451,10 @@ def logic(B, E):
                       "The editor's width and length controls run from 1 to 6 in steps of 1, and the upload check rejects a microcontroller whose width or length is above 6 with \"Microcontroller must not be larger than 6x6 voxels\". "
                       "A port must sit inside the grid, 0 ≤ x < width and 0 ≤ z < length, in the bottom row y = 0. Two ports at one position are rejected when they have the same kind, or kinds 0 and 1 (internal codes); other kinds may share a position. "
                       "This rule sets no total, so the 6 by 6 area and the 32 composite channels do not give a port limit."),
+              section("Port and graph counts",
+                      "Add Input allocates a node, gives it the next node ID, creates its bridge and appends it to the port list. It grows the list when it is full and never compares the count with a maximum. The upload check tests the size, that the graph and port lists are not empty, that an output exists and where each port sits, but not how many ports there are.",
+                      "The binary format stores the port count in 16 bits and the embedded component count in 32 bits. These are field widths, not editor limits: the serializers check no count against them, and XML lists grow as they are read. "
+                      "Inference, not tested in game: with the five bridged kinds at most 4 ports fit one position, one on/off or number port plus one composite, one video and one audio, so 144 on a 6 by 6 grid."),
               section("Composite channels inside the graph",
                       "The composite read nodes (on/off and number) clamp their channel to 1 to 32, so channel 0 or less reads channel 1 and anything above 32 reads channel 32. A channel taken from an input is rounded first by adding 0.5 (inference: the library call is floor). "
                       "Lua getBool and getNumber instead return false and 0 outside 1 to 32, setBool and setNumber ignore such channels, and setNumber rounds the Lua number to binary32. The Logic category gives the channel layout."),
@@ -9433,8 +9462,10 @@ def logic(B, E):
                       "The graph gathers every component's inputs before it runs any component, so a change moves one component per update (inference). Its components are separate routines from the physical gates: the PID has no max_error clamp, and the Blinker differs, as their part pages note.")],
              mp + [A("microprocessor", "type", "Component type 37, the microprocessor class."), A("microprocessor", "category", "Definition category 5, the game's logic category."), f["graph_in"]]
              + [co[k] for k in ("b_co_in", "b_co_out", "b_co_gather", "b_vid_in", "b_vid_out", "b_aud_in", "b_aud_out", "vid_copy", "aud_alloc", "aud_copy",
-                                "dim_min", "dim_max", "upload", "upload_msg", "port_xz", "port_kind", "readb", "readn", "read_half", "getb", "getn", "setb", "setn", "n_getb", "n_setb")],
-             ["The maximum total number of external ports was not recovered: the port kinds the editor accepts, and every creation and save check, still need reconciling with the placement rule.",
+                                "dim_min", "dim_max", "upload", "upload_msg", "port_xz", "port_kind", "readb", "readn", "read_half", "getb", "getn", "setb", "setn", "n_getb", "n_setb")]
+             + [tp[k] for k in ("mc_add", "mc_append", "mc_nodes_read", "mc_nodes_write", "mc_comps", "mc_upload")] + [per_cell],
+             ["No unconditional maximum port or graph size was recovered across editor creation, XML import, binary saves and graph execution. ID validation and allocation in other creation paths were not traced, "
+              "and whether the 144 ports the placement rule allows for the five bridged kinds are accepted end to end is not confirmed.",
               CO_POINTER])
     # Category.
     B.category("Logic",
@@ -10610,6 +10641,130 @@ def composite(B, E):
              + [fluid_network(E)["r_pass"]] + R[:4] + [T(bid), A(bid, "type", "Type 48, the rope-hook component."), A(bid, "logic_gate_subtype", "Rope-hook subtype 2, the electrical cable anchor."),
                                                    A("winch_pulley_cable", "logic_gate_subtype", "Subtype 9, routed through the pulley's own buffers.")] + ports,
              [CO_STATIC, CO_POINTER])
+
+
+# tanks-ports pass; files under investigation/native/tanks-ports/, report investigation/tanks-ports.md.
+TP_REPORT = "investigation/tanks-ports.md"
+F_SPAWN_FILL = 0x1405DAFA0    # vehicle spawn and resource operation: diesel and jet-fuel tank fill
+F_TANK_SAVE = 0x1403F649A     # chained unwind chunk of the water component serializer 0x1403f6150 (slot +0x260)
+F_COMP_SAVE = 0x1402EB750     # shared compartment serializer: vol_total, temp, rad, vol_0..vol_12
+F_COMP_LOAD = 0x1404B81F0     # component loading and build: calls slot +0x260 of each component
+F_TANK_RESET = 0x1403EEBF0    # water component reset, slot +0x3c8
+F_MC_EVENT = 0x1407C1B60      # microcontroller editor event dispatcher; case 0x71 adds an external node
+F_MC_NODES = 0x140908830      # external-node list serializer
+F_MC_COMPS = 0x1409077B0      # embedded graph component list serializer
+WATER_VTABLE = 0x140B08F18    # c_scene_vehicle_component_water
+TP_SLOTS = ((0x260, 0x1403F6150), (0x3C8, F_TANK_RESET))
+_TP = "tanks-ports/asm/"
+TP_ASM = {
+    F_SPAWN_FILL: (_TP + "inventory-fill.asm", "1405dafa0.c"), F_TANK_SAVE: (_TP + "tank-serializer.asm", "1403f6150.c"),
+    F_COMP_SAVE: (_TP + "compartment-serializer.asm", "1402eb750.c"), F_COMP_LOAD: (_TP + "build-before-fill.asm", None),
+    F_TANK_RESET: (_TP + "tank-constructor-accessors.asm", "1403eebf0.c"), F_WATER_CTOR: (_TP + "tank-constructor-accessors.asm", "1403ee777.c"),
+    F_MC_EVENT: (_TP + "editor-add-input.asm", "1407c1b60.c"), F_MC_NODES: (_TP + "port-list-serializer.asm", "140908830.c"),
+    F_MC_COMPS: (_TP + "component-list-serializer.asm", "1409077b0.c"), F_MC_UPLOAD: (_TP + "upload-validation.asm", "1407c6040.c"),
+}
+
+
+def tanks_ports_native(E):
+    """Diesel and jet-fuel spawn fill, saved tank compartments, tank reset and microcontroller port counts, verified once and shared."""
+    if hasattr(E, "tanks_ports"):
+        return E.tanks_ports
+    n = E.native
+    if not (E.root / TP_REPORT).is_file():
+        raise ValueError("Tanks and ports report missing: " + TP_REPORT)
+    if _rtti(n, WATER_VTABLE) != "c_scene_vehicle_component_water":
+        raise ValueError("%#x is no longer the water component vtable" % WATER_VTABLE)
+    for slot, target in TP_SLOTS:
+        if struct.unpack("<Q", n.raw(WATER_VTABLE + slot, 8))[0] != target:
+            raise ValueError("Water vtable slot +%#x does not hold %#x" % (slot, target))
+    rep = " Report: %s." % TP_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        _wheel_cite(E, func, address, hexbytes, table=TP_ASM)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=TP_ASM)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    def name(func, lea, hexbytes, target, expected, label, detail):
+        if lea + 7 + struct.unpack("<i", n.raw(lea + 3, 4))[0] != target:
+            raise ValueError("lea at %#x does not address %#x" % (lea, target))
+        _wheel_cite(E, func, lea, hexbytes, key=target, table=TP_ASM)
+        return E.string(func, target, expected, label, detail + rep)
+
+    t = {}
+    # Diesel and jet-fuel tanks: the spawn resource fill, separate from the pending fill 0x1404b7640.
+    t["sp_gate"] = code(F_SPAWN_FILL, 0x1405DBCF7, "44386645", "Spawn resource fill gate", "request byte +0x45 nonzero",
+                        "The vehicle spawn and resource operation 0x1405dafa0 calls the vehicle builder 0x1404bc700 (0x1405db70e) and enters its resource-fill traversal only when byte +0x45 of its request is nonzero (je at 0x1405dbcfb).")
+    t["sp_type"] = code(F_SPAWN_FILL, 0x1405DC455, "83b9cc0e000008", "Spawn fuel arm tank type", "water_component_type 8",
+                        "The fixed-tank arm runs only for water_component_type 8, the fluid tanks; other types jump past it (0x1405dc45c).")
+    t["sp_fuel"] = code(F_SPAWN_FILL, 0x1405DC46E, "83b88805000001", "Spawn fuel arm selection", "selection 1 or 2",
+                        "It continues only for selection 1, diesel, or (0x1405dc483) selection 2, jet fuel. These are the two selections the pending fill skips.")
+    t["sp_099"] = op(F_SPAWN_FILL, 0x1405DB0BB, "f3440f1035e84d5d00", 0x140BAFEAC, "Spawn fuel fill fraction",
+                     "Held in xmm14. The arm multiplies the compartment volume V (component+0x5a0) by the fill setting at +0x590 (0x1405dc4b5) and by this (0x1405dc4bd): requested fuel = 0.99 × fill × V.")
+    t["sp_60"] = op(F_SPAWN_FILL, 0x1405DB0C8, "f3440f102d8f565d00", 0x140BB0760, "Spawn air divisor",
+                    "Held in xmm13. The arm divides V by this (divss at 0x1405dc4c2) for the air it adds.")
+    t["sp_cap"] = code(F_SPAWN_FILL, 0x1405DC5BF, "f30f5dbc8b4c010000", "Spawn fuel capped to stock", "min(request, stock[selection])",
+                       "On the inventory branch (flag at rbp-0x80) the request is capped to the stock at inventory+0x14c + 4 × selection: diesel at +0x150, jet fuel at +0x154. "
+                       "A request above the stock also sets an insufficient-resource flag (0x1405dc58b, 0x1405dc59d). A capped amount above 0 is subtracted from the stock (0x1405dc5f1). Off that branch the whole request is used.")
+    t["sp_add"] = code(F_SPAWN_FILL, 0x1405DC62D, "f30f11848ba4050000", "Spawn fuel store", "amount[selection] + fuel",
+                       "A fuel amount above 0 is added to the selected species (component+0x5a4 + 4 × selection) and to the total at +0x5d8 (0x1405dc64a). "
+                       "The arm does not clear earlier contents and neither tests nor clears the fill-pending byte.")
+    t["sp_air"] = code(F_SPAWN_FILL, 0x1405DC662, "f30f5880b0050000", "Spawn air store", "amount[3] + V ÷ 60",
+                       "V ÷ 60 is added to species 3, the air slot (component+0x5b0), and to the total (0x1405dc687) whether or not any fuel was added. Its later split into nitrogen, oxygen and CO2 was not followed.")
+    N = fluid_network(E)
+    litres = ["%s L" % round(0.99 * N["vol"][b][0] * 10, 5) for b in LIQUID_TANKS]
+    t["sp_litres"] = E.derived("Spawn fuel request at fill 1", "%s, %s and %s (small, medium, large)" % tuple(litres),
+                               "0.99 × V × 10 L per amount for V = %s, %s and %s, before any exchange and before the stock cap. Inference from the arm's instructions." % tuple(fmt(N["vol"][b][0]) for b in LIQUID_TANKS) + rep,
+                               [t["sp_099"], t["sp_add"], N["t_content"]] + [N["vol"][b][1] for b in LIQUID_TANKS])
+    # Saved compartments.
+    t["sv_pending"] = name(F_TANK_SAVE, 0x1403F6907, "4c8d058a707700", 0x140B6D998, "spawner_pending", "Saved fill-pending flag",
+                           "The water component serializer 0x1403f6150, slot +0x260 of c_scene_vehicle_component_water (vtable 0x140b08f18), serves fluid and gas tanks. Among its runtime fields it binds the fill-pending byte at component+0x58c to this name, default 1.")
+    t["sv_primary"] = name(F_TANK_SAVE, 0x1403F6988, "4c8d0d39ca7600", 0x140B633C8, "contained_volume", "Saved primary compartment",
+                           "It then serializes the primary compartment at component+0x598 under this name through 0x1408fce80 (call at 0x1403f699a), which runs the shared compartment serializer 0x1402eb750.")
+    t["sv_secondary"] = name(F_TANK_SAVE, 0x1403F69A9, "4c8d0d10707700", 0x140B6D9C0, "contained_volume_secondary", "Saved secondary compartment",
+                             "The secondary compartment at component+0x5e4 is serialized the same way under this name.")
+    t["sv_total"] = name(F_COMP_SAVE, 0x1402EB7CA, "4c8d0557df8600", 0x140B59728, "vol_total", "Saved compartment total",
+                         "Among its runtime fields the compartment serializer saves the total amount at state+0x40 (component+0x5d8 for the primary compartment) as one binary32 under this name, then temp at state+0x44 and rad at state+0x48.")
+    t["sv_temp"] = name(F_COMP_SAVE, 0x1402EB837, "4c8d0532df8600", 0x140B59770, "temp", "Saved compartment temperature",
+                        "Binds the temperature at state+0x44 (component+0x5dc).")
+    t["sv_species"] = name(F_COMP_SAVE, 0x1402EB95B, "488d15eadd8600", 0x140B5974C, "vol_", "Saved species amounts",
+                           "Prefix of vol_0 to vol_12: thirteen binary32 species amounts from state+0x0c + 4 × i (component+0x5a4 + 4 × i), in the internal amount unit the pressure law and Tank Content read, with no conversion to litres. "
+                           "The geometric volume at state+8 is not saved; the initializer 0x1403ef450 recomputes it from the definition for types 8 and 20 and leaves the amounts and temperature alone.")
+    t["sv_loop"] = code(F_COMP_SAVE, 0x1402EBAF2, "4183fd0d", "Saved species count", "13",
+                        "The species loop ends after index 12, so all thirteen fluid indices are saved.")
+    t["sv_hi"] = op(F_COMP_SAVE, 0x1402EB90B, "f30f5d352d508c00", 0x140BB0940, "Saved temperature upper bound",
+                    "After the temperature is serialized, a non-finite value becomes 0 (0x1402eb921) and a finite one is clamped to at most this and at least the value at 0x140bb0fd4 (maxss at 0x1402eb91b), then stored back at state+0x44 (0x1402eb924). It bounds temperature only; amounts and vol_total get no limit here.")
+    t["sv_lo"] = op(F_COMP_SAVE, 0x1402EB913, "f30f1005b9568c00", 0x140BB0FD4, "Saved temperature lower bound",
+                    "The lower clamp of the saved temperature.")
+    t["sv_call"] = code(F_COMP_LOAD, 0x1404B84ED, "4c8b9160020000", "Component state restore call", "slot +0x260 of each component",
+                        "The component loading and build routine loads slot +0x260 of a component and calls it (0x1404b8502). For water components that slot holds the serializer 0x1403f6150, so this is a path that restores saved compartment fields. "
+                        "The pending fill (0x1404b7640, called at 0x1404bc38a) runs only while that byte is 1, so a restored 0 prevents a refill there.")
+    # Reset.
+    t["rs_clear"] = code(F_TANK_RESET, 0x1403EEC18, "4c8981a4050000", "Tank reset clears contents", "both compartments' species and totals = 0",
+                         "Slot +0x3c8 of the water vtable, 0x1403eebf0, zeroes the thirteen species amounts and the total of the primary (+0x5a4 to +0x5db) and secondary (+0x5f0 to +0x627) compartments. It does not write either temperature (+0x5dc, +0x628).")
+    t["rs_arm"] = code(F_TANK_RESET, 0x1403EEC73, "c6818c05000001", "Tank reset re-arms the fill", "fill pending = 1",
+                       "The reset then sets fill pending, so the next pending fill (0x1404b7640) treats the tank as unfilled again.")
+    t["ct_temp"] = code(F_WATER_CTOR, 0x1403EE7A1, "48c786dc0500000000a041", "New tank temperature", "20 °C",
+                        "The water component constructor stores binary32 20 (bytes 0000a041) as the primary compartment temperature at component+0x5dc, after zero amounts, selection 1, fill pending 1 and fill 1.")
+    # Microcontroller ports and graph counts.
+    t["mc_add"] = code(F_MC_EVENT, 0x1407C3EB3, "b958000000", "Add Input node allocation", "0x58-byte external node",
+                       "Case 0x71 of the editor event dispatcher 0x1407c1b60 adds an external node at 0x1407c3eac: it allocates 0x58 bytes, initializes the node (call 0x1402e1e50 at 0x1407c3ec8), increments the 32-bit node-ID counter (0x1407c3eda) and creates its bridge (0x14038f150).")
+    t["mc_append"] = code(F_MC_EVENT, 0x1407C3F60, "8b4f58", "Add Input list append", "no count limit",
+                          "It then compares the list count (+0x58) only with the list capacity (+0x50). When they are equal it grows the list to twice the capacity, at least 0x20 entries, and appends the node. "
+                          "Between the allocation and the append (0x1407c3f9f) nothing compares the count with a maximum, and the 0x20 is a minimum allocation, not a cap. Other creation and import paths were not all traced.")
+    t["mc_nodes_read"] = code(F_MC_NODES, 0x140908D17, "0fb710", "External node count, binary read", "unsigned 16-bit",
+                              "The external-node list serializer reads its binary count as one unsigned 16-bit word. Its XML branch iterates nodes/node elements and grows the list with no count limit.")
+    t["mc_nodes_write"] = code(F_MC_NODES, 0x140908D4F, "0fb75710", "External node count, binary write", "low 16 bits of the 32-bit count",
+                               "Writing takes the low 16 bits of the list's 32-bit count, stores them as one word (0x140908d76), then writes every node of the full count (0x140908d84). "
+                               "Inference: 65535 is the largest count the binary field holds, and a longer list would not read back with the same count. That is a format width, not an editor limit.")
+    t["mc_comps"] = code(F_MC_COMPS, 0x140907D7A, "448b30", "Embedded component count", "32-bit",
+                         "The embedded graph serializer 0x14038b940 sends its components and components_bridge lists through this routine, which reads (0x140907d7a) and writes (0x140907d92) a 32-bit count. That is a field width, not a component limit.")
+    t["mc_upload"] = code(F_MC_UPLOAD, 0x1407C676F, "e86c97bcff", "Upload port placement call", "0x14038fee0 per external node",
+                          "Besides the 6 by 6 size, the upload check requires nonempty component and external-node lists and an output, and checks each external node's placement with 0x14038fee0. The inspected path has no separate port-count limit.")
+    E.tanks_ports = t
+    return t
 
 
 def build(root):

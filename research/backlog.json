@@ -51,7 +51,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/5/limitations/0",
-        "text": "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Diesel and jet-fuel tank startup, startup from saved inventory, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
+        "text": "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. The spawns that run the diesel and jet-fuel tank fill, the order of saved-content restore, rebuild and reset, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -497,7 +497,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/19/limitations/0",
-        "text": "Diesel and jet-fuel startup was not traced: the decoded fill skips both, and diesel is a new tank's default selection. Startup from a saved inventory or after a rebuild was not traced.",
+        "text": "Which spawns run the diesel and jet-fuel fill was not traced: request byte +0x45 and the inventory branch are not yet mapped to editor placement, career or creative settings, missions or save loading. The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a tank's contents and which refill it is unknown.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -510,14 +510,14 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/22/limitations/0",
-        "text": "Startup from a saved inventory or after a rebuild was not traced.",
+        "text": "The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a gas tank's contents and which refill it is unknown.",
         "scope": "Practical behavior guidance"
       },
       {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/189/limitations/4",
-        "text": "The definitions expose no capacity field. Compartment volume, the gas pressure law and the litre readouts come from native code and are in the practical behaviour research. A maximum safe pressure was not recovered. The medium variant's content description says fluid; the other three say gas.",
-        "scope": "Definition-only extraction"
+        "file": "wiki/data/behavior.json",
+        "pointer": "/families/22/limitations/1",
+        "text": "No maximum safe pressure or pressure-triggered damage was recovered. The generic max pressure and high_pressure strings and the common vehicle damage paths were not traced to tanks.",
+        "scope": "Practical behavior guidance"
       }
     ]
   },
@@ -673,7 +673,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/139/limitations/0",
-        "text": "The maximum total number of external ports was not recovered: the port kinds the editor accepts, and every creation and save check, still need reconciling with the placement rule.",
+        "text": "No unconditional maximum port or graph size was recovered across editor creation, XML import, binary saves and graph execution. ID validation and allocation in other creation paths were not traced, and whether the 144 ports the placement rule allows for the five bridged kinds are accepted end to end is not confirmed.",
         "scope": "Practical behavior guidance"
       }
     ]

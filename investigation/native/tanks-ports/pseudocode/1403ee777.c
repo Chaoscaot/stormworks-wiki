@@ -1,0 +1,103 @@
+
+void FUN_1403ee777(void)
+
+{
+  undefined8 *puVar1;
+  undefined8 *puVar2;
+  longlong *plVar3;
+  longlong unaff_RSI;
+  int iVar4;
+  undefined8 unaff_R14;
+  undefined8 *puStack0000000000000048;
+  undefined8 *puStack0000000000000050;
+  undefined8 *puStack0000000000000058;
+  ulonglong in_stack_00000110;
+  
+  *(undefined4 *)(unaff_RSI + 0x588) = 1;
+  *(undefined1 *)(unaff_RSI + 0x58c) = 1;
+  *(undefined8 *)(unaff_RSI + 0x590) = 0x3f800000;
+  *(undefined8 *)(unaff_RSI + 0x598) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5a0) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5dc) = 0x41a00000;
+  *(undefined8 *)(unaff_RSI + 0x5d4) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5a8) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5b0) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5b8) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5c0) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5c8) = unaff_R14;
+  iVar4 = (int)unaff_R14;
+  *(int *)(unaff_RSI + 0x5d0) = iVar4;
+  *(undefined8 *)(unaff_RSI + 0x5e4) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5ec) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x628) = 0x41a00000;
+  *(undefined8 *)(unaff_RSI + 0x620) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5f4) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x5fc) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x604) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x60c) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x614) = unaff_R14;
+  *(int *)(unaff_RSI + 0x61c) = iVar4;
+  *(undefined **)(unaff_RSI + 0x630) = &UNK_140b93d90;
+  *(undefined8 *)(unaff_RSI + 0x638) = unaff_R14;
+  *(undefined4 *)(unaff_RSI + 0x640) = 0x41a00000;
+  *(undefined4 *)(unaff_RSI + 0x64c) = 0x41800000;
+  *(undefined4 *)(unaff_RSI + 0x658) = 0x3fd9999a;
+  *(undefined1 *)(unaff_RSI + 0x65c) = 2;
+  *(undefined8 *)(unaff_RSI + 0x644) = 0x41a00000;
+  *(undefined8 *)(unaff_RSI + 0x650) = 0x41a00000;
+  puStack0000000000000048 = (undefined8 *)(unaff_RSI + 0x660);
+  *puStack0000000000000048 = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x668) = unaff_R14;
+  puStack0000000000000050 = (undefined8 *)(unaff_RSI + 0x670);
+  *puStack0000000000000050 = unaff_R14;
+  *(int *)(unaff_RSI + 0x678) = iVar4;
+  puVar1 = (undefined8 *)(unaff_RSI + 0x680);
+  *puVar1 = unaff_R14;
+  puStack0000000000000058 = puVar1;
+  puVar2 = (undefined8 *)FUN_140958c28(iVar4 + 0xc);
+  *puVar2 = unaff_R14;
+  *(int *)(puVar2 + 1) = iVar4;
+  plVar3 = (longlong *)FUN_140958c28(iVar4 + 0x10);
+  *plVar3 = (longlong)puVar2;
+  *(int *)(plVar3 + 1) = iVar4;
+  FUN_1408e9040(puVar1,plVar3);
+  *(undefined8 *)(unaff_RSI + 0x688) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x690) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x698) = unaff_R14;
+  FUN_14028d850(unaff_RSI + 0x6a0);
+  FUN_14028d850(unaff_RSI + 0x7a0);
+  *(char *)(unaff_RSI + 0x8a0) = (char)unaff_R14;
+  *(undefined4 *)(unaff_RSI + 0x8a4) = 0x3f800000;
+  *(undefined4 *)(unaff_RSI + 0x8a8) = 0x3f800000;
+  *(undefined8 *)(unaff_RSI + 0x8b0) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x8b8) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x8c0) = unaff_R14;
+  *(undefined4 *)(unaff_RSI + 0x8c8) = 0x3f800000;
+  *(undefined4 *)(unaff_RSI + 0x8cc) = 0x3dcccccd;
+  *(undefined8 *)(unaff_RSI + 0x8d0) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x8d8) = 0x15;
+  FUN_14017cbb0(unaff_RSI + 0x8d0,iVar4 + 0x16);
+  FUN_14099d3b0(*(undefined8 *)(unaff_RSI + 0x8d0),&UNK_140b6d360,
+                (ulonglong)*(uint *)(unaff_RSI + 0x8d8) + 1);
+  *(undefined4 *)(unaff_RSI + 0x8e0) = 0x3f800000;
+  *(short *)(unaff_RSI + 0x8e4) = (short)unaff_R14;
+  *(undefined **)(unaff_RSI + 0x8e8) = &UNK_140b93d90;
+  *(undefined8 *)(unaff_RSI + 0x8f0) = 3;
+  *(undefined8 *)(unaff_RSI + 0x8f8) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x904) = 0x42700000;
+  *(undefined4 *)(unaff_RSI + 0x910) = 0x3fd9999a;
+  *(undefined1 *)(unaff_RSI + 0x914) = 2;
+  *(int *)(unaff_RSI + 0x90c) = iVar4;
+  *(int *)(unaff_RSI + 0x900) = iVar4;
+  *(undefined4 *)(unaff_RSI + 0x918) = 0x3f000000;
+  *(undefined1 *)(unaff_RSI + 0x91c) = 1;
+  *(undefined4 *)(unaff_RSI + 0x594) = 0xffffffff;
+  *(undefined8 *)(unaff_RSI + 0x528) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x530) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x538) = unaff_R14;
+  *(undefined8 *)(unaff_RSI + 0x540) = unaff_R14;
+  FUN_140958560(in_stack_00000110 ^ (ulonglong)&stack0x00000000);
+  return;
+}
+
+

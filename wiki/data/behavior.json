@@ -1602,7 +1602,7 @@
         },
         {
           "title": "Storage and temperature",
-          "body": "Each listed voxel of a tank gives 15.625 L. Liquid tanks hold 31.25, 187.5 and 703.125 L and gas tanks 46.875, 109.375, 984.375 and 3515.625 L. Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s.\n\nA fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4."
+          "body": "Each listed voxel of a tank gives 15.625 L. Liquid tanks hold 31.25, 187.5 and 703.125 L and gas tanks 46.875, 109.375, 984.375 and 3515.625 L. Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s.\n\nA fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4.\n\nDiesel and jet-fuel tanks are filled by a separate spawn step: 0.99 × fill × V, capped to the fuel in stock on its inventory branch, plus V ÷ 60 of air. Saved tanks keep each compartment's 13 species amounts, total and temperature and the fill-pending flag."
         },
         {
           "title": "Identifying fluids",
@@ -1614,7 +1614,7 @@
         }
       ],
       "limitations": [
-        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Diesel and jet-fuel tank startup, startup from saved inventory, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
+        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. The spawns that run the diesel and jet-fuel tank fill, the order of saved-content restore, rebuild and reset, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -1756,6 +1756,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402eb550"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ebaf2"
         },
         {
           "path": "stormworks64.exe",
@@ -1975,6 +1980,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405db0bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405db0c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc5bf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405e3add"
         },
         {
@@ -2000,7 +2020,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b5974c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5ce98"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6d998"
         },
         {
           "path": "stormworks64.exe",
@@ -22172,6 +22202,14 @@
         {
           "title": "Initial contents",
           "body": "A new tank component starts with fluid index 1, diesel, and fill 1. For a liquid other than diesel or jet fuel, the first build adds 0.99 × fill × V of it plus V ÷ 60 of air, split into nitrogen, oxygen and CO2. Inference from the decoded equations: before any exchange that reads about 60.4, 60.9 and 63.5 atm for the three sizes, because the air takes the last 1 % of room. Set to a gas, a fluid tank receives only 0.99 × fill × V ÷ 60 of it, 0.99 atm at full fill."
+        },
+        {
+          "title": "Diesel and jet fuel at spawn",
+          "body": "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. This operation adds to the existing contents and does not clear them."
+        },
+        {
+          "title": "Saved contents and reset",
+          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call."
         }
       ],
       "findings": [
@@ -22479,6 +22517,270 @@
           }
         },
         {
+          "label": "Spawn resource fill gate",
+          "value": "request byte +0x45 nonzero",
+          "detail": "The vehicle spawn and resource operation 0x1405dafa0 calls the vehicle builder 0x1404bc700 (0x1405db70e) and enters its resource-fill traversal only when byte +0x45 of its request is nonzero (je at 0x1405dbcfb). Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes 44386645 at 0x1405dbcf7. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L848; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dbcf7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dbcf7"
+          }
+        },
+        {
+          "label": "Spawn fuel arm tank type",
+          "value": "water_component_type 8",
+          "detail": "The fixed-tank arm runs only for water_component_type 8, the fluid tanks; other types jump past it (0x1405dc45c). Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes 83b9cc0e000008 at 0x1405dc455. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L1288; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc455",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc455"
+          }
+        },
+        {
+          "label": "Spawn fuel arm selection",
+          "value": "selection 1 or 2",
+          "detail": "It continues only for selection 1, diesel, or (0x1405dc483) selection 2, jet fuel. These are the two selections the pending fill skips. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes 83b88805000001 at 0x1405dc46e. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L1293; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc46e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc46e"
+          }
+        },
+        {
+          "label": "Spawn fuel fill fraction",
+          "value": "0.99",
+          "detail": "Held in xmm14. The arm multiplies the compartment volume V (component+0x5a0) by the fill setting at +0x590 (0x1405dc4b5) and by this (0x1405dc4bd): requested fuel = 0.99 × fill × V. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes f3440f1035e84d5d00 at 0x1405db0bb address binary32 0.99 (bytes a4707d3f) at 0x140bafeac. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L73-L74; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405db0bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405db0bb"
+          }
+        },
+        {
+          "label": "Spawn air divisor",
+          "value": "60",
+          "detail": "Held in xmm13. The arm divides V by this (divss at 0x1405dc4c2) for the air it adds. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes f3440f102d8f565d00 at 0x1405db0c8 address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L76-L77; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405db0c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405db0c8"
+          }
+        },
+        {
+          "label": "Spawn fuel capped to stock",
+          "value": "min(request, stock[selection])",
+          "detail": "On the inventory branch (flag at rbp-0x80) the request is capped to the stock at inventory+0x14c + 4 × selection: diesel at +0x150, jet fuel at +0x154. A request above the stock also sets an insufficient-resource flag (0x1405dc58b, 0x1405dc59d). A capped amount above 0 is subtracted from the stock (0x1405dc5f1). Off that branch the whole request is used. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes f30f5dbc8b4c010000 at 0x1405dc5bf. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L1368-L1369; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc5bf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc5bf"
+          }
+        },
+        {
+          "label": "Spawn fuel store",
+          "value": "amount[selection] + fuel",
+          "detail": "A fuel amount above 0 is added to the selected species (component+0x5a4 + 4 × selection) and to the total at +0x5d8 (0x1405dc64a). The arm does not clear earlier contents and neither tests nor clears the fill-pending byte. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes f30f11848ba4050000 at 0x1405dc62d. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L1394-L1395; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc62d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc62d"
+          }
+        },
+        {
+          "label": "Spawn air store",
+          "value": "amount[3] + V ÷ 60",
+          "detail": "V ÷ 60 is added to species 3, the air slot (component+0x5b0), and to the total (0x1405dc687) whether or not any fuel was added. Its later split into nitrogen, oxygen and CO2 was not followed. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes f30f5880b0050000 at 0x1405dc662. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L1407-L1408; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc662",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc662"
+          }
+        },
+        {
+          "label": "Spawn fuel request at fill 1",
+          "value": "30.9375 L, 185.625 L and 696.09375 L (small, medium, large)",
+          "detail": "0.99 × V × 10 L per amount for V = 3.125, 18.75 and 70.3125, before any exchange and before the stock cap. Inference from the arm's instructions. Report: investigation/tanks-ports.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405db0bb, native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc62d, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3863, derived:a9832b465a8c, derived:7d5295c1ec2b, derived:c4f70b880444.",
+          "evidenceId": "derived:7fcf88a54582",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405db0bb"
+          }
+        },
+        {
+          "label": "Saved fill-pending flag",
+          "value": "spawner_pending",
+          "detail": "The water component serializer 0x1403f6150, slot +0x260 of c_scene_vehicle_component_water (vtable 0x140b08f18), serves fluid and gas tanks. Among its runtime fields it binds the fill-pending byte at component+0x58c to this name, default 1. Report: investigation/tanks-ports.md. Function 0x1403f649a-0x1403f69d5; it references the string 'spawner_pending' at 0x140b6d998. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-serializer.asm:L525; ../tanks-ports/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x140b6d998",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6d998"
+          }
+        },
+        {
+          "label": "Saved primary compartment",
+          "value": "contained_volume",
+          "detail": "It then serializes the primary compartment at component+0x598 under this name through 0x1408fce80 (call at 0x1403f699a), which runs the shared compartment serializer 0x1402eb750. Report: investigation/tanks-ports.md. Function 0x1403f649a-0x1403f69d5; it references the string 'contained_volume' at 0x140b633c8. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-serializer.asm:L560; ../tanks-ports/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x140b633c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b633c8"
+          }
+        },
+        {
+          "label": "Saved secondary compartment",
+          "value": "contained_volume_secondary",
+          "detail": "The secondary compartment at component+0x5e4 is serialized the same way under this name. Report: investigation/tanks-ports.md. Function 0x1403f649a-0x1403f69d5; it references the string 'contained_volume_secondary' at 0x140b6d9c0. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-serializer.asm:L567; ../tanks-ports/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x140b6d9c0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6d9c0"
+          }
+        },
+        {
+          "label": "Saved compartment total",
+          "value": "vol_total",
+          "detail": "Among its runtime fields the compartment serializer saves the total amount at state+0x40 (component+0x5d8 for the primary compartment) as one binary32 under this name, then temp at state+0x44 and rad at state+0x48. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; it references the string 'vol_total' at 0x140b59728. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L45; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x140b59728",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b59728"
+          }
+        },
+        {
+          "label": "Saved compartment temperature",
+          "value": "temp",
+          "detail": "Binds the temperature at state+0x44 (component+0x5dc). Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; it references the string 'temp' at 0x140b59770. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L77; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x140b59770",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b59770"
+          }
+        },
+        {
+          "label": "Saved species amounts",
+          "value": "vol_",
+          "detail": "Prefix of vol_0 to vol_12: thirteen binary32 species amounts from state+0x0c + 4 × i (component+0x5a4 + 4 × i), in the internal amount unit the pressure law and Tank Content read, with no conversion to litres. The geometric volume at state+8 is not saved; the initializer 0x1403ef450 recomputes it from the definition for types 8 and 20 and leaves the amounts and temperature alone. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; it references the string 'vol_' at 0x140b5974c. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L159; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x140b5974c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b5974c"
+          }
+        },
+        {
+          "label": "Saved species count",
+          "value": "13",
+          "detail": "The species loop ends after index 12, so all thirteen fluid indices are saved. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; instruction bytes 4183fd0d at 0x1402ebaf2. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L273; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x1402ebaf2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ebaf2"
+          }
+        },
+        {
+          "label": "Saved temperature upper bound",
+          "value": "100000",
+          "detail": "After the temperature is serialized, a non-finite value becomes 0 (0x1402eb921) and a finite one is clamped to at most this and at least the value at 0x140bb0fd4 (maxss at 0x1402eb91b), then stored back at state+0x44 (0x1402eb924). It bounds temperature only; amounts and vol_total get no limit here. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; instruction bytes f30f5d352d508c00 at 0x1402eb90b address binary32 100000 (bytes 0050c347) at 0x140bb0940. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L139-L140; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x1402eb90b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb90b"
+          }
+        },
+        {
+          "label": "Saved temperature lower bound",
+          "value": "-273",
+          "detail": "The lower clamp of the saved temperature. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; instruction bytes f30f1005b9568c00 at 0x1402eb913 address binary32 -273 (bytes 008088c3) at 0x140bb0fd4. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L141-L142; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x1402eb913",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb913"
+          }
+        },
+        {
+          "label": "Component state restore call",
+          "value": "slot +0x260 of each component",
+          "detail": "The component loading and build routine loads slot +0x260 of a component and calls it (0x1404b8502). For water components that slot holds the serializer 0x1403f6150, so this is a path that restores saved compartment fields. The pending fill (0x1404b7640, called at 0x1404bc38a) runs only while that byte is 1, so a restored 0 prevents a refill there. Report: investigation/tanks-ports.md. Function 0x1404b81f0-0x1404b8818; instruction bytes 4c8b9160020000 at 0x1404b84ed. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/build-before-fill.asm:L592. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84ed",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b84ed"
+          }
+        },
+        {
+          "label": "Tank reset clears contents",
+          "value": "both compartments' species and totals = 0",
+          "detail": "Slot +0x3c8 of the water vtable, 0x1403eebf0, zeroes the thirteen species amounts and the total of the primary (+0x5a4 to +0x5db) and secondary (+0x5f0 to +0x627) compartments. It does not write either temperature (+0x5dc, +0x628). Report: investigation/tanks-ports.md. Function 0x1403eebf0-0x1403eec7f; instruction bytes 4c8981a4050000 at 0x1403eec18. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-constructor-accessors.asm:L299; ../tanks-ports/pseudocode/1403eebf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403eebf0@0x1403eec18",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403eec18"
+          }
+        },
+        {
+          "label": "Tank reset re-arms the fill",
+          "value": "fill pending = 1",
+          "detail": "The reset then sets fill pending, so the next pending fill (0x1404b7640) treats the tank as unfilled again. Report: investigation/tanks-ports.md. Function 0x1403eebf0-0x1403eec7f; instruction bytes c6818c05000001 at 0x1403eec73. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-constructor-accessors.asm:L312; ../tanks-ports/pseudocode/1403eebf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403eebf0@0x1403eec73",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403eec73"
+          }
+        },
+        {
+          "label": "New tank temperature",
+          "value": "20 °C",
+          "detail": "The water component constructor stores binary32 20 (bytes 0000a041) as the primary compartment temperature at component+0x5dc, after zero amounts, selection 1, fill pending 1 and fill 1. Report: investigation/tanks-ports.md. Function 0x1403ee3d0-0x1403eea64; instruction bytes 48c786dc0500000000a041 at 0x1403ee7a1. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-constructor-accessors.asm:L46-L47; ../tanks-ports/pseudocode/1403ee777.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee7a1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee7a1"
+          }
+        },
+        {
           "label": "Liquid tank start pressure",
           "value": "about 60.4, 60.9 and 63.5 atm (small, medium, large)",
           "detail": "Inference from the fill branch and the pressure law, before any exchange: a fresh tank with a liquid other than diesel or jet fuel selected and fill 1 holds 0.99 × V of it plus V ÷ 60 of air, so L = 0.99 × V and G = V ÷ 60. Small (V 3.125): 60 × 1.0067 = 60.40 atm. Medium (V 18.75) and large (V 70.3125): the air fills the last 1 % of room, giving 60.94 and 63.52 atm. A liquid tank set to a gas instead receives 0.99 × fill × V ÷ 60 of it, 0.99 atm at fill 1. Report: investigation/fluids-network.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79e0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79d0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79f6, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b7a52, derived:d59de08c3571, derived:a9832b465a8c, derived:7d5295c1ec2b, derived:c4f70b880444.",
@@ -22646,7 +22948,7 @@
         }
       ],
       "limitations": [
-        "Diesel and jet-fuel startup was not traced: the decoded fill skips both, and diesel is a new tank's default selection. Startup from a saved inventory or after a rebuild was not traced.",
+        "Which spawns run the diesel and jet-fuel fill was not traced: request byte +0x45 and the inventory branch are not yet mapped to editor placement, career or creative settings, missions or save loading. The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a tank's contents and which refill it is unknown.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -22723,7 +23025,37 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb90b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb913"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ebaf2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403ee788"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee7a1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403eec18"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403eec73"
         },
         {
           "path": "stormworks64.exe",
@@ -22783,12 +23115,57 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b84ed"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404bc38a"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405db0bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405db0c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dbcf7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc455"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc46e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc5bf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc62d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc662"
         },
         {
           "path": "stormworks64.exe",
@@ -22814,6 +23191,36 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b59728"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b5974c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b59770"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b633c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6d998"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6d9c0"
         },
         {
           "path": "stormworks64.exe",
@@ -23434,6 +23841,14 @@
         {
           "title": "Setup and interactions",
           "body": "A new gas tank selects the air slot; the editor offers air, oxygen, nitrogen and hydrogen and a fill setting from 0 to 100. The first build adds 0.99 × fill × V of the selected gas, so a fresh tank reads 59.4 atm at full fill before any exchange, and Tank Content reads 0.99 of the litre volume. Air is split into nitrogen, oxygen and CO2 at that point. Custom tanks filled by the fluid spawner take a separate path; its tooltip says 60 atm."
+        },
+        {
+          "title": "Saved contents and reset",
+          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call."
+        },
+        {
+          "title": "Pressure limits",
+          "body": "No maximum safe pressure, rupture threshold or pressure damage rule was found. The pressure law has no limit, the tank update moves contents and sets its outputs without a pressure test, and the saved fields and the shipped definitions have no pressure limit. The 59.4 atm start and the 100000 temperature bound are not safety ratings. General vehicle damage code lies outside these checks, so they do not show that tanks cannot fail."
         }
       ],
       "findings": [
@@ -23754,6 +24169,162 @@
           }
         },
         {
+          "label": "Saved fill-pending flag",
+          "value": "spawner_pending",
+          "detail": "The water component serializer 0x1403f6150, slot +0x260 of c_scene_vehicle_component_water (vtable 0x140b08f18), serves fluid and gas tanks. Among its runtime fields it binds the fill-pending byte at component+0x58c to this name, default 1. Report: investigation/tanks-ports.md. Function 0x1403f649a-0x1403f69d5; it references the string 'spawner_pending' at 0x140b6d998. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-serializer.asm:L525; ../tanks-ports/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x140b6d998",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6d998"
+          }
+        },
+        {
+          "label": "Saved primary compartment",
+          "value": "contained_volume",
+          "detail": "It then serializes the primary compartment at component+0x598 under this name through 0x1408fce80 (call at 0x1403f699a), which runs the shared compartment serializer 0x1402eb750. Report: investigation/tanks-ports.md. Function 0x1403f649a-0x1403f69d5; it references the string 'contained_volume' at 0x140b633c8. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-serializer.asm:L560; ../tanks-ports/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x140b633c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b633c8"
+          }
+        },
+        {
+          "label": "Saved secondary compartment",
+          "value": "contained_volume_secondary",
+          "detail": "The secondary compartment at component+0x5e4 is serialized the same way under this name. Report: investigation/tanks-ports.md. Function 0x1403f649a-0x1403f69d5; it references the string 'contained_volume_secondary' at 0x140b6d9c0. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-serializer.asm:L567; ../tanks-ports/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x140b6d9c0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6d9c0"
+          }
+        },
+        {
+          "label": "Saved compartment total",
+          "value": "vol_total",
+          "detail": "Among its runtime fields the compartment serializer saves the total amount at state+0x40 (component+0x5d8 for the primary compartment) as one binary32 under this name, then temp at state+0x44 and rad at state+0x48. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; it references the string 'vol_total' at 0x140b59728. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L45; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x140b59728",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b59728"
+          }
+        },
+        {
+          "label": "Saved compartment temperature",
+          "value": "temp",
+          "detail": "Binds the temperature at state+0x44 (component+0x5dc). Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; it references the string 'temp' at 0x140b59770. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L77; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x140b59770",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b59770"
+          }
+        },
+        {
+          "label": "Saved species amounts",
+          "value": "vol_",
+          "detail": "Prefix of vol_0 to vol_12: thirteen binary32 species amounts from state+0x0c + 4 × i (component+0x5a4 + 4 × i), in the internal amount unit the pressure law and Tank Content read, with no conversion to litres. The geometric volume at state+8 is not saved; the initializer 0x1403ef450 recomputes it from the definition for types 8 and 20 and leaves the amounts and temperature alone. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; it references the string 'vol_' at 0x140b5974c. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L159; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x140b5974c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b5974c"
+          }
+        },
+        {
+          "label": "Saved species count",
+          "value": "13",
+          "detail": "The species loop ends after index 12, so all thirteen fluid indices are saved. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; instruction bytes 4183fd0d at 0x1402ebaf2. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L273; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x1402ebaf2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ebaf2"
+          }
+        },
+        {
+          "label": "Saved temperature upper bound",
+          "value": "100000",
+          "detail": "After the temperature is serialized, a non-finite value becomes 0 (0x1402eb921) and a finite one is clamped to at most this and at least the value at 0x140bb0fd4 (maxss at 0x1402eb91b), then stored back at state+0x44 (0x1402eb924). It bounds temperature only; amounts and vol_total get no limit here. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; instruction bytes f30f5d352d508c00 at 0x1402eb90b address binary32 100000 (bytes 0050c347) at 0x140bb0940. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L139-L140; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x1402eb90b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb90b"
+          }
+        },
+        {
+          "label": "Saved temperature lower bound",
+          "value": "-273",
+          "detail": "The lower clamp of the saved temperature. Report: investigation/tanks-ports.md. Function 0x1402eb750-0x1402ebb2d; instruction bytes f30f1005b9568c00 at 0x1402eb913 address binary32 -273 (bytes 008088c3) at 0x140bb0fd4. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/compartment-serializer.asm:L141-L142; ../tanks-ports/pseudocode/1402eb750.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb750@0x1402eb913",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb913"
+          }
+        },
+        {
+          "label": "Component state restore call",
+          "value": "slot +0x260 of each component",
+          "detail": "The component loading and build routine loads slot +0x260 of a component and calls it (0x1404b8502). For water components that slot holds the serializer 0x1403f6150, so this is a path that restores saved compartment fields. The pending fill (0x1404b7640, called at 0x1404bc38a) runs only while that byte is 1, so a restored 0 prevents a refill there. Report: investigation/tanks-ports.md. Function 0x1404b81f0-0x1404b8818; instruction bytes 4c8b9160020000 at 0x1404b84ed. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/build-before-fill.asm:L592. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84ed",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b84ed"
+          }
+        },
+        {
+          "label": "Tank reset clears contents",
+          "value": "both compartments' species and totals = 0",
+          "detail": "Slot +0x3c8 of the water vtable, 0x1403eebf0, zeroes the thirteen species amounts and the total of the primary (+0x5a4 to +0x5db) and secondary (+0x5f0 to +0x627) compartments. It does not write either temperature (+0x5dc, +0x628). Report: investigation/tanks-ports.md. Function 0x1403eebf0-0x1403eec7f; instruction bytes 4c8981a4050000 at 0x1403eec18. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-constructor-accessors.asm:L299; ../tanks-ports/pseudocode/1403eebf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403eebf0@0x1403eec18",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403eec18"
+          }
+        },
+        {
+          "label": "Tank reset re-arms the fill",
+          "value": "fill pending = 1",
+          "detail": "The reset then sets fill pending, so the next pending fill (0x1404b7640) treats the tank as unfilled again. Report: investigation/tanks-ports.md. Function 0x1403eebf0-0x1403eec7f; instruction bytes c6818c05000001 at 0x1403eec73. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-constructor-accessors.asm:L312; ../tanks-ports/pseudocode/1403eebf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403eebf0@0x1403eec73",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403eec73"
+          }
+        },
+        {
+          "label": "New tank temperature",
+          "value": "20 °C",
+          "detail": "The water component constructor stores binary32 20 (bytes 0000a041) as the primary compartment temperature at component+0x5dc, after zero amounts, selection 1, fill pending 1 and fill 1. Report: investigation/tanks-ports.md. Function 0x1403ee3d0-0x1403eea64; instruction bytes 48c786dc0500000000a041 at 0x1403ee7a1. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/tank-constructor-accessors.asm:L46-L47; ../tanks-ports/pseudocode/1403ee777.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee7a1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee7a1"
+          }
+        },
+        {
           "label": "Gas tank start pressure",
           "value": "59.4 atm at fill 1",
           "detail": "Inference from the fill branch and the pressure law, before any exchange: a fresh gas tank receives q = 0.99 × fill × V of the selected gas and no ambient air, so P = 60 × 0.99 × fill = 59.4 × fill atm for every size. Tank Content then reads 10 × 0.99 × V, 0.99 of the geometric litres; the species list shows 600 × amount. Report: investigation/fluids-network.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79e0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79f6, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b7a52, derived:d59de08c3571, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3863, native:stormworks64.exe:f9206d85c82f:0x1403f9e40@0x1403f9fa7.",
@@ -23997,7 +24568,8 @@
         }
       ],
       "limitations": [
-        "Startup from a saved inventory or after a rebuild was not traced.",
+        "The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a gas tank's contents and which refill it is unknown.",
+        "No maximum safe pressure or pressure-triggered damage was recovered. The generic max pressure and high_pressure strings and the common vehicle damage paths were not traced to tanks.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -24098,7 +24670,37 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb90b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb913"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ebaf2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403ee788"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee7a1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403eec18"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403eec73"
         },
         {
           "path": "stormworks64.exe",
@@ -24168,6 +24770,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b84ed"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404bc38a"
         },
         {
@@ -24199,6 +24806,36 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b59728"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b5974c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b59770"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b633c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6d998"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6d9c0"
         },
         {
           "path": "stormworks64.exe",
@@ -74404,6 +75041,10 @@
           "body": "The editor's width and length controls run from 1 to 6 in steps of 1, and the upload check rejects a microcontroller whose width or length is above 6 with \"Microcontroller must not be larger than 6x6 voxels\". A port must sit inside the grid, 0 ≤ x < width and 0 ≤ z < length, in the bottom row y = 0. Two ports at one position are rejected when they have the same kind, or kinds 0 and 1 (internal codes); other kinds may share a position. This rule sets no total, so the 6 by 6 area and the 32 composite channels do not give a port limit."
         },
         {
+          "title": "Port and graph counts",
+          "body": "Add Input allocates a node, gives it the next node ID, creates its bridge and appends it to the port list. It grows the list when it is full and never compares the count with a maximum. The upload check tests the size, that the graph and port lists are not empty, that an output exists and where each port sits, but not how many ports there are.\n\nThe binary format stores the port count in 16 bits and the embedded component count in 32 bits. These are field widths, not editor limits: the serializers check no count against them, and XML lists grow as they are read. Inference, not tested in game: with the five bridged kinds at most 4 ports fit one position, one on/off or number port plus one composite, one video and one audio, so 144 on a 6 by 6 grid."
+        },
+        {
           "title": "Composite channels inside the graph",
           "body": "The composite read nodes (on/off and number) clamp their channel to 1 to 32, so channel 0 or less reads channel 1 and anything above 32 reads channel 32. A channel taken from an input is rounded first by adding 0.5 (inference: the library call is floor). Lua getBool and getNumber instead return false and 0 outside 1 to 32, setBool and setNumber ignore such channels, and setNumber rounds the Lua number to binary32. The Logic category gives the channel layout."
         },
@@ -74823,10 +75464,94 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x140b12828"
           }
+        },
+        {
+          "label": "Add Input node allocation",
+          "value": "0x58-byte external node",
+          "detail": "Case 0x71 of the editor event dispatcher 0x1407c1b60 adds an external node at 0x1407c3eac: it allocates 0x58 bytes, initializes the node (call 0x1402e1e50 at 0x1407c3ec8), increments the 32-bit node-ID counter (0x1407c3eda) and creates its bridge (0x14038f150). Report: investigation/tanks-ports.md. Function 0x1407c1b60-0x1407c4b77; instruction bytes b958000000 at 0x1407c3eb3. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/editor-add-input.asm:L9; ../tanks-ports/pseudocode/1407c1b60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407c1b60@0x1407c3eb3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407c3eb3"
+          }
+        },
+        {
+          "label": "Add Input list append",
+          "value": "no count limit",
+          "detail": "It then compares the list count (+0x58) only with the list capacity (+0x50). When they are equal it grows the list to twice the capacity, at least 0x20 entries, and appends the node. Between the allocation and the append (0x1407c3f9f) nothing compares the count with a maximum, and the 0x20 is a minimum allocation, not a cap. Other creation and import paths were not all traced. Report: investigation/tanks-ports.md. Function 0x1407c1b60-0x1407c4b77; instruction bytes 8b4f58 at 0x1407c3f60. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/editor-add-input.asm:L49; ../tanks-ports/pseudocode/1407c1b60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407c1b60@0x1407c3f60",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407c3f60"
+          }
+        },
+        {
+          "label": "External node count, binary read",
+          "value": "unsigned 16-bit",
+          "detail": "The external-node list serializer reads its binary count as one unsigned 16-bit word. Its XML branch iterates nodes/node elements and grows the list with no count limit. Report: investigation/tanks-ports.md. Function 0x140908830-0x140908dce; instruction bytes 0fb710 at 0x140908d17. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/port-list-serializer.asm:L362; ../tanks-ports/pseudocode/140908830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140908830@0x140908d17",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140908d17"
+          }
+        },
+        {
+          "label": "External node count, binary write",
+          "value": "low 16 bits of the 32-bit count",
+          "detail": "Writing takes the low 16 bits of the list's 32-bit count, stores them as one word (0x140908d76), then writes every node of the full count (0x140908d84). Inference: 65535 is the largest count the binary field holds, and a longer list would not read back with the same count. That is a format width, not an editor limit. Report: investigation/tanks-ports.md. Function 0x140908830-0x140908dce; instruction bytes 0fb75710 at 0x140908d4f. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/port-list-serializer.asm:L376; ../tanks-ports/pseudocode/140908830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140908830@0x140908d4f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140908d4f"
+          }
+        },
+        {
+          "label": "Embedded component count",
+          "value": "32-bit",
+          "detail": "The embedded graph serializer 0x14038b940 sends its components and components_bridge lists through this routine, which reads (0x140907d7a) and writes (0x140907d92) a 32-bit count. That is a field width, not a component limit. Report: investigation/tanks-ports.md. Function 0x1409077b0-0x140907e32; instruction bytes 448b30 at 0x140907d7a. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/component-list-serializer.asm:L435; ../tanks-ports/pseudocode/1409077b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409077b0@0x140907d7a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140907d7a"
+          }
+        },
+        {
+          "label": "Upload port placement call",
+          "value": "0x14038fee0 per external node",
+          "detail": "Besides the 6 by 6 size, the upload check requires nonempty component and external-node lists and an output, and checks each external node's placement with 0x14038fee0. The inspected path has no separate port-count limit. Report: investigation/tanks-ports.md. Function 0x1407c6040-0x1407c6b9d; instruction bytes e86c97bcff at 0x1407c676f. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/upload-validation.asm:L128; ../tanks-ports/pseudocode/1407c6040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407c6040@0x1407c676f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407c676f"
+          }
+        },
+        {
+          "label": "Ports per position for the bridged kinds",
+          "value": "at most 4; 144 on a 6 by 6 grid (not confirmed)",
+          "detail": "Inference from the placement rule: the five kinds the bridge builder 0x1403929f0 supports are 0, 1, 5, 6 and 7 (on/off, number, composite, video, audio). Kinds 0 and 1 conflict, so one position holds at most one of them plus one each of 5, 6 and 7: 4 ports, or 4 × 36 = 144 on the largest grid. No accepted 144-port microcontroller was built or loaded. Report: investigation/tanks-ports.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038ff5b, native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038feea, native:stormworks64.exe:f9206d85c82f:0x140638e00@0x140639111.",
+          "evidenceId": "derived:44ae419ec71e",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14038ff5b"
+          }
         }
       ],
       "limitations": [
-        "The maximum total number of external ports was not recovered: the port kinds the editor accepts, and every creation and save check, still need reconciling with the placement rule.",
+        "No unconditional maximum port or graph size was recovered across editor creation, XML import, binary saves and graph execution. ID validation and allocation in other creation paths were not traced, and whether the 144 ports the placement rule allows for the five bridged kinds are accepted end to end is not confirmed.",
         "Open questions about cable and cross-vehicle timing, video resource ownership, Lua scheduling and a composite network format are listed in the Composite data over electrical cables mechanics article."
       ],
       "sources": [
@@ -74980,7 +75705,37 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407c3eb3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407c3f60"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407c65e1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407c676f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140907d7a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140908d17"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140908d4f"
         },
         {
           "path": "stormworks64.exe",
@@ -157997,12 +158752,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8635,
+    "findingCount": 8677,
     "findingsByStatus": {
-      "derived": 721,
-      "observed": 7914
+      "derived": 723,
+      "observed": 7954
     },
-    "nativeFindingCount": 6241,
+    "nativeFindingCount": 6283,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -158045,7 +158800,7 @@
       },
       {
         "path": "wiki/data/families.json",
-        "sha256": "8a159f9bef276be47e95a32bfe78d9177d5aee9add6c9b81cfbfebab2950ceab"
+        "sha256": "e8c2b4e0f48b866ec3ecc718fa2ce4ed0edd0a53265397c4edb7ebffca36ec08"
       },
       {
         "path": "stormworks64.exe",
@@ -158053,8 +158808,8 @@
       }
     ],
     "evidenceUse": {
-      "derived": 417,
-      "native": 1367,
+      "derived": 419,
+      "native": 1394,
       "resource": 2660
     }
   }
