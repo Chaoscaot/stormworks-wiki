@@ -353,6 +353,12 @@ def build(root):
         child = b["attributes"].get("child_name")
         if child and b["attributes"].get("type") == "20":
             spools.setdefault(child, []).append("%s (%s)" % (b["name"], b["id"]))
+    # Other untooltipped children: a type-7 part names its moving piece as child_name (investigation/small-parts.md).
+    pieces = {}
+    for b in blocks:
+        child = b["attributes"].get("child_name")
+        if child and not child.startswith(("multibody_", "linear_")) and b["attributes"].get("type") == "7":
+            pieces.setdefault(child, []).append("%s (%s)" % (b["name"], b["id"]))
     defs = root / "rom/data/definitions"
     for bid in sorted(set(by_id) - covered):
         block = by_id[bid]
@@ -377,6 +383,11 @@ def build(root):
                 body = ("A winch end piece whose definition file is identical to %s. No shipped definition names it as child_name; the %s (%s) names %s instead. "
                         "This definition has no tooltip of its own." % (names(twins), spool["name"], spool["id"], used))
                 summary = "Winch end piece identical to %s, which the %s uses; no shipped winch names this one as child_name." % (used, spool["name"])
+        elif bid in pieces and not (block["description"] or block["short_description"]):
+            parent = " or ".join(pieces[bid])
+            body = ("The moving piece of the %s, which names it as child_name and carries the ports. This definition has no tooltip of its own%s. "
+                    "The practical behaviour research gives the rule for both parts." % (parent, "" if block["logic"] else " and no ports"))
+            summary = "Moving piece of the %s." % parent
         specs.append(dict(id="part-" + bid.replace("_", "-"), title=block["name"], category=fallback_category(block),
                           ids=[bid], summary=summary, body=body, sections=[], fields=[], limits=["Singleton fallback. No equivalence with similarly named definitions is asserted."]))
     families = []

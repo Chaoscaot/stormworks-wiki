@@ -33,8 +33,10 @@ CONFIG = 'investigation/config.md'
 CONSUMERS = 'investigation/native/config/constant-consumers.json'
 NATIVE_DEFAULTS = 'investigation/native/config/constants.json'
 EXAMPLES = 'investigation/native/config/worked-examples.json'
+SMALL_PARTS = 'investigation/small-parts.md'
+SMALL_PARTS_DATA = 'investigation/native/small-parts/parts.json'
 # Articles whose body numbers must all occur in their findings, as in extract_behavior.py.
-CHECKED = ('aerodynamics', 'buoyancy-water-drag')
+CHECKED = ('aerodynamics', 'buoyancy-water-drag', 'resource-storage')
 NUMBER = re.compile(r'(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)')
 CACHE: dict[str, tuple[str, str]] = {}
 BINARY: dict = {}
@@ -278,6 +280,36 @@ def definition(name, fields=(), nodes=True, tooltip=False, labels=False, short_t
     return result
 
 
+def storage_native():
+    """setVehicleTank binding and request queue, verified against the bytes and the small-parts figures."""
+    data = json.loads((ROOT / SMALL_PARTS_DATA).read_text())
+    if data['target_sha256'] != EXE_SHA256:
+        raise ValueError(f'{SMALL_PARTS_DATA} was built for a different executable')
+    d = next(p for p in data['parts'] if p['definition'] == 'default_resource_storage')
+    x = d['example']
+    if (d['resource'] != STORAGE or d['port_update_every_callbacks'] != 60 or 'port.id % 60 == tick' not in read(STORAGE)
+            or x['delta'] != min(x['capacity'] - x['old_total'], x['tile_stock']) or x['new_requested_total'] != x['old_total'] + x['delta']
+            or x['new_tile_stock'] != x['tile_stock'] - x['delta'] or (d['native_set_named'], d['native_enqueue'], d['native_get_named']) != ('0x140730ea0', '0x140730f50', '0x140733a30')):
+        raise ValueError(f'Storage figures in {SMALL_PARTS_DATA} differ from the script')
+    r = SMALL_PARTS
+    return [
+        lua('Example output transfer', x, 'Capacity 100, old total 40, tile stock 25: delta = min(100 - 40, 25) = 25, requested total 65, stock 0. Arithmetic of the script; whether the tank ends at 65 depends on how the queued request is applied.',
+            STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_out")', 'is_update = true', status='inferred'),
+        native('setVehicleTank name', 'setVehicleTank', 'The server API table loads this name before its C function.',
+               '0x14059a9f3', '48 8d 05 ee 92 5f 00', report=r, literals={'0x140b93ce8': '73 65 74 56 65 68 69 63 6c 65 54 61 6e 6b 00'}),
+        native('setVehicleTank binding', '0x1405b1cc0', 'The server API table pairs the name setVehicleTank (lea at 0x14059a9f3) with this C function (lea at 0x14059aa01); getVehicleTank pairs with 0x1405b2140 at 0x14059aa1d.',
+               '0x14059aa01', '48 8d 05 b8 72 01 00', report=r),
+        native('Named tank setter call', 'c_script_operators slot +0x3e0', 'The binding calls slot +0x3e0 of c_script_operators (vtable 0x140b11a28), which holds 0x140730ea0 at 0x140b11e08.',
+               '0x1405b1ede', 'ff 90 e0 03 00 00', report=r, literals={'0x140b11e08': 'a0 0e 73 40 01 00 00 00'}),
+        native('Tank request call', 'slot +0x3d8', 'The named setter resolves the tank by name and calls slot +0x3d8, which holds 0x140730f50 at 0x140b11e00.',
+               '0x140730f32', '41 ff 91 d8 03 00 00', report=r, literals={'0x140b11e00': '50 0f 73 40 01 00 00 00'}),
+        native('Tank request queue', 'service+0x1f0', 'Function 0x140730f50 takes a new slot from the queue at operators service+0x1f0 through 0x1408b3ea0; it does not touch the tank.',
+               '0x140730f64', '48 81 c1 f0 01 00 00', report=r),
+        native('Tank request record', 'kind 2', 'It fills the 36-byte slot with the vehicle ID, voxel position, value and fluid ID and stores request kind 2.',
+               '0x140730fdc', 'c7 40 20 02 00 00 00', report=r),
+    ]
+
+
 def lua(label, val, detail, path, needle, end=None, status='observed'):
     return finding(label, val, detail, cite(path, needle, end), status)
 
@@ -455,13 +487,24 @@ def build_articles():
              lua('Diesel settlement', 'floor(transaction + 0.5)', 'Insufficient funds returns early; infinite_money skips currency deduction; tank contents then change.', TRADE, 'local money_current = server.getCurrency()', 'server.setVehicleTank(vehicle_id, "Tank", 0, NITROGEN)'),
              lua('Buy label', 'Buy here / L', 'UI confirms is_buy branch terminology.', TRADE, 'if vehicle.is_buy then\r\n                server.addMapLabel', 'getPurchaseColour())')],
             [lua_limit, 'Displayed currency-per-litre prices are addon behavior, not universal engine economy. Availability depends on spawned gantries and world settings. No live transaction was tested.'])
+    store = storage_native()
     article('resource-storage', 'Base fuel inventory transfers', 'Economy',
-            'The storage addon transfers fuel between named vehicle tanks and tile inventories.',
-            'Storage staggers ports by vehicle ID modulo 60 against a callback counter. Diesel input contributes the diesel entry from the tank values table, then clears the inlet and nitrogen. Diesel output computes remaining tank space, clamps it to tile inventory, and refills while subtracting that delta from inventory. This is addon bookkeeping rather than the fluid network solver.',
+            'The storage addon transfers fuel between named vehicle tanks and tile inventories, each port once every 60 onTick callbacks.',
+            'Storage staggers ports by vehicle ID modulo 60 against a callback counter, so a port is handled on one onTick callback in 60. The counter ignores game_ticks, so the period is 60 callbacks; how long that takes depends on how often the engine calls onTick. '
+            'Diesel input adds the tank\'s whole diesel entry to the tile inventory, with no per-callback limit, then requests 0 fresh water and 0 nitrogen in the inlet. Jet input does the same with the jet fuel entry. '
+            'Diesel output computes the free space as capacity minus the tank\'s total value, clamps it to the tile\'s diesel stock, subtracts that delta from the stock and requests old total plus delta of the tank\'s current dominant fluid_type, then 0 nitrogen. Jet output does the same with jet fuel. '
+            'Inputs run before outputs, so fuel credited by an inlet can leave through an outlet in the same callback. Example: an outlet of capacity 100 holding 40 with 25 in stock requests 65 and leaves 0 in stock. '
+            'The output request keeps the tank\'s existing fluid_type, so a diesel outlet holding mostly jet fuel debits diesel stock while asking for more of the jet fuel; the input clears fresh water and nitrogen, not the fuel it credited. '
+            f'A native decode ({SMALL_PARTS}) found that server.setVehicleTank does not write the tank itself. Its binding resolves the named tank and appends a 36-byte request, kind 2, holding the vehicle ID, voxel position, value and fluid ID, to a queue; the tank changes only when that queue is applied. '
+            'This is addon bookkeeping rather than the fluid network solver.',
             [lua('Port scheduling', 'port.id % 60 == tick', 'Counter increments per onTick callback and wraps at 60; game_ticks is not used by this counter.', STORAGE, 'function onTick(game_ticks)', 'if port.id % 60 == tick then'),
-             lua('Diesel input', 'd = d + tank_data.values[1]', 'Uses the diesel species entry, then clears tank contents and nitrogen.', STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_in")', 'is_update = true'),
-             lua('Diesel output', 'delta = min(capacity - value, d)', 'Transfers only when space and inventory allow; source uses total tank value to compute space.', STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_out")', 'is_update = true')],
-            [lua_limit, 'No wall-clock callback rate or fluid conservation across server APIs was measured. Mixed-fluid behavior requires runtime validation.'])
+             lua('Diesel input', 'd = d + tank_data.values[1]', 'Uses the diesel species entry, then requests 0 of fluid 0 and 0 of nitrogen in the inlet.', STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_in")', 'is_update = true'),
+             lua('Jet input', 'j = j + tank_data2.values[2]', 'Uses the jet fuel species entry, then the same two zero requests.', STORAGE, 'local tank_data2, success2 = server.getVehicleTank(port.id, "jet_in")', 'is_update = true'),
+             lua('Diesel output', 'delta = min(capacity - value, d)', 'Transfers only when space and inventory allow; source uses total tank value to compute space and requests value + delta of the existing fluid_type.', STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_out")', 'is_update = true'),
+             lua('Jet output', 'delta = min(capacity - value, j)', 'Same rule against jet fuel stock.', STORAGE, 'local tank_data2, success2 = server.getVehicleTank(port.id, "jet_out")', 'is_update = true'),
+             *store],
+            [lua_limit, 'Still unverified: how the queued setVehicleTank requests are applied (clamping, replacing or adding, the order of two requests to one tank, and failures), and so whether fuel is conserved, especially with mixed fluids. '
+             'The wall-clock period of 60 onTick callbacks was not measured either. A runtime test or a decode of the queue consumer is needed.'])
     article('oil-survey-economy', 'Buying oil survey data', 'Economy',
             'Oil survey data starts at 25000 and later purchases randomize the quoted cost.',
             'On world creation, the addon marks deposit entries with index at most 5 as purchased. Initial survey cost is 25000. A purchase requires infinite money or currency strictly greater than the quoted cost. After selecting more deposit data, the script chooses a random next cost from 25000 to 80000. Exact-balance currency fails this source-level greater-than check.',

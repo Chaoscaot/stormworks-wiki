@@ -1,0 +1,55 @@
+{
+  "id": "resource-storage",
+  "title": "Base fuel inventory transfers",
+  "category": "Economy",
+  "summary": "The storage addon transfers fuel between named vehicle tanks and tile inventories.",
+  "body": "Storage staggers ports by vehicle ID modulo 60 against a callback counter. Diesel input contributes the diesel entry from the tank values table, then clears the inlet and nitrogen. Diesel output computes remaining tank space, clamps it to tile inventory, and refills while subtracting that delta from inventory. This is addon bookkeeping rather than the fluid network solver.",
+  "findings": [
+    {
+      "label": "Port scheduling",
+      "value": "port.id % 60 == tick",
+      "detail": "Counter increments per onTick callback and wraps at 60; game_ticks is not used by this counter.",
+      "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L40-L47",
+      "source": {
+        "path": "rom/data/missions/default_resource_storage/script.lua",
+        "sha256": "72928dc033d3cf49b922e86f2608a5e7a8e8595c9e5ceb0de2f7e8e96b075198",
+        "lineStart": 40,
+        "lineEnd": 47
+      },
+      "status": "observed",
+      "evidenceType": "static-addon-lua"
+    },
+    {
+      "label": "Diesel input",
+      "value": "d = d + tank_data.values[1]",
+      "detail": "Uses the diesel species entry, then clears tank contents and nitrogen.",
+      "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L52-L58",
+      "source": {
+        "path": "rom/data/missions/default_resource_storage/script.lua",
+        "sha256": "72928dc033d3cf49b922e86f2608a5e7a8e8595c9e5ceb0de2f7e8e96b075198",
+        "lineStart": 52,
+        "lineEnd": 58
+      },
+      "status": "observed",
+      "evidenceType": "static-addon-lua"
+    },
+    {
+      "label": "Diesel output",
+      "value": "delta = min(capacity - value, d)",
+      "detail": "Transfers only when space and inventory allow; source uses total tank value to compute space.",
+      "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L71-L80",
+      "source": {
+        "path": "rom/data/missions/default_resource_storage/script.lua",
+        "sha256": "72928dc033d3cf49b922e86f2608a5e7a8e8595c9e5ceb0de2f7e8e96b075198",
+        "lineStart": 71,
+        "lineEnd": 80
+      },
+      "status": "observed",
+      "evidenceType": "static-addon-lua"
+    }
+  ],
+  "limitations": [
+    "Static behavior of this shipped addon script, conditional on the addon being enabled and its callbacks and server APIs behaving as expected.",
+    "No wall-clock callback rate or fluid conservation across server APIs was measured. Mixed-fluid behavior requires runtime validation."
+  ]
+}

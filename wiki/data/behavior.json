@@ -19341,14 +19341,692 @@
     },
     {
       "id": "empty-equipment-inventory",
-      "summary": "Recharges stored rechargeable equipment from vehicle power until full.",
+      "summary": "Recharges a stored rechargeable item by drawing 0.01 internal charge per update, 0.6 per simulated second, until the item is full.",
       "sections": [
         {
           "title": "Setup and interactions",
           "body": "Small units take only small handheld equipment, medium units large equipment; connect Electric to charge."
+        },
+        {
+          "title": "Charge draw",
+          "body": "While a stored item is below full, the rack withdraws up to 0.01 internal charge from its electrical network each update, 0.6 per simulated second. It scales that request by max(0, (300 - EMP) ÷ 300) × the network's charge fraction and takes no more than the pool holds. If the supplied share is above 0.01 the item gains 100 ÷ (60 × T) percentage points that update, where T is the item's recharge time; partial supply above that share charges at full speed. An empty rack and a full item draw nothing, and a rack with no electrical network does not charge."
+        },
+        {
+          "title": "Recharge time per item",
+          "body": "From empty to full at full supply, in simulated seconds, and the charge that costs. inventory_class 1 items go in the small rack and class 2 items in the medium rack, matching the racks' own inventory_class:\n\n- Defibrillator (item 9, inventory_class 2): 300 s, 180 charge from empty\n- Flashlight (item 15, inventory_class 1): 1500 s, 900 charge from empty\n- Night Vision Binoculars (item 17, inventory_class 1): 1200 s, 720 charge from empty\n- Oxygen Mask (item 18, inventory_class 1): 30 s, 18 charge from empty\n- Radio (item 19, inventory_class 1): 600 s, 360 charge from empty\n- Radio Signal Locator (item 20, inventory_class 2): 3000 s, 1800 charge from empty\n- Remote Control Unit (item 21, inventory_class 1): 3000 s, 1800 charge from empty\n- Strobe Light (item 23, inventory_class 1): 3000 s, 1800 charge from empty\n- Strobe Light, Infrared (item 24, inventory_class 1): 3000 s, 1800 charge from empty\n- Transponder (item 25, inventory_class 1): 3000 s, 1800 charge from empty\n- Radiation Detector (item 30, inventory_class 1): 600 s, 360 charge from empty\n\nThe defibrillator turns each full charge into a stored use while it is below its use limit, then charges again, so the listed cost is per use. Diving gear, scuba gear, both space suits and the firefighter breathing set (items 1, 3, 79, 80 and 149) refill through the gas branch instead and draw no charge here."
         }
       ],
       "findings": [
+        {
+          "label": "Item capacity and recharge time",
+          "value": "argument 7 → +0x48, argument 8 → +0x4c",
+          "detail": "The item table constructor stores its seventh argument, the charge capacity C, at entry+0x48 and its eighth, the recharge time T in seconds, at entry+0x4c. Report: investigation/small-parts.md. Function 0x140264610-0x140264823; instruction bytes f30f10842480000000f30f114648f30f108c2488000000f30f114e4c at 0x1402646b8. Interpretation rests on retained output investigation/native/behavior/../small-parts/pseudocode/140264610.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140264610@0x1402646b8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402646b8"
+          }
+        },
+        {
+          "label": "Rack item entry",
+          "value": "item ID × 200",
+          "detail": "The rack update indexes the item table at 0x140cf2060 (lea at 0x1403969d3) with the stored item's ID (component+0x148) times 200 bytes. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes 4869f1c8000000 at 0x140396999. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L23; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396999",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396999"
+          }
+        },
+        {
+          "label": "Gas-refilled items",
+          "value": "IDs 79, 80, 1, 3 and 149",
+          "detail": "ID - 79 ≤ 1 (lea at 0x1403969a0), ID 1, ID 3 and ID 149 jump to the gas refill branch at 0x140396b1a; every other item takes the electric branch. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes 83f8010f866501000083f9010f845c01000083f9030f845301000081f9950000000f8447010000 at 0x1403969ac. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L27-L34; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x1403969ac",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403969ac"
+          }
+        },
+        {
+          "label": "Defibrillator uses",
+          "value": "full charge → one stored use",
+          "detail": "For item 9 a charge at or above capacity, with the use count (component+0x150) below the item's limit (entry+0x40), adds one use and resets the charge to 0, so charging starts again. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes 83f909752d at 0x1403969da. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L36-L37; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x1403969da",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403969da"
+          }
+        },
+        {
+          "label": "Rack charging condition",
+          "value": "T > 0 and c < C",
+          "detail": "The electric branch returns when the item's recharge time is not positive or its charge c (component+0x14c) is not below capacity C. A full item draws nothing. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes f30f10443e4c0f57f60f2fc60f861f020000f30f10443e480f2f834c0100000f860c020000 at 0x140396a0c. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L47-L53; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396a0c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396a0c"
+          }
+        },
+        {
+          "label": "Rack electric group test",
+          "value": "no group → no charging",
+          "detail": "Without infinite electricity (0x140396a36) a rack whose electric node has no group (component+0x188) skips charging. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes 4883bb88010000000f84ef010000 at 0x140396a40. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L57-L58; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396a40",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396a40"
+          }
+        },
+        {
+          "label": "Rack supply factor",
+          "value": "300",
+          "detail": "a = max(0, (300 - EMP) ÷ 300) × the published charge fraction (component+0x1a4, 0x140396a81); with infinite electricity a = 1 (0x140396a8b). Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes f30f100d979d8100 at 0x140396a59 address binary32 300 (bytes 00009643) at 0x140bb07f8. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L62; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396a59",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396a59"
+          }
+        },
+        {
+          "label": "Rack charge request",
+          "value": "0.01",
+          "detail": "The request R per update. The branch multiplies it by a (0x140396aa2). Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes f30f1015bd8e8100 at 0x140396a93 address binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L74; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396a93",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396a93"
+          }
+        },
+        {
+          "label": "Rack withdrawal",
+          "value": "w = min(0.01 × a, E); E - w; fraction w ÷ 0.01",
+          "detail": "Takes the smaller of 0.01 × a and the pool charge E (group pool+4), removes it from the pool and divides it by 0.01 to get the supplied fraction. The rack does this itself rather than through the shared draw helper. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes f30f5dcbf30f5cc1f30f5ecaf30f114104 at 0x140396ab2. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L80-L83; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396ab2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396ab2"
+          }
+        },
+        {
+          "label": "Rack recharge gate",
+          "value": "fraction > 0.01",
+          "detail": "The item charges only when the supplied fraction is above 0.01. The charge step does not scale with the fraction, so partial supply above 0.01 charges at full speed; at or below it the withdrawal still happens. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes 0f2fca0f8671010000 at 0x140396ac3. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L84-L85; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396ac3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396ac3"
+          }
+        },
+        {
+          "label": "Rack recharge step",
+          "value": "C ÷ T × ticks",
+          "detail": "Divides the capacity by the recharge time and multiplies by the update's tick count (xmm7, 1 for a normal update, converted at 0x140396985). Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes f30f10743948f30f5ef0f30f59f7 at 0x140396ae5. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L91-L93; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396ae5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396ae5"
+          }
+        },
+        {
+          "label": "Rack recharge time scale",
+          "value": "0.016666668",
+          "detail": "Multiplies the step by 1 ÷ 60, so T is in simulated seconds at 60 updates per second. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes f30f5935918e8100 at 0x140396af3 address binary32 0.016666668 (bytes 8988883c) at 0x140baf98c. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L94; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396af3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396af3"
+          }
+        },
+        {
+          "label": "Rack charge store",
+          "value": "c = min(C, c + step)",
+          "detail": "Adds the step to the stored charge and clamps it to the capacity. Report: investigation/small-parts.md. Function 0x140396995-0x140396c55; instruction bytes f30f10443e48f30f5dc6f30f11834c010000 at 0x140396b03. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/equipment.asm:L96-L98; ../small-parts/pseudocode/140396950.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140396995@0x140396b03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140396b03"
+          }
+        },
+        {
+          "label": "Rack charge draw per simulated second",
+          "value": "0.01 per update, 0.6 per simulated second",
+          "detail": "A charging item at full supply withdraws 0.01 internal charge per update, 0.6 per simulated second. Charging from empty to full takes T simulated seconds, so it costs 0.6 × T: 900 for the flashlight's 1500 s. The charge rises by 100 ÷ (60 × T) percentage points per update, 0.001111 for the flashlight (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. At 60 updates per simulated second. Inputs: derived:7d3ff454a23f.",
+          "evidenceId": "derived:23cf2e21209c",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Item 9 · Defibrillator",
+          "value": "C = 100, T = 300 s",
+          "detail": "Constructor call for item 9, table entry 0x140cf2768. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x14000a298); argument 8, T = 300 seconds, is binary32 at 0x140bb07f8 (movss at 0x14000a28a). From empty at full supply the rack charges it in 300 simulated seconds for 180 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e838a32500 at 0x14000a2d3. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L249. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x14000a2d3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14000a2d3"
+          }
+        },
+        {
+          "label": "Equipment inventory (Defibrillator) · inventory_default_item",
+          "value": "9",
+          "detail": "inventory_equipment_defibrillator: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_defibrillator.xml:2484fadaea54:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_defibrillator.xml",
+            "sha256": "2484fadaea54b275dccf3db3d233100904d8be9627e1e4489921fe83cc153ff8",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Defibrillator) · inventory_class",
+          "value": "2",
+          "detail": "inventory_equipment_defibrillator: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_defibrillator.xml:2484fadaea54:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_defibrillator.xml",
+            "sha256": "2484fadaea54b275dccf3db3d233100904d8be9627e1e4489921fe83cc153ff8",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 15 · Flashlight",
+          "value": "C = 100, T = 1500 s",
+          "detail": "Constructor call for item 15, table entry 0x140cf2c18. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x14000f34a); argument 8, T = 1500 seconds, is binary32 at 0x140bb0864 (movss at 0x14000f33c). From empty at full supply the rack charges it in 1500 simulated seconds for 900 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e886522500 at 0x14000f385. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L399. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x14000f385",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14000f385"
+          }
+        },
+        {
+          "label": "Equipment inventory (Flashlight) · inventory_default_item",
+          "value": "15",
+          "detail": "inventory_equipment_flashlight: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_flashlight.xml:049ff1acdeae:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_flashlight.xml",
+            "sha256": "049ff1acdeae0fdd76c27b7a37ba2d8b4634408232cb8403845393608e692769",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Flashlight) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_flashlight: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_flashlight.xml:049ff1acdeae:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_flashlight.xml",
+            "sha256": "049ff1acdeae0fdd76c27b7a37ba2d8b4634408232cb8403845393608e692769",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 17 · Night Vision Binoculars",
+          "value": "C = 100, T = 1200 s",
+          "detail": "Constructor call for item 17, table entry 0x140cf2da8. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x140010dfe); argument 8, T = 1200 seconds, is binary32 at 0x140bb0860 (movss at 0x140010df0). From empty at full supply the rack charges it in 1200 simulated seconds for 720 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e8d2372500 at 0x140010e39. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L449. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x140010e39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140010e39"
+          }
+        },
+        {
+          "label": "Equipment inventory (Night Vision Binoculars) · inventory_default_item",
+          "value": "17",
+          "detail": "inventory_equipment_night_vision_binoculars: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_night_vision_binoculars.xml:bfafebb346a9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_night_vision_binoculars.xml",
+            "sha256": "bfafebb346a925757e444f9428f6eaa1ab6df6c58404a96dabc3a795fc3bba13",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Night Vision Binoculars) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_night_vision_binoculars: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_night_vision_binoculars.xml:bfafebb346a9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_night_vision_binoculars.xml",
+            "sha256": "bfafebb346a925757e444f9428f6eaa1ab6df6c58404a96dabc3a795fc3bba13",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 18 · Oxygen Mask",
+          "value": "C = 100, T = 30 s",
+          "detail": "Constructor call for item 18, table entry 0x140cf2e70. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x140011b80); argument 8, T = 30 seconds, is binary32 at 0x140bb0710 (movss at 0x140011b72). From empty at full supply the rack charges it in 30 simulated seconds for 18 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e8502a2500 at 0x140011bbb. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L474. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x140011bbb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140011bbb"
+          }
+        },
+        {
+          "label": "Equipment inventory (Oxygen Mask) · inventory_default_item",
+          "value": "18",
+          "detail": "inventory_equipment_oxygen_mask: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_oxygen_mask.xml:55e386ad3c9c:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_oxygen_mask.xml",
+            "sha256": "55e386ad3c9c4ec3d0a52a800b048bedffe26f11ea909f640363a1d38e862b36",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Oxygen Mask) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_oxygen_mask: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_oxygen_mask.xml:55e386ad3c9c:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_oxygen_mask.xml",
+            "sha256": "55e386ad3c9c4ec3d0a52a800b048bedffe26f11ea909f640363a1d38e862b36",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 19 · Radio",
+          "value": "C = 100, T = 600 s",
+          "detail": "Constructor call for item 19, table entry 0x140cf2f38. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x140012902); argument 8, T = 600 seconds, is binary32 at 0x140bb0840 (movss at 0x1400128f4). From empty at full supply the rack charges it in 600 simulated seconds for 360 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e8ce1c2500 at 0x14001293d. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L499. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x14001293d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14001293d"
+          }
+        },
+        {
+          "label": "Equipment inventory (Radio) · inventory_default_item",
+          "value": "19",
+          "detail": "inventory_equipment_radio: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_radio.xml:ed36a5e4af07:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_radio.xml",
+            "sha256": "ed36a5e4af0774ba43ba5df0372862cca756fc12514a51921cd394309fef03b3",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Radio) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_radio: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_radio.xml:ed36a5e4af07:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_radio.xml",
+            "sha256": "ed36a5e4af0774ba43ba5df0372862cca756fc12514a51921cd394309fef03b3",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 20 · Radio Signal Locator",
+          "value": "C = 100, T = 3000 s",
+          "detail": "Constructor call for item 20, table entry 0x140cf3000. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x140013670); argument 8, T = 3000 seconds, is binary32 at 0x140bb0884 (movss at 0x140013662). From empty at full supply the rack charges it in 3000 simulated seconds for 1800 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e8600f2500 at 0x1400136ab. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L524. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x1400136ab",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400136ab"
+          }
+        },
+        {
+          "label": "Equipment inventory (Radio Signal Locator) · inventory_default_item",
+          "value": "20",
+          "detail": "inventory_equipment_radio_signal_locator: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_radio_signal_locator.xml:db2b34e7b735:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_radio_signal_locator.xml",
+            "sha256": "db2b34e7b735c97eeefc35b232ea7d8f3d2e919479cc9940adde5c0e5298b467",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Radio Signal Locator) · inventory_class",
+          "value": "2",
+          "detail": "inventory_equipment_radio_signal_locator: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_radio_signal_locator.xml:db2b34e7b735:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_radio_signal_locator.xml",
+            "sha256": "db2b34e7b735c97eeefc35b232ea7d8f3d2e919479cc9940adde5c0e5298b467",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 21 · Remote Control Unit",
+          "value": "C = 100, T = 3000 s",
+          "detail": "Constructor call for item 21, table entry 0x140cf30c8. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x1400143e8); argument 8, T = 3000 seconds, is binary32 at 0x140bb0884 (movss at 0x1400143da). From empty at full supply the rack charges it in 3000 simulated seconds for 1800 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e8e8012500 at 0x140014423. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L549. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x140014423",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140014423"
+          }
+        },
+        {
+          "label": "Equipment inventory (Remote Control Unit) · inventory_default_item",
+          "value": "21",
+          "detail": "inventory_equipment_remote_control: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_remote_control.xml:ab34b83b25b1:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_remote_control.xml",
+            "sha256": "ab34b83b25b19b66882469971fab154f18e7836ff8645bdd6f31c8d6f9827b92",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Remote Control Unit) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_remote_control: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_remote_control.xml:ab34b83b25b1:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_remote_control.xml",
+            "sha256": "ab34b83b25b19b66882469971fab154f18e7836ff8645bdd6f31c8d6f9827b92",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 23 · Strobe Light",
+          "value": "C = 100, T = 3000 s",
+          "detail": "Constructor call for item 23, table entry 0x140cf3258. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x140015ea1); argument 8, T = 3000 seconds, is binary32 at 0x140bb0884 (movss at 0x140015e93). From empty at full supply the rack charges it in 3000 simulated seconds for 1800 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e82fe72400 at 0x140015edc. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L599. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x140015edc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140015edc"
+          }
+        },
+        {
+          "label": "Equipment inventory (Strobe Light) · inventory_default_item",
+          "value": "23",
+          "detail": "inventory_equipment_strobe_light: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_strobe_light.xml:43fd19a0c963:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_strobe_light.xml",
+            "sha256": "43fd19a0c9634e88af5622afe01ddcc097b0433689855c75b7058fd1b2d542cf",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Strobe Light) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_strobe_light: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_strobe_light.xml:43fd19a0c963:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_strobe_light.xml",
+            "sha256": "43fd19a0c9634e88af5622afe01ddcc097b0433689855c75b7058fd1b2d542cf",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 24 · Strobe Light, Infrared",
+          "value": "C = 100, T = 3000 s",
+          "detail": "Constructor call for item 24, table entry 0x140cf3320. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x140016c1e); argument 8, T = 3000 seconds, is binary32 at 0x140bb0884 (movss at 0x140016c10). From empty at full supply the rack charges it in 3000 simulated seconds for 1800 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e8b2d92400 at 0x140016c59. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L624. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x140016c59",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140016c59"
+          }
+        },
+        {
+          "label": "Equipment inventory (Strobe Light, Infrared) · inventory_default_item",
+          "value": "24",
+          "detail": "inventory_equipment_strobe_light_infrared: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_strobe_light_infrared.xml:f97c8cd5222d:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_strobe_light_infrared.xml",
+            "sha256": "f97c8cd5222df8a03c2b76999414ca54fce85febf026fa98d1d03f93a1e5f481",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Strobe Light, Infrared) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_strobe_light_infrared: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_strobe_light_infrared.xml:f97c8cd5222d:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_strobe_light_infrared.xml",
+            "sha256": "f97c8cd5222df8a03c2b76999414ca54fce85febf026fa98d1d03f93a1e5f481",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 25 · Transponder",
+          "value": "C = 100, T = 3000 s",
+          "detail": "Constructor call for item 25, table entry 0x140cf33e8. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x14001799b); argument 8, T = 3000 seconds, is binary32 at 0x140bb0884 (movss at 0x14001798d). From empty at full supply the rack charges it in 3000 simulated seconds for 1800 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e835cc2400 at 0x1400179d6. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L649. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x1400179d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400179d6"
+          }
+        },
+        {
+          "label": "Equipment inventory (Transponder) · inventory_default_item",
+          "value": "25",
+          "detail": "inventory_equipment_transponder: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_transponder.xml:927ee3e0e165:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_transponder.xml",
+            "sha256": "927ee3e0e1655e81a83a0f6f8b77c81d37cbc1179dfcb834c568551b954809af",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Transponder) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_transponder: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_transponder.xml:927ee3e0e165:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_transponder.xml",
+            "sha256": "927ee3e0e1655e81a83a0f6f8b77c81d37cbc1179dfcb834c568551b954809af",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Item 30 · Radiation Detector",
+          "value": "C = 100, T = 600 s",
+          "detail": "Constructor call for item 30, table entry 0x140cf37d0. Argument 7, C = 100, is binary32 at 0x140bb0790 (movss at 0x14001bca8); argument 8, T = 600 seconds, is binary32 at 0x140bb0840 (movss at 0x14001bc9a). From empty at full supply the rack charges it in 600 simulated seconds for 360 internal charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Function 0x140001dc0-0x140083de3; instruction bytes e828892400 at 0x14001bce3. Interpretation rests on retained output investigation/native/behavior/../small-parts/tools/item-initializers.asm:L774. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140001dc0@0x14001bce3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14001bce3"
+          }
+        },
+        {
+          "label": "Equipment inventory (Radiation Detector) · inventory_default_item",
+          "value": "30",
+          "detail": "inventory_equipment_geiger_counter: definition attribute inventory_default_item. Item ID this equipment definition holds.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_geiger_counter.xml:6ca71798bab1:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_geiger_counter.xml",
+            "sha256": "6ca71798bab1e8413126a73dcb07b78750b1e7c059ad3a5c06b9de078986cbca",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Equipment inventory (Radiation Detector) · inventory_class",
+          "value": "1",
+          "detail": "inventory_equipment_geiger_counter: definition attribute inventory_class. Equipment size class; the small rack has inventory_class 1, the medium rack 2.",
+          "evidenceId": "resource:rom/data/definitions/inventory_equipment_geiger_counter.xml:6ca71798bab1:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_equipment_geiger_counter.xml",
+            "sha256": "6ca71798bab1e8413126a73dcb07b78750b1e7c059ad3a5c06b9de078986cbca",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
+        },
         {
           "label": "Small equipment inventory (Empty) · tooltip",
           "value": "Only small handheld equipment can be stored in this unit. When connected to an electric power source, any rechargable equipment stored in the unit will drain a small amount of electricity until recharged to 100% capacity.",
@@ -19373,6 +20051,32 @@
             "sha256": "aaf6afbd5e3286c5215696662cfa6dea95ffcf7ef71ac759fae83f86055e02d8",
             "lineStart": 122,
             "lineEnd": 122
+          }
+        },
+        {
+          "label": "Small equipment inventory (Empty) · inventory_class",
+          "value": "1",
+          "detail": "inventory_small: definition attribute inventory_class. Small rack class.",
+          "evidenceId": "resource:rom/data/definitions/inventory_small.xml:3e3fd5e8ccb1:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_small.xml",
+            "sha256": "3e3fd5e8ccb1d0283933b3842adc6afa49280edb0692069c48a29904c892a040",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Large equipment inventory (Empty) · inventory_class",
+          "value": "2",
+          "detail": "inventory_medium: definition attribute inventory_class. Medium rack class.",
+          "evidenceId": "resource:rom/data/definitions/inventory_medium.xml:aaf6afbd5e32:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/inventory_medium.xml",
+            "sha256": "aaf6afbd5e3286c5215696662cfa6dea95ffcf7ef71ac759fae83f86055e02d8",
+            "lineStart": 2,
+            "lineEnd": 2
           }
         },
         {
@@ -19403,9 +20107,82 @@
         }
       ],
       "limitations": [
-        "Charge drain rate not recovered."
+        "Static analysis of one build. Charge is in the game's internal electrical units, as on the Electricity pages; fluid amounts are stored amounts, 10 L of liquid or 600 L of expanded gas per amount.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
+        {
+          "path": "rom/data/definitions/inventory_equipment_defibrillator.xml",
+          "sha256": "2484fadaea54b275dccf3db3d233100904d8be9627e1e4489921fe83cc153ff8",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_flashlight.xml",
+          "sha256": "049ff1acdeae0fdd76c27b7a37ba2d8b4634408232cb8403845393608e692769",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_geiger_counter.xml",
+          "sha256": "6ca71798bab1e8413126a73dcb07b78750b1e7c059ad3a5c06b9de078986cbca",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_night_vision_binoculars.xml",
+          "sha256": "bfafebb346a925757e444f9428f6eaa1ab6df6c58404a96dabc3a795fc3bba13",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_oxygen_mask.xml",
+          "sha256": "55e386ad3c9c4ec3d0a52a800b048bedffe26f11ea909f640363a1d38e862b36",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_radio.xml",
+          "sha256": "ed36a5e4af0774ba43ba5df0372862cca756fc12514a51921cd394309fef03b3",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_radio_signal_locator.xml",
+          "sha256": "db2b34e7b735c97eeefc35b232ea7d8f3d2e919479cc9940adde5c0e5298b467",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_remote_control.xml",
+          "sha256": "ab34b83b25b19b66882469971fab154f18e7836ff8645bdd6f31c8d6f9827b92",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_strobe_light.xml",
+          "sha256": "43fd19a0c9634e88af5622afe01ddcc097b0433689855c75b7058fd1b2d542cf",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_strobe_light_infrared.xml",
+          "sha256": "f97c8cd5222df8a03c2b76999414ca54fce85febf026fa98d1d03f93a1e5f481",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_equipment_transponder.xml",
+          "sha256": "927ee3e0e1655e81a83a0f6f8b77c81d37cbc1179dfcb834c568551b954809af",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_medium.xml",
+          "sha256": "aaf6afbd5e3286c5215696662cfa6dea95ffcf7ef71ac759fae83f86055e02d8",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
         {
           "path": "rom/data/definitions/inventory_medium.xml",
           "sha256": "aaf6afbd5e3286c5215696662cfa6dea95ffcf7ef71ac759fae83f86055e02d8",
@@ -19415,8 +20192,164 @@
         {
           "path": "rom/data/definitions/inventory_small.xml",
           "sha256": "3e3fd5e8ccb1d0283933b3842adc6afa49280edb0692069c48a29904c892a040",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/inventory_small.xml",
+          "sha256": "3e3fd5e8ccb1d0283933b3842adc6afa49280edb0692069c48a29904c892a040",
           "lineStart": 78,
           "lineEnd": 78
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14000a2d3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14000f385"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140010e39"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140011bbb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14001293d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400136ab"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140014423"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140015edc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140016c59"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400179d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14001bce3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402646b8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396999"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403969ac"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403969da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396a0c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396a40"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396a59"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396a93"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396ab2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396ac3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396ae5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396af3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140396b03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
         }
       ]
     },
@@ -49552,19 +50485,19 @@
     },
     {
       "id": "part-cryo-cooler",
-      "summary": "Pumps heat from liquid A to liquid B by a fixed amount per update, even against the gradient, while powered and switched on.",
+      "summary": "Pumps heat from liquid A to liquid B by a fixed amount per update, even against the gradient, for 0.001 internal charge per update while switched on.",
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "Case 0x21 pumps only with On/Off on, electricity supplied above 0.1 of the request, and the two compartments together holding more than 0.001 capacity units. Each update it requests 0.001 electricity units, 0.06 per simulated second."
+          "body": "With On/Off on, each update requests 0.001 internal charge, 0.06 per simulated second, through the shared draw helper, which takes min(0.001 × supply factor, pool charge). It pumps only when the returned share is above 0.1 and the two circuits together hold more than 0.001 liquid amount. Above that share the step is the full step; the request is made even when there is too little liquid to pump."
         },
         {
           "title": "Performance drivers",
           "body": "Unlike an exchanger it does not stop at equal temperatures: A loses 0.03·qB/(qA+qB) and B gains 0.03·qA/(qA+qB) every update, so B can be driven hotter than A. While q stays constant, that is 1.8·qB/(qA+qB) and 1.8·qA/(qA+qB) per simulated second. Remove heat from B with a radiator or exchanger or the transfer stalls as B climbs."
         },
         {
-          "title": "Open measurement questions",
-          "body": "Electric unit cost of the 0.001 request and the capacity terms q per litre of each liquid."
+          "title": "Capacity per litre",
+          "body": "q is the circuit's stored liquid amount: 0.1 per litre of fresh water, diesel, jet fuel, oil, seawater, slurry or saturated slurry, with no per-liquid factor. Gases add nothing. With 1 L in each circuit, qA = qB = 0.1, so each update moves A by -0.015 °C and B by +0.015 °C, -0.9 and +0.9 °C per simulated second, before both drift toward the surroundings by 0.001 of the gap."
         }
       ],
       "findings": [
@@ -49593,15 +50526,63 @@
           }
         },
         {
-          "label": "Cryo minimum electricity fraction",
-          "value": "0.1",
-          "detail": "Heat pumping runs only when the draw helper returns more than this fraction. Function 0x1403ef860-0x1403f51f4; it reads binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x1403ef860.c:L2173-L2185. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
-          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x140bafad0",
+          "label": "Cryo electricity request",
+          "value": "R = 0.001 per update",
+          "detail": "With On/Off on (component+0x4b8) the case loads 0.001 (0x140baf8f8) and passes it to the shared draw helper 0x1402eeca0, which withdraws min(R × a, E) and returns the supplied fraction. Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f103dbba97b004180beb804000000747f0f28cf498d8eb8020000e84a9defff at 0x1403f4f35. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L4648-L4653; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4f35",
           "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
-            "address": "0x140bafad0"
+            "address": "0x1403f4f35"
+          }
+        },
+        {
+          "label": "Cryo supply gate",
+          "value": "0.1",
+          "detail": "Cooling runs only when the supplied fraction is above this; the step itself does not scale with the fraction. Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 0f2f0573ab7b00 at 0x1403f4f56 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L4654; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4f56",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4f56"
+          }
+        },
+        {
+          "label": "Cryo capacities",
+          "value": "qA, qB = liquid helper",
+          "detail": "Both sides call the liquid capacity helper 0x1402eb5e0: A at component+0x598, B at +0x5e4. Gas in either side adds nothing to q. Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 498d8e98050000e87566efff0f28f0498d8ee4050000e86666efff at 0x1403f4f5f. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L4656-L4660; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4f5f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4f5f"
+          }
+        },
+        {
+          "label": "Cryo temperature step",
+          "value": "TA - 0.03 × qB ÷ (qA + qB)",
+          "detail": "Subtracts 0.03 × qB ÷ (qA + qB) from A's temperature (+0x5dc); B's (+0x628) gains 0.03 × qA ÷ (qA + qB) at 0x1403f4fa8. Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f590572aa7b00f30f5ec3f3410f108edc050000f30f5cc8 at 0x1403f4f86. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L4665-L4668; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4f86",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4f86"
+          }
+        },
+        {
+          "label": "Cryo cooler example",
+          "value": "1 L each side: A -0.015 °C, B +0.015 °C per update",
+          "detail": "q is the stored liquid amount, 0.1 per litre for each of the 7 liquids (fresh water, diesel, jet fuel, oil, seawater, slurry, saturated slurry). With 1 L in each circuit qA = qB = 0.1, so each powered update moves A by -0.015 °C and B by +0.015 °C before the ambient step, -0.9 and +0.9 °C per simulated second while q holds. The moved quantity 0.03 × qA × qB ÷ (qA + qB) is 0.0015 amount × °C, 0.015 L × °C, per update. Full supply costs 0.001 internal charge per update, 0.06 per simulated second (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4f86, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4f5f, native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4f35, derived:7d3ff454a23f.",
+          "evidenceId": "derived:a2c03a88fbb9",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4f86"
           }
         },
         {
@@ -49614,6 +50595,78 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Liquid capacity helper",
+          "value": "q = sum of slots 0, 1, 2, 5, 6, 8, 9",
+          "detail": "0x1402eb5e0 returns 0 when the compartment total (+0x40) is not positive. Otherwise it walks all 13 stored amounts at +0x0c and adds slot i when its table entry is 0x1402eb60d (addss with coefficient 1) and skips it at 0x1402eb612. Added slots: 0, 1, 2, 5, 6, 8, 9. No pressure, temperature or per-species factor enters. Report: investigation/heat-exchangers.md. Jump table at 0x1402eb628 read as image-relative dwords. Function 0x1402eb5e0-0x1402eb6e0; instruction bytes 418b8c9128b62e00 at 0x1402eb600. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/capacity.asm:L7-L27; ../heat-exchangers/pseudocode/0x1402eb5e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb5e0@0x1402eb600",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb600"
+          }
+        },
+        {
+          "label": "Exchanger ambient step",
+          "value": "X + 0.001 × (ambient − X)",
+          "detail": "After the mutual step, A (component+0x5dc) and then B (+0x628, at 0x1403f5065) move toward the controller output at +0x644 by the 0.001 held in xmm9. The outputs at 0x1403f5073-0x1403f5098 then publish +0x5dc as Temp A and +0x628 as Temp B, the stored temperatures after both steps. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 410f28d1498d9644060000498d8edc050000e89bb74f00 at 0x1403f4cfe. Interpretation rests on retained output investigation/native/behavior/../heat-exchangers/asm/exchange.asm:L176-L205. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f4cfe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f4cfe"
+          }
+        },
+        {
+          "label": "Draw helper EMP read",
+          "value": "node+0x28",
+          "detail": "Reads the node's EMP countdown n, converts it to float and forms max(0, (300 - n) ÷ 300). Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes 8b4328 at 0x1402eecec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eecec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eecec"
+          }
+        },
+        {
+          "label": "Draw helper charge fraction",
+          "value": "a = max(0, (300 - n) ÷ 300) × q",
+          "detail": "Multiplies by the published pool charge fraction q (node+0x3c). Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes f30f595b3c at 0x1402eed06. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed06",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eed06"
+          }
+        },
+        {
+          "label": "Draw amount",
+          "value": "T = min(a × R, E)",
+          "detail": "Takes the smaller of a × request and the pool charge E (node→group→pool+4), subtracts it from E (store at 0x1402eed35) and returns T ÷ R. Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes f30f5dc3 at 0x1402eed29. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eed29"
+          }
+        },
+        {
+          "label": "Draw without a network",
+          "value": "0",
+          "detail": "A node with no electrical group (node+0x20 null, tested at 0x1402eeccf) returns 0. Report: investigation/electricity.md. Function 0x1402eeca0-0x1402eed53; instruction bytes 0f57c0 at 0x1402eed4a. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/electric-draw.asm:L1-L46; ../electricity/pseudocode/0x1402eeca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eeca0@0x1402eed4a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eed4a"
           }
         },
         {
@@ -49741,7 +50794,7 @@
         }
       ],
       "limitations": [
-        "Static decompilation only.",
+        "Static analysis of one build. Charge is in the game's internal electrical units, as on the Electricity pages; fluid amounts are stored amounts, 10 L of liquid or 600 L of expanded gas per amount.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -49762,6 +50815,56 @@
           "sha256": "ac5841e15c3d643f0da3b425e350c9c8f00a9ab86cb06ab8c0d672cd0854bbc1",
           "lineStart": 179,
           "lineEnd": 179
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb600"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eecec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed06"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eed4a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4cfe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4f35"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4f56"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4f5f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f4f86"
         },
         {
           "path": "stormworks64.exe",
@@ -49802,11 +50905,6 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140bafa00"
-        },
-        {
-          "path": "stormworks64.exe",
-          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
-          "address": "0x140bafad0"
         }
       ]
     },
@@ -61897,14 +62995,230 @@
     },
     {
       "id": "part-hydrogen-fuel-cell",
-      "summary": "Makes electricity from hydrogen and oxygen and outputs water.",
+      "summary": "Each update one fixed reaction turns 0.000165 amount of oxygen and 0.00033 of hydrogen into 0.03 of water and 1 internal charge: at most 5.94 L/s of oxygen and 11.88 L/s of hydrogen into 18 L/s of water and 60 charge/s.",
       "sections": [
         {
           "title": "Setup and interactions",
           "body": "Pair with an electrolyser, which splits fresh water into hydrogen and oxygen using electricity."
+        },
+        {
+          "title": "Reaction",
+          "body": "One inlet takes only oxygen and the other only hydrogen into a shared buffer. An undamaged cell then runs at most one reaction per update: it needs at least 0.000165 amount of oxygen (0.099 expanded litres), 0.00033 of hydrogen (0.198 L) and 0.03 of free space in its water buffer (0.3 L). It removes both gases, adds 0.03 amount of fresh water and deposits 1 internal charge into the electrical network. Water leaves through the outlet port; if it backs up until less than 0.03 is free, reactions stop."
+        },
+        {
+          "title": "Rates",
+          "body": "At 60 reactions per simulated second the cell uses 5.94 L/s of oxygen and 11.88 L/s of hydrogen, measured as expanded gas, and makes 18 L/s of water and 60 charge/s. Over 600 reactions, 10 simulated seconds, that is 59.4 L and 118.8 L of gas, 180 L of water and 600 charge. These are ceilings: thin gas supply or a full water buffer skips reactions."
+        },
+        {
+          "title": "Electrical output",
+          "body": "The cell does not check battery demand. It deposits the charge whenever it reacts, and with no electrical network attached the charge is dropped while the gases are still used."
         }
       ],
       "findings": [
+        {
+          "label": "Fuel cell guard call",
+          "value": "call 0x1402645f0",
+          "detail": "Case 34 starts by calling the guard and skips the whole case when it returns 0. The electrolyser case calls the same guard (0x1403f292b). Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e8e81ae7ff84c00f848d250000 at 0x1403f2b03. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L2744-L2746; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2b03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2b03"
+          }
+        },
+        {
+          "label": "Fuel cell guard",
+          "value": "bytes 0x140cfa458 and 0x140cfa459 both nonzero",
+          "detail": "Returns 1 only when both global bytes are set. They are game-wide flags, not component state; the directional antennas use the same guard. Report: investigation/small-parts.md. Function 0x1402645f0-0x140264610; instruction bytes 803d615ea90000740c803d595ea900007403b001c3 at 0x1402645f0. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fluid-guard.asm:L8-L13. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402645f0@0x1402645f0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402645f0"
+          }
+        },
+        {
+          "label": "Fuel cell oxygen filter",
+          "value": "fluid slot 10",
+          "detail": "The first inlet (component+0x148) exchanges into the shared input (+0x598) with a filter for slot 10, oxygen; the second (+0x180) uses slot 12, hydrogen (0x1403f2bb0). Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes ba0a000000 at 0x1403f2b4f. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L2760; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2b4f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2b4f"
+          }
+        },
+        {
+          "label": "Fuel cell damage test",
+          "value": "damaged → no reaction",
+          "detail": "A nonzero result from 0x140141280, the component damage state, skips the reaction; the outlet still exchanges. Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e876e6d4ff85c00f85a6000000 at 0x1403f2c05. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L2797-L2799; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2c05",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2c05"
+          }
+        },
+        {
+          "label": "Oxygen per reaction",
+          "value": "0.000165",
+          "detail": "The reaction needs at least this much oxygen (+0x5cc, jb at 0x1403f2c26) and subtracts it (0x1403f2c61). Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f101d7dcc7b00 at 0x1403f2c1b address binary32 0.000165 (bytes da032d39) at 0x140baf8a0. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L2801; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2c1b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2c1b"
+          }
+        },
+        {
+          "label": "Hydrogen per reaction",
+          "value": "0.00033",
+          "detail": "The reaction needs at least this much hydrogen (+0x5d4, jb at 0x1403f2c40) and subtracts it (0x1403f2c6e). Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f102587cc7b00 at 0x1403f2c35 address binary32 0.00033 (bytes da03ad39) at 0x140baf8c4. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L2805; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2c35",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2c35"
+          }
+        },
+        {
+          "label": "Water per reaction",
+          "value": "0.03",
+          "detail": "The water buffer's free space, capacity (+0x5ec) minus contents (+0x624), must be at least this (0x1403f2c5c), and fresh water (slot 0, +0x5f0) gains this (0x1403f2c90). Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f103da4cd7b00 at 0x1403f2c54 address binary32 0.03 (bytes 8fc2f53c) at 0x140bafa00. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L2810; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2c54",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2c54"
+          }
+        },
+        {
+          "label": "Fuel cell charge per reaction",
+          "value": "1",
+          "detail": "Loaded into xmm6, copied into xmm1 at 0x1403f2cb0 and passed to the deposit helper 0x1402eec80 at 0x1403f2cb3. The branch tests no battery demand or pool room first. Report: investigation/small-parts.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f1035a8d37b00 at 0x1403f2b1c address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/fuel-cell-cryo.asm:L2749; ../small-parts/pseudocode/1403ef860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2b1c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2b1c"
+          }
+        },
+        {
+          "label": "Charge deposit helper",
+          "value": "E + c when a group exists",
+          "detail": "Adds a positive c to the group pool charge E (pool+4). With no electrical group the charge is dropped while the gases are still used. Report: investigation/small-parts.md. Function 0x1402eec80-0x1402eeca0; instruction bytes 488b41204885c074160f57c00f2fc8760e488b4020f30f584804f30f114804c3 at 0x1402eec80. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/electric-add.asm:L8-L17; ../small-parts/pseudocode/1402eec80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eec80@0x1402eec80",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eec80"
+          }
+        },
+        {
+          "label": "Fuel cell rates",
+          "value": "5.94 L/s oxygen, 11.88 L/s hydrogen, 18 L/s water, 60 charge/s",
+          "detail": "One reaction per update uses 0.000165 amount of oxygen and 0.00033 of hydrogen, 0.099 and 0.198 expanded litres at 600 L per gas amount, adds 0.03 amount of water, 0.3 L at 10 L per liquid amount, and deposits 1 internal charge. At 60 reactions per simulated second that is 5.94 L/s oxygen, 11.88 L/s hydrogen, 18 L/s water and 60 charge/s; 600 reactions, 10 simulated seconds, use 59.4 L and 118.8 L and make 180 L of water and 600 charge (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2c1b, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2c35, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2c54, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f2b1c, derived:7d3ff454a23f.",
+          "evidenceId": "derived:2e4fb78e02a0",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f2c1b"
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
+        },
         {
           "label": "Hydrogen Fuel Cell · tooltip",
           "value": "Pumping hydrogen and oxygen into the fuel cell generates power while creating water as a byproduct.",
@@ -61930,10 +63244,25 @@
             "lineStart": 3,
             "lineEnd": 3
           }
+        },
+        {
+          "label": "Hydrogen Fuel Cell · water_component_type",
+          "value": "34",
+          "detail": "hydrogen_fuel_cell: definition attribute water_component_type. Selects case 34 of the fluid update.",
+          "evidenceId": "resource:rom/data/definitions/hydrogen_fuel_cell.xml:aa4371574464:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/hydrogen_fuel_cell.xml",
+            "sha256": "aa43715744648f0eda721e08e0c31a36a9a48c00a5115ac81d6995c9f5f8e4d1",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
         }
       ],
       "limitations": [
-        "Conversion rates were not recovered."
+        "Static analysis of one build. Charge is in the game's internal electrical units, as on the Electricity pages; fluid amounts are stored amounts, 10 L of liquid or 600 L of expanded gas per amount.",
+        "The reaction case runs only while the global guard 0x1402645f0 passes: two game-wide flags at 0x140cfa458 and 0x140cfa459, which the electrolyser case and the directional antennas check too. What the flags mean is tracked as open on the directional antenna pages.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
@@ -61945,8 +63274,89 @@
         {
           "path": "rom/data/definitions/hydrogen_fuel_cell.xml",
           "sha256": "aa43715744648f0eda721e08e0c31a36a9a48c00a5115ac81d6995c9f5f8e4d1",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/hydrogen_fuel_cell.xml",
+          "sha256": "aa43715744648f0eda721e08e0c31a36a9a48c00a5115ac81d6995c9f5f8e4d1",
           "lineStart": 3,
           "lineEnd": 3
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402645f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eec80"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f2b03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f2b1c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f2b4f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f2c05"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f2c1b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f2c35"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f2c54"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
         }
       ]
     },
@@ -65084,18 +66494,66 @@
     },
     {
       "id": "part-laser-point-sensor",
-      "summary": "Reports the laser spot nearest its view centre as x and y from −1 to 1 across a cone of ±cos(0.5).",
+      "summary": "Reports the laser point closest to its view centre inside a 120 degree cone, as x and y direction components divided by cos(0.5 rad); the outputs are not angles.",
       "sections": [
         {
           "title": "Setup and interactions",
           "body": "Composite number channels 1 and 2 give x and y; on/off channel 1 is set while a point is visible. Match the Wavelength input to the emitting beacon or laser."
         },
         {
-          "title": "Open measurement questions",
-          "body": "The tooltip states the mapping as −cos(0.5) … cos(0.5) while the port says 120 degrees; measure which holds."
+          "title": "Field of view and outputs",
+          "body": "The sensor accepts a point when the dot product of the unit direction to it with the sensor's forward axis is above 0.5, which means less than 60 degrees from forward: the 120 degree field of view the Data Output port states. Of the accepted points it reports the one with the largest dot product. Channel 1 is the direction's x component and channel 2 its y component, each divided by 0.87758255, the tooltip's cos(0.5). Both statements hold: 120 degrees is the cone, and cos(0.5) is only the output scale. A point 30 degrees to one side reads 0.569747; at the edge of the cone the output reaches 0.986831, never 1. For a point on one axis, the angle from forward is asin(0.87758255 × output) (inference from the projection)."
         }
       ],
       "findings": [
+        {
+          "label": "Laser acceptance gate",
+          "value": "0.5",
+          "detail": "The acquisition 0x1403c9670 forms the dot product of the unit direction to a laser point with the sensor's forward axis (0x1403c9a45-0x1403c9a5a) and rejects the point unless it is above this (jbe). Among accepted points it keeps the largest dot product, subject to the wavelength, range and visibility checks. Report: investigation/small-parts.md. Function 0x1403c96cb-0x1403c9b68; instruction bytes 440f2f0d55627e00767e at 0x1403c9a5f address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/laser.asm:L222-L223; ../small-parts/pseudocode/1403c9670.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c96cb@0x1403c9a5f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c9a5f"
+          }
+        },
+        {
+          "label": "Laser output divisor",
+          "value": "0.87758255",
+          "detail": "Both output projections, the unit direction dotted with the sensor's two lateral axes, are divided by this binary32 cos(0.5 rad). Report: investigation/small-parts.md. Function 0x1403c9b83-0x1403c9cee; instruction bytes f30f5e2d7a617e00f30f5e1572617e00 at 0x1403c9c96 address binary32 0.87758255 (bytes 40a9603f) at 0x140bafe18. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/laser.asm:L334-L335; ../small-parts/pseudocode/1403c9670.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c9b83@0x1403c9c96",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c9c96"
+          }
+        },
+        {
+          "label": "Laser outputs",
+          "value": "number 1 = +0x4fc, number 2 = +0x500, on/off 1 set",
+          "detail": "Stores the two quotients as composite numbers 1 and 2 and sets composite on/off bit 1. With no accepted point the outputs and the bit are cleared. Report: investigation/small-parts.md. Function 0x1403c9b83-0x1403c9cee; instruction bytes f30f11af00050000f30f1197fc040000838ff804000001 at 0x1403c9ca6. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/laser.asm:L336-L338; ../small-parts/pseudocode/1403c9670.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c9b83@0x1403c9ca6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c9ca6"
+          }
+        },
+        {
+          "label": "Laser point sensor outputs",
+          "value": "x = sin(angle) ÷ 0.87758255 for a point on the x axis; at most 0.986831 at the edge",
+          "detail": "A dot product above 0.5 means at most 60 degrees from forward, a 120 degree cone. A point 30 degrees to one side reads 0.569747; one near the 60 degree edge reads up to 0.986831, never 1. So the outputs are scaled direction components, not angles. For a point on one axis, angle = asin(0.87758255 × output) (investigation/native/small-parts/parts.json). Report: investigation/small-parts.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403c96cb@0x1403c9a5f, native:stormworks64.exe:f9206d85c82f:0x1403c9b83@0x1403c9c96, native:stormworks64.exe:f9206d85c82f:0x1403c9b83@0x1403c9ca6.",
+          "evidenceId": "derived:ae4487392745",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c9a5f"
+          }
+        },
         {
           "label": "Laser Point Sensor · tooltip",
           "value": "The closest point to the center of the sensor's field of view will be reported. It outputs a value of -1 to 1 on composite number channel 1 for the x position, and a value of -1 to 1 on composite number channel 2 for the y position. Composite on/off channel 1 is set to on when a point is visible. The -1 to 1 values map to an fov of -cos(0.5) to cos(0.5) in both the x and y directions.",
@@ -65134,12 +66592,31 @@
             "lineStart": 74,
             "lineEnd": 74
           }
+        },
+        {
+          "label": "Laser Point Sensor · logic_gate_type",
+          "value": "48",
+          "detail": "laser_point_sensor: definition attribute logic_gate_type. Value 48.",
+          "evidenceId": "resource:rom/data/definitions/laser_point_sensor.xml:690c07cef9c4:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/laser_point_sensor.xml",
+            "sha256": "690c07cef9c4a12cdd337ade2923bdc40acb02ae4ba220bc6c873208f7281474",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
         }
       ],
       "limitations": [
-        "The tooltip and port describe the field of view differently."
+        "Static analysis of one build; no game process was run."
       ],
       "sources": [
+        {
+          "path": "rom/data/definitions/laser_point_sensor.xml",
+          "sha256": "690c07cef9c4a12cdd337ade2923bdc40acb02ae4ba220bc6c873208f7281474",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
         {
           "path": "rom/data/definitions/laser_point_sensor.xml",
           "sha256": "690c07cef9c4a12cdd337ade2923bdc40acb02ae4ba220bc6c873208f7281474",
@@ -65157,6 +66634,21 @@
           "sha256": "690c07cef9c4a12cdd337ade2923bdc40acb02ae4ba220bc6c873208f7281474",
           "lineStart": 122,
           "lineEnd": 122
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c9a5f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c9c96"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c9ca6"
         }
       ]
     },
@@ -96790,6 +98282,363 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b63314"
+        }
+      ]
+    },
+    {
+      "id": "part-oil-rig-pumpjack",
+      "summary": "Pumps fluid from a drilled oil well out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B.",
+      "sections": [
+        {
+          "title": "Piston",
+          "body": "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Factory case 7",
+          "value": "c_scene_vehicle_component_multibody",
+          "detail": "Definition type 7 selects 0x14045df0e in the main factory's jump table (entry at 0x14045e8c0), which allocates 0x498 bytes and calls the multibody constructor 0x140356480 at 0x14045df1f. The second factory 0x1404b8f30 does the same at 0x1404b916c. Report: investigation/small-parts.md. Function 0x14045dd20-0x14045e9b0; instruction bytes b998040000 at 0x14045df0e. Interpretation rests on retained output investigation/native/behavior/../keel-windows/asm/factory-main.asm:L120. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14045dd20@0x14045df0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045df0e"
+          }
+        },
+        {
+          "label": "Multibody vtable",
+          "value": "0x140b02a08",
+          "detail": "The constructor installs this vtable; its update slot +0x358 at 0x140b02d60 holds 0x140357a60, which the extractor re-reads. Report: investigation/small-parts.md. Function 0x140356480-0x140356790; instruction bytes 488d055bc57a00488906 at 0x1403564a6. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/piston-constructor.asm:L21-L22. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140356480@0x1403564a6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403564a6"
+          }
+        },
+        {
+          "label": "Multibody update flag test",
+          "value": "flags & 0x80 → return; own output 0",
+          "detail": "Reads the definition flags (definition+0x2b8) and jumps to the epilogue at 0x140357c84 when bit 0x80 is set, so the update does nothing. Without the bit it needs a fluid port (+0x148) and a network (+0x250). Report: investigation/small-parts.md. Function 0x140357a60-0x140357c9c; instruction bytes 4c8b4158498b80b802000048a9800000000f87f4010000 at 0x140357a79. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/multibody-update.asm:L12-L15; ../small-parts/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357a79",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357a79"
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack B · ports",
+          "value": "none",
+          "detail": "oil_rig_pumpjack_b: empty <logic_nodes/>, so the piston has no fluid, logic or power port.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L144-L144",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+            "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+            "lineStart": 144,
+            "lineEnd": 144
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · child_name",
+          "value": "oil_rig_pumpjack_b",
+          "detail": "oil_rig_pumpjack: definition attribute child_name. Names the piston.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · pump_pressure",
+          "value": "10000",
+          "detail": "oil_rig_pumpjack: definition attribute pump_pressure. Pump pressure field.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack B · flags",
+          "value": "128",
+          "detail": "oil_rig_pumpjack_b: definition attribute flags. Value 128 sets bit 0x80.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+            "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · port Fluid Out",
+          "value": "Fluid Out",
+          "detail": "oil_rig_pumpjack: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L493-L493",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 493,
+            "lineEnd": 493
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · tooltip",
+          "value": "Pulling the piston of the pumpjack with enough force will lift the piston, pulling fluid through the pump. A mechanical force capable of repeatedly cycling the piston is required to pump fluid effectively.",
+          "detail": "oil_rig_pumpjack: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L3-L3",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 3,
+            "lineEnd": 3
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; no game process was run.",
+        "The volume pumped per stroke and per simulated second was not decoded: the pumpjack's own pump branch, its pressure limit and the oil well supply are still open."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+          "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+          "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+          "lineStart": 3,
+          "lineEnd": 3
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+          "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+          "lineStart": 493,
+          "lineEnd": 493
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+          "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+          "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+          "lineStart": 144,
+          "lineEnd": 144
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403564a6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357a79"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045df0e"
+        }
+      ]
+    },
+    {
+      "id": "part-oil-rig-pumpjack-b",
+      "summary": "The moving piston of the Oil Rig Pumpjack. It has no ports, and its own update does nothing, so it pumps no oil by itself.",
+      "sections": [
+        {
+          "title": "Role",
+          "body": "The Oil Rig Pumpjack names this part as its child_name and carries the Fluid Out port. Its tooltip says that lifting this piston with enough force pulls fluid through the pump, and that pumping needs a mechanical force that cycles the piston repeatedly."
+        },
+        {
+          "title": "Own update",
+          "body": "Both parts are type 7 multibody components. Definition flag 0x80 makes the multibody update return at once, and this piston has flags 128, so it moves no fluid itself: its own oil output is 0 per update. Placed alone it does nothing."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Factory case 7",
+          "value": "c_scene_vehicle_component_multibody",
+          "detail": "Definition type 7 selects 0x14045df0e in the main factory's jump table (entry at 0x14045e8c0), which allocates 0x498 bytes and calls the multibody constructor 0x140356480 at 0x14045df1f. The second factory 0x1404b8f30 does the same at 0x1404b916c. Report: investigation/small-parts.md. Function 0x14045dd20-0x14045e9b0; instruction bytes b998040000 at 0x14045df0e. Interpretation rests on retained output investigation/native/behavior/../keel-windows/asm/factory-main.asm:L120. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14045dd20@0x14045df0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045df0e"
+          }
+        },
+        {
+          "label": "Multibody vtable",
+          "value": "0x140b02a08",
+          "detail": "The constructor installs this vtable; its update slot +0x358 at 0x140b02d60 holds 0x140357a60, which the extractor re-reads. Report: investigation/small-parts.md. Function 0x140356480-0x140356790; instruction bytes 488d055bc57a00488906 at 0x1403564a6. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/piston-constructor.asm:L21-L22. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140356480@0x1403564a6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403564a6"
+          }
+        },
+        {
+          "label": "Multibody update flag test",
+          "value": "flags & 0x80 → return; own output 0",
+          "detail": "Reads the definition flags (definition+0x2b8) and jumps to the epilogue at 0x140357c84 when bit 0x80 is set, so the update does nothing. Without the bit it needs a fluid port (+0x148) and a network (+0x250). Report: investigation/small-parts.md. Function 0x140357a60-0x140357c9c; instruction bytes 4c8b4158498b80b802000048a9800000000f87f4010000 at 0x140357a79. Interpretation rests on retained output investigation/native/behavior/../small-parts/asm/multibody-update.asm:L12-L15; ../small-parts/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357a79",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357a79"
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack B · ports",
+          "value": "none",
+          "detail": "oil_rig_pumpjack_b: empty <logic_nodes/>, so the piston has no fluid, logic or power port.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L144-L144",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+            "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+            "lineStart": 144,
+            "lineEnd": 144
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack B · flags",
+          "value": "128",
+          "detail": "oil_rig_pumpjack_b: definition attribute flags. Value 128 sets bit 0x80.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+            "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack B · type",
+          "value": "7",
+          "detail": "oil_rig_pumpjack_b: definition attribute type. Multibody component.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+            "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · child_name",
+          "value": "oil_rig_pumpjack_b",
+          "detail": "oil_rig_pumpjack: definition attribute child_name. Names the piston.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · port Fluid Out",
+          "value": "Fluid Out",
+          "detail": "oil_rig_pumpjack: input port. Label only; no description.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L493-L493",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 493,
+            "lineEnd": 493
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · tooltip",
+          "value": "Pulling the piston of the pumpjack with enough force will lift the piston, pulling fluid through the pump. A mechanical force capable of repeatedly cycling the piston is required to pump fluid effectively.",
+          "detail": "oil_rig_pumpjack: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L3-L3",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 3,
+            "lineEnd": 3
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; no game process was run."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+          "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+          "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+          "lineStart": 3,
+          "lineEnd": 3
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+          "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+          "lineStart": 493,
+          "lineEnd": 493
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+          "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+          "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+          "lineStart": 144,
+          "lineEnd": 144
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403564a6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357a79"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045df0e"
         }
       ]
     },
@@ -150252,7 +152101,7 @@
     "schemaVersion": 1,
     "categoryCount": 21,
     "categoriesInFamilies": 21,
-    "familyCount": 276,
+    "familyCount": 278,
     "familyTotal": 536,
     "familiesByCategory": {
       "Control surfaces": {
@@ -150304,7 +152153,7 @@
         "total": 16
       },
       "Other components": {
-        "withBehavior": 108,
+        "withBehavior": 110,
         "total": 269
       },
       "Propulsion": {
@@ -150489,8 +152338,6 @@
       "part-oil-rig-drill-grabber-end",
       "part-oil-rig-drill-storage",
       "part-oil-rig-drill-swivel",
-      "part-oil-rig-pumpjack",
-      "part-oil-rig-pumpjack-b",
       "part-passenger-seat",
       "part-physics-flooder",
       "part-player-sensor",
@@ -150602,12 +152449,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8232,
+    "findingCount": 8339,
     "findingsByStatus": {
-      "derived": 686,
-      "observed": 7546
+      "derived": 692,
+      "observed": 7647
     },
-    "nativeFindingCount": 5910,
+    "nativeFindingCount": 5979,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -150650,7 +152497,7 @@
       },
       {
         "path": "wiki/data/families.json",
-        "sha256": "bc94addaf6745898c858020cde445d25408fb021131dc112086a6ebe709fcf5e"
+        "sha256": "95c0cc72929b100c96444da8a851cf725c4740f90bc9c08673e50e70ed4a21fa"
       },
       {
         "path": "stormworks64.exe",
@@ -150658,9 +152505,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 402,
-      "native": 1178,
-      "resource": 2588
+      "derived": 406,
+      "native": 1220,
+      "resource": 2625
     }
   }
 }

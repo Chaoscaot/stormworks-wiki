@@ -551,19 +551,6 @@
     ]
   },
   {
-    "key": "family:empty-equipment-inventory",
-    "title": "Empty Equipment Inventory: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/empty-equipment-inventory",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/16/limitations/0",
-        "text": "Charge drain rate not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:fluid-tank",
     "title": "Fluid Tank: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/fluid-tank",
@@ -726,32 +713,6 @@
     ]
   },
   {
-    "key": "family:part-cryo-cooler",
-    "title": "Cryo Cooler: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-cryo-cooler",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/62/sections/2/body",
-        "text": "Electric unit cost of the 0.001 request and the capacity terms q per litre of each liquid.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-hydrogen-fuel-cell",
-    "title": "Hydrogen Fuel Cell: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-hydrogen-fuel-cell",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/limitations/0",
-        "text": "Conversion rates were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:part-jet-engine-combustion-chamber",
     "title": "Jet Combustion Chamber: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-jet-engine-combustion-chamber",
@@ -778,19 +739,6 @@
     ]
   },
   {
-    "key": "family:part-laser-point-sensor",
-    "title": "Laser Point Sensor: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-laser-point-sensor",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/126/sections/1/body",
-        "text": "The tooltip states the mapping as −cos(0.5) … cos(0.5) while the port says 120 degrees; measure which holds.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:part-microprocessor",
     "title": "Microprocessor: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-microprocessor",
@@ -804,15 +752,15 @@
     ]
   },
   {
-    "key": "family:part-oil-rig-pumpjack-b",
-    "title": "Oil Rig Pumpjack B: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-oil-rig-pumpjack-b",
+    "key": "family:part-oil-rig-pumpjack",
+    "title": "Oil Rig Pumpjack: decode remaining behavior and formulas",
+    "wiki": "https://sw-wiki.maxsp.de/parts/part-oil-rig-pumpjack",
     "locations": [
       {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/316/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
+        "file": "wiki/data/behavior.json",
+        "pointer": "/families/177/limitations/1",
+        "text": "The volume pumped per stroke and per simulated second was not decoded: the pumpjack's own pump branch, its pressure limit and the oil well supply are still open.",
+        "scope": "Practical behavior guidance"
       }
     ]
   },
@@ -823,7 +771,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/184/limitations/1",
+        "pointer": "/families/186/limitations/1",
         "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. The Missile radar (radar_type 1) also takes separate orientation branches in the update; how they set the look direction and sweep was not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -836,7 +784,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/191/limitations/0",
+        "pointer": "/families/193/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -849,7 +797,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/197/limitations/0",
+        "pointer": "/families/199/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -862,7 +810,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/198/limitations/0",
+        "pointer": "/families/200/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -875,7 +823,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/224/limitations/0",
+        "pointer": "/families/226/limitations/0",
         "text": "Reaction kinetics not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -888,7 +836,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/232/limitations/0",
+        "pointer": "/families/234/limitations/0",
         "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -901,13 +849,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/233/limitations/0",
+        "pointer": "/families/235/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/233/limitations/1",
+        "pointer": "/families/235/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -920,7 +868,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/236/limitations/0",
+        "pointer": "/families/238/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -933,7 +881,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/237/limitations/0",
+        "pointer": "/families/239/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -946,7 +894,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/246/limitations/0",
+        "pointer": "/families/248/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -959,7 +907,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/247/limitations/0",
+        "pointer": "/families/249/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1167,7 +1115,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/12/limitations/1",
-        "text": "No wall-clock callback rate or fluid conservation across server APIs was measured. Mixed-fluid behavior requires runtime validation.",
+        "text": "Still unverified: how the queued setVehicleTank requests are applied (clamping, replacing or adding, the order of two requests to one tank, and failures), and so whether fuel is conserved, especially with mixed fluids. The wall-clock period of 60 onTick callbacks was not measured either. A runtime test or a decode of the queue consumer is needed.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

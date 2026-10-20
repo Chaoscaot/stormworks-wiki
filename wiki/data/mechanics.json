@@ -2379,8 +2379,8 @@
       "id": "resource-storage",
       "title": "Base fuel inventory transfers",
       "category": "Economy",
-      "summary": "The storage addon transfers fuel between named vehicle tanks and tile inventories.",
-      "body": "Storage staggers ports by vehicle ID modulo 60 against a callback counter. Diesel input contributes the diesel entry from the tank values table, then clears the inlet and nitrogen. Diesel output computes remaining tank space, clamps it to tile inventory, and refills while subtracting that delta from inventory. This is addon bookkeeping rather than the fluid network solver.",
+      "summary": "The storage addon transfers fuel between named vehicle tanks and tile inventories, each port once every 60 onTick callbacks.",
+      "body": "Storage staggers ports by vehicle ID modulo 60 against a callback counter, so a port is handled on one onTick callback in 60. The counter ignores game_ticks, so the period is 60 callbacks; how long that takes depends on how often the engine calls onTick. Diesel input adds the tank's whole diesel entry to the tile inventory, with no per-callback limit, then requests 0 fresh water and 0 nitrogen in the inlet. Jet input does the same with the jet fuel entry. Diesel output computes the free space as capacity minus the tank's total value, clamps it to the tile's diesel stock, subtracts that delta from the stock and requests old total plus delta of the tank's current dominant fluid_type, then 0 nitrogen. Jet output does the same with jet fuel. Inputs run before outputs, so fuel credited by an inlet can leave through an outlet in the same callback. Example: an outlet of capacity 100 holding 40 with 25 in stock requests 65 and leaves 0 in stock. The output request keeps the tank's existing fluid_type, so a diesel outlet holding mostly jet fuel debits diesel stock while asking for more of the jet fuel; the input clears fresh water and nitrogen, not the fuel it credited. A native decode (investigation/small-parts.md) found that server.setVehicleTank does not write the tank itself. Its binding resolves the named tank and appends a 36-byte request, kind 2, holding the vehicle ID, voxel position, value and fluid ID, to a queue; the tank changes only when that queue is applied. This is addon bookkeeping rather than the fluid network solver.",
       "findings": [
         {
           "label": "Port scheduling",
@@ -2399,7 +2399,7 @@
         {
           "label": "Diesel input",
           "value": "d = d + tank_data.values[1]",
-          "detail": "Uses the diesel species entry, then clears tank contents and nitrogen.",
+          "detail": "Uses the diesel species entry, then requests 0 of fluid 0 and 0 of nitrogen in the inlet.",
           "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L52-L58",
           "source": {
             "path": "rom/data/missions/default_resource_storage/script.lua",
@@ -2411,9 +2411,23 @@
           "evidenceType": "static-addon-lua"
         },
         {
+          "label": "Jet input",
+          "value": "j = j + tank_data2.values[2]",
+          "detail": "Uses the jet fuel species entry, then the same two zero requests.",
+          "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L61-L67",
+          "source": {
+            "path": "rom/data/missions/default_resource_storage/script.lua",
+            "sha256": "72928dc033d3cf49b922e86f2608a5e7a8e8595c9e5ceb0de2f7e8e96b075198",
+            "lineStart": 61,
+            "lineEnd": 67
+          },
+          "status": "observed",
+          "evidenceType": "static-addon-lua"
+        },
+        {
           "label": "Diesel output",
           "value": "delta = min(capacity - value, d)",
-          "detail": "Transfers only when space and inventory allow; source uses total tank value to compute space.",
+          "detail": "Transfers only when space and inventory allow; source uses total tank value to compute space and requests value + delta of the existing fluid_type.",
           "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L71-L80",
           "source": {
             "path": "rom/data/missions/default_resource_storage/script.lua",
@@ -2423,11 +2437,124 @@
           },
           "status": "observed",
           "evidenceType": "static-addon-lua"
+        },
+        {
+          "label": "Jet output",
+          "value": "delta = min(capacity - value, j)",
+          "detail": "Same rule against jet fuel stock.",
+          "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L84-L93",
+          "source": {
+            "path": "rom/data/missions/default_resource_storage/script.lua",
+            "sha256": "72928dc033d3cf49b922e86f2608a5e7a8e8595c9e5ceb0de2f7e8e96b075198",
+            "lineStart": 84,
+            "lineEnd": 93
+          },
+          "status": "observed",
+          "evidenceType": "static-addon-lua"
+        },
+        {
+          "label": "Example output transfer",
+          "value": {
+            "capacity": 100,
+            "old_total": 40,
+            "tile_stock": 25,
+            "delta": 25,
+            "new_requested_total": 65,
+            "new_tile_stock": 0
+          },
+          "detail": "Capacity 100, old total 40, tile stock 25: delta = min(100 - 40, 25) = 25, requested total 65, stock 0. Arithmetic of the script; whether the tank ends at 65 depends on how the queued request is applied.",
+          "evidenceId": "resource:rom/data/missions/default_resource_storage/script.lua:72928dc033d3:L71-L80",
+          "source": {
+            "path": "rom/data/missions/default_resource_storage/script.lua",
+            "sha256": "72928dc033d3cf49b922e86f2608a5e7a8e8595c9e5ceb0de2f7e8e96b075198",
+            "lineStart": 71,
+            "lineEnd": 80
+          },
+          "status": "inferred",
+          "evidenceType": "static-addon-lua"
+        },
+        {
+          "label": "setVehicleTank name",
+          "value": "setVehicleTank",
+          "detail": "The server API table loads this name before its C function. Bytes 48 8d 05 ee 92 5f 00 at 0x14059a9f3, literal 73 65 74 56 65 68 69 63 6c 65 54 61 6e 6b 00 at 0x140b93ce8. Report: investigation/small-parts.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14059a9f3",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14059a9f3"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "setVehicleTank binding",
+          "value": "0x1405b1cc0",
+          "detail": "The server API table pairs the name setVehicleTank (lea at 0x14059a9f3) with this C function (lea at 0x14059aa01); getVehicleTank pairs with 0x1405b2140 at 0x14059aa1d. Bytes 48 8d 05 b8 72 01 00 at 0x14059aa01. Report: investigation/small-parts.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14059aa01",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14059aa01"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Named tank setter call",
+          "value": "c_script_operators slot +0x3e0",
+          "detail": "The binding calls slot +0x3e0 of c_script_operators (vtable 0x140b11a28), which holds 0x140730ea0 at 0x140b11e08. Bytes ff 90 e0 03 00 00 at 0x1405b1ede, literal a0 0e 73 40 01 00 00 00 at 0x140b11e08. Report: investigation/small-parts.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405b1ede",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405b1ede"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tank request call",
+          "value": "slot +0x3d8",
+          "detail": "The named setter resolves the tank by name and calls slot +0x3d8, which holds 0x140730f50 at 0x140b11e00. Bytes 41 ff 91 d8 03 00 00 at 0x140730f32, literal 50 0f 73 40 01 00 00 00 at 0x140b11e00. Report: investigation/small-parts.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140730f32",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140730f32"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tank request queue",
+          "value": "service+0x1f0",
+          "detail": "Function 0x140730f50 takes a new slot from the queue at operators service+0x1f0 through 0x1408b3ea0; it does not touch the tank. Bytes 48 81 c1 f0 01 00 00 at 0x140730f64. Report: investigation/small-parts.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140730f64",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140730f64"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tank request record",
+          "value": "kind 2",
+          "detail": "It fills the 36-byte slot with the vehicle ID, voxel position, value and fluid ID and stores request kind 2. Bytes c7 40 20 02 00 00 00 at 0x140730fdc. Report: investigation/small-parts.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140730fdc",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140730fdc"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Static behavior of this shipped addon script, conditional on the addon being enabled and its callbacks and server APIs behaving as expected.",
-        "No wall-clock callback rate or fluid conservation across server APIs was measured. Mixed-fluid behavior requires runtime validation."
+        "Still unverified: how the queued setVehicleTank requests are applied (clamping, replacing or adding, the order of two requests to one tank, and failures), and so whether fuel is conserved, especially with mixed fluids. The wall-clock period of 60 onTick callbacks was not measured either. A runtime test or a decode of the queue consumer is needed."
       ]
     },
     {
@@ -13705,7 +13832,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 384,
+    "findingCount": 393,
     "sourceCount": 71,
     "categories": [
       "Control",

@@ -8179,23 +8179,8 @@ def more_families(B, E):
     def simple(fid, summary, sections, findings, limits=()):
         B.family(fid, summary, [section(t, *([b] if isinstance(b, str) else b)) for t, b in sections], findings, list(limits))
 
-    # Heat-related singletons decoded in the fluid update.
-    step = E.const(F_FLUID, 0x140BAFA00, "Cryo transfer fraction",
-                   "Case 0x21 (cryo_cooler) subtracts 0.03·qB/(qA+qB) from compartment A's temperature and adds 0.03·qA/(qA+qB) to B's each update, a fixed transfer independent of the temperature gap.")
-    floor = E.const(F_FLUID, 0x140BAF8F8, "Cryo electric demand and ambient leak",
-                    "The cryo cooler requests this much electricity per update, requires qA+qB above it, and both compartments drift toward the surrounding temperature by this fraction.")
-    cmin = E.const(F_FLUID, 0x140BAFAD0, "Cryo minimum electricity fraction", "Heat pumping runs only when the draw helper returns more than this fraction.")
+    # Heat-related singletons decoded in the fluid update; the cryo cooler is in small_parts().
     R = update_rate(E)["findings"]
-    ups = update_rate(E)["ups"]
-    cryo_s = per_second(E, "Cryo transfer and demand per simulated second", "%.3g·qB/(qA+qB) and %.3g·qA/(qA+qB); demand %.3g" % (
-        float(step["value"]) * ups, float(step["value"]) * ups, float(floor["value"]) * ups),
-        "60 × the per-update temperature transfer and electricity request, with q held constant.")
-    simple("part-cryo-cooler", "Pumps heat from liquid A to liquid B by a fixed amount per update, even against the gradient, while powered and switched on.",
-           [("Operating conditions", "Case 0x21 pumps only with On/Off on, electricity supplied above 0.1 of the request, and the two compartments together holding more than 0.001 capacity units. Each update it requests 0.001 electricity units, 0.06 per simulated second."),
-            ("Performance drivers", "Unlike an exchanger it does not stop at equal temperatures: A loses 0.03·qB/(qA+qB) and B gains 0.03·qA/(qA+qB) every update, so B can be driven hotter than A. While q stays constant, that is 1.8·qB/(qA+qB) and 1.8·qA/(qA+qB) per simulated second. Remove heat from B with a radiator or exchanger or the transfer stalls as B climbs."),
-            ("Open measurement questions", "Electric unit cost of the 0.001 request and the capacity terms q per litre of each liquid.")],
-           [step, floor, cmin, cryo_s] + R + [T("cryo_cooler"), P("cryo_cooler", "On/Off"), A("cryo_cooler", "water_component_type", "Selects case 0x21 of the fluid update.")],
-           ["Static decompilation only.", TICK])
     rad = E.const(F_FLUID, 0x140BAF918, "Heat sink cooling fraction", "Case 9, shared with the radiators: compartment moves toward the surrounding temperature by this × (1 + fan) while both fluid ports are connected.")
     air = E.const(F_FLUID, 0x140BB072C, "Airflow divisor", "Outside an enclosed compartment, fan term = max(fan, relative air speed ÷ this), clamped to 2.")
     sink_s = relaxation(E, "Heat sink gap after one simulated second", 0.003, [rad])
@@ -8203,11 +8188,6 @@ def more_families(B, E):
            [("Operating conditions", "It shares water component case 9 with the radiators. With no electric node its only boost is airflow when mounted outside an enclosed compartment, as air speed ÷ 40 capped at 2. Both fluid ports must be connected. Without airflow it leaves 0.835 of the gap to ambient after one simulated second (time constant 5.55 s).")],
            [rad, air, sink_s] + R + [A("fluid_heat_sink", "water_component_type", "Value 9 selects the radiator case."), T("fluid_heat_sink")], [TICK])
     # Sensors with documented ranges and encodings.
-    simple("part-laser-point-sensor", "Reports the laser spot nearest its view centre as x and y from −1 to 1 across a cone of ±cos(0.5).",
-           [("Setup and interactions", "Composite number channels 1 and 2 give x and y; on/off channel 1 is set while a point is visible. Match the Wavelength input to the emitting beacon or laser."),
-            ("Open measurement questions", "The tooltip states the mapping as −cos(0.5) … cos(0.5) while the port says 120 degrees; measure which holds.")],
-           [T("laser_point_sensor"), P("laser_point_sensor", "Data Output"), P("laser_point_sensor", "Wavelength")],
-           ["The tooltip and port describe the field of view differently."])
     for fid, bid in (("part-distance-sensor", "distance_sensor"), ("part-laser-distance-sensor", "laser_distance_sensor")):
         simple(fid, "Laser rangefinder with a stated maximum range of %s m." % ("500" if bid == "distance_sensor" else "4000"),
                [("Operating conditions", "Distance is in metres; the tooltip equates one metre with four blocks." + (" The laser can be pivoted up to 0.125 turns via composite channels 1 and 2 and needs Active on." if bid == "laser_distance_sensor" else ""))],
@@ -8364,9 +8344,6 @@ def more_families(B, E):
     simple("part-electric-relay", "Connects terminals A and B while Relay State is on; its default state is a property.",
            [("Setup and interactions", "Set Default State (Off/On) in the properties for the state before any signal arrives.")],
            [T("electric_relay"), E.text_id(0x1401FD709, 0x62C, "Default State")], [])
-    simple("part-hydrogen-fuel-cell", "Makes electricity from hydrogen and oxygen and outputs water.",
-           [("Setup and interactions", "Pair with an electrolyser, which splits fresh water into hydrogen and oxygen using electricity.")],
-           [T("hydrogen_fuel_cell"), T("electrolyser")], ["Conversion rates were not recovered."])
     simple("part-electrolyser", "Splits fresh water into hydrogen and oxygen with electricity; the electrodes must be submerged.",
            [("Setup and interactions", "Feed its outputs to a fuel cell or a liquid fuel rocket's tanks.")], [T("electrolyser"), T("liquid_rocket_small")], [])
 
@@ -8437,9 +8414,6 @@ def extra_families(B, E):
            [("Setup and interactions", "Refill by storing it in an outfit unit with an air input or via a space seat.")], dive, [])
     simple("part-inventory-outfit-scuba", "Reaches 40 m with 2 minutes of air; diving gear reaches 230 m with 10 minutes.",
            [("Setup and interactions", "Refill by storing it in an outfit unit with an air input or via a space seat.")], dive, [])
-    simple("empty-equipment-inventory", "Recharges stored rechargeable equipment from vehicle power until full.",
-           [("Setup and interactions", "Small units take only small handheld equipment, medium units large equipment; connect Electric to charge.")],
-           [T("inventory_small"), T("inventory_medium")], ["Charge drain rate not recovered."])
     simple("push-button", "Pressed while held; External Input lets several buttons drive one output.",
            [("Setup and interactions", "Chain the Pressed output of one button into the External Input of the next to unify them.")], [T("button_push"), P("button_push", "External Input")], [])
     simple("keypad", "Stores entered numbers and outputs them continuously; the large keypad pulses on confirm and can take waypoint coordinates.",
@@ -9205,12 +9179,401 @@ def microprocessor(E):
                  "Writes the graph node's output value into the connected vehicle signal; with no connection it returns at once." + rep)]
 
 
+# small-parts pass; files under investigation/native/small-parts/, report investigation/small-parts.md.
+SP_REPORT = "investigation/small-parts.md"
+SP_DATA = "investigation/native/small-parts/parts.json"
+F_ITEMS = 0x140001DC0         # equipment item table initializer: one constructor call per item
+F_ITEM_CTOR = 0x140264610     # item table entry constructor: capacity at +0x48, recharge time at +0x4c
+F_INV = 0x140396995           # chained unwind chunk of the inventory update 0x140396950 (vtable 0x140b655d8 slot +0x358)
+F_EADD = 0x1402EEC80          # electricity deposit helper (leaf): adds charge to the group pool
+F_GUARD = 0x1402645F0         # two-flag guard (leaf) called at the start of the fuel cell case
+F_LASER_GATE = 0x1403C96CB    # chained unwind chunk of the laser point acquisition 0x1403c9670: forward-dot gate
+F_LASER_OUT = 0x1403C9B83     # chained unwind chunk of 0x1403c9670: output projections and stores
+F_MB_UPDATE = 0x140357A60     # multibody component update, vtable 0x140b02a08 slot +0x358
+ITEM_TABLE = 0x140CF2060      # equipment item table, 200 bytes per entry
+FACTORY_TABLE = 0x1404B9AD0   # second factory's jump table, image-relative dwords indexed by definition type
+FACTORY_MAIN_TABLE = 0x14045E8A4  # main factory's jump table
+SP_SLOTS = ((0x140B65930, 0x140396950), (0x140B02D60, F_MB_UPDATE))
+SP_RTTI = ((0x140B655D8, "c_scene_vehicle_component_inventory"), (0x140B02A08, "c_scene_vehicle_component_multibody"))
+_SP = "small-parts/asm/"
+SP_ASM = {
+    F_ITEMS: ("small-parts/tools/item-initializers.asm", None), F_INV: (_SP + "equipment.asm", "140396950.c"),
+    F_FLUID: (_SP + "fuel-cell-cryo.asm", "1403ef860.c"), F_EADD: (_SP + "electric-add.asm", "1402eec80.c"),
+    F_GUARD: (_SP + "fluid-guard.asm", None), F_LASER_GATE: (_SP + "laser.asm", "1403c9670.c"), F_LASER_OUT: (_SP + "laser.asm", "1403c9670.c"),
+    F_FACTORY_B: (_SP + "component-factory.asm", "1404b8f30.c"), F_FACTORY: ("keel-windows/asm/factory-main.asm", None), F_JOINT_CTOR: (_SP + "piston-constructor.asm", None),
+    F_MB_UPDATE: (_SP + "multibody-update.asm", "140357a60.c"),
+}
+WHERE[(F_ITEM_CTOR, None)] = "../small-parts/pseudocode/140264610.c"
+LIQUID_NAMES = ("fresh_water", "diesel", "jet_fuel", "oil", "seawater", "slurry", "saturated_slurry")
+SP_PLAIN = "Static analysis of one build; no game process was run."
+SP_STATIC = "Static analysis of one build. Charge is in the game's internal electrical units, as on the Electricity pages; fluid amounts are stored amounts, 10 L of liquid or 600 L of expanded gas per amount."
+
+
+def small_parts_native(E):
+    """Equipment rack charging, cryo cooler, hydrogen fuel cell, laser point sensor and pumpjack piston, verified once and shared."""
+    if hasattr(E, "small"):
+        return E.small
+    n = E.native
+    if not (E.root / SP_REPORT).is_file():
+        raise ValueError("Small-parts report missing: " + SP_REPORT)
+    for slot, target in SP_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Vtable slot %#x does not point to %#x" % (slot, target))
+    for vtable, name in SP_RTTI:
+        if _rtti(n, vtable) != name:
+            raise ValueError("RTTI at %#x is not %s" % (vtable, name))
+    case = lambda table, t: n.base + struct.unpack("<I", n.raw(table + 4 * t, 4))[0]
+    for t, target in ((33, 0x1403F4D1E), (34, 0x1403F2B03)):
+        if case(WATER_TABLE, t) != target:
+            raise ValueError("Fluid-update case %d does not select %#x" % (t, target))
+    if case(FACTORY_TABLE, 7) != 0x1404B915B or case(FACTORY_MAIN_TABLE, 7) != 0x14045DF0E:
+        raise ValueError("Factory case 7 moved")
+    for at, hexbytes in ((0x14045DF1F, "e85c85efff"), (0x1404B916C, "e80fd3e9ff")):
+        if n.raw(at, 5).hex() != hexbytes:
+            raise ValueError("Multibody constructor call at %#x moved" % at)
+    rep = " Report: %s." % SP_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        _wheel_cite(E, func, address, hexbytes, table=SP_ASM)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=SP_ASM)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    near = lambda a, b: math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-12)
+    ups = update_rate(E)["ups"]
+    data = json.loads((E.root / SP_DATA).read_bytes())
+    if data["target_sha256"] != EXE_SHA256:
+        raise ValueError("Small-parts figures were built for a different executable")
+    parts = {d["definition"]: d for d in data["parts"]}
+    f = {}
+
+    # Equipment rack: item table, gas branch, electric draw and recharge.
+    f["i_ctor"] = E.code(F_ITEM_CTOR, 0x1402646B8, "f30f10842480000000f30f114648f30f108c2488000000f30f114e4c", "Item capacity and recharge time", "argument 7 → +0x48, argument 8 → +0x4c",
+                         "The item table constructor stores its seventh argument, the charge capacity C, at entry+0x48 and its eighth, the recharge time T in seconds, at entry+0x4c." + rep)
+    f["i_table"] = code(F_INV, 0x140396999, "4869f1c8000000", "Rack item entry", "item ID × 200",
+                        "The rack update indexes the item table at 0x140cf2060 (lea at 0x1403969d3) with the stored item's ID (component+0x148) times 200 bytes.")
+    f["i_gas"] = code(F_INV, 0x1403969AC, "83f8010f866501000083f9010f845c01000083f9030f845301000081f9950000000f8447010000", "Gas-refilled items", "IDs 79, 80, 1, 3 and 149",
+                      "ID - 79 ≤ 1 (lea at 0x1403969a0), ID 1, ID 3 and ID 149 jump to the gas refill branch at 0x140396b1a; every other item takes the electric branch.")
+    f["i_defib"] = code(F_INV, 0x1403969DA, "83f909752d", "Defibrillator uses", "full charge → one stored use",
+                        "For item 9 a charge at or above capacity, with the use count (component+0x150) below the item's limit (entry+0x40), adds one use and resets the charge to 0, so charging starts again.")
+    f["i_full"] = code(F_INV, 0x140396A0C, "f30f10443e4c0f57f60f2fc60f861f020000f30f10443e480f2f834c0100000f860c020000", "Rack charging condition", "T > 0 and c < C",
+                       "The electric branch returns when the item's recharge time is not positive or its charge c (component+0x14c) is not below capacity C. A full item draws nothing.")
+    f["i_group"] = code(F_INV, 0x140396A40, "4883bb88010000000f84ef010000", "Rack electric group test", "no group → no charging",
+                        "Without infinite electricity (0x140396a36) a rack whose electric node has no group (component+0x188) skips charging.")
+    f["i_supply"] = op(F_INV, 0x140396A59, "f30f100d979d8100", 0x140BB07F8, "Rack supply factor",
+                       "a = max(0, (300 - EMP) ÷ 300) × the published charge fraction (component+0x1a4, 0x140396a81); with infinite electricity a = 1 (0x140396a8b).")
+    f["i_req"] = op(F_INV, 0x140396A93, "f30f1015bd8e8100", 0x140BAF958, "Rack charge request",
+                    "The request R per update. The branch multiplies it by a (0x140396aa2).")
+    f["i_draw"] = code(F_INV, 0x140396AB2, "f30f5dcbf30f5cc1f30f5ecaf30f114104", "Rack withdrawal", "w = min(0.01 × a, E); E - w; fraction w ÷ 0.01",
+                       "Takes the smaller of 0.01 × a and the pool charge E (group pool+4), removes it from the pool and divides it by 0.01 to get the supplied fraction. The rack does this itself rather than through the shared draw helper.")
+    f["i_gate"] = code(F_INV, 0x140396AC3, "0f2fca0f8671010000", "Rack recharge gate", "fraction > 0.01",
+                       "The item charges only when the supplied fraction is above 0.01. The charge step does not scale with the fraction, so partial supply above 0.01 charges at full speed; at or below it the withdrawal still happens.")
+    f["i_rate"] = code(F_INV, 0x140396AE5, "f30f10743948f30f5ef0f30f59f7", "Rack recharge step", "C ÷ T × ticks",
+                       "Divides the capacity by the recharge time and multiplies by the update's tick count (xmm7, 1 for a normal update, converted at 0x140396985).")
+    f["i_60"] = op(F_INV, 0x140396AF3, "f30f5935918e8100", 0x140BAF98C, "Rack recharge time scale",
+                   "Multiplies the step by 1 ÷ 60, so T is in simulated seconds at 60 updates per second.")
+    f["i_store"] = code(F_INV, 0x140396B03, "f30f10443e48f30f5dc6f30f11834c010000", "Rack charge store", "c = min(C, c + step)",
+                        "Adds the step to the stored charge and clamps it to the capacity.")
+    for slot in ("i_ctor", "i_table", "i_gas", "i_full", "i_req", "i_draw", "i_gate", "i_rate", "i_60", "i_store"):
+        if slot not in f:
+            raise ValueError("Missing rack finding " + slot)
+
+    # Every constructor call in the initializer, decoded from the bytes: ID from the lea, C and T from the stack stores.
+    start = n.function(F_ITEMS)[0]
+    body = n.raw(start, n.function(F_ITEMS)[1] - start)
+    calls = [start + p for p in range(len(body) - 5) if body[p] == 0xE8 and start + p + 5 + struct.unpack_from("<i", body, p + 1)[0] == F_ITEM_CTOR]
+
+    def stored(call, slot):
+        for k in range(call - 6, call - 0x200, -1):
+            if n.raw(k, 6) == bytes.fromhex("f30f114424") + bytes([slot]):
+                if n.raw(k - 8, 4).hex() == "f30f1005":
+                    target = k + struct.unpack("<i", n.raw(k - 4, 4))[0]
+                    return n.f32(target), k - 8, target
+                if n.raw(k - 3, 3).hex() == "0f57c0":
+                    return 0.0, k - 3, None
+                raise ValueError("Unexpected store source at %#x" % k)
+        raise ValueError("No argument store before %#x" % call)
+    items = {}
+    for c in calls:
+        lea = n.raw(c - 7, 7)
+        entry = c + struct.unpack("<i", lea[3:])[0]
+        if lea[:3].hex() != "488d0d" or (entry - ITEM_TABLE) % 200:
+            raise ValueError("Item constructor call at %#x has no table lea" % c)
+        items[(entry - ITEM_TABLE) // 200] = (c, stored(c, 0x30), stored(c, 0x38))
+    if len(items) != 155:
+        raise ValueError("Item initializer no longer has 155 entries")
+    gas = (1, 3, 79, 80, 149)
+    electric = sorted(i for i, (_, cap, t) in items.items() if cap[0] > 0 and t[0] > 0 and i not in gas)
+    rack = parts["inventory_small"]
+    if (parts["inventory_medium"]["electric_items"] != rack["electric_items"] or sorted(rack["gas_refill_ids"]) != list(gas)
+            or [d["id"] for d in rack["electric_items"]] != electric or not near(rack["request_per_update"], n.f32(0x140BAF958))
+            or not near(rack["request_per_simulated_second"], n.f32(0x140BAF958) * ups)):
+        raise ValueError("Rack figures in %s differ from the verified bytes" % SP_DATA)
+    for bid in ("inventory_small", "inventory_medium"):
+        if E.block(bid)["attributes"]["type"] != "32":
+            raise ValueError(bid + " is no longer type 32")
+    by_item = {}
+    for b, blk in E.blocks.items():
+        if b.startswith("inventory_equipment_"):
+            by_item.setdefault(int(blk["attributes"]["inventory_default_item"]), []).append(b)
+    rows = []
+    for d in rack["electric_items"]:
+        i = d["id"]
+        c, (cap, cap_at, cap_va), (t, t_at, t_va) = items[i]
+        defs = ["inventory_" + x if not x.startswith("inventory_") else x for x in d["definitions"]]
+        if (d["capacity"] != cap or d["recharge_seconds"] != t or by_item.get(i) != defs or len(defs) != 1
+                or not near(d["recharge_percent_per_update"], cap / (ups * t)) or not near(d["nominal_full_recharge_cost"], rack["request_per_simulated_second"] * t)
+                or not d["call"].startswith("%x:" % c)):
+            raise ValueError("Item %d figures differ from the verified bytes" % i)
+        bid = defs[0]
+        name = re.sub(r"^Equipment inventory \((.*)\)$", r"\1", E.block(bid)["name"])
+        call = n.raw(c, 5).hex()
+        _wheel_cite(E, F_ITEMS, c, call, table=SP_ASM)
+        x = E.code(F_ITEMS, c, call, "Item %d · %s" % (i, name), "C = %s, T = %s s" % (fmt(cap), fmt(t)),
+                   "Constructor call for item %d, table entry %#x. Argument 7, C = %s, is binary32 at %#x (movss at %#x); argument 8, T = %s seconds, is binary32 at %#x (movss at %#x). "
+                   "From empty at full supply the rack charges it in %s simulated seconds for %s internal charge (%s)." % (
+                       i, ITEM_TABLE + 200 * i, fmt(cap), cap_va, cap_at, fmt(t), t_va, t_at, _g(t), _g(d["nominal_full_recharge_cost"]), SP_DATA) + rep)
+        rows.append({"id": i, "bid": bid, "name": name, "C": cap, "T": t, "finding": x,
+                     "attr": E.attr(bid, "inventory_default_item", "Item ID this equipment definition holds."),
+                     "cls": E.attr(bid, "inventory_class", "Equipment size class; the small rack has inventory_class 1, the medium rack 2.")})
+    R = rack["request_per_update"]
+    flash = next(r for r in rows if r["id"] == 15)
+    if rack["example"] != {"item": "inventory_equipment_flashlight", "seconds_from_empty": int(flash["T"]), "total_internal_charge": int(R * ups * flash["T"])}:
+        raise ValueError("Rack worked example differs")
+    f["i_rows"] = rows
+    f["i_s"] = per_second(E, "Rack charge draw per simulated second", "%s per update, %s per simulated second" % (_g(R), _g(R * ups)),
+                          "A charging item at full supply withdraws %s internal charge per update, %s per simulated second. Charging from empty to full takes T simulated seconds, so it costs %s × T: %s for the flashlight's %s s. "
+                          "The charge rises by 100 ÷ (60 × T) percentage points per update, %s for the flashlight (%s)." % (
+                              _g(R), _g(R * ups), _g(R * ups), _g(R * ups * flash["T"]), _g(flash["T"]), _g(100 / (ups * flash["T"]), 4), SP_DATA) + rep)
+
+    # Cryo cooler.
+    cryo = parts["cryo_cooler"]
+    h = heat_exchangers(E)
+    req, cut, frac = n.f32(0x140BAF8F8), n.f32(0x140BAFAD0), n.f32(0x140BAFA00)
+    ex = cryo["example"]
+    qa, qb = ex["qA"], ex["qB"]
+    if (cryo["water_component_type"] != int(E.block("cryo_cooler")["attributes"]["water_component_type"]) or not near(cryo["electric_request_per_update"], req)
+            or not near(cryo["electric_request_per_simulated_second"], req * ups) or not near(cryo["minimum_draw_fraction_exclusive"], cut)
+            or tuple(cryo["q_per_liquid_litre"]) != LIQUID_NAMES or len(LIQUID_NAMES) != len(CAPACITY_SLOTS["liquid"]) or set(cryo["q_per_liquid_litre"].values()) != {0.1}
+            or not near(qa, ex["liquid_litres_A"] / 10) or not near(ex["delta_A_C_per_update"], -0.03 * qb / (qa + qb)) or not near(ex["delta_B_C_per_update"], 0.03 * qa / (qa + qb))
+            or not near(ex["mutual_heat_litre_C_per_update"], 10 * 0.03 * qa * qb / (qa + qb)) or not near(frac, 0.03)):
+        raise ValueError("Cryo figures in %s differ from the verified bytes" % SP_DATA)
+    f["c_req"] = code(F_FLUID, 0x1403F4F35, "f30f103dbba97b004180beb804000000747f0f28cf498d8eb8020000e84a9defff", "Cryo electricity request", "R = 0.001 per update",
+                      "With On/Off on (component+0x4b8) the case loads 0.001 (0x140baf8f8) and passes it to the shared draw helper 0x1402eeca0, which withdraws min(R × a, E) and returns the supplied fraction.")
+    f["c_gate"] = op(F_FLUID, 0x1403F4F56, "0f2f0573ab7b00", 0x140BAFAD0, "Cryo supply gate",
+                     "Cooling runs only when the supplied fraction is above this; the step itself does not scale with the fraction.")
+    f["c_q"] = code(F_FLUID, 0x1403F4F5F, "498d8e98050000e87566efff0f28f0498d8ee4050000e86666efff", "Cryo capacities", "qA, qB = liquid helper",
+                    "Both sides call the liquid capacity helper 0x1402eb5e0: A at component+0x598, B at +0x5e4. Gas in either side adds nothing to q.")
+    f["c_step"] = code(F_FLUID, 0x1403F4F86, "f30f590572aa7b00f30f5ec3f3410f108edc050000f30f5cc8", "Cryo temperature step", "TA - 0.03 × qB ÷ (qA + qB)",
+                       "Subtracts 0.03 × qB ÷ (qA + qB) from A's temperature (+0x5dc); B's (+0x628) gains 0.03 × qA ÷ (qA + qB) at 0x1403f4fa8.")
+    dA, dB = ex["delta_A_C_per_update"], ex["delta_B_C_per_update"]
+    f["c_ex"] = E.derived("Cryo cooler example", "1 L each side: A %s °C, B +%s °C per update" % (_g(dA), _g(dB)),
+                          "q is the stored liquid amount, 0.1 per litre for each of the %d liquids (%s). With 1 L in each circuit qA = qB = %s, so each powered update moves A by %s °C and B by +%s °C before the ambient step, "
+                          "%s and +%s °C per simulated second while q holds. The moved quantity 0.03 × qA × qB ÷ (qA + qB) is %s amount × °C, %s L × °C, per update. Full supply costs %s internal charge per update, %s per simulated second (%s)." % (
+                              len(LIQUID_NAMES), ", ".join(x.replace("_", " ") for x in LIQUID_NAMES), _g(qa), _g(dA), _g(dB), _g(dA * ups), _g(dB * ups),
+                              _g(0.03 * qa * qb / (qa + qb)), _g(ex["mutual_heat_litre_C_per_update"]), _g(req), _g(req * ups), SP_DATA) + rep,
+                          [f["c_step"], f["c_q"], h["q_liquid"], f["c_req"]] + update_rate(E)["findings"][:1])
+
+    # Hydrogen fuel cell.
+    cell = parts["hydrogen_fuel_cell"]
+    o2, h2, water, one = n.f32(0x140BAF8A0), n.f32(0x140BAF8C4), n.f32(0x140BAFA00), n.f32(0x140BAFECC)
+    cx = cell["example"]
+    if (cell["water_component_type"] != int(E.block("hydrogen_fuel_cell")["attributes"]["water_component_type"]) or not near(cell["oxygen_amount_per_update"], o2)
+            or not near(cell["hydrogen_amount_per_update"], h2) or not near(cell["water_amount_per_update"], water) or cell["electric_charge_per_update"] != one
+            or not near(cell["oxygen_expanded_L_per_second"], o2 * 600 * ups) or not near(cell["hydrogen_expanded_L_per_second"], h2 * 600 * ups)
+            or not near(cell["water_L_per_second"], water * 10 * ups) or cell["electric_charge_per_second"] != one * ups
+            or not near(cx["oxygen_expanded_L"], o2 * 600 * cx["active_updates"]) or not near(cx["hydrogen_expanded_L"], h2 * 600 * cx["active_updates"])
+            or not near(cx["water_L"], water * 10 * cx["active_updates"]) or cx["electric_charge"] != one * cx["active_updates"]):
+        raise ValueError("Fuel cell figures in %s differ from the verified bytes" % SP_DATA)
+    f["h_guard"] = code(F_FLUID, 0x1403F2B03, "e8e81ae7ff84c00f848d250000", "Fuel cell guard call", "call 0x1402645f0",
+                        "Case 34 starts by calling the guard and skips the whole case when it returns 0. The electrolyser case calls the same guard (0x1403f292b).")
+    f["h_flags"] = code(F_GUARD, F_GUARD, "803d615ea90000740c803d595ea900007403b001c3", "Fuel cell guard", "bytes 0x140cfa458 and 0x140cfa459 both nonzero",
+                        "Returns 1 only when both global bytes are set. They are game-wide flags, not component state; the directional antennas use the same guard.")
+    f["h_o2"] = code(F_FLUID, 0x1403F2B4F, "ba0a000000", "Fuel cell oxygen filter", "fluid slot 10",
+                     "The first inlet (component+0x148) exchanges into the shared input (+0x598) with a filter for slot 10, oxygen; the second (+0x180) uses slot 12, hydrogen (0x1403f2bb0).")
+    f["h_damage"] = code(F_FLUID, 0x1403F2C05, "e876e6d4ff85c00f85a6000000", "Fuel cell damage test", "damaged → no reaction",
+                         "A nonzero result from 0x140141280, the component damage state, skips the reaction; the outlet still exchanges.")
+    f["h_oa"] = op(F_FLUID, 0x1403F2C1B, "f30f101d7dcc7b00", 0x140BAF8A0, "Oxygen per reaction",
+                   "The reaction needs at least this much oxygen (+0x5cc, jb at 0x1403f2c26) and subtracts it (0x1403f2c61).")
+    f["h_ha"] = op(F_FLUID, 0x1403F2C35, "f30f102587cc7b00", 0x140BAF8C4, "Hydrogen per reaction",
+                   "The reaction needs at least this much hydrogen (+0x5d4, jb at 0x1403f2c40) and subtracts it (0x1403f2c6e).")
+    f["h_wa"] = op(F_FLUID, 0x1403F2C54, "f30f103da4cd7b00", 0x140BAFA00, "Water per reaction",
+                   "The water buffer's free space, capacity (+0x5ec) minus contents (+0x624), must be at least this (0x1403f2c5c), and fresh water (slot 0, +0x5f0) gains this (0x1403f2c90).")
+    f["h_one"] = op(F_FLUID, 0x1403F2B1C, "f30f1035a8d37b00", 0x140BAFECC, "Fuel cell charge per reaction",
+                    "Loaded into xmm6, copied into xmm1 at 0x1403f2cb0 and passed to the deposit helper 0x1402eec80 at 0x1403f2cb3. The branch tests no battery demand or pool room first.")
+    f["h_add"] = code(F_EADD, F_EADD, "488b41204885c074160f57c00f2fc8760e488b4020f30f584804f30f114804c3", "Charge deposit helper", "E + c when a group exists",
+                      "Adds a positive c to the group pool charge E (pool+4). With no electrical group the charge is dropped while the gases are still used.")
+    per = lambda a, k: a * k * ups
+    f["h_s"] = E.derived("Fuel cell rates", "%s L/s oxygen, %s L/s hydrogen, %s L/s water, %s charge/s" % (_g(per(o2, 600), 4), _g(per(h2, 600), 4), _g(per(water, 10), 4), _g(one * ups)),
+                         "One reaction per update uses %s amount of oxygen and %s of hydrogen, %s and %s expanded litres at 600 L per gas amount, adds %s amount of water, %s L at 10 L per liquid amount, and deposits %s internal charge. "
+                         "At %d reactions per simulated second that is %s L/s oxygen, %s L/s hydrogen, %s L/s water and %s charge/s; %d reactions, %s simulated seconds, use %s L and %s L and make %s L of water and %s charge (%s)." % (
+                             fmt(o2), fmt(h2), _g(o2 * 600, 4), _g(h2 * 600, 4), fmt(water), _g(water * 10, 4), _g(one), ups, _g(per(o2, 600), 4), _g(per(h2, 600), 4), _g(per(water, 10), 4), _g(one * ups),
+                             cx["active_updates"], _g(cx["active_updates"] / ups), _g(cx["oxygen_expanded_L"], 4), _g(cx["hydrogen_expanded_L"], 4), _g(cx["water_L"], 4), _g(cx["electric_charge"]), SP_DATA) + rep,
+                         [f["h_oa"], f["h_ha"], f["h_wa"], f["h_one"]] + update_rate(E)["findings"][:1])
+
+    # Laser point sensor.
+    las = parts["laser_point_sensor"]
+    den, gate = n.f32(0x140BAFE18), n.f32(0x140BAFCBC)
+    cone = 2 * math.degrees(math.acos(gate))
+    edge = math.sin(math.radians(cone / 2)) / den
+    lx = las["example"]
+    if (las["logic_gate_type"] != int(E.block("laser_point_sensor")["attributes"]["logic_gate_type"]) or las["denominator"] != den or den != struct.unpack("<f", struct.pack("<f", math.cos(0.5)))[0]
+            or las["forward_dot_minimum_exclusive"] != gate or not near(las["full_cone_degrees"], cone) or not near(las["open_cone_axis_output_bound"], edge)
+            or not near(lx["horizontal_output"], math.sin(math.radians(lx["angle_from_forward_degrees"])) / den) or lx["vertical_output"] != 0):
+        raise ValueError("Laser figures in %s differ from the verified bytes" % SP_DATA)
+    f["l_gate"] = op(F_LASER_GATE, 0x1403C9A5F, "440f2f0d55627e00767e", 0x140BAFCBC, "Laser acceptance gate",
+                     "The acquisition 0x1403c9670 forms the dot product of the unit direction to a laser point with the sensor's forward axis (0x1403c9a45-0x1403c9a5a) and rejects the point unless it is above this (jbe). "
+                     "Among accepted points it keeps the largest dot product, subject to the wavelength, range and visibility checks.")
+    f["l_div"] = op(F_LASER_OUT, 0x1403C9C96, "f30f5e2d7a617e00f30f5e1572617e00", 0x140BAFE18, "Laser output divisor",
+                    "Both output projections, the unit direction dotted with the sensor's two lateral axes, are divided by this binary32 cos(0.5 rad).")
+    f["l_store"] = code(F_LASER_OUT, 0x1403C9CA6, "f30f11af00050000f30f1197fc040000838ff804000001", "Laser outputs", "number 1 = +0x4fc, number 2 = +0x500, on/off 1 set",
+                        "Stores the two quotients as composite numbers 1 and 2 and sets composite on/off bit 1. With no accepted point the outputs and the bit are cleared.")
+    sx = lx["horizontal_output"]
+    f["l_ex"] = E.derived("Laser point sensor outputs", "x = sin(angle) ÷ %s for a point on the x axis; at most %s at the edge" % (fmt(den), _g(edge)),
+                          "A dot product above %s means at most %s degrees from forward, a %s degree cone. A point %d degrees to one side reads %s; one near the %s degree edge reads up to %s, never 1. "
+                          "So the outputs are scaled direction components, not angles. For a point on one axis, angle = asin(%s × output) (%s)." % (
+                              fmt(gate), _g(cone / 2), _g(cone), lx["angle_from_forward_degrees"], _g(sx), _g(cone / 2), _g(edge), fmt(den), SP_DATA) + rep,
+                          [f["l_gate"], f["l_div"], f["l_store"]])
+
+    # Oil Rig Pumpjack B.
+    pj = parts["oil_rig_pumpjack_b"]
+    b, a = E.block("oil_rig_pumpjack_b"), E.block("oil_rig_pumpjack")["attributes"]
+    if (pj["definition_type"] != int(b["attributes"]["type"]) or pj["mass"] != float(b["attributes"]["mass"]) or int(b["attributes"]["flags"]) & 0x80 != pj["fluid_update_skipped_by_flag"]
+            or pj["oil_component_type"] != int(b["attributes"]["oil_component_type"]) or pj["logic_ports"] != len(b["logic"]) or a["child_name"] != pj["parent_child_name"]
+            or a["type"] != "7" or int(a["flags"]) & 0x80 or pj["own_oil_amount_per_update"] != 0 or pj["own_fluid_outlet"]):
+        raise ValueError("Pumpjack figures in %s differ from the definitions" % SP_DATA)
+    f["p_case"] = code(F_FACTORY, 0x14045DF0E, "b998040000", "Factory case 7", "c_scene_vehicle_component_multibody",
+                       "Definition type 7 selects 0x14045df0e in the main factory's jump table (entry at 0x14045e8c0), which allocates 0x498 bytes and calls the multibody constructor 0x140356480 at 0x14045df1f. "
+                       "The second factory 0x1404b8f30 does the same at 0x1404b916c.")
+    f["p_ctor"] = code(F_JOINT_CTOR, 0x1403564A6, "488d055bc57a00488906", "Multibody vtable", "0x140b02a08",
+                       "The constructor installs this vtable; its update slot +0x358 at 0x140b02d60 holds 0x140357a60, which the extractor re-reads.")
+    f["p_flag"] = code(F_MB_UPDATE, 0x140357A79, "4c8b4158498b80b802000048a9800000000f87f4010000", "Multibody update flag test", "flags & 0x80 → return; own output 0",
+                       "Reads the definition flags (definition+0x2b8) and jumps to the epilogue at 0x140357c84 when bit 0x80 is set, so the update does nothing. Without the bit it needs a fluid port (+0x148) and a network (+0x250).")
+    path = DEFS + "oil_rig_pumpjack_b.xml"
+    m, line, _ = E.at(path, r"<logic_nodes/>")
+    f["p_ports"] = E.located(path, line, line, "Oil Rig Pumpjack B · ports", "none", "oil_rig_pumpjack_b: empty <logic_nodes/>, so the piston has no fluid, logic or power port.")
+    E.small = {"f": f, "ups": ups, "R": R, "cryo": (req, cut, frac), "cell": (o2, h2, water, one), "laser": (den, gate, cone, edge, sx)}
+    return E.small
+
+
+def small_parts(B, E):
+    S = small_parts_native(E)
+    f, ups = S["f"], S["ups"]
+    T, P, A = E.tooltip, E.port, E.attr
+    R = update_rate(E)["findings"]
+    N = electricity_native(E)
+    h = heat_exchangers(E)
+
+    # Equipment racks.
+    rows = f["i_rows"]
+    rack_rate = S["R"]
+    table = "\n".join("- %s (item %d, inventory_class %s): %s s, %s charge from empty" % (
+        r["name"], r["id"], r["cls"]["value"], _g(r["T"]), _g(rack_rate * ups * r["T"])) for r in rows)
+    rack = [f[x] for x in ("i_ctor", "i_table", "i_gas", "i_defib", "i_full", "i_group", "i_supply", "i_req", "i_draw", "i_gate", "i_rate", "i_60", "i_store", "i_s")]
+    B.family("empty-equipment-inventory",
+             "Recharges a stored rechargeable item by drawing %s internal charge per update, %s per simulated second, until the item is full." % (_g(rack_rate), _g(rack_rate * ups)),
+             [section("Setup and interactions", "Small units take only small handheld equipment, medium units large equipment; connect Electric to charge."),
+              section("Charge draw",
+                      "While a stored item is below full, the rack withdraws up to %s internal charge from its electrical network each update, %s per simulated second. "
+                      "It scales that request by max(0, (300 - EMP) ÷ 300) × the network's charge fraction and takes no more than the pool holds. "
+                      "If the supplied share is above %s the item gains 100 ÷ (60 × T) percentage points that update, where T is the item's recharge time; partial supply above that share charges at full speed. "
+                      "An empty rack and a full item draw nothing, and a rack with no electrical network does not charge." % (_g(rack_rate), _g(rack_rate * ups), _g(rack_rate))),
+              section("Recharge time per item",
+                      "From empty to full at full supply, in simulated seconds, and the charge that costs. inventory_class 1 items go in the small rack and class 2 items in the medium rack, matching the racks' own inventory_class:\n\n" + table + "\n\n"
+                      "The defibrillator turns each full charge into a stored use while it is below its use limit, then charges again, so the listed cost is per use. "
+                      "Diving gear, scuba gear, both space suits and the firefighter breathing set (items 1, 3, 79, 80 and 149) refill through the gas branch instead and draw no charge here.")],
+             rack + [x for r in rows for x in (r["finding"], r["attr"], r["cls"])] + R
+             + [T("inventory_small"), T("inventory_medium"), A("inventory_small", "inventory_class", "Small rack class."), A("inventory_medium", "inventory_class", "Medium rack class.")],
+             [SP_STATIC, TICK])
+
+    # Cryo cooler: the per-update constants are also cited in more_families' heat entries.
+    req, cut, frac = S["cryo"]
+    step = E.const(F_FLUID, 0x140BAFA00, "Cryo transfer fraction",
+                   "Case 0x21 (cryo_cooler) subtracts 0.03·qB/(qA+qB) from compartment A's temperature and adds 0.03·qA/(qA+qB) to B's each update, a fixed transfer independent of the temperature gap.")
+    floor = E.const(F_FLUID, 0x140BAF8F8, "Cryo electric demand and ambient leak",
+                    "The cryo cooler requests this much electricity per update, requires qA+qB above it, and both compartments drift toward the surrounding temperature by this fraction.")
+    cryo_s = per_second(E, "Cryo transfer and demand per simulated second", "%.3g·qB/(qA+qB) and %.3g·qA/(qA+qB); demand %.3g" % (frac * ups, frac * ups, req * ups),
+                        "60 × the per-update temperature transfer and electricity request, with q held constant.")
+    B.family("part-cryo-cooler", "Pumps heat from liquid A to liquid B by a fixed amount per update, even against the gradient, for %s internal charge per update while switched on." % _g(req),
+             [section("Operating conditions",
+                      "With On/Off on, each update requests %s internal charge, %s per simulated second, through the shared draw helper, which takes min(%s × supply factor, pool charge). "
+                      "It pumps only when the returned share is above %s and the two circuits together hold more than %s liquid amount. "
+                      "Above that share the step is the full step; the request is made even when there is too little liquid to pump." % (_g(req), _g(req * ups), _g(req), _g(cut), _g(req))),
+              section("Performance drivers",
+                      "Unlike an exchanger it does not stop at equal temperatures: A loses 0.03·qB/(qA+qB) and B gains 0.03·qA/(qA+qB) every update, so B can be driven hotter than A. "
+                      "While q stays constant, that is 1.8·qB/(qA+qB) and 1.8·qA/(qA+qB) per simulated second. Remove heat from B with a radiator or exchanger or the transfer stalls as B climbs."),
+              section("Capacity per litre",
+                      "q is the circuit's stored liquid amount: 0.1 per litre of fresh water, diesel, jet fuel, oil, seawater, slurry or saturated slurry, with no per-liquid factor. Gases add nothing. "
+                      "With 1 L in each circuit, qA = qB = 0.1, so each update moves A by -0.015 °C and B by +0.015 °C, -0.9 and +0.9 °C per simulated second, before both drift toward the surroundings by 0.001 of the gap.")],
+             [step, floor, f["c_req"], f["c_gate"], f["c_q"], f["c_step"], f["c_ex"], cryo_s, h["q_liquid"], h["filter"]] + N["draw"] + R
+             + [T("cryo_cooler"), P("cryo_cooler", "On/Off"), A("cryo_cooler", "water_component_type", "Selects case 0x21 of the fluid update.")],
+             [SP_STATIC, TICK])
+
+    # Hydrogen fuel cell.
+    o2, h2, water, one = S["cell"]
+    cellf = [f[x] for x in ("h_guard", "h_flags", "h_o2", "h_damage", "h_oa", "h_ha", "h_wa", "h_one", "h_add", "h_s")]
+    B.family("part-hydrogen-fuel-cell",
+             "Each update one fixed reaction turns %s amount of oxygen and %s of hydrogen into %s of water and %s internal charge: at most %s L/s of oxygen and %s L/s of hydrogen into %s L/s of water and %s charge/s." % (
+                 fmt(o2), fmt(h2), fmt(water), _g(one), _g(o2 * 600 * ups, 4), _g(h2 * 600 * ups, 4), _g(water * 10 * ups, 4), _g(one * ups)),
+             [section("Setup and interactions", "Pair with an electrolyser, which splits fresh water into hydrogen and oxygen using electricity."),
+              section("Reaction",
+                      "One inlet takes only oxygen and the other only hydrogen into a shared buffer. An undamaged cell then runs at most one reaction per update: it needs at least %s amount of oxygen (%s expanded litres), "
+                      "%s of hydrogen (%s L) and %s of free space in its water buffer (%s L). It removes both gases, adds %s amount of fresh water and deposits %s internal charge into the electrical network. "
+                      "Water leaves through the outlet port; if it backs up until less than %s is free, reactions stop." % (
+                          fmt(o2), _g(o2 * 600, 4), fmt(h2), _g(h2 * 600, 4), fmt(water), _g(water * 10, 4), fmt(water), _g(one), fmt(water))),
+              section("Rates",
+                      "At %d reactions per simulated second the cell uses %s L/s of oxygen and %s L/s of hydrogen, measured as expanded gas, and makes %s L/s of water and %s charge/s. "
+                      "Over 600 reactions, %s simulated seconds, that is %s L and %s L of gas, %s L of water and 600 charge. These are ceilings: thin gas supply or a full water buffer skips reactions." % (
+                          ups, _g(o2 * 600 * ups, 4), _g(h2 * 600 * ups, 4), _g(water * 10 * ups, 4), _g(one * ups), _g(600 / ups), _g(o2 * 600 * 600, 4), _g(h2 * 600 * 600, 4), _g(water * 10 * 600, 4))),
+              section("Electrical output",
+                      "The cell does not check battery demand. It deposits the charge whenever it reacts, and with no electrical network attached the charge is dropped while the gases are still used.")],
+             cellf + R + [T("hydrogen_fuel_cell"), T("electrolyser"), A("hydrogen_fuel_cell", "water_component_type", "Selects case 34 of the fluid update.")],
+             [SP_STATIC, "The reaction case runs only while the global guard 0x1402645f0 passes: two game-wide flags at 0x140cfa458 and 0x140cfa459, which the electrolyser case and the directional antennas check too. What the flags mean is tracked as open on the directional antenna pages.", TICK])
+
+    # Laser point sensor.
+    den, gate, cone, edge, sx = S["laser"]
+    B.family("part-laser-point-sensor",
+             "Reports the laser point closest to its view centre inside a %s degree cone, as x and y direction components divided by cos(0.5 rad); the outputs are not angles." % _g(cone),
+             [section("Setup and interactions", "Composite number channels 1 and 2 give x and y; on/off channel 1 is set while a point is visible. Match the Wavelength input to the emitting beacon or laser."),
+              section("Field of view and outputs",
+                      "The sensor accepts a point when the dot product of the unit direction to it with the sensor's forward axis is above %s, which means less than %s degrees from forward: the %s degree field of view the Data Output port states. "
+                      "Of the accepted points it reports the one with the largest dot product. Channel 1 is the direction's x component and channel 2 its y component, each divided by %s, the tooltip's cos(0.5). "
+                      "Both statements hold: 120 degrees is the cone, and cos(0.5) is only the output scale. A point %d degrees to one side reads %s; at the edge of the cone the output reaches %s, never 1. "
+                      "For a point on one axis, the angle from forward is asin(%s × output) (inference from the projection)." % (
+                          fmt(gate), _g(cone / 2), _g(cone), fmt(den), 30, _g(sx), _g(edge), fmt(den)))],
+             [f["l_gate"], f["l_div"], f["l_store"], f["l_ex"], T("laser_point_sensor"), P("laser_point_sensor", "Data Output"), P("laser_point_sensor", "Wavelength"),
+              A("laser_point_sensor", "logic_gate_type", "Value 48.")],
+             [SP_PLAIN])
+
+    # Oil Rig Pumpjack B and its parent.
+    pj = [f[x] for x in ("p_case", "p_ctor", "p_flag", "p_ports")]
+    B.family("part-oil-rig-pumpjack-b",
+             "The moving piston of the Oil Rig Pumpjack. It has no ports, and its own update does nothing, so it pumps no oil by itself.",
+             [section("Role",
+                      "The Oil Rig Pumpjack names this part as its child_name and carries the Fluid Out port. Its tooltip says that lifting this piston with enough force pulls fluid through the pump, and that pumping needs a mechanical force that cycles the piston repeatedly."),
+              section("Own update",
+                      "Both parts are type 7 multibody components. Definition flag 0x80 makes the multibody update return at once, and this piston has flags 128, so it moves no fluid itself: its own oil output is 0 per update. "
+                      "Placed alone it does nothing.")],
+             pj + [A("oil_rig_pumpjack_b", "flags", "Value 128 sets bit 0x80."), A("oil_rig_pumpjack_b", "type", "Multibody component."),
+                   A("oil_rig_pumpjack", "child_name", "Names the piston."), P("oil_rig_pumpjack", "Fluid Out"), T("oil_rig_pumpjack")],
+             [SP_PLAIN])
+    B.family("part-oil-rig-pumpjack",
+             "Pumps fluid from a drilled oil well out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B.",
+             [section("Piston",
+                      "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port.")],
+             pj + [A("oil_rig_pumpjack", "child_name", "Names the piston."), A("oil_rig_pumpjack", "pump_pressure", "Pump pressure field."), A("oil_rig_pumpjack_b", "flags", "Value 128 sets bit 0x80."),
+                   P("oil_rig_pumpjack", "Fluid Out"), T("oil_rig_pumpjack")],
+             [SP_PLAIN, "The volume pumped per stroke and per simulated second was not decoded: the pumpjack's own pump branch, its pressure limit and the oil well supply are still open."])
+
+
 def build(root):
     E = Evidence(root)
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 winches, fluid_links, connectors, air_scoop, displays, logic, keels, window_families):
+                 winches, fluid_links, connectors, air_scoop, displays, logic, keels, window_families, small_parts):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.
