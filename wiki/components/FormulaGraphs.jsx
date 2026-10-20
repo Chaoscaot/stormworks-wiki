@@ -10,6 +10,7 @@ import {
   FIREBOXES, STEAM, fireboxFor, pistonDrive, pistonValves, steamCycle, steamPistonFor,
   WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelShaftWeight,
   WINCH, WINCH_GROUPS, WINCHES, reelTime, winchFor, winchRate,
+  KEEL, KEELS, keelFor, keelLateral, keelScale, keelUpright,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -2563,10 +2564,138 @@ function WinchGraph({ family, variant }) {
   );
 }
 
+/* ---------- keel water force and self-righting torque ---------- */
+
+const KEEL_MODES = { lateral: 'Water force against sideways water speed', upright: 'Self-righting torque against heel angle' };
+const KEEL_SPEEDS = steps(0, 60, 0.5);
+const KEEL_HEELS = steps(0, 120, 1);
+const KEEL_LINES = ['a', 'b', 'c'];
+
+function KeelGraph({ variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => keelFor(variant).id);
+  const [mode, setMode] = useState('lateral');
+  const [mass, setMass] = useState(10000);
+  const [scale, setScale] = useState(10000);
+  const [immersion, setImmersion] = useState(1);
+  const [speed, setSpeed] = useState(2);
+  const [heel, setHeel] = useState(30);
+  const k = KEELS.find((x) => x.id === part);
+  const input = { bodyMass: mass, scale, immersion };
+  const here = keelLateral({ keel: k, speed, ...input });
+  const turn = keelUpright({ keel: k, heel, scale, immersion });
+  const lines = mode === 'lateral'
+    ? [
+      { key: 'applied', className: 'graph-line-a', dot: 'graph-dot-a', label: 'Applied force, every keel size', at: (v) => keelLateral({ keel: k, speed: v, ...input }).applied },
+      { key: 'raw', className: 'graph-line-b', dot: 'graph-dot-b', label: 'Before the 100 × S cap', at: (v) => keelLateral({ keel: k, speed: v, ...input }).raw },
+    ]
+    : KEELS.map((x, i) => ({
+      key: x.id, className: `graph-line-${KEEL_LINES[i]}`, dot: `graph-dot-${KEEL_LINES[i]}`,
+      label: `${x.label}, K = ${keelScale(x, scale)}`, at: (h) => keelUpright({ keel: x, heel: h, scale, immersion }).torque,
+    }));
+  const xs = mode === 'lateral' ? KEEL_SPEEDS : KEEL_HEELS;
+  const at = mode === 'lateral' ? speed : heel;
+  const y = forceDomain(lines.map((l) => Math.max(...xs.map(l.at))));
+  const summary = mode === 'lateral'
+    ? `At ${fixed(speed, 1)} m/s sideways, body mass ${mass}, S ${scale}, immersion ${fixed(immersion, 2)}: ${grouped(here.applied)} internal force units against the motion${here.capped ? `, capped from ${grouped(here.raw)}` : ''}. All keel sizes give the same water force.`
+    : `${k.label} at ${fixed(heel, 0)}° heel, S ${scale}, immersion ${fixed(immersion, 2)}: K = ${turn.K}, torque ${grouped(turn.torque)}${turn.capped ? ' after the per-force cap' : ''}${turn.active ? '' : '; past horizontal the pair is off'}.`;
+  const status = useSettled(summary);
+  const desc = mode === 'lateral'
+    ? `Opposing water force against sideways water speed from 0 to 60 m/s: a straight line until the 100 × S cap or the 50 m/s clamp. ${summary}`
+    : `Self-righting torque of the three keel sizes against heel from 0 to 120 degrees: 800 × K × w × sin θ up to 90 degrees, zero beyond. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={lines.map((l) => ({ label: l.label, className: l.className }))}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-mode`}>Plot</label>
+            <select id={`${uid}-mode`} value={mode} onChange={(e) => setMode(e.target.value)}>
+              {Object.entries(KEEL_MODES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Keel</label>
+            <select id={`${uid}-part`} value={part} onChange={(e) => setPart(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {KEELS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`Definition mass ${k.mass}, so K = min(S, ${KEEL.massMultiplier * k.mass}); rudder_surface_area ${k.area} for every size.`}</span>
+          </div>
+          {mode === 'lateral' ? (
+            <Range id={`${uid}-m`} label="Body mass M" value={mass} min={100} max={20000} step={100} onChange={setMass} valueText={String(mass)}
+              hint={`D = min(0.5 × M, ${KEEL.massCap}) stops growing at a body mass of ${KEEL.massCap / KEEL.massFactor}. Internal mass units.`} />
+          ) : null}
+          <Range id={`${uid}-s`} label="Application scale S" value={scale} min={100} max={20000} step={100} onChange={setScale} valueText={String(scale)}
+            hint="Per-vehicle scale from the component dispatcher; every keel force is capped at 100 × S. How the game sets S for joined craft is open." />
+          <Range id={`${uid}-w`} label="Immersion w" value={immersion} min={0} max={1} step={0.05} onChange={(v) => setImmersion(+v.toFixed(2))} valueText={fixed(immersion, 2)}
+            hint="Rises from 0 to 1 over the 0.5 m around the water surface at the keel point." />
+          {mode === 'lateral' ? (
+            <Range id={`${uid}-x`} label="Selected sideways speed" value={speed} min={0} max={60} step={0.5} onChange={setSpeed} valueText={`${fixed(speed, 1)} m/s`} />
+          ) : (
+            <Range id={`${uid}-x`} label="Selected heel" value={heel} min={0} max={120} step={1} onChange={setHeel} valueText={`${fixed(heel, 0)}°`} />
+          )}
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={mode === 'lateral' ? 'Keel water force against sideways water speed' : 'Keel self-righting torque against heel angle'}
+          desc={desc}
+          x={mode === 'lateral'
+            ? { min: 0, max: 60, ticks: steps(0, 60, 10), format: (v) => fixed(v, 0), label: 'Sideways water speed (m/s)' }
+            : { min: 0, max: 120, ticks: steps(0, 120, 15), format: (v) => fixed(v, 0), label: 'Heel from straight down (degrees)' }}
+          y={{ ...y, format: tick }}
+          series={lines.map((l) => ({ key: l.key, className: l.className, points: xs.map((v) => [v, l.at(v)]) }))}
+          selected={{ x: at, points: lines.map((l) => ({ key: l.key, y: l.at(at), className: l.dot })) }}
+          onSelect={(v) => (mode === 'lateral' ? setSpeed(snap(v, 0, 60, 0.5)) : setHeel(snap(v, 0, 120, 1)))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={mode === 'lateral' ? `${fixed(speed, 1)} m/s sideways` : `${k.label} at ${fixed(heel, 0)}°`}
+          rows={mode === 'lateral'
+            ? [
+              ['Water force', grouped(here.applied)],
+              ['Before the cap', grouped(here.raw)],
+              ['Cap 100 × S', grouped(KEEL.limit * scale)],
+              ['Downward force while immersed', immersion > 0 ? String(KEEL.down) : '0'],
+            ]
+            : [
+              ['K = min(S, 4 × mass)', String(turn.K)],
+              ['Torque', grouped(turn.torque), turn.active ? 'graph-ok' : 'graph-no'],
+              ['Each force of the pair', grouped(turn.force)],
+              ['Uncapped torque', grouped(turn.raw)],
+            ]}
+        />
+      )}
+      table={mode === 'lateral'
+        ? {
+          caption: `Water force, body mass ${mass}, S ${scale}, immersion ${fixed(immersion, 2)}`,
+          cols: ['Sideways speed (m/s)', 'Before the cap', 'Applied'],
+          rows: [0.1, 0.5, 1, 2, 5, 10, 20, 50].map((v) => {
+            const r = keelLateral({ keel: k, speed: v, ...input });
+            return [String(v), grouped(r.raw), grouped(r.applied)];
+          }),
+        }
+        : {
+          caption: `Self-righting torque at ${fixed(heel, 0)}° heel, S ${scale}, immersion ${fixed(immersion, 2)}`,
+          cols: ['Keel', 'Definition mass', 'K', 'Each force', 'Torque'],
+          rows: KEELS.map((x) => {
+            const r = keelUpright({ keel: x, heel, scale, immersion });
+            return [x.label, String(x.mass), String(r.K), grouped(r.force), grouped(r.torque)];
+          }),
+        }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
-  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph, winch: WinchGraph,
+  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph, winch: WinchGraph, keel: KeelGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

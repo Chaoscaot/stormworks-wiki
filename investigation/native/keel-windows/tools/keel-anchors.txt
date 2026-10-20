@@ -1,0 +1,178 @@
+   1403e01e7:	f3 0f 10 83 b0 02 00 00                         	movss  xmm0,DWORD PTR [rbx+0x2b0]
+   1403e01ef:	f3 0f 59 05 91 02 7d 00                         	mulss  xmm0,DWORD PTR [rip+0x7d0291]        # 0x140bb0488
+   1403e01f7:	f3 0f 5d c8                                     	minss  xmm1,xmm0
+   1403e01fb:	f3 0f 11 4d 94                                  	movss  DWORD PTR [rbp-0x6c],xmm1
+   1403e03e3:	f3 0f 10 46 08                                  	movss  xmm0,DWORD PTR [rsi+0x8]
+   1403e03e8:	48 8b 47 58                                     	mov    rax,QWORD PTR [rdi+0x58]
+   1403e03ec:	f3 0f 10 1d 20 04 7d 00                         	movss  xmm3,DWORD PTR [rip+0x7d0420]        # 0x140bb0814
+   1403e03f4:	f3 41 0f 59 c7                                  	mulss  xmm0,xmm15
+   1403e03f9:	f3 0f 10 a8 c4 0e 00 00                         	movss  xmm5,DWORD PTR [rax+0xec4]
+   1403e0401:	f3 0f 59 2d 57 03 7d 00                         	mulss  xmm5,DWORD PTR [rip+0x7d0357]        # 0x140bb0760
+   1403e0409:	f3 0f 5d d8                                     	minss  xmm3,xmm0
+   1403e040d:	41 0f 2f ef                                     	comiss xmm5,xmm15
+   1403e0411:	f3 0f 11 5c 24 78                               	movss  DWORD PTR [rsp+0x78],xmm3
+   1403e0417:	77 06                                           	ja     0x1403e041f
+   1403e0419:	41 0f 28 ef                                     	movaps xmm5,xmm15
+   1403e041d:	eb 10                                           	jmp    0x1403e042f
+   1403e041f:	f3 0f 10 05 25 02 7d 00                         	movss  xmm0,DWORD PTR [rip+0x7d0225]        # 0x140bb064c
+   1403e0427:	0f 2f c5                                        	comiss xmm0,xmm5
+   1403e042a:	77 03                                           	ja     0x1403e042f
+   1403e042c:	0f 28 e8                                        	movaps xmm5,xmm0
+   1403e042f:	0f 28 c6                                        	movaps xmm0,xmm6
+   1403e0432:	f3 41 0f 59 e1                                  	mulss  xmm4,xmm9
+   1403e0437:	f3 41 0f 59 c2                                  	mulss  xmm0,xmm10
+   1403e043c:	0f 28 cf                                        	movaps xmm1,xmm7
+   1403e043f:	f3 41 0f 59 c8                                  	mulss  xmm1,xmm8
+   1403e0444:	f3 0f 58 e0                                     	addss  xmm4,xmm0
+   1403e0448:	f3 0f 10 05 50 0b 7d 00                         	movss  xmm0,DWORD PTR [rip+0x7d0b50]        # 0x140bb0fa0
+   1403e0450:	f3 0f 58 e1                                     	addss  xmm4,xmm1
+   1403e0454:	0f 2f e0                                        	comiss xmm4,xmm0
+   1403e0457:	76 0d                                           	jbe    0x1403e0466
+   1403e0459:	f3 0f 10 05 df 02 7d 00                         	movss  xmm0,DWORD PTR [rip+0x7d02df]        # 0x140bb0740
+   1403e0461:	0f 2f c4                                        	comiss xmm0,xmm4
+   1403e0464:	77 03                                           	ja     0x1403e0469
+   1403e0466:	0f 28 e0                                        	movaps xmm4,xmm0
+   1403e0469:	83 b8 d4 2c 00 00 02                            	cmp    DWORD PTR [rax+0x2cd4],0x2
+   1403e0470:	0f 28 d6                                        	movaps xmm2,xmm6
+   1403e0473:	f3 0f 10 4c 24 6c                               	movss  xmm1,DWORD PTR [rsp+0x6c]
+   1403e0479:	41 0f 57 d3                                     	xorps  xmm2,xmm11
+   1403e047d:	41 0f 57 cb                                     	xorps  xmm1,xmm11
+   1403e0481:	f3 0f 59 d4                                     	mulss  xmm2,xmm4
+   1403e0485:	f3 0f 59 cc                                     	mulss  xmm1,xmm4
+   1403e0489:	f3 0f 59 d3                                     	mulss  xmm2,xmm3
+   1403e048d:	f3 0f 59 cb                                     	mulss  xmm1,xmm3
+   1403e0491:	0f 28 df                                        	movaps xmm3,xmm7
+   1403e0494:	41 0f 57 db                                     	xorps  xmm3,xmm11
+   1403e0498:	f3 41 0f 59 d6                                  	mulss  xmm2,xmm14
+   1403e049d:	f3 0f 59 dc                                     	mulss  xmm3,xmm4
+   1403e04a1:	f3 41 0f 59 ce                                  	mulss  xmm1,xmm14
+   1403e04a6:	f3 0f 59 5c 24 78                               	mulss  xmm3,DWORD PTR [rsp+0x78]
+   1403e04ac:	f3 0f 59 cd                                     	mulss  xmm1,xmm5
+   1403e04b0:	f3 41 0f 59 de                                  	mulss  xmm3,xmm14
+   1403e04b5:	f3 0f 59 d5                                     	mulss  xmm2,xmm5
+   1403e04b9:	f3 0f 59 dd                                     	mulss  xmm3,xmm5
+   1403e04bd:	f3 0f 11 4c 24 40                               	movss  DWORD PTR [rsp+0x40],xmm1
+   1403e04c3:	f3 0f 11 54 24 44                               	movss  DWORD PTR [rsp+0x44],xmm2
+   1403e04c9:	f3 0f 11 5c 24 48                               	movss  DWORD PTR [rsp+0x48],xmm3
+   1403e04cf:	75 26                                           	jne    0x1403e04f7
+   1403e04d1:	f3 0f 10 05 53 02 7d 00                         	movss  xmm0,DWORD PTR [rip+0x7d0253]        # 0x140bb072c
+   1403e04d9:	f3 0f 59 c8                                     	mulss  xmm1,xmm0
+   1403e04dd:	f3 0f 59 d0                                     	mulss  xmm2,xmm0
+   1403e04e1:	f3 0f 59 d8                                     	mulss  xmm3,xmm0
+   1403e04e5:	f3 0f 11 4c 24 40                               	movss  DWORD PTR [rsp+0x40],xmm1
+   1403e04eb:	f3 0f 11 54 24 44                               	movss  DWORD PTR [rsp+0x44],xmm2
+   1403e0616:	f3 0f 11 4c 24 48                               	movss  DWORD PTR [rsp+0x48],xmm1
+   1403e061c:	f3 0f 11 44 24 44                               	movss  DWORD PTR [rsp+0x44],xmm0
+   1403e0622:	f3 0f 10 05 c2 09 7d 00                         	movss  xmm0,DWORD PTR [rip+0x7d09c2]        # 0x140bb0fec
+   1403e062a:	f3 0f 11 45 b4                                  	movss  DWORD PTR [rbp-0x4c],xmm0
+   1403e062f:	f3 0f 10 05 59 01 7d 00                         	movss  xmm0,DWORD PTR [rip+0x7d0159]        # 0x140bb0790
+   1403e0637:	f3 0f 11 44 24 28                               	movss  DWORD PTR [rsp+0x28],xmm0
+   1403e063d:	eb 32                                           	jmp    0x1403e0671
+   1403e063f:	f3 0f 10 44 24 74                               	movss  xmm0,DWORD PTR [rsp+0x74]
+   1403e0645:	f3 0f 10 0d 93 fe 7c 00                         	movss  xmm1,DWORD PTR [rip+0x7cfe93]        # 0x140bb04e0
+   1403e064d:	f3 0f 11 45 b4                                  	movss  DWORD PTR [rbp-0x4c],xmm0
+   1403e08f5:	44 0f 2f e3                                     	comiss xmm12,xmm3
+   1403e08f9:	f2 0f 58 d1                                     	addsd  xmm2,xmm1
+   1403e08fd:	66 0f 5a c2                                     	cvtpd2ps xmm0,xmm2
+   1403e0901:	f3 0f 11 45 80                                  	movss  DWORD PTR [rbp-0x80],xmm0
+   1403e0906:	66 0f 5a c5                                     	cvtpd2ps xmm0,xmm5
+   1403e090a:	f3 0f 11 45 88                                  	movss  DWORD PTR [rbp-0x78],xmm0
+   1403e090f:	0f 82 d2 03 00 00                               	jb     0x1403e0ce7
+   1403e0915:	f3 0f 10 65 90                                  	movss  xmm4,DWORD PTR [rbp-0x70]
+   1403e091a:	0f 57 ff                                        	xorps  xmm7,xmm7
+   1403e091d:	f3 44 0f 10 4c 24 7c                            	movss  xmm9,DWORD PTR [rsp+0x7c]
+   1403e0924:	f3 0f 5c fc                                     	subss  xmm7,xmm4
+   1403e0928:	f3 0f 10 05 a8 fe 7c 00                         	movss  xmm0,DWORD PTR [rip+0x7cfea8]        # 0x140bb07d8
+   1403e0930:	f3 0f 58 e4                                     	addss  xmm4,xmm4
+   1403e0934:	f3 44 0f 10 7d 94                               	movss  xmm15,DWORD PTR [rbp-0x6c]
+   1403e093a:	0f 57 f6                                        	xorps  xmm6,xmm6
+   1403e093d:	f3 44 0f 10 1d 4a 16 7d 00                      	movss  xmm11,DWORD PTR [rip+0x7d164a]        # 0x140bb1f90
+   1403e0946:	f3 41 0f 5c f1                                  	subss  xmm6,xmm9
+   1403e094b:	f2 44 0f 10 55 a0                               	movsd  xmm10,QWORD PTR [rbp-0x60]
+   1403e0951:	f3 45 0f 58 c9                                  	addss  xmm9,xmm9
+   1403e0956:	f2 44 0f 10 6d a8                               	movsd  xmm13,QWORD PTR [rbp-0x58]
+   1403e095c:	41 0f 28 d6                                     	movaps xmm2,xmm14
+   1403e0960:	f3 44 0f 10 05 bf 02 7d 00                      	movss  xmm8,DWORD PTR [rip+0x7d02bf]        # 0x140bb0c28
+   1403e0969:	41 0f 28 ce                                     	movaps xmm1,xmm14
+   1403e096d:	f3 44 0f 5c c3                                  	subss  xmm8,xmm3
+   1403e0972:	f3 41 0f 59 ff                                  	mulss  xmm7,xmm15
+   1403e0977:	f3 41 0f 59 f7                                  	mulss  xmm6,xmm15
+   1403e097c:	f3 0f 58 db                                     	addss  xmm3,xmm3
+   1403e0980:	f3 0f 59 f8                                     	mulss  xmm7,xmm0
+   1403e0984:	f3 0f 59 f0                                     	mulss  xmm6,xmm0
+   1403e0988:	f3 0f 59 d7                                     	mulss  xmm2,xmm7
+   1403e098c:	41 0f 57 fb                                     	xorps  xmm7,xmm11
+   1403e0990:	f3 45 0f 59 c7                                  	mulss  xmm8,xmm15
+   1403e0995:	f3 0f 11 97 84 01 00 00                         	movss  DWORD PTR [rdi+0x184],xmm2
+   1403e099d:	0f 5a ec                                        	cvtps2pd xmm5,xmm4
+   1403e09a0:	f3 44 0f 59 c0                                  	mulss  xmm8,xmm0
+   1403e09a5:	41 0f 28 c6                                     	movaps xmm0,xmm14
+   1403e09a9:	f3 0f 59 c6                                     	mulss  xmm0,xmm6
+   1403e09ad:	0f 28 d5                                        	movaps xmm2,xmm5
+   1403e09b0:	f2 41 0f 58 d2                                  	addsd  xmm2,xmm10
+   1403e09b5:	f3 41 0f 59 fe                                  	mulss  xmm7,xmm14
+   1403e09ba:	f3 41 0f 59 c8                                  	mulss  xmm1,xmm8
+   1403e09bf:	f2 44 0f 5c d5                                  	subsd  xmm10,xmm5
+   1403e09c4:	f3 0f 11 87 8c 01 00 00                         	movss  DWORD PTR [rdi+0x18c],xmm0
+   1403e09cc:	45 0f 57 c3                                     	xorps  xmm8,xmm11
+   1403e09d0:	0f 5a e3                                        	cvtps2pd xmm4,xmm3
+   1403e09d3:	f3 0f 11 8f 88 01 00 00                         	movss  DWORD PTR [rdi+0x188],xmm1
+   1403e09db:	41 0f 57 f3                                     	xorps  xmm6,xmm11
+   1403e09df:	f2 0f 5c 56 78                                  	subsd  xmm2,QWORD PTR [rsi+0x78]
+   1403e09e4:	41 0f 5a d9                                     	cvtps2pd xmm3,xmm9
+   1403e09e8:	f2 44 0f 10 4d b0                               	movsd  xmm9,QWORD PTR [rbp-0x50]
+   1403e09ee:	0f 28 cc                                        	movaps xmm1,xmm4
+   1403e09f1:	f2 41 0f 58 cd                                  	addsd  xmm1,xmm13
+   1403e09f6:	f3 45 0f 59 c6                                  	mulss  xmm8,xmm14
+   1403e09fb:	0f 28 c3                                        	movaps xmm0,xmm3
+   1403e09fe:	f3 41 0f 59 f6                                  	mulss  xmm6,xmm14
+   1403e0a03:	f2 41 0f 58 c1                                  	addsd  xmm0,xmm9
+   1403e0a08:	f2 0f 5c 8e 80 00 00 00                         	subsd  xmm1,QWORD PTR [rsi+0x80]
+   1403e0a10:	f2 44 0f 5c cb                                  	subsd  xmm9,xmm3
+   1403e0a15:	f2 44 0f 5c ec                                  	subsd  xmm13,xmm4
+   1403e0a1a:	f2 0f 5c 86 88 00 00 00                         	subsd  xmm0,QWORD PTR [rsi+0x88]
+   1403e0a22:	f2 0f 11 97 90 01 00 00                         	movsd  QWORD PTR [rdi+0x190],xmm2
+   1403e0a2a:	f2 0f 10 54 24 40                               	movsd  xmm2,QWORD PTR [rsp+0x40]
+   1403e0a30:	f2 0f 11 8f 98 01 00 00                         	movsd  QWORD PTR [rdi+0x198],xmm1
+   1403e0a38:	f3 0f 11 bf a8 01 00 00                         	movss  DWORD PTR [rdi+0x1a8],xmm7
+   1403e0a40:	f2 0f 11 87 a0 01 00 00                         	movsd  QWORD PTR [rdi+0x1a0],xmm0
+   1403e0a48:	f3 44 0f 11 87 ac 01 00 00                      	movss  DWORD PTR [rdi+0x1ac],xmm8
+   1403e0a51:	f3 0f 11 b7 b0 01 00 00                         	movss  DWORD PTR [rdi+0x1b0],xmm6
+   1403e0a59:	f2 44 0f 5c 56 78                               	subsd  xmm10,QWORD PTR [rsi+0x78]
+   1403e0a5f:	f2 44 0f 5c ae 80 00 00 00                      	subsd  xmm13,QWORD PTR [rsi+0x80]
+   1403e0a68:	f2 44 0f 5c 8e 88 00 00 00                      	subsd  xmm9,QWORD PTR [rsi+0x88]
+   1403e0a71:	66 0f 5a d2                                     	cvtpd2ps xmm2,xmm2
+   1403e0a75:	f2 44 0f 11 97 b8 01 00 00                      	movsd  QWORD PTR [rdi+0x1b8],xmm10
+   1403e0a7e:	f2 44 0f 11 af c0 01 00 00                      	movsd  QWORD PTR [rdi+0x1c0],xmm13
+   1403e0a87:	f2 44 0f 11 8f c8 01 00 00                      	movsd  QWORD PTR [rdi+0x1c8],xmm9
+   1403e0a90:	f2 0f 10 8e 98 00 00 00                         	movsd  xmm1,QWORD PTR [rsi+0x98]
+   1403e0a98:	8b 86 a0 00 00 00                               	mov    eax,DWORD PTR [rsi+0xa0]
+   1403e0a9e:	0f 28 c1                                        	movaps xmm0,xmm1
+   1403e0aa1:	0f c6 c0 55                                     	shufps xmm0,xmm0,0x55
+   1403e0aa5:	f3 0f 59 d0                                     	mulss  xmm2,xmm0
+   1403e0aa9:	89 45 b8                                        	mov    DWORD PTR [rbp-0x48],eax
+   1403e0aac:	f3 0f 10 45 b8                                  	movss  xmm0,DWORD PTR [rbp-0x48]
+   1403e0ab1:	f3 0f 59 45 88                                  	mulss  xmm0,DWORD PTR [rbp-0x78]
+   1403e0ab6:	f2 0f 11 4d b0                                  	movsd  QWORD PTR [rbp-0x50],xmm1
+   1403e0abb:	f3 0f 59 4d 80                                  	mulss  xmm1,DWORD PTR [rbp-0x80]
+   1403e0ac0:	f3 0f 58 d1                                     	addss  xmm2,xmm1
+   1403e0ac4:	f3 0f 58 d0                                     	addss  xmm2,xmm0
+   1403e0ac8:	f3 0f 10 87 d0 01 00 00                         	movss  xmm0,DWORD PTR [rdi+0x1d0]
+   1403e0ad0:	0f 28 da                                        	movaps xmm3,xmm2
+   1403e0ad3:	44 38 3d 25 ac 90 00                            	cmp    BYTE PTR [rip+0x90ac25],r15b        # 0x140ceb6ff
+   1403e0ada:	f3 0f 5c d8                                     	subss  xmm3,xmm0
+   1403e0ade:	f3 0f 59 1d 26 ee 7c 00                         	mulss  xmm3,DWORD PTR [rip+0x7cee26]        # 0x140baf90c
+   1403e0ae6:	f3 0f 58 d8                                     	addss  xmm3,xmm0
+   1403e0aea:	41 0f 28 c7                                     	movaps xmm0,xmm15
+   1403e0aee:	f3 41 0f 59 c4                                  	mulss  xmm0,xmm12
+   1403e0af3:	f3 0f 11 9f d0 01 00 00                         	movss  DWORD PTR [rdi+0x1d0],xmm3
+   1403e0afb:	f3 0f 5c da                                     	subss  xmm3,xmm2
+   1403e0aff:	f3 0f 11 87 d8 01 00 00                         	movss  DWORD PTR [rdi+0x1d8],xmm0
+   1403e0b07:	0f 28 cb                                        	movaps xmm1,xmm3
+   1403e0b0a:	f3 0f 59 5d 88                                  	mulss  xmm3,DWORD PTR [rbp-0x78]
+   1403e0b0f:	f3 0f 59 4d 80                                  	mulss  xmm1,DWORD PTR [rbp-0x80]
+   1403e0b14:	f3 0f 59 1d 6c f9 7c 00                         	mulss  xmm3,DWORD PTR [rip+0x7cf96c]        # 0x140bb0488
+   1403e0b1c:	f3 0f 59 0d 64 f9 7c 00                         	mulss  xmm1,DWORD PTR [rip+0x7cf964]        # 0x140bb0488
+   1403e0b24:	f3 41 0f 59 df                                  	mulss  xmm3,xmm15
+   1403e0b29:	f3 41 0f 59 cf                                  	mulss  xmm1,xmm15
+   1403e0b2e:	f3 0f 11 9f dc 01 00 00                         	movss  DWORD PTR [rdi+0x1dc],xmm3

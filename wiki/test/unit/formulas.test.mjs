@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { KEEL, KEELS, keelFor, keelLateral, keelMemory, keelScale, keelUpright, WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1472,5 +1472,104 @@ test('winch step ports match investigation/native/winches/model-examples.json wh
     assert.equal(w.capacity, d.capacity_m, w.id);
     assert.ok(Math.abs(winchRate({ winch: w }).perUpdate - d.default_reel_m_per_update) < 1e-15, w.id);
     assert.deepEqual([w.speedMin, w.speedMax], [d.speed_setting_min, d.speed_setting_max], w.id);
+  }
+});
+
+test('keel constants and parts remain tied to the verified native findings and shipped definitions', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const keel = data.families.find((f) => f.id === 'keel');
+  const value = (label) => {
+    const x = keel.findings.find((f) => f.label === label);
+    assert.ok(x?.source?.address, label);
+    return Number(x.value);
+  };
+  assert.equal(value('Keel lateral multiplier'), KEEL.lateral);
+  assert.equal(value('Keel sideways speed upper clamp'), KEEL.speedClamp);
+  assert.equal(value('Keel sideways speed lower clamp'), -KEEL.speedClamp);
+  assert.equal(value('Keel water mass cap'), KEEL.massCap);
+  assert.equal(value('Keel area multiplier'), KEEL.areaScale);
+  assert.equal(value('Keel area factor ceiling'), KEEL.areaMax);
+  assert.equal(value('Keel water force application limit'), KEEL.limit);
+  assert.equal(value('Keel upright and memory application limit'), KEEL.limit);
+  assert.equal(value('Keel upright force scale'), KEEL.upright);
+  assert.equal(value('Keel mass multiplier'), KEEL.massMultiplier);
+  assert.equal(value('Keel memory force multiplier'), KEEL.momentum);
+  assert.equal(value('Keel downward force'), -KEEL.down);
+  assert.equal(Math.fround(value('Keel forward-speed memory rate')), Math.fround(KEEL.memoryRate));
+  const blocks = new Map(JSON.parse(readFileSync(new URL('../../data/blocks.json', import.meta.url), 'utf8')).blocks.map((b) => [b.id, b]));
+  const families = new Map(JSON.parse(readFileSync(new URL('../../data/families.json', import.meta.url), 'utf8')).families.map((f) => [f.id, f]));
+  assert.deepEqual(KEELS.map((k) => k.id), families.get('keel').variants.map((v) => v.id));
+  for (const k of KEELS) {
+    const b = blocks.get(k.id);
+    assert.equal(b.name, k.label, k.id);
+    assert.equal(Number(b.attributes.mass), k.mass, k.id);
+    assert.equal(Number(b.attributes.rudder_surface_area), k.area, k.id);
+    assert.equal(Number(b.attributes.rudder_type), 2, k.id);
+    // The extractor's per-definition ceilings use the same law.
+    const ceil = keel.findings.find((f) => f.label === `${k.label} self-righting and memory ceilings`);
+    const K = keelScale(k, Infinity);
+    assert.equal(ceil.value, `K ≤ ${K}; torque ≤ ${2 * KEEL.lever * KEEL.upright * K} × |sin θ|; memory ${KEEL.momentum * K} × speed change`, k.id);
+  }
+  assert.deepEqual(graphKindsForFamily('keel'), ['keel']);
+  for (const id of ['flat-window', 'ski']) assert.deepEqual(graphKindsForFamily(id), []);
+  assert.equal(keelFor('keel_large').id, 'keel_large');
+  assert.equal(keelFor().id, 'keel_small');
+});
+
+test('keel water force is linear, clamped and capped, and the same for every size', () => {
+  const [small, medium, large] = KEELS;
+  const at = (keel, speed, extra = {}) => keelLateral({ keel, speed, bodyMass: 10000, scale: 10000, ...extra });
+  assert.equal(at(small, 1).applied, 160000);
+  assert.equal(at(small, 0.5).raw, 80000);
+  assert.deepEqual(at(large, 2), at(medium, 2));
+  assert.deepEqual(at(small, 10), { raw: 1600000, applied: 1000000, capped: true });
+  assert.equal(at(small, 60, { scale: 1e9 }).raw, at(small, 50, { scale: 1e9 }).raw);
+  assert.equal(at(small, -1).applied, -160000);
+  assert.equal(at(small, 1, { bodyMass: 400 }).raw, 80000);
+  assert.equal(at(small, 1, { immersion: 0 }).raw, 0);
+  assert.equal(at(small, 1, { immersion: 0.5 }).raw, 80000);
+  assert.throws(() => at(small, Number.NaN), RangeError);
+});
+
+test('keel self-righting torque and memory force reproduce the report examples', () => {
+  const near = (a, b) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), `${a} != ${b}`);
+  const torques = KEELS.map((k) => keelUpright({ keel: k, heel: 30, scale: 10000 }));
+  torques.forEach((t, i) => near(t.torque, [800000, 1600000, 3200000][i]));
+  assert.ok(torques.every((t) => !t.capped && t.active));
+  near(torques[0].force, 400 * 2000 * Math.sin(Math.PI / 12));
+  // Below S = 2000 every size has K = S, so the curves coincide.
+  near(keelUpright({ keel: KEELS[0], heel: 45, scale: 1500 }).torque, keelUpright({ keel: KEELS[2], heel: 45, scale: 1500 }).torque);
+  // Past horizontal the pair is off; at 90 degrees it still acts.
+  assert.equal(keelUpright({ keel: KEELS[0], heel: 91, scale: 10000 }).torque, 0);
+  near(keelUpright({ keel: KEELS[0], heel: 90, scale: 10000 }).torque, 1600000);
+  // Each force is capped at 100 × S, which scales the torque by the same factor.
+  const capped = keelUpright({ keel: KEELS[2], heel: 90, scale: 3000 });
+  assert.ok(capped.capped);
+  near(capped.force, 300000);
+  near(capped.torque, (800 * 3000 * 300000) / (400 * 3000 * Math.SQRT1_2));
+  assert.deepEqual(KEELS.map((k) => keelMemory({ keel: k, scale: 10000, step: 1 })), [-7984, -15968, -31936]);
+});
+
+test('keel ports match investigation/native/keel-windows when present', (t) => {
+  const file = new URL('../../../investigation/native/keel-windows/tools/model-examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const examples = JSON.parse(readFileSync(file, 'utf8'));
+  const keels = JSON.parse(readFileSync(new URL('../../../investigation/native/keel-windows/keel.json', import.meta.url), 'utf8'));
+  for (const d of keels.definitions) {
+    const k = keelFor(d.path.split('/').pop().replace('.xml', ''));
+    assert.deepEqual([k.mass, k.area, k.voxels], [d.mass, d.area, d.voxel_count], k.id);
+    assert.equal(keelScale(k, Infinity), d.K_ceiling, k.id);
+  }
+  for (const e of examples) {
+    const k = keelFor(`keel_${e.size}`);
+    for (const s of e.sideways_speed) {
+      const r = keelLateral({ keel: k, speed: s.speed, bodyMass: e.body_mass, scale: e.S, immersion: e.immersion });
+      assert.ok(Math.abs(-r.raw - s.water.raw) < 1e-6 && Math.abs(-r.applied - s.water.applied) < 1e-6, `${k.id} at ${s.speed}`);
+    }
+    const u = keelUpright({ keel: k, heel: 30, scale: e.S, immersion: e.immersion, factor: e.keel_force_factor });
+    assert.ok(Math.abs(u.torque - Math.abs(e.heel_30_deg.upright_torque_z)) < 1e-6, k.id);
+    for (const c of e.cold_step_1_mps) {
+      assert.ok(Math.abs(keelMemory({ keel: k, scale: e.S, step: 1, updates: c.update }) - c.momentum_force) < 1e-6, `${k.id} update ${c.update}`);
+    }
   }
 });

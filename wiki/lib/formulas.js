@@ -18,6 +18,7 @@
 // Steam: investigation/steam.md (steam update 0x14040cbd0, phase helper 0x1402eb350).
 // Wheels: investigation/wheels.md (advanced wheel update 0x1403aa4a0, track pass 0x14049e060).
 // Winches and the Hose: investigation/winches.md (rope-node cable update 0x140524c80, legacy reel callback 0x1403e3b30).
+// Keels: investigation/keel-windows.md (rudder update 0x1403dfd20, rudder_type 2 water branch).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -1315,6 +1316,56 @@ export function ropeReelStep({ length, capacity, speed = 1, up = false, down = f
   return { length, moving: false };
 }
 
+// Keels, investigation/keel-windows.md. The rudder update 0x1403dfd20 runs a type-2 water branch while immersed (w > 0):
+// F = 40 × u × min(0.5 M, 400) × w × clamp(60 A, 0.5, 10) against the sideways water speed u = clamp(v·n, -50, 50), and a
+// self-righting pair ±200 × K × w × (d + up) at r0 ± 2d, K = min(S, 4 × definition mass). Each force is capped at 100 × S by
+// the application helper 0x1401a7ad0. Internal force units; ports investigation/native/keel-windows/tools/model.py.
+export const KEEL = {
+  lateral: 40, speedClamp: 50, massFactor: 0.5, massCap: 400, areaScale: 60, areaMin: 0.5, areaMax: 10,
+  limit: 100, upright: 200, lever: 2, massMultiplier: 4, down: 1000, memoryRate: 0.002, momentum: 4,
+};
+export const KEELS = [
+  { id: 'keel_small', label: 'Keel (Small)', mass: 500, area: 13, voxels: 29 },
+  { id: 'keel_medium', label: 'Keel (Medium)', mass: 1000, area: 13, voxels: 147 },
+  { id: 'keel_large', label: 'Keel (Large)', mass: 2000, area: 13, voxels: 305 },
+];
+export const keelFor = (variant = null) => KEELS.find((k) => k.id === variant) ?? KEELS[0];
+// K = min(S, 4 × definition mass): the scale of the self-righting pair and the memory force.
+export const keelScale = (keel, scale) => Math.min(scale, KEEL.massMultiplier * keel.mass);
+
+// Opposing water force magnitude at sideways water speed `speed` (m/s), before (raw) and after the 100 × S cap.
+export function keelLateral({ keel, speed, bodyMass, scale, immersion = 1 }) {
+  finite([speed, bodyMass, scale, immersion]);
+  const w = clamp(immersion, 0, 1);
+  if (!(w > 0)) return { raw: 0, applied: 0, capped: false };
+  const q = clamp(KEEL.areaScale * keel.area, KEEL.areaMin, KEEL.areaMax);
+  const raw = KEEL.lateral * clamp(speed, -KEEL.speedClamp, KEEL.speedClamp) * Math.min(KEEL.massFactor * bodyMass, KEEL.massCap) * w * q;
+  const cap = KEEL.limit * scale;
+  const capped = Math.abs(raw) > cap;
+  return { raw, applied: capped ? Math.sign(raw) * cap : raw, capped };
+}
+
+// Self-righting torque magnitude at heel θ (degrees from straight down, 0 to 180). The pair is off past horizontal.
+// Each force, 400 × h × K × w × sin(θ/2), is capped separately at 100 × S, which scales the torque by the same factor.
+export function keelUpright({ keel, heel, scale, immersion = 1, factor = 1 }) {
+  finite([heel, scale, immersion, factor]);
+  const w = clamp(immersion, 0, 1);
+  const K = keelScale(keel, scale);
+  const t = (Math.abs(heel) * Math.PI) / 180;
+  if (!(w > 0) || Math.abs(heel) > 90) return { K, force: 0, raw: 0, torque: 0, active: false, capped: false };
+  const force = 2 * KEEL.upright * factor * K * w * Math.sin(t / 2);
+  const raw = 2 * KEEL.lever * KEEL.upright * factor * K * w * Math.sin(t);
+  const cap = KEEL.limit * scale;
+  const capped = force > cap;
+  return { K, force: capped ? cap : force, raw, torque: capped ? (raw * cap) / force : raw, active: true, capped };
+}
+
+// Memory force on update `n` after the forward speed steps from z = 0 to `step` m/s (uncapped, h = 1): -4 K step (1 - rate)^n.
+export function keelMemory({ keel, scale, step, updates = 1 }) {
+  finite([scale, step, updates]);
+  return -KEEL.momentum * keelScale(keel, scale) * step * (1 - KEEL.memoryRate) ** updates;
+}
+
 const FAMILY_GRAPHS = {
   'part-torque-clutch': ['clutch'],
   'modular-engine-clutch': ['clutch'],
@@ -1347,5 +1398,6 @@ const FAMILY_GRAPHS = {
   'steam-piston': ['piston'],
   ...Object.fromEntries(WHEEL_GROUPS.map((g) => [g.family, ['wheel']])),
   ...Object.fromEntries(WINCHES.map((w) => [w.family, ['winch']])),
+  keel: ['keel'],
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

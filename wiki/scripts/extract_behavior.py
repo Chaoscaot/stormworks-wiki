@@ -7812,6 +7812,323 @@ def sensors_and_radio(B, E):
                  (["20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."] if rng == "20000" else []))
 
 
+# keel and window pass; files under investigation/native/keel-windows/, report investigation/keel-windows.md.
+# The keel water branch belongs to the rudder update F_RUDDER, whose air branch is the control-surface pass above.
+KW = "../keel-windows/"
+KW_REPORT = "investigation/keel-windows.md"
+KW_DATA = "investigation/native/keel-windows/keel.json"
+KW_EXAMPLES = "investigation/native/keel-windows/tools/model-examples.json"
+F_RUDDER_CTOR = 0x1403DF600   # rudder component constructor: vtable 0x140b46518, keel_force_factor = 1
+F_RUDDER_SAVE = 0x1403DFAA0   # rudder serializer: keel_force_factor
+F_FACTORY_B = 0x1404B8F30     # second component factory; its type-9 case installs the same basic vtable
+F_BASIC_TYPE = 0x140373BE0    # basic component type method, slot +0x30 of BASIC_VTABLE: returns 9
+BASIC_VTABLE = 0x140AFE2A0    # c_scene_vehicle_component_basic: 88 slots, +0x0 to +0x2b8, so no update slot +0x358
+TYPE9_CASE = (0x14045E8C8, 0x14045DF7B)  # factory jump-table entry 9 and its target
+KEELS = ("keel_small", "keel_medium", "keel_large")
+# Definitions the report compares by voxel flags and buoyancy surfaces; the plain block is the reference.
+WINDOW_SAMPLES = ("window_1x1", "window_large", "window_porthole", "01_block")
+# Open items, kept here once: keel items on the Keel page, window items on the Windows category.
+KEEL_OPEN = ["The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the vehicle's application scale S, so no heel curve per keel size is given.",
+             "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
+             "How the game builds the cap scale S for craft joined by locked joints was not decoded, so keel forces near the 100 × S cap are not predicted.",
+             "The equations come from static analysis of one build; the game was not run. Internal mass and force units are not calibrated to kilograms and newtons."]
+WINDOW_OPEN = ["Whether damage breaks window glass, whether mesh or material classification changes water ingress or buoyancy, and whether the compartment pressure and flooding solver treats a window differently from a block were not traced; no glass-breaking threshold or window pressure rule is known.",
+               "The search covered every window definition, the type-9 class and its vtable, and executable strings. Glass shader and material references (0x140680528, 0x14068a0e8, 0x1407a6c46) are rendering candidates only. Static analysis of one build; the game was not run."]
+WINDOW_POINTER = "Open questions about glass damage, water ingress and pressure are listed under the Windows category on the parts page."
+_KU, _KP = KW + "asm/rudder-update.asm", KW + "pseudocode/0x1403dfd20.c"
+WHERE.update({
+    (0x1403DFD20, 0x1403E01E7): _KU + ":L277-L280; " + _KP + ":L209-L213; " + KW + "asm/mass-binding.asm",
+    (0x1403DFD20, 0x1403E01EF): _KU + ":L277-L280; " + _KP + ":L209-L213",
+    (0x1403DFD20, 0x1403E03E3): _KU + ":L378-L384; " + _KP + ":L245-L251",
+    (0x1403DFD20, 0x1403E03EC): _KU + ":L378-L384; " + _KP + ":L245-L251",
+    (0x1403DFD20, 0x1403E03F9): _KU + ":L382-L395; " + _KP + ":L247-L254",
+    (0x1403DFD20, 0x1403E0401): _KU + ":L382-L395; " + _KP + ":L247-L254",
+    (0x1403DFD20, 0x1403E041F): _KU + ":L385-L395; " + _KP + ":L252-L254",
+    (0x1403DFD20, 0x1403E0448): _KU + ":L400-L407; " + _KP + ":L255-L259",
+    (0x1403DFD20, 0x1403E0459): _KU + ":L400-L407; " + _KP + ":L255-L259",
+    (0x1403DFD20, 0x1403E0469): _KU + ":L408-L437; " + _KP + ":L260-L268",
+    (0x1403DFD20, 0x1403E04D1): _KU + ":L408-L437; " + _KP + ":L260-L268",
+    (0x1403DFD20, 0x1403E04F7): _KU + ":L438-L453; " + _KP + ":L269-L277; " + KW + "asm/normal-mode-enable.asm",
+    (0x1403DFD20, 0x1403E0590): _KU + ":L461-L472; " + _KP + ":L278-L286; " + KW + "asm/force-queue.asm; " + KW + "pseudocode/0x1401a7ad0.c",
+    (0x1403DFD20, 0x1403E060E): _KU + ":L473-L503; " + _KP + ":L287-L302",
+    (0x1403DFD20, 0x1403E0622): _KU + ":L473-L503; " + _KP + ":L287-L302",
+    (0x1403DFD20, 0x1403E08F5): _KU + ":L505-L665; " + _KP + ":L304-L371",
+    (0x1403DFD20, 0x1403E0928): _KU + ":L666-L742; " + _KP + ":L371-L397",
+    (0x1403DFD20, 0x1403E0930): _KU + ":L666-L742; " + _KP + ":L371-L397",
+    (0x1403DFD20, 0x1403E0ADE): _KU + ":L743-L766; " + _KP + ":L398-L407",
+    (0x1403DFD20, 0x1403E0B14): _KU + ":L743-L766; " + _KP + ":L398-L407",
+    (0x1403DFD20, 0x1403E0B51): _KU + ":L766-L840; " + _KP + ":L408-L442",
+    (0x1403DFD20, 0x1403E0B80): _KU + ":L766-L840; " + _KP + ":L408-L442; " + KW + "asm/force-queue.asm",
+    (0x1403DF600, 0x1403DF64E): KW + "asm/rudder-constructor.asm:L24; " + KW + "pseudocode/0x1403df600.c",
+    (0x1403DFAA0, 0x140B6C940): KW + "asm/rudder-serialization.asm:L32; " + KW + "pseudocode/0x1403dfaa0.c:L18",
+    (0x14045DD20, 0x14045E005): KW + "asm/factory-main.asm:L146-L173; " + KW + "pseudocode/0x14045dd20.c; " + KW + "tools/native-tables.txt",
+    (0x1404B8F30, 0x1404B922A): KW + "asm/factory-variant.asm:L198; " + KW + "pseudocode/0x1404b8f30.c",
+    (0x140373BE0, 0x140373BE0): KW + "asm/0x140373be0.asm; " + KW + "tools/window-vtable.txt; " + KW + "tools/window-vtable-comparison.txt",
+})
+
+
+def keel_windows_native(E):
+    """Keel water branch of the rudder update and the type-9 window class, verified once and shared."""
+    if hasattr(E, "keel"):
+        return E.keel
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / KW_REPORT).is_file():
+        raise ValueError("Keel and window report missing: " + KW_REPORT)
+    if _rtti(n, BASIC_VTABLE) != "c_scene_vehicle_component_basic":
+        raise ValueError("RTTI at %#x is not c_scene_vehicle_component_basic" % BASIC_VTABLE)
+    va, size, _ = n.sections[0]
+    in_text = lambda p: n.base + va <= p < n.base + va + size
+    slots = [struct.unpack("<Q", n.raw(BASIC_VTABLE + 8 * i, 8))[0] for i in range(89)]
+    if not all(in_text(p) for p in slots[:88]) or in_text(slots[88]) or slots[6] != F_BASIC_TYPE:
+        raise ValueError("Basic vtable %#x is no longer 88 code slots with the type method at +0x30" % BASIC_VTABLE)
+    table, target = TYPE9_CASE
+    if n.base + struct.unpack("<I", n.raw(table, 4))[0] != target:
+        raise ValueError("Factory case 9 at %#x does not lead to %#x" % (table, target))
+    rep = " Report: %s." % KW_REPORT
+    S = surface_air(E)["f"]
+    R = update_rate(E)
+    f = {}
+    # Keel water branch (rudder_type 2).
+    f["m"] = code(F_RUDDER, 0x1403E01E7, "f30f1083b0020000", "Keel definition mass read", "definition+0x2b0 (mass)",
+                  "Reads the definition mass m, which the definition loader binds to the mass attribute (lea at 0x140316ae6). It is the definition value, not the rigid-body mass." + rep)
+    f["K"] = op(F_RUDDER, 0x1403E01EF, "f30f590591027d00", 0x140BB0488, "Keel mass multiplier",
+                "K = min(S, this × m) (minss at 0x1403e01f7), S being the per-vehicle application scale passed as update argument 7. K scales the self-righting pair and the forward-speed memory force, not the water force." + rep)
+    f["M"] = code(F_RUDDER, 0x1403E03E3, "f30f104608", "Keel body mass read", "physics state +8",
+                  "Inside the immersed branch (it runs only for immersion w > 0) the water term reads the rigid-body mass M, the same field the air force reads, and multiplies it by a register holding 0.5 (0x1403e03f4)." + rep)
+    f["D"] = op(F_RUDDER, 0x1403E03EC, "f30f101d20047d00", 0x140BB0814, "Keel water mass cap",
+                "D = min(0.5 × M, this) (minss at 0x1403e0409), so D stops growing at a body mass of 800." + rep)
+    f["A"] = code(F_RUDDER, 0x1403E03F9, "f30f10a8c40e0000", "Keel area read", "rudder_surface_area",
+                  "The water term reads definition+0xec4, rudder_surface_area, the field the air force also reads." + rep)
+    f["A60"] = op(F_RUDDER, 0x1403E0401, "f30f592d57037d00", 0x140BB0760, "Keel area multiplier",
+                  "Q = clamp(this × area, 0.5, 10); the lower bound is the register holding 0.5 (comiss at 0x1403e040d). Area 13 gives 780, clamped to 10." + rep)
+    f["Q"] = op(F_RUDDER, 0x1403E041F, "f30f100525027d00", 0x140BB064C, "Keel area factor ceiling",
+                "Upper bound of Q. Every area of 1/6 or more reaches it, so mesh size and voxel count do not enter the water force." + rep)
+    f["vlo"] = op(F_RUDDER, 0x1403E0448, "f30f1005500b7d00", 0x140BB0FA0, "Keel sideways speed lower clamp",
+                  "u = clamp(dot(v, n), this, 50). v is the keel's point velocity (body velocity plus angular velocity × lever arm) and n the rotated dynamic_side_axis, local X on all three keels. No wind or water-current vector is subtracted, so the water counts as still." + rep)
+    f["vhi"] = op(F_RUDDER, 0x1403E0459, "f30f1005df027d00", 0x140BB0740, "Keel sideways speed upper clamp",
+                  "Upper bound of u. Past 50 m/s of sideways water speed the raw water force stops growing." + rep)
+    f["type"] = code(F_RUDDER, 0x1403E0469, "83b8d42c000002", "Keel type test", "rudder_type == 2",
+                     "Compares definition+0x2cd4 (rudder_type) with 2. All three keels have type 2; wings use 1, control surfaces and fins 0. The downward force, self-righting pair and memory force sit behind the same test (0x1403e0583, 0x1403e067f)." + rep)
+    f["lat"] = op(F_RUDDER, 0x1403E04D1, "f30f100553027d00", 0x140BB072C, "Keel lateral multiplier",
+                  "For type 2 the water vector -n × u × D × w × Q is multiplied by this (0x1403e04d9-0x1403e04e1): F = -40 × n × u × D × w × Q. Other rudder types keep the base water term without it." + rep)
+    f["gate"] = code(F_RUDDER, 0x1403E04F7, "44383d01b29000", "Keel force gate", "byte 0x140ceb6ff set, component+0x178 = 0",
+                     "Forces are queued only when the global byte 0x140ceb6ff is set and component+0x178 is 0 (0x1403e0558); the values are computed either way." + rep)
+    f["lim"] = op(F_RUDDER, 0x1403E0590, "f30f1005f8017d00", 0x140BB0790, "Keel water force application limit",
+                  "A type-2 keel passes this limit with its water force (other types pass 5), so |F| ≤ 100 × S after the helper's cap. The shipped keel_lateral_max_acc_scale is 20; the call uses 100." + rep)
+    f["down_at"] = op(F_RUDDER, 0x1403E060E, "f30f5c0536007d00", 0x140BB064C, "Keel downward force point",
+                      "The downward force acts at the keel point lowered by this many metres in world Y. The offset lies on the force's line of action, so it adds no torque compared with the keel point." + rep)
+    f["down"] = op(F_RUDDER, 0x1403E0622, "f30f1005c2097d00", 0x140BB0FEC, "Keel downward force",
+                   "After the water force a type-2 keel queues the world vector (0, this, 0) with limit 100 (0x1403e062f), call at 0x1403e0676. It is not scaled by m, M, w or keel_force_factor, so any immersion above 0 applies all of it. It is a force; the body's mass and inertia do not change." + rep)
+    f["hemi"] = code(F_RUDDER, 0x1403E08F5, "440f2fe3", "Keel upright hemisphere test", "d.y ≤ 0",
+                     "d is the keel's placed down axis in world space, built from component integers +0x3c to +0x44 and the body rotation (0x1403e069b-0x1403e08f1), not from the deflection. The self-righting pair and the memory force run only while d points at or below horizontal; otherwise the branch at 0x1403e090f skips them." + rep)
+    f["up"] = op(F_RUDDER, 0x1403E0928, "f30f1005a8fe7c00", 0x140BB07D8, "Keel upright force scale",
+                 "F+ = -200 × K × w × (d + (0, 1, 0)), stored at component+0x184 to +0x18c, and F- = -F+. The forces are equal and opposite, so they add no net force, only a torque that turns d back toward straight down. |F+| = 400 × K × w × sin(θ/2) at heel θ." + rep)
+    f["lever"] = code(F_RUDDER, 0x1403E0930, "f30f58e4", "Keel upright lever", "r0 ± 2 × d",
+                      "Doubles d (addss x, x) for the application points r0 + 2d and r0 - 2d (stored at +0x190 and +0x1b8). Torque = 4 × d × F+ = -800 × K × w × (d × (0, 1, 0)), of size 800 × K × w × |sin θ| at heel θ from straight down, before the per-force cap; an inference from the two applications. The lever is 2 m for every keel size." + rep)
+    f["mem"] = op(F_RUDDER, 0x1403E0ADE, "f30f591d26ee7c00", 0x140BAF90C, "Keel forward-speed memory rate",
+                  "z_next = z + this × (u_f - z), with z stored at component+0x1d0 and u_f = dot(L, t): L is the body's linear velocity and t the keel's placed forward axis (+0x48 to +0x50). The memory only updates while this branch runs." + rep)
+    f["mom"] = op(F_RUDDER, 0x1403E0B14, "f30f591d6cf97c00", 0x140BB0488, "Keel memory force multiplier",
+                  "F_memory = 4 × K × (z_next - u_f) × (t.x, 0, t.z), applied at the body centre with world Y set to 0 (0x1403e0aff). It opposes changes of forward speed and fades as z catches up; steady sideways sliding does not produce it." + rep)
+    f["h"] = code(F_RUDDER, 0x1403E0B51, "f30f109780010000", "keel_force_factor read", "component+0x180",
+                  "Each of the three later forces (calls at 0x1403e0bec, 0x1403e0c7c and 0x1403e0ce0) is multiplied by keel_force_factor h first. h scales the self-righting pair and the memory force, not the water force or the downward force." + rep)
+    f["pair_lim"] = op(F_RUDDER, 0x1403E0B80, "f30f103d08fc7c00", 0x140BB0790, "Keel upright and memory application limit",
+                       "Both self-righting forces and the memory force go to the application helper with this limit, each capped separately at 100 × S. When |h × F+| exceeds it, the torque shrinks by 100 × S ÷ |h × F+|." + rep)
+    f["h1"] = code(F_RUDDER_CTOR, 0x1403DF64E, "48c783800100000000803f", "keel_force_factor default", "1",
+                   "The rudder constructor stores 1.0 at component+0x180." + rep)
+    f["h_name"] = E.string(F_RUDDER_SAVE, 0x140B6C940, "keel_force_factor", "keel_force_factor save name",
+                           "The rudder serializer reads and writes component+0x180 under this name. New keels start at 1; the editor offers no control for it (inference: no other writer was found in the rudder routines)." + rep)
+    core = [f[k] for k in ("m", "K", "M", "D", "A", "A60", "Q", "vlo", "vhi", "type", "lat", "gate", "lim", "down_at", "down",
+                           "hemi", "up", "lever", "mem", "mom", "h", "pair_lim", "h1", "h_name")] + [S["immersion"], S["cap"], S["units"]]
+
+    # keel.json must agree with the bytes above and with the shipped definitions.
+    data = json.loads((E.root / KW_DATA).read_bytes())
+    if data["build_sha256"] != EXE_SHA256:
+        raise ValueError("Keel figures were built for a different executable")
+    four, up, lat, Qmax, A60 = (float(f[k]["value"]) for k in ("K", "up", "lat", "Q", "A60"))
+    Dcap, vmax, lim, down = float(f["D"]["value"]), float(f["vhi"]["value"]), float(f["lim"]["value"]), float(f["down"]["value"])
+    rate = float(f["mem"]["value"])
+    parts, size = {}, {}
+    for d in data["definitions"]:
+        bid = d["path"].rsplit("/", 1)[1][:-4]
+        a = E.block(bid)["attributes"]
+        m, A = float(a["mass"]), float(a["rudder_surface_area"])
+        vox = E.voxels(bid, "The listed voxel count; it does not enter the keel equations.")
+        if ((d["mass"], d["area"], d["rudder_type"], d["voxel_count"]) != (m, A, int(a["rudder_type"]), vox["value"])
+                or d["K_ceiling"] != four * m or d["uncapped_upright_torque_per_sin_heel"] != 4 * up * four * m
+                or d["uncapped_momentum_coefficient"] != four * four * m or d["water_area_factor"] != min(max(A60 * A, 0.5), Qmax)):
+            raise ValueError("Keel definition %s differs from %s" % (bid, KW_DATA))
+        parts[bid] = dict(d, K=four * m)
+        size[bid] = [E.attr(bid, "mass", "Definition mass m, read by the keel branch at definition+0x2b0."),
+                     E.attr(bid, "rudder_surface_area", "Read by the water term; 13 saturates the area factor at 10."),
+                     E.attr(bid, "rudder_type", "2 selects the keel branch."), vox]
+    if sorted(parts) != sorted(KEELS):
+        raise ValueError("Unexpected keel definitions in " + KW_DATA)
+
+    # Worked examples from the verified constants, checked against the report's model output.
+    def water(M, Sc, w, u):
+        raw = lat * min(max(u, -vmax), vmax) * min(0.5 * M, Dcap) * w * Qmax
+        return raw, min(raw, lim * Sc)
+
+    def torque(K, w, heel):
+        return 4 * up * K * w * math.sin(math.radians(heel))
+    near = lambda a, b: math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-6)
+    ex = {e["size"]: e for e in json.loads((E.root / KW_EXAMPLES).read_bytes())}
+    for bid in KEELS:
+        e, K = ex[parts[bid]["size"]], min(10000, parts[bid]["K"])
+        if (e["body_mass"], e["S"], e["immersion"], e["keel_force_factor"]) != (10000, 10000, 1, 1):
+            raise ValueError("Keel example inputs changed in " + KW_EXAMPLES)
+        for s in e["sideways_speed"]:
+            raw, applied = water(10000, 10000, 1, s["speed"])
+            if not (near(-raw, s["water"]["raw"]) and near(-applied, s["water"]["applied"]) and s["submerged_downward_force"] == down):
+                raise ValueError("Keel water example at %s m/s differs from the verified constants" % s["speed"])
+        if not near(torque(K, 1, 30), abs(e["heel_30_deg"]["upright_torque_z"])) or not near(four * K * (1 - rate), -e["cold_step_1_mps"][0]["momentum_force"]):
+            raise ValueError("Keel heel or memory example for %s differs from the verified constants" % bid)
+    ups = R["ups"]
+    tau = -1 / (ups * math.log(1 - rate))
+    speeds = (0.1, 0.5, 1, 2, 5, 10)
+    fig = {}
+    fig["water"] = E.derived("Keel water force law", "40 × u × min(0.5 × M, 400) × w × 10, at most 100 × S",
+                             "With area 13 the area factor is 10 for every keel, so F = -40 × 10 × min(0.5 × M, 400) × w × n × clamp(u, -50, 50): 160000 × w × u for a body mass of 800 or more, linear in sideways speed and the same for all three sizes. "
+                             "The raw force saturates at 8000000 × w at 50 m/s. The application helper then caps it at 100 × S." + rep,
+                             [f["lat"], f["D"], f["Q"], f["A60"], f["vlo"], f["vhi"], f["lim"], S["immersion"], S["cap"]])
+    fig["water_ex"] = E.derived("Keel water force examples", ", ".join("%s at %s m/s" % (_num(water(10000, 10000, 1, u)[1]), _num(u)) for u in speeds),
+                                "Body mass M = 10000, S = 10000, w = 1, side axis horizontal, no rotation: the opposing force is %s at %s m/s. "
+                                "At 10 m/s the raw force %s exceeds the cap 100 × S = %s. Computed from the recovered constants; no game measurement (%s)." % (
+                                    ", ".join("%s at %s" % (_num(water(10000, 10000, 1, u)[1]), _num(u)) for u in speeds), ", ".join(_num(u) for u in speeds),
+                                    _num(water(10000, 10000, 1, 10)[0]), _num(lim * 10000), KW_EXAMPLES) + rep,
+                                [fig["water"], f["lim"], S["cap"]])
+    fig["size"] = {}
+    for bid in KEELS:
+        p, nm = parts[bid], E.block(bid)["name"]
+        fig["size"][bid] = E.derived("%s self-righting and memory ceilings" % nm,
+                                     "K ≤ %s; torque ≤ %s × |sin θ|; memory %s × speed change" % (_num(p["K"]), _num(4 * up * p["K"]), _num(four * p["K"])),
+                                     "Definition mass %s: K = min(S, 4 × %s) reaches %s once S ≥ %s. Uncapped torque coefficient 800 × K = %s at w = 1 and h = 1, memory coefficient 4 × K = %s. Below S = 2000 every size has K = S. Listed voxels %d (%s)." % (
+                                         _num(p["mass"]), _num(p["mass"]), _num(p["K"]), _num(p["K"]), _num(4 * up * p["K"]), _num(four * p["K"]), p["voxel_count"], KW_DATA) + rep,
+                                     size[bid] + [f["K"], f["up"], f["lever"], f["mom"]])
+    heel = [torque(min(10000, parts[b]["K"]), 1, 30) for b in KEELS]
+    fig["heel_ex"] = E.derived("Keel self-righting torque at 30° heel", "%s, %s and %s" % tuple(_num(t) for t in heel),
+                               "S = 10000, w = 1, h = 1: 800 × K × sin 30° for K = %s, %s and %s (small, medium, large). Each force, 400 × K × sin 15°, stays below the cap 100 × S = 1000000. Computed from the recovered constants; no game measurement (%s)." % (
+                                   tuple(_num(min(10000, parts[b]["K"])) for b in KEELS) + (KW_EXAMPLES,)) + rep,
+                               [fig["size"][b] for b in KEELS] + [f["pair_lim"], f["hemi"]])
+    first = [four * min(10000, parts[b]["K"]) * (1 - rate) for b in KEELS]
+    fig["mem_ex"] = E.derived("Keel memory force after a 1 m/s forward step", "%s, %s and %s" % tuple(_num(x) for x in first),
+                              "S = 10000, h = 1, memory 0 and forward speed jumping to 1 m/s: the first update gives 4 × K × (1 - %s) = %s, %s and %s against the change. "
+                              "The force then decays by 1 - %s per update, a time constant of %s s at %d updates per simulated second (inference from the filter)." % (
+                                  fmt(rate), _num(first[0]), _num(first[1]), _num(first[2]), fmt(rate), "%.4g" % tau, ups) + rep,
+                              [f["mem"], f["mom"]] + [fig["size"][b] for b in KEELS] + R["findings"][:1])
+
+    # Shipped tuning names: none occurs in the executable (tools/tuning-search.json).
+    def tuning(name, meaning):
+        m, line, _ = E.at(REALTIME, r"^[ \t]*f32[ \t]+%s[ \t]+(\S[^\r\n]*?)\s*$" % re.escape(name))
+        return E.located(REALTIME, line, line, "realtime " + name, m.group(1),
+                         "Shipped realtime configuration value. %s The executable holds no ASCII or UTF-16LE copy of this name (investigation/native/keel-windows/tools/tuning-search.json)." % meaning)
+    rt = [tuning("keel_upright_force_scale", "Equals the embedded upright scale 200."), tuning("keel_upright_force_offset", "Equals the embedded lever 2."),
+          tuning("keel_upright_max_acc_scale", "Equals the embedded upright limit 100."), tuning("keel_lateral_force_scale", "Equals the embedded lateral multiplier 40."),
+          tuning("keel_lateral_max_acc_scale", "The water force call passes 100, not this value."), tuning("keel_mass_scale", "Equals the embedded downward force 1000."),
+          tuning("keel_memory_inv", "Equals the embedded memory rate 0.002."), tuning("keel_momentum_scale", "Equals the embedded memory multiplier 4.")]
+    match = [float(t["value"]) for t in rt] == [up, 2.0, lim, lat, 20.0, -down, float(fmt(rate)), four] and lim != 20.0
+    if not match:
+        raise ValueError("Keel tuning comparison changed")
+    fig["tuning"] = E.derived("Keel tuning file against the code", "7 of 8 values embedded; lateral limit 100, file 20",
+                              "The decoded routine uses its own constants: 200, the lever 2, the limit 100, 40, 1000 (the downward force), 0.002 and 4 equal the shipped keel settings. "
+                              "keel_lateral_max_acc_scale is 20 in the file, but the water force call passes 100." + rep,
+                              rt + [f["up"], f["lever"], f["lim"], f["lat"], f["down"], f["mem"], f["mom"]])
+
+    # Windows: shared type 9, basic class, ordinary collision and buoyancy data.
+    f["w_factory"] = code(F_FACTORY, 0x14045E005, "488d0d94026a00", "Type-9 component factory case", "vtable 0x140afe2a0",
+                          "Jump-table entry 9 at 0x14045e8c8 leads to 0x14045df7b, which allocates 0xa8 bytes and installs this vtable, RTTI c_scene_vehicle_component_basic; the extractor re-reads the entry, the RTTI name and all 88 slots. No window-specific class is selected." + rep)
+    f["w_factory_b"] = code(F_FACTORY_B, 0x1404B922A, "488d0d6f506400", "Second factory, type 9", "vtable 0x140afe2a0",
+                            "The second component factory installs the same basic vtable for type 9." + rep)
+    f["w_type"] = code(F_BASIC_TYPE, F_BASIC_TYPE, "b809000000c3", "Basic component type method", "returns 9",
+                       "Slot +0x30 of vtable 0x140afe2a0 returns 9. The table has 88 slots, +0x0 to +0x2b8, so it has no slot +0x358, the per-update callback that rudders, engines and other active parts use. "
+                       "Slots +0x38 to +0x1f8 share the return stub 0x14008fd10, and against the block class only slots +0x30, +0x40 and +0x208 differ." + rep)
+    windows = sorted(b for b in E.blocks if b.startswith("window"))
+    others = sorted(b for b, x in E.blocks.items() if x["attributes"].get("type") == "9" and not b.startswith("window"))
+    if len(windows) != 41 or any(E.block(b)["attributes"]["type"] != "9" for b in windows) or len(others) != 18:
+        raise ValueError("Window definitions no longer all type 9, or the other type-9 count changed")
+    wtype = {b: E.attr(b, "type", "Component type 9, the basic class.") for b in windows}
+    f["w_all"] = E.derived("Window component type", "all 41 windows type 9; 18 other type-9 parts",
+                           "Every window*.xml definition has type 9. So do 18 other definitions: linear modules, railings, stairs and tyres (%s). A type-9 test alone therefore does not pick out glass." % ", ".join(others) + rep,
+                           [wtype["window_1x1"], f["w_factory"], f["w_type"]])
+
+    def buoyancy(bid):
+        path = DEFS + bid + ".xml"
+        m, start, end = E.at(path, r"<buoyancy_surfaces\s*/>|<buoyancy_surfaces>[\s\S]*?</buoyancy_surfaces>")
+        count = len(re.findall(r"<surface\b", m.group()))
+        return E.located(path, start, end, "%s · buoyancy surfaces" % E.block(bid)["name"], count,
+                         "%s: %d <surface> element(s) under <buoyancy_surfaces>, explicit buoyancy geometry." % (bid, count))
+
+    def solid(bid):
+        _, text = E.file(DEFS + bid + ".xml")
+        tags = re.findall(r"<voxel\b[^>]*>", text)
+        if not tags or any('flags="1"' not in t for t in tags):
+            raise ValueError("%s voxels no longer all have flags 1" % bid)
+        return E.voxels(bid, "Every voxel has flags 1, the voxel flags the plain block uses.")
+    sample = {b: (solid(b), buoyancy(b)) for b in WINDOW_SAMPLES}
+    got = {b: (v["value"], s["value"]) for b, (v, s) in sample.items()}
+    if got != {"window_1x1": (1, 1), "window_large": (9, 9), "window_porthole": (15, 46), "01_block": (1, 6)}:
+        raise ValueError("Window voxel or buoyancy counts changed: %s" % got)
+    E.keel = {"f": f, "fig": fig, "core": core, "parts": parts, "size": size, "rt": rt, "wtype": wtype, "sample": sample,
+              "buoyancy": buoyancy, "solid": solid, "tau": tau}
+    return E.keel
+
+
+def keels(B, E):
+    K = keel_windows_native(E)
+    f, fig, core = K["f"], K["fig"], K["core"]
+    T = E.tooltip
+    nm = [E.block(b)["name"] for b in KEELS]
+    B.family("keel", "Under water a keel pushes against sideways water speed with 40 × u × min(0.5 × M, 400) × w × 10, adds a fixed downward force of 1000 and pulls itself back toward vertical with a torque up to 800 × K × |sin θ|, K = min(S, 4 × definition mass).",
+             [section("Water force",
+                      "While immersed, a keel pushes against its own sideways water speed: F = -40 × n × u × D × w × Q. n is the keel's side axis, u = clamp(sideways speed, -50, 50) m/s, D = min(0.5 × M, 400) with M the body mass, w the immersion and Q = clamp(60 × rudder_surface_area, 0.5, 10). "
+                      "Every keel has area 13, so Q = 10, and on a body of mass 800 or more the force is 160000 × w × u internal units. It is linear in speed, not quadratic. The water counts as still: no current is subtracted."),
+              section("Immersion",
+                      "w = clamp(2 × (0.25 - (y - surface)), 0, 1), y being the keel point's height and surface the sampled wave height there. w rises from 0 to 1 over the 0.5 m around the surface. At w = 0 the keel does nothing."),
+              section("Application limit",
+                      "Each keel force goes through the application helper with limit 100, so its size is capped at 100 × S, S being a per-vehicle scale from the component dispatcher. "
+                      "With M = S = 10000 and w = 1 the water force is 16000 at 0.1 m/s sideways, 160000 at 1 m/s and 800000 at 5 m/s; at 10 m/s the raw 1600000 is capped to 1000000."),
+              section("Downward force",
+                      "A keel also queues a fixed world-down force of 1000 whenever it is immersed at all. It does not grow with keel size, body mass, depth or keel_force_factor. "
+                      "The shipped keel_mass_scale is also 1000, but this is a force: the body's mass and inertia do not change."),
+              section("Self-righting torque",
+                      "While the keel's down axis points at or below horizontal, two equal and opposite forces of 200 × K × w × |d + (0, 1, 0)| act 2 m either side of the keel origin along that axis. "
+                      "They cancel as forces and leave a torque of 800 × K × w × |sin θ| at heel θ from vertical, before the per-force cap (inferred from the two applications). "
+                      "K = min(S, 4 × definition mass): at most 2000, 4000 and 8000 for the small, medium and large keel, so the torque coefficient reaches 1600000, 3200000 and 6400000. "
+                      "At 30° heel with S = 10000 that is 800000, 1600000 and 3200000. Past horizontal the pair switches off rather than continuing the sine."),
+              section("Forward-speed memory",
+                      "The keel keeps a slow average z of the body's speed along its forward axis, z ← z + 0.002 × (u_f - z) each update, and pushes horizontally along that axis with 4 × K × (z - u_f) at the body centre. "
+                      "A sudden 1 m/s forward speed change gives 7984, 15968 or 31936 against it on the first update, fading with a time constant of about 8.325 s (inference). Steady sideways sliding does not produce it."),
+              section("Variant tradeoffs",
+                      "All three sizes have rudder_surface_area 13, so the water force and the downward force are the same for the same body state. "
+                      "Definition mass 500, 1000 and 2000 changes only the self-righting and memory terms, and only once S exceeds 2000; below that K = S for every size. "
+                      "The keels list 29, 147 and 305 voxels. Geometry still changes the assembled mass, inertia and how deep the keel sits, but the 2 m lever of the self-righting pair is the same for all."),
+              section("Shipped tuning values",
+                      "general_debug.txt lists eight keel settings, and the executable contains none of their names. The routine uses embedded constants: 200, 2, 100, 40, 1000, 0.002 and 4 equal the file's values, "
+                      "but the water force uses limit 100 where keel_lateral_max_acc_scale says 20. Editing the file is not shown to change keel behaviour."),
+              section("Operating conditions",
+                      "Sideways water resistance is what lets a sail push the hull forward in a crosswind or upwind, so pair keels with sail anchors. keel_force_factor (default 1) scales only the self-righting and memory forces.")],
+             core + [x for b in KEELS for x in K["size"][b]] + list(fig["size"].values()) +
+             [fig["water"], fig["water_ex"], fig["heel_ex"], fig["mem_ex"], fig["tuning"]] + K["rt"] + update_rate(E)["findings"][:1] + [T("keel_small"), T("rope_hook_sail")],
+             KEEL_OPEN)
+
+
+def window_families(B, E):
+    K = keel_windows_native(E)
+    f = K["f"]
+    for fid in sorted(x for x, fam in E.families.items() if fam["category"] == "Windows"):
+        ids = [v["id"] for v in E.families[fid]["variants"]]
+        counts = [(b, K["solid"](b), K["buoyancy"](b)) for b in ids]
+        many = lambda k, word: "%d %s%s" % (k, word, "" if k == 1 else "s")
+        listing = "; ".join("%s, %s and %s" % (E.block(b)["name"], many(v["value"], "voxel"), many(s["value"], "surface")) for b, v, s in counts)
+        B.family(fid, "Plain type-9 part: the shared basic component class, ordinary collision voxels and buoyancy surfaces, no window-specific update.",
+                 [section("Component class",
+                          "Every variant has type 9. The component factory gives type 9 the basic component class, which has no per-update callback, so the window runs no code of its own each update."),
+                  section("Collision and buoyancy",
+                          "Each voxel has flags 1, like a plain block's voxel, and each definition carries explicit buoyancy surfaces: %s." % listing)],
+                 [K["wtype"][b] for b in ids] + [x for _, v, s in counts for x in (v, s)] + [f["w_factory"], f["w_type"], f["w_all"]],
+                 [WINDOW_POINTER])
+
+
 def remaining(B, E):
     # Categories without recovered runtime code still get evidence-backed guidance.
     B.category("Controls",
@@ -7828,14 +8145,28 @@ def remaining(B, E):
                [E.tooltip("inventory_outfit_diving"), E.tooltip("inventory_outfit_scuba"), E.tooltip("inventory_equipment_radio"),
                 E.tooltip("inventory_outfit_firefighter"), E.tooltip("inventory_small")],
                ["Tooltip statements only."])
+    K = keel_windows_native(E)
+    kf, kfig = K["f"], K["fig"]
     B.category("Structure",
-               "Weight blocks shift the centre of mass; keels resist roll and lateral slip while submerged, letting sails drive a boat across or into the wind.",
-               [section("Keels and skis", "Keels are the counterpart to sails; skis slide lengthwise and grip laterally.")],
-               [E.tooltip("keel_small"), E.tooltip("01_block_weight"), E.tooltip("ski")], ["Tooltip statements; keel force code was not decoded."])
+               "Weight blocks shift the centre of mass. Keels push against sideways water speed, add a fixed downward force while immersed and turn themselves back toward vertical, which is what lets sails drive a boat across or into the wind.",
+               [section("Keels",
+                        "Under water a keel's sideways force is 40 × u × min(0.5 × M, 400) × w × 10, u being the sideways water speed clamped to ±50 m/s, M the body mass and w the immersion; every size has the same law. "
+                        "A fixed downward force of 1000 acts whenever the keel is immersed. The self-righting torque 800 × K × w × |sin θ| grows with size: K = min(S, 4 × definition mass) reaches 2000, 4000 and 8000. The Keel page has the full decode."),
+                section("Skis", "Skis slide lengthwise and grip laterally.")],
+               [kfig["water"], kf["down"], kf["lever"], kf["K"]] + list(kfig["size"].values()) + [E.tooltip("keel_small"), E.tooltip("01_block_weight"), E.tooltip("ski")],
+               ["Weight block and ski guidance rests on tooltip statements.",
+                "Keel figures come from static analysis of one build; their open questions are listed on the Keel page."])
+    sample = K["sample"]
     B.category("Windows",
-               "Windows are geometry pieces; their definitions describe shape and placement only, and no window-specific behaviour was recovered.",
-               [section("Placement", "Flat windows sit flush with walls; angled and corner pieces close gaps between angled windows.")],
-               [E.tooltip("window_1x1"), E.tooltip("window_corner")], ["No window-specific behaviour was located."])
+               "All 41 windows are plain type-9 parts: the factory gives them the shared basic component class, which has no per-update callback, and their definitions carry ordinary collision voxels and buoyancy surfaces.",
+               [section("Component class",
+                        "Every window definition has type 9, the same type as 18 other parts (linear modules, railings, stairs and tyres). The component factory gives type 9 the basic class; its 88 vtable slots stop before the per-update slot that active parts use, so a window runs no code of its own. A type-9 test alone cannot pick out glass."),
+                section("Collision and buoyancy",
+                        "Window voxels have flags 1, like a plain block's voxel. %s has 1 voxel and 1 buoyancy surface, %s 9 and 9, %s 15 voxels and 46 surfaces; the plain %s has 1 voxel and 6 surfaces. Transparent parts do not drop collision or buoyancy data." % tuple(
+                            E.block(b)["name"] for b in WINDOW_SAMPLES)),
+                section("Placement", "Flat windows sit flush with walls; angled and corner pieces close gaps between angled windows.")],
+               [kf["w_factory"], kf["w_factory_b"], kf["w_type"], kf["w_all"]] + [x for b in WINDOW_SAMPLES for x in sample[b]] + [E.tooltip("window_1x1"), E.tooltip("window_corner")],
+               WINDOW_OPEN)
 
 
 def more_families(B, E):
@@ -8061,13 +8392,6 @@ def extra_families(B, E):
     def simple(fid, summary, sections, findings, limits=()):
         B.family(fid, summary, [section(t, b) for t, b in sections], findings, list(limits))
 
-    keel_rt = [E.realtime(n, "Keel tuning name.") for n in ("keel_upright_force_scale", "keel_lateral_force_scale", "keel_mass_scale")]
-    keel_area = [A(b, "rudder_surface_area", "Identical across sizes.") for b in ("keel_small", "keel_medium", "keel_large")]
-    simple("keel", "Resists roll and sideways slip while submerged; all three sizes carry the same rudder_surface_area of 13.",
-           [("Operating conditions", "It only acts while submerged. Lateral resistance is what lets a sail push the hull forward in a crosswind or upwind, so pair keels with sail anchors."),
-            ("Variant tradeoffs", "The definitions give every size the same area field (13); any size difference must come from geometry or code not recovered here."),
-            ("Open measurement questions", "Whether the shipped keel tuning values (upright scale 200, lateral scale 40, mass scale 1000) are applied by this build; heel angle against sail force for each size.")],
-           keel_area + keel_rt + [T("keel_small"), T("rope_hook_sail")], ["Keel force code was not decoded."])
     simple("ski", "Slides freely along its length and grips sideways; the small ski also steers from −1 to 1.",
            [("Setup and interactions", "Align skis with the direction of travel; use the Steering input on the small ski for snow vehicles.")],
            [T("ski"), P("ski_small", "Steering")], [])
@@ -8882,7 +9206,7 @@ def build(root):
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 winches, fluid_links, connectors, air_scoop, displays, logic):
+                 winches, fluid_links, connectors, air_scoop, displays, logic, keels, window_families):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.

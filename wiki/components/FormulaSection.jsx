@@ -118,6 +118,12 @@ const FINDINGS = {
     'Legacy reel step per Speed', 'Legacy Up step', 'Legacy Down step', 'Legacy reel charge request', 'Legacy rest-length clamp', 'Legacy Speed defaults',
     'Ticks per simulated second',
   ],
+  keel: [
+    'Keel type test', 'Keel lateral multiplier', 'Keel water mass cap', 'Keel area multiplier', 'Keel area factor ceiling',
+    'Keel sideways speed lower clamp', 'Keel sideways speed upper clamp', 'Surface immersion fraction', 'Keel water force application limit',
+    'Force application cap', 'Keel downward force', 'Keel definition mass read', 'Keel mass multiplier', 'Keel upright hemisphere test',
+    'Keel upright force scale', 'Keel upright lever', 'Keel upright and memory application limit',
+  ],
 };
 
 const TITLES = {
@@ -143,6 +149,7 @@ const TITLES = {
   piston: 'Steam piston drive against crank phase',
   wheel: 'Wheel tread speed against RPS',
   winch: 'Winch reel speed and time to reel a length',
+  keel: 'Keel water force and self-righting torque',
 };
 
 /*
@@ -940,10 +947,41 @@ const WINCH_REEL = {
   ],
 };
 
+const KEEL_FORCE = {
+  intro: (
+    <p>
+      Under water a keel pushes against its sideways water speed with a force that is linear in that speed and the same for every
+      keel size. It also pulls itself back toward vertical with two equal and opposite forces 2 m either side of the keel, whose
+      torque grows with the keel&apos;s definition mass through K. The chart draws the water force against sideways speed, or the
+      torque of each size against heel angle.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="f">{mi('F')}{mo('=')}{mn('40')}{mo('×')}{fn('clamp')}<mo>(</mo>{mi('u')}{mo(',')}{mo('−')}{mn('50')}{mo(',')}{mn('50')}<mo>)</mo>{mo('×')}{fn('min')}<mo>(</mo>{mn('0.5')}{mi('M')}{mo(',')}{mn('400')}<mo>)</mo>{mo('×')}{mi('w')}{mo('×')}{mn('10')}</mrow>,
+        <mrow key="t">{mi('T')}{mo('=')}{mn('800')}{mi('K')}{mi('w')}{mo('|')}{fn('sin')}{mi('θ')}{mo('|')}<mspace width="1em" />{mi('K')}{mo('=')}{fn('min')}<mo>(</mo>{mi('S')}{mo(',')}{mn('4')}{mi('m')}<mo>)</mo></mrow>,
+        <mrow key="c">{mo('|')}{sub('F', 'each')}{mo('|')}{mo('≤')}{mn('100')}{mi('S')}</mrow>,
+      ]}
+      text={[
+        'F = 40 * clamp(u, -50, 50) * min(0.5 * M, 400) * w * 10   (u = sideways water speed in m/s, M = body mass, w = immersion 0 to 1)',
+        'T = 800 * K * w * |sin(theta)| for heel theta up to 90 degrees, 0 beyond; K = min(S, 4 * definition mass)',
+        'each force |F| <= 100 * S; each self-righting force is 400 * K * w * sin(theta / 2) before that cap',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Internal force and mass units; they are not calibrated to newtons or kilograms. The forces are queued once per update and integrated by the physics solver.',
+    'S is the per-vehicle application scale passed by the component dispatcher. How the game sets it for joined craft is open, so read forces near 100 × S with care.',
+    'The water force uses the keel point velocity across the keel with the water treated as still. A fixed downward force of 1000 and a forward-speed memory force come on top and are not drawn.',
+    'The torque is derived from the two recovered force applications with keel_force_factor 1. It is the keel\'s own contribution; the heel of a whole boat also depends on the sail, hull buoyancy and mass distribution.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
-  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED, winch: WINCH_REEL,
+  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED, winch: WINCH_REEL, keel: KEEL_FORCE,
 };
 
 function Evidence({ items }) {

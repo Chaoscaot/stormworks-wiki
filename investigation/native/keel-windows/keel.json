@@ -1,0 +1,202 @@
+{
+  "build_sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+  "units": "Internal force and mass. Geometry coordinates are definition voxel coordinates.",
+  "assumptions": "Per-definition ceilings require S >= 4*definition mass. Upright coefficient requires no application cap and factor=immersion=1.",
+  "definitions": [
+    {
+      "size": "small",
+      "path": "rom/data/definitions/keel_small.xml",
+      "definition_line": 2,
+      "mass": 500.0,
+      "area": 13.0,
+      "rudder_type": 2,
+      "voxel_count": 29,
+      "bounds": {
+        "voxel_min": {
+          "x": 0,
+          "y": -2,
+          "z": -4
+        },
+        "voxel_max": {
+          "x": 0,
+          "y": 2,
+          "z": 4
+        },
+        "voxel_physics_min": {
+          "x": 0,
+          "y": -2,
+          "z": -4
+        },
+        "voxel_physics_max": {
+          "x": 0,
+          "y": 2,
+          "z": 4
+        }
+      },
+      "source_lines": [
+        {
+          "line": 2,
+          "text": "<definition name=\"Keel (Small)\" category=\"1\" type=\"18\" mass=\"500\" value=\"300\" tags=\"boat,basic\" mesh_data_name=\"meshes/component_keel_small.mesh\" constraint_axis=\"1\" cable_length=\"16\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" engine_max_force=\"1000\" wheel_radius=\"0.25\" button_type=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" dynamic_min_rotation=\"-0.785398\" dynamic_max_rotation=\"0.785398\" rudder_surface_area=\"13\" rudder_type=\"2\">"
+        },
+        {
+          "line": 143,
+          "text": "\t<voxel_min y=\"-2\" z=\"-4\"/>"
+        },
+        {
+          "line": 144,
+          "text": "\t<voxel_max y=\"2\" z=\"4\"/>"
+        },
+        {
+          "line": 145,
+          "text": "\t<voxel_physics_min y=\"-2\" z=\"-4\"/>"
+        },
+        {
+          "line": 146,
+          "text": "\t<voxel_physics_max y=\"2\" z=\"4\"/>"
+        },
+        {
+          "line": 168,
+          "text": "\t<dynamic_rotation_axes y=\"1\"/>"
+        },
+        {
+          "line": 169,
+          "text": "\t<dynamic_side_axis x=\"1\"/>"
+        }
+      ],
+      "K_ceiling": 2000.0,
+      "uncapped_upright_torque_per_sin_heel": 1600000.0,
+      "uncapped_momentum_coefficient": 8000.0,
+      "water_area_factor": 10
+    },
+    {
+      "size": "medium",
+      "path": "rom/data/definitions/keel_medium.xml",
+      "definition_line": 2,
+      "mass": 1000.0,
+      "area": 13.0,
+      "rudder_type": 2,
+      "voxel_count": 147,
+      "bounds": {
+        "voxel_min": {
+          "x": -1,
+          "y": -3,
+          "z": -7
+        },
+        "voxel_max": {
+          "x": 1,
+          "y": 3,
+          "z": 7
+        },
+        "voxel_physics_min": {
+          "x": -1,
+          "y": -3,
+          "z": -7
+        },
+        "voxel_physics_max": {
+          "x": 1,
+          "y": 3,
+          "z": 7
+        }
+      },
+      "source_lines": [
+        {
+          "line": 2,
+          "text": "<definition name=\"Keel (Medium)\" category=\"1\" type=\"18\" mass=\"1000\" value=\"1000\" tags=\"boat,basic\" mesh_data_name=\"meshes/component_keel_medium.mesh\" constraint_axis=\"1\" cable_length=\"16\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" engine_max_force=\"1000\" wheel_radius=\"0.25\" button_type=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" dynamic_min_rotation=\"-0.785398\" dynamic_max_rotation=\"0.785398\" rudder_surface_area=\"13\" rudder_type=\"2\">"
+        },
+        {
+          "line": 621,
+          "text": "\t<voxel_min x=\"-1\" y=\"-3\" z=\"-7\"/>"
+        },
+        {
+          "line": 622,
+          "text": "\t<voxel_max x=\"1\" y=\"3\" z=\"7\"/>"
+        },
+        {
+          "line": 623,
+          "text": "\t<voxel_physics_min x=\"-1\" y=\"-3\" z=\"-7\"/>"
+        },
+        {
+          "line": 624,
+          "text": "\t<voxel_physics_max x=\"1\" y=\"3\" z=\"7\"/>"
+        },
+        {
+          "line": 646,
+          "text": "\t<dynamic_rotation_axes y=\"1\"/>"
+        },
+        {
+          "line": 647,
+          "text": "\t<dynamic_side_axis x=\"1\"/>"
+        }
+      ],
+      "K_ceiling": 4000.0,
+      "uncapped_upright_torque_per_sin_heel": 3200000.0,
+      "uncapped_momentum_coefficient": 16000.0,
+      "water_area_factor": 10
+    },
+    {
+      "size": "large",
+      "path": "rom/data/definitions/keel_large.xml",
+      "definition_line": 2,
+      "mass": 2000.0,
+      "area": 13.0,
+      "rudder_type": 2,
+      "voxel_count": 305,
+      "bounds": {
+        "voxel_min": {
+          "x": -1,
+          "y": -4,
+          "z": -12
+        },
+        "voxel_max": {
+          "x": 1,
+          "y": 4,
+          "z": 12
+        },
+        "voxel_physics_min": {
+          "x": -1,
+          "y": -4,
+          "z": -12
+        },
+        "voxel_physics_max": {
+          "x": 1,
+          "y": 4,
+          "z": 12
+        }
+      },
+      "source_lines": [
+        {
+          "line": 2,
+          "text": "<definition name=\"Keel (Large)\" category=\"1\" type=\"18\" mass=\"2000\" value=\"2000\" tags=\"boat,basic\" mesh_data_name=\"meshes/component_keel_large.mesh\" constraint_axis=\"1\" cable_length=\"16\" buoy_radius=\"1\" buoy_factor=\"1\" buoy_force=\"100\" force_emitter_max_force=\"1000\" force_emitter_max_vector=\"1\" engine_max_force=\"1000\" wheel_radius=\"0.25\" button_type=\"1\" light_range=\"1\" light_ies_map=\"graphics/ies/ies_default.txtr\" light_fov=\"1\" dynamic_min_rotation=\"-0.785398\" dynamic_max_rotation=\"0.785398\" rudder_surface_area=\"13\" rudder_type=\"2\">"
+        },
+        {
+          "line": 1280,
+          "text": "\t<voxel_min x=\"-1\" y=\"-4\" z=\"-12\"/>"
+        },
+        {
+          "line": 1281,
+          "text": "\t<voxel_max x=\"1\" y=\"4\" z=\"12\"/>"
+        },
+        {
+          "line": 1282,
+          "text": "\t<voxel_physics_min x=\"-1\" y=\"-4\" z=\"-12\"/>"
+        },
+        {
+          "line": 1283,
+          "text": "\t<voxel_physics_max x=\"1\" y=\"4\" z=\"12\"/>"
+        },
+        {
+          "line": 1305,
+          "text": "\t<dynamic_rotation_axes y=\"1\"/>"
+        },
+        {
+          "line": 1306,
+          "text": "\t<dynamic_side_axis x=\"1\"/>"
+        }
+      ],
+      "K_ceiling": 8000.0,
+      "uncapped_upright_torque_per_sin_heel": 6400000.0,
+      "uncapped_momentum_coefficient": 32000.0,
+      "water_area_factor": 10
+    }
+  ]
+}

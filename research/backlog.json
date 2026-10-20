@@ -270,19 +270,6 @@
     ]
   },
   {
-    "key": "category:Structure",
-    "title": "Structure: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts#structure",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/16/limitations/0",
-        "text": "Tooltip statements; keel force code was not decoded.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "category:Transmission",
     "title": "Transmission: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts#transmission",
@@ -347,7 +334,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/20/limitations/0",
-        "text": "No window-specific behaviour was located.",
+        "text": "Whether damage breaks window glass, whether mesh or material classification changes water ingress or buoyancy, and whether the compartment pressure and flooding solver treats a window differently from a block were not traced; no glass-breaking threshold or window pressure rule is known.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -397,31 +384,31 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/7/limitations/0",
+        "pointer": "/families/10/limitations/0",
         "text": "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/7/limitations/1",
+        "pointer": "/families/10/limitations/1",
         "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/7/limitations/2",
+        "pointer": "/families/10/limitations/2",
         "text": "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/7/limitations/3",
+        "pointer": "/families/10/limitations/3",
         "text": "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/7/findings/70/detail",
+        "pointer": "/families/10/findings/70/detail",
         "text": "A second settings byte must also be nonzero. The option that sets it was not traced; vehicle_damage is bound at settings+2, so it is not this byte. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 80784a00 at 0x14034cfb1. Interpretation rests on retained output investigation/native/behavior/../classic-engines/asm/update.asm:L972-L978; ../classic-engines/asm/overheat-setting.asm; ../classic-engines/asm/vehicle-damage-setting.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
         "scope": "Practical behavior guidance"
       },
@@ -440,7 +427,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/9/limitations/0",
+        "pointer": "/families/12/limitations/0",
         "text": "Voltage and the conversion of internal charge to joules, watt-hours or amp-hours were not recovered.",
         "scope": "Practical behavior guidance"
       },
@@ -459,7 +446,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/sections/3/body",
+        "pointer": "/families/13/sections/3/body",
         "text": "Compare Flow Rate in game with the bounds above and with the finite-flow estimate for the same loop.",
         "scope": "Practical behavior guidance"
       },
@@ -490,13 +477,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/11/limitations/0",
+        "pointer": "/families/14/limitations/0",
         "text": "The airflow quantity is read as relative air speed from the vector-length call it is derived from; its unit was not confirmed.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/11/sections/4/body",
+        "pointer": "/families/14/sections/4/body",
         "text": "Measure Temperature against fan state and airspeed to confirm the units of the airflow term and the surrounding-temperature reference.",
         "scope": "Practical behavior guidance"
       },
@@ -521,19 +508,19 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/12/limitations/0",
+        "pointer": "/families/15/limitations/0",
         "text": "Static analysis only; charge is in the internal unit. A conversion of internal charge to joules or watts was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/12/limitations/2",
+        "pointer": "/families/15/limitations/2",
         "text": "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/12/findings/59/detail",
+        "pointer": "/families/15/findings/59/detail",
         "text": "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Its event discriminator was not traced; the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading. Report: investigation/electricity.md. Function 0x14077dd80-0x14077e224; instruction bytes ff90f0030000 at 0x14077e085. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-pulse.asm:L156-L170; ../electricity/asm/emp-event-call.asm; ../electricity/pseudocode/0x14077dd80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
         "scope": "Practical behavior guidance"
       },
@@ -570,7 +557,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/13/limitations/0",
+        "pointer": "/families/16/limitations/0",
         "text": "Charge drain rate not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -583,7 +570,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/15/limitations/0",
+        "pointer": "/families/19/limitations/0",
         "text": "Diesel and jet-fuel startup was not traced: the decoded fill skips both, and diesel is a new tank's default selection. Startup from a saved inventory or after a rebuild was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -596,7 +583,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/17/limitations/0",
+        "pointer": "/families/22/limitations/0",
         "text": "Startup from a saved inventory or after a rebuild was not traced.",
         "scope": "Practical behavior guidance"
       },
@@ -615,13 +602,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/19/limitations/0",
+        "pointer": "/families/24/limitations/0",
         "text": "Static analysis only; Q is in the internal charge unit. A conversion of internal charge to joules or watts was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/19/limitations/1",
+        "pointer": "/families/24/limitations/1",
         "text": "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
         "scope": "Practical behavior guidance"
       },
@@ -658,13 +645,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/23/limitations/0",
+        "pointer": "/families/28/limitations/0",
         "text": "Static analysis of one build; the flow figures are equal-pressure bounds, not measured flow. The shaft load unit was not established.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/23/sections/0/body",
+        "pointer": "/families/28/sections/0/body",
         "text": "The impeller reads the speed of the shaft on its RPS port and pushes with bias 4 × |RPS| × pump_pressure. Spinning the shaft backward pushes the same way. Unlike the electric pumps it is two-way: backpressure can push fluid back through it, and at low flow it exchanges temperature between its two networks. The shaft port records a load request of 0.1 × pump_pressure; its torque unit was not established.",
         "scope": "Practical behavior guidance"
       },
@@ -701,38 +688,20 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/limitations/0",
-        "text": "Keel force code was not decoded.",
+        "pointer": "/families/32/limitations/0",
+        "text": "The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the vehicle's application scale S, so no heel curve per keel size is given.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/sections/1/body",
-        "text": "The definitions give every size the same area field (13); any size difference must come from geometry or code not recovered here.",
+        "pointer": "/families/32/limitations/1",
+        "text": "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/sections/2/body",
-        "text": "Whether the shipped keel tuning values (upright scale 200, lateral scale 40, mass scale 1000) are applied by this build; heel angle against sail force for each size.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/findings/3/detail",
-        "text": "Shipped realtime configuration value. Keel tuning name. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/findings/4/detail",
-        "text": "Shipped realtime configuration value. Keel tuning name. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/26/findings/5/detail",
-        "text": "Shipped realtime configuration value. Keel tuning name. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
+        "pointer": "/families/32/limitations/2",
+        "text": "How the game builds the cap scale S for craft joined by locked joints was not decoded, so keel forces near the 100 × S cap are not predicted.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -744,7 +713,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/29/limitations/0",
+        "pointer": "/families/35/limitations/0",
         "text": "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
         "scope": "Practical behavior guidance"
       },
@@ -763,7 +732,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/56/sections/2/body",
+        "pointer": "/families/62/sections/2/body",
         "text": "Electric unit cost of the 0.001 request and the capacity terms q per litre of each liquid.",
         "scope": "Practical behavior guidance"
       }
@@ -776,7 +745,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/111/limitations/0",
+        "pointer": "/families/117/limitations/0",
         "text": "Conversion rates were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -789,7 +758,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/114/limitations/2",
+        "pointer": "/families/120/limitations/2",
         "text": "The effect of the overspeed damage on the engine was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -802,7 +771,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/116/limitations/2",
+        "pointer": "/families/122/limitations/2",
         "text": "The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws depends on the external fluid network, which was not modelled.",
         "scope": "Practical behavior guidance"
       }
@@ -815,7 +784,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/120/sections/1/body",
+        "pointer": "/families/126/sections/1/body",
         "text": "The tooltip states the mapping as −cos(0.5) … cos(0.5) while the port says 120 degrees; measure which holds.",
         "scope": "Practical behavior guidance"
       }
@@ -828,7 +797,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/131/limitations/0",
+        "pointer": "/families/137/limitations/0",
         "text": "The maximum port count, editor size limits and the payload handling of composite, video and audio bridges were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -854,7 +823,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/178/limitations/1",
+        "pointer": "/families/184/limitations/1",
         "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. The Missile radar (radar_type 1) also takes separate orientation branches in the update; how they set the look direction and sweep was not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -867,7 +836,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/185/limitations/0",
+        "pointer": "/families/191/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -880,7 +849,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/191/limitations/0",
+        "pointer": "/families/197/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -893,7 +862,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/192/limitations/0",
+        "pointer": "/families/198/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -906,7 +875,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/218/limitations/0",
+        "pointer": "/families/224/limitations/0",
         "text": "Reaction kinetics not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -919,13 +888,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/226/limitations/0",
+        "pointer": "/families/232/limitations/0",
         "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/226/findings/2/detail",
+        "pointer": "/families/232/findings/2/detail",
         "text": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
         "scope": "Practical behavior guidance"
       }
@@ -938,13 +907,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/227/limitations/0",
+        "pointer": "/families/233/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/227/limitations/1",
+        "pointer": "/families/233/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -957,7 +926,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/230/limitations/0",
+        "pointer": "/families/236/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -970,7 +939,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/231/limitations/0",
+        "pointer": "/families/237/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -983,7 +952,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/240/limitations/0",
+        "pointer": "/families/246/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -996,7 +965,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/241/limitations/0",
+        "pointer": "/families/247/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
