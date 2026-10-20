@@ -26,11 +26,15 @@
         },
         {
           "title": "Force units and limit",
-          "body": "The result is in the game's internal force units. Body mass is not calibrated to kilograms, so do not read it as newtons. The game queues the force once per update and the physics solver integrates it, so it is not multiplied by 60. Before it is applied its size is limited to 5 × S, where S is a per-vehicle scale passed in by the component dispatcher; area scaling is linear only below that limit.\n\nPartly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over."
+          "body": "The result is in the game's internal force units. Body mass is not calibrated to kilograms, so do not read it as newtons. The game queues the force once per update and the physics solver integrates it, so it is not multiplied by 60. Before it is applied its size is limited to 5 × S, where S is the cap scale described below; area scaling is linear only below that limit.\n\nPartly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over."
+        },
+        {
+          "title": "Application cap scale S",
+          "body": "Every capped force goes through a helper that limits its size to a fixed limit × S: 5 × S for wings, control surfaces and fins, 100 × S for jet exhausts, propellers, rotors and keels, and 1000 × S for solid rockets. S comes from the vehicle's bodies. Each body's raw mass m is the sum of its components' mass values, normally their definition mass. Bodies joined by joints share one S, whether the joint can move or is locked: S is the sum of the adjusted masses of every body in that joined group, and every body in it gets the same value.\n\nThe adjustment lifts each body to at least H ÷ 40, where H is the heaviest mass in its group, and each auxiliary mass, such as a wheel's mass or 10 for a force emitter, to at least H ÷ 120. It then multiplies all of them by r = T ÷ D, so they add back up to the raw total T. Auxiliary masses change r but are not added to S.\n\nExamples: one body of mass 1000 has S = 1000, so its air forces are capped at 5000. Bodies of 1000 and 1 on a hinge, free or locked, adjust to 976.585366 and 24.414634, and both get S = 1001. One body of 1000 with an auxiliary mass of 1 gets S = 992.727273. Bodies of 1000 and 1 with no joint between them keep S = 1000 and S = 1. The cap limits each force separately; it is not a budget for the whole vehicle. Edge cases with connectors and the assembly root flag are listed under Propulsion."
         }
       ],
       "limitations": [
-        "The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
+        "The force equations and the cap scale S come from static decompilation of one build; the game was not run.",
         "Which visible edge and editor arrow match positive deflection and the sign of the force was not checked in game.",
         "Internal mass and force units are not calibrated to kilograms and newtons.",
         "Reaction wheels are outside the air-force decode; their force fields are configuration only."
@@ -251,6 +255,56 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403e11db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be363"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be36c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be3e1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be439"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be80f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be88b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bedf7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549782"
         },
         {
           "path": "stormworks64.exe",
@@ -2273,7 +2327,7 @@
         },
         {
           "title": "Thrust",
-          "body": "Exhaust force = 32 × (incoming pressure - 1000) × altitude factor × afterburner multiplier × (1 - Thrust Spoiler), before a cap of 100 × S, with S a per-vehicle scale. RPS enters only through the pressure the chamber adds, so the tooltip's proportionality to internal RPS describes the chain, not the exhaust formula. The altitude factor 1 - height × 1.5 ÷ 40000 reaches 0 at a height of 26666.67, metres if the height field is in metres, which is an inference. The three exhausts use the same coefficient; the rotating one only changes direction."
+          "body": "Exhaust force = 32 × (incoming pressure - 1000) × altitude factor × afterburner multiplier × (1 - Thrust Spoiler), before a cap of 100 × S. S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; the Control surfaces category gives the rule and examples. RPS enters only through the pressure the chamber adds, so the tooltip's proportionality to internal RPS describes the chain, not the exhaust formula. The altitude factor 1 - height × 1.5 ÷ 40000 reaches 0 at a height of 26666.67, metres if the height field is in metres, which is an inference. The three exhausts use the same coefficient; the rotating one only changes direction."
         },
         {
           "title": "Fuel",
@@ -2286,7 +2340,7 @@
       ],
       "limitations": [
         "Static decompilation of one build; the game was not run. How ducts, splitters and merged assemblies build the neighbour lists was not traced, so the equilibrium pressure, RPS and thrust of an assembled engine and its startup time are not predicted from a parts list.",
-        "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
+        "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units.",
         "SI torque, power and efficiency were not recovered. Intake behaviour was not decoded.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -2581,6 +2635,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045e32d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
         },
         {
           "path": "stormworks64.exe",
@@ -3648,6 +3712,10 @@
           "body": "The Basic, AWACS, Dish, Phalanx and Missile radars turn radar_range P into a working range R = P × 0.02 × 0.02 ÷ (FOV x × FOV y). FOV x and FOV y are 0.02 by default, and the editor sliders set each from 0.01 to 0.25 in steps of 0.01 (3.6 to 90 degrees). R is 4 × P at 0.01 per axis, equals radar_range at 0.02 and is 0.0064 × P at 0.25: the AWACS spans 2000000 m to 3200 m, the Missile 80000 m to 128 m. A new scan runs every N = max(1, floor(R ÷ 2000 + 0.5)) updates, at 60 updates per second.\n\nA target of body mass S at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250. There is no random roll in this test. Each scan keeps at most 8 targets, best score first, and runs a line-of-sight query to each."
         },
         {
+          "title": "Radar line of sight",
+          "body": "The line-of-sight query from the radar to each candidate filters objects by collision bits, not by what they look like. An object can block only when its collision group lacks bit 0x1000 and shares a bit with 0xff, and its object mask shares a bit with 0x7f. The target itself and objects with the same owner do not block. Whether glass, water, terrain or another vehicle carries those bits depends on how each is registered with the physics scene; render materials and transparency play no part in this test."
+        },
+        {
           "title": "Legacy radar and sonar detection",
           "body": "The six legacy parts (Radar, Radar (Dish), Radar (Large), Radar (Huge), Sonar (Large) and Sonar (Small); definition type 16, logic case 50) use a different test: a target passes when S ÷ d > 0.25, that is d < 4 × S. radar_range does not enter the score. It sets a far plane C = P × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead of the sensor, 0.775 × P at the saved default 0.1: 3875 m for the Radar, 15500 m for the Dish and Large, 38750 m for the Huge, 2325 m and 775 m for the sonars. On the sensor's axis a target passes within min(C, 4 × S); off the axis the straight-line distance can exceed C.\n\nThe FOV input is clamped to 0.01 to 0.125 turn (0.01 to 0.25 on the Large, which also uses it vertically; the others see 0.25 turn vertically). It moves the side planes only, because C reads the separately saved radar_fov field. Sonars run only at least 0.25 m below a sampled height and see targets reaching below y = -1; radars run only at least 0.25 m above it and see targets reaching above y = 1 (inference: the sampled height is the water surface). Candidates go best score first through a line-of-sight query; the Huge fills up to 8 targets and the others output one. The legacy sonars do not use the advanced sonar's ping or passive listening."
         },
@@ -3657,7 +3725,7 @@
         },
         {
           "title": "Transponder locator pulses",
-          "body": "The locator takes the nearest beacon's 1 ÷ (0.002 d + 0.5), applies a small noise factor, clamps it to 0 to 1 and adds it to an accumulator each update. Each time the accumulator reaches 10 it pulses. Without noise that is 6 Hz within 250 m, 2.4 Hz at 1000 m and 0.2927 Hz at 10000 m."
+          "body": "The locator takes the nearest beacon's 1 ÷ (0.002 d + 0.5), applies a small noise factor, clamps it to 0 to 1 and adds it to an accumulator each update. Each time the accumulator reaches 10 it pulses. Without noise that is 6 Hz within 250 m, 2.4 Hz at 1000 m and 0.2927 Hz at 10000 m. The noise factor comes from a shared counter, not from the beacon's position, and one factor multiplies the nearest beacon's term."
         },
         {
           "title": "Output noise",
@@ -3665,7 +3733,7 @@
         },
         {
           "title": "Open questions",
-          "body": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which objects and materials block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game."
+          "body": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game."
         }
       ],
       "limitations": [
@@ -3887,7 +3955,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400d9bf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e3534"
         },
         {
           "path": "stormworks64.exe",
@@ -3953,6 +4031,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bbec0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc01b"
         },
         {
           "path": "stormworks64.exe",
@@ -4143,6 +4226,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c85e2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c85fe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c8613"
         },
         {
           "path": "stormworks64.exe",
@@ -4426,12 +4519,16 @@
           "body": "Rotors with Power Connection A and B link the two port nodes to each other. The shaft solver then mixes the two groups' speeds across that link with fraction 0.95 and ratio 1, as it does across a gearbox. The rotor's own load goes on A. The ports do not share a fixed part of the power and do not jump to one speed: groups of weight 11 at 10 RPS and 21 at rest publish 3.55412 and 3.322734 RPS."
         },
         {
+          "title": "Application cap",
+          "body": "Every propeller, rotor and fan force is capped at 100 × S on its own, and solid rockets at 1000 × S. S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; the Control surfaces category gives the rule and examples. Each force emitter also adds an auxiliary mass of 10 to the mass adjustment. That changes how the body masses are scaled, but it is not added to S."
+        },
+        {
           "title": "Rockets",
           "body": "Solid rocket boosters burn once. Each update a nozzle of width w uses trunc(400 × w² × burn rate) + 1 fuel units and pushes with 60 times that, so a slower burn rate pushes less for longer, and fuel sections lengthen the burn without adding thrust."
         },
         {
           "title": "Open questions",
-          "body": "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); the editor-arrow sign table for reflected parts. No figure here was measured in a running game."
+          "body": "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; for the cap scale S, which code sets the assembly root flag (+0x29c) that drops the first body from the mass sum, and which connector links (connection records of kind 8) join bodies into one S group; the SI calibration of mass, force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); the editor-arrow sign table for reflected parts. No figure here was measured in a running game."
         }
       ],
       "limitations": [
@@ -4827,6 +4924,51 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be363"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be36c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be3e1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be439"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be80f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404be88b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bedf7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404c9c1d"
         },
         {
@@ -4848,6 +4990,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca5a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549782"
         },
         {
           "path": "stormworks64.exe",
@@ -11213,7 +11360,7 @@
         {
           "label": "Air force application limit",
           "value": "5",
-          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with the cap scale S from the dispatcher, the summed adjusted mass of the joined bodies (investigation/force-cap.md). Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10cb",
           "status": "observed",
           "source": {
@@ -11422,7 +11569,7 @@
         }
       ],
       "limitations": [
-        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces category explains its scale S.",
         "Internal mass and force units are not calibrated to kilograms and newtons.",
         "Which visible edge and editor arrow match positive deflection was not checked in game."
       ],
@@ -11839,7 +11986,7 @@
         {
           "label": "Air force application limit",
           "value": "5",
-          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with the cap scale S from the dispatcher, the summed adjusted mass of the joined bodies (investigation/force-cap.md). Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10cb",
           "status": "observed",
           "source": {
@@ -12074,7 +12221,7 @@
         }
       ],
       "limitations": [
-        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces category explains its scale S.",
         "Internal mass and force units are not calibrated to kilograms and newtons.",
         "Which visible edge and editor arrow match positive deflection was not checked in game."
       ],
@@ -30335,7 +30482,7 @@
         },
         {
           "title": "Application limit",
-          "body": "Each keel force goes through the application helper with limit 100, so its size is capped at 100 × S, S being a per-vehicle scale from the component dispatcher. With M = S = 10000 and w = 1 the water force is 16000 at 0.1 m/s sideways, 160000 at 1 m/s and 800000 at 5 m/s; at 10 m/s the raw 1600000 is capped to 1000000."
+          "body": "Each keel force goes through the application helper with limit 100, so its size is capped at 100 × S. S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; the Control surfaces category gives the rule and examples. A single body with no auxiliary masses has S equal to its mass M. With M = S = 10000 and w = 1 the water force is 16000 at 0.1 m/s sideways, 160000 at 1 m/s and 800000 at 5 m/s; at 10 m/s the raw 1600000 is capped to 1000000."
         },
         {
           "title": "Downward force",
@@ -30378,7 +30525,7 @@
         {
           "label": "Keel mass multiplier",
           "value": "4",
-          "detail": "K = min(S, this × m) (minss at 0x1403e01f7), S being the per-vehicle application scale passed as update argument 7. K scales the self-righting pair and the forward-speed memory force, not the water force. Report: investigation/keel-windows.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590591027d00 at 0x1403e01ef address binary32 4 (bytes 00008040) at 0x140bb0488. Interpretation rests on retained output investigation/native/behavior/../keel-windows/asm/rudder-update.asm:L277-L280; ../keel-windows/pseudocode/0x1403dfd20.c:L209-L213. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "K = min(S, this × m) (minss at 0x1403e01f7), S being the cap scale passed as update argument 7, the summed adjusted mass of the joined bodies (investigation/force-cap.md). K scales the self-righting pair and the forward-speed memory force, not the water force. Report: investigation/keel-windows.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590591027d00 at 0x1403e01ef address binary32 4 (bytes 00008040) at 0x140bb0488. Interpretation rests on retained output investigation/native/behavior/../keel-windows/asm/rudder-update.asm:L277-L280; ../keel-windows/pseudocode/0x1403dfd20.c:L209-L213. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e01ef",
           "status": "observed",
           "source": {
@@ -31087,6 +31234,42 @@
           }
         },
         {
+          "label": "Cap scale S",
+          "value": "S = Σ adjusted body mass over the label group",
+          "detail": "For each body i the builder zeroes S_i in a parallel float list (0x1404bea4e) and adds +0x72c of every body j with the same label. Every body in a label group gets the same S. No average, component count or timestep enters, and adjusted auxiliary masses are not added. Report: investigation/force-cap.md. Function 0x1404be190-0x1404bebd9; instruction bytes f30f580490 at 0x1404beaad. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L604,L634; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
+          "label": "Cap-scale group flood",
+          "value": "component link slot +0x60",
+          "detail": "Builds one integer label per vehicle body (assembly +0x18). For each component link it calls vtable slot +0x60, follows the counterpart at +0x150 or +0x148 to its body through component +0x28 and gives that body the same label. The flood does not test joint limits, the lock input, relative motion or motor power. Multibody joints (vtable 0x140b02a08) return themselves from slot +0x60 (0x1400cb6a0, mov rax,rcx; ret), so a pivot, hinge, piston or other multibody joint puts its two bodies in one label group, free or locked. Winches (vtable 0x140b958e8) also return themselves. The extractor re-reads these slot pointers. Report: investigation/force-cap.md. Function 0x1404c88e0-0x1404c8eab; instruction bytes ff5060 at 0x1404c8b21. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/locked-group-builder.asm:L169-L195; ../force-cap/pseudocode/0x1404c88e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c8b21"
+          }
+        },
+        {
+          "label": "Cap scale examples",
+          "value": "1000; 1001 for 1000 + 1 on one joint; 992.727273 with an auxiliary mass of 1; 1000 and 1 when not joined",
+          "detail": "One body of mass 1000: S = 1000, so the caps are 5 × S = 5000, 100 × S = 100000 and 1000 × S = 1000000. Bodies of 1000 and 1 joined by a joint, free or locked: T = 1001, H = 1000, D = 1000 + 1000 ÷ 40 = 1025, r = 1001 ÷ 1025, adjusted masses 976.585366 and 24.414634, S = 1001 for both bodies and an air cap of 5 × S = 5005. One body of 1000 with one auxiliary mass of 1: D = 1000 + 1000 ÷ 120, S = 992.727273 and the adjusted auxiliary mass 8.272727, together 1001. Bodies of 1000 and 1 with no joint between them: S = 1000 and S = 1. The cap applies to each force separately, so it is not a budget for the whole vehicle. Calculations from the decoded arithmetic; no game measurement. Report: investigation/force-cap.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be88b, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be80f, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be363, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be36c, native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21.",
+          "evidenceId": "derived:1b100946af68",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
           "label": "Keel (Small) · tooltip",
           "value": "A small boat keel used for sailing.",
           "detail": "keel_small: developer-authored short description; intended behaviour, not a measurement.",
@@ -31153,9 +31336,8 @@
         }
       ],
       "limitations": [
-        "The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the vehicle's application scale S, so no heel curve per keel size is given.",
+        "The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the cap scale S of the joined bodies, so no heel curve per keel size is given.",
         "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
-        "How the game builds the cap scale S for craft joined by locked joints was not decoded, so keel forces near the 100 × S cap are not predicted.",
         "The equations come from static analysis of one build; the game was not run. Internal mass and force units are not calibrated to kilograms and newtons."
       ],
       "sources": [
@@ -31396,6 +31578,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403e11db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
         },
         {
           "path": "stormworks64.exe",
@@ -42539,6 +42731,152 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        }
+      ]
+    },
+    {
+      "id": "part-altimeter",
+      "summary": "Outputs the part's world height above the fixed sea-level datum y = 0, in metres: not clearance over terrain or the local wave surface.",
+      "sections": [
+        {
+          "title": "Reading",
+          "body": "Logic case 18 moves the part's position through the body's world transform and outputs the world Y coordinate. It reads no terrain, seabed, wave or pressure value and keeps no previous position, so the output is height above y = 0, the sea level the tooltip names, whatever lies below the part. Over land it does not show height above the ground, and over water it does not measure from the local wave surface.\n\nThe output is 0 when the height is above 40000 or the world X coordinate is above 156000. Both tests are one-sided."
+        },
+        {
+          "title": "Timing",
+          "body": "There is no sensor timer, history or smoothing. The value is recomputed on every logic update, 60 per simulated second, and written only when it changes."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Altimeter · tooltip",
+          "value": "Outputs distance above sea-level in meters.",
+          "detail": "altimeter: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/altimeter.xml:6b23331ccdbb:L83-L83",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/altimeter.xml",
+            "sha256": "6b23331ccdbbd2b969723e3bf9a3d1c78bc3bcadfe1fd3dc301227a0ba388957",
+            "lineStart": 83,
+            "lineEnd": 83
+          }
+        },
+        {
+          "label": "Altimeter · port Altitude",
+          "value": "The measured altitude of the component in metres above sea-level.",
+          "detail": "altimeter: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/altimeter.xml:6b23331ccdbb:L42-L42",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/altimeter.xml",
+            "sha256": "6b23331ccdbbd2b969723e3bf9a3d1c78bc3bcadfe1fd3dc301227a0ba388957",
+            "lineStart": 42,
+            "lineEnd": 42
+          }
+        },
+        {
+          "label": "Altimeter · logic_gate_type",
+          "value": "18",
+          "detail": "altimeter: definition attribute logic_gate_type. Value 18 selects the altimeter case of the logic update.",
+          "evidenceId": "resource:rom/data/definitions/altimeter.xml:6b23331ccdbb:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/altimeter.xml",
+            "sha256": "6b23331ccdbbd2b969723e3bf9a3d1c78bc3bcadfe1fd3dc301227a0ba388957",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Altimeter world position",
+          "value": "world Y of the part",
+          "detail": "Logic case 18 passes the component's grid position and the physics state matrix at body +0x18 to 0x14017a230, which rotates the point and adds the matrix translation (matrix[13] for Y). The case outputs the resulting world Y. It makes no terrain, seabed, wave-height, pressure or previous-position read, so the datum is world y = 0. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e8834edbff at 0x1403c53a8. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L314-L326; ../force-cap/asm/point-transforms.asm; ../force-cap/pseudocode/0x1403c4d20.c:L353-L365; ../force-cap/pseudocode/0x14017a230.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c53a8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c53a8"
+          }
+        },
+        {
+          "label": "Altimeter height cutoff",
+          "value": "40000",
+          "detail": "The world Y, narrowed to binary32, is compared with this; above it (ja at 0x1403c53bd) the output is 0. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 0f2f0d5bb57e00 at 0x1403c53b6 address binary32 40000 (bytes 00401c47) at 0x140bb0918. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L316-L321. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c53b6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c53b6"
+          }
+        },
+        {
+          "label": "Altimeter X cutoff",
+          "value": "156000.0",
+          "detail": "The world X coordinate is compared with this; above it the output is 0 (jbe at 0x1403c53cc skips the zeroing otherwise). Both tests are one-sided, not absolute-value clamps. The output store at 0x1403c53e1 runs only when the value changed. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 660f2f0544b27e00 at 0x1403c53c4 address binary64 156000.0 (bytes 00000000000b0341) at 0x140bb0610. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L319-L321. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c53c4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c53c4"
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; the game was not run. The open timing question, when in a physics step the logic update reads the body state, is listed in the Speed, altitude and radar signals mechanics article."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/altimeter.xml",
+          "sha256": "6b23331ccdbbd2b969723e3bf9a3d1c78bc3bcadfe1fd3dc301227a0ba388957",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/altimeter.xml",
+          "sha256": "6b23331ccdbbd2b969723e3bf9a3d1c78bc3bcadfe1fd3dc301227a0ba388957",
+          "lineStart": 42,
+          "lineEnd": 42
+        },
+        {
+          "path": "rom/data/definitions/altimeter.xml",
+          "sha256": "6b23331ccdbbd2b969723e3bf9a3d1c78bc3bcadfe1fd3dc301227a0ba388957",
+          "lineStart": 83,
+          "lineEnd": 83
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c53a8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c53b6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c53c4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
         }
       ]
     },
@@ -64465,7 +64803,7 @@
         },
         {
           "title": "Force units and limit",
-          "body": "The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
+          "body": "The force is in internal units. Before it is applied its size is limited to 100 × S, the same mechanism the control surfaces use with a limit of 5. S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; the Control surfaces category gives the rule and examples. With one body of mass 1000, S = 1000 and the cap is 100000. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
         },
         {
           "title": "Example",
@@ -64584,7 +64922,7 @@
         {
           "label": "Exhaust force application limit",
           "value": "100",
-          "detail": "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Passed as the limit argument to the application helper 0x1401a7c70, together with the cap scale S from the dispatcher (stack argument stored at 0x140351f53), the summed adjusted mass of the joined bodies (investigation/force-cap.md). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351f59",
           "status": "observed",
           "source": {
@@ -64783,6 +65121,42 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Cap scale S",
+          "value": "S = Σ adjusted body mass over the label group",
+          "detail": "For each body i the builder zeroes S_i in a parallel float list (0x1404bea4e) and adds +0x72c of every body j with the same label. Every body in a label group gets the same S. No average, component count or timestep enters, and adjusted auxiliary masses are not added. Report: investigation/force-cap.md. Function 0x1404be190-0x1404bebd9; instruction bytes f30f580490 at 0x1404beaad. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L604,L634; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
+          "label": "Cap-scale group flood",
+          "value": "component link slot +0x60",
+          "detail": "Builds one integer label per vehicle body (assembly +0x18). For each component link it calls vtable slot +0x60, follows the counterpart at +0x150 or +0x148 to its body through component +0x28 and gives that body the same label. The flood does not test joint limits, the lock input, relative motion or motor power. Multibody joints (vtable 0x140b02a08) return themselves from slot +0x60 (0x1400cb6a0, mov rax,rcx; ret), so a pivot, hinge, piston or other multibody joint puts its two bodies in one label group, free or locked. Winches (vtable 0x140b958e8) also return themselves. The extractor re-reads these slot pointers. Report: investigation/force-cap.md. Function 0x1404c88e0-0x1404c8eab; instruction bytes ff5060 at 0x1404c8b21. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/locked-group-builder.asm:L169-L195; ../force-cap/pseudocode/0x1404c88e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c8b21"
+          }
+        },
+        {
+          "label": "Cap scale examples",
+          "value": "1000; 1001 for 1000 + 1 on one joint; 992.727273 with an auxiliary mass of 1; 1000 and 1 when not joined",
+          "detail": "One body of mass 1000: S = 1000, so the caps are 5 × S = 5000, 100 × S = 100000 and 1000 × S = 1000000. Bodies of 1000 and 1 joined by a joint, free or locked: T = 1001, H = 1000, D = 1000 + 1000 ÷ 40 = 1025, r = 1001 ÷ 1025, adjusted masses 976.585366 and 24.414634, S = 1001 for both bodies and an air cap of 5 × S = 5005. One body of 1000 with one auxiliary mass of 1: D = 1000 + 1000 ÷ 120, S = 992.727273 and the adjusted auxiliary mass 8.272727, together 1001. Bodies of 1000 and 1 with no joint between them: S = 1000 and S = 1. The cap applies to each force separately, so it is not a budget for the whole vehicle. Calculations from the decoded arithmetic; no game measurement. Report: investigation/force-cap.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be88b, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be80f, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be363, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be36c, native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21.",
+          "evidenceId": "derived:1b100946af68",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
           }
         },
         {
@@ -64972,7 +65346,7 @@
       ],
       "limitations": [
         "Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its duct network; the Jet engines category lists that and the unit questions as open.",
-        "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons. The cap scale S is open, as the Jet engines category records.",
+        "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons.",
         "The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws depends on the external fluid network, which was not modelled.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -65134,6 +65508,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
         },
         {
@@ -65182,7 +65566,7 @@
         },
         {
           "title": "Force units and limit",
-          "body": "The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
+          "body": "The force is in internal units. Before it is applied its size is limited to 100 × S, the same mechanism the control surfaces use with a limit of 5. S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; the Control surfaces category gives the rule and examples. With one body of mass 1000, S = 1000 and the cap is 100000. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
         },
         {
           "title": "Example",
@@ -65301,7 +65685,7 @@
         {
           "label": "Exhaust force application limit",
           "value": "100",
-          "detail": "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Passed as the limit argument to the application helper 0x1401a7c70, together with the cap scale S from the dispatcher (stack argument stored at 0x140351f53), the summed adjusted mass of the joined bodies (investigation/force-cap.md). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351f59",
           "status": "observed",
           "source": {
@@ -65503,6 +65887,42 @@
           }
         },
         {
+          "label": "Cap scale S",
+          "value": "S = Σ adjusted body mass over the label group",
+          "detail": "For each body i the builder zeroes S_i in a parallel float list (0x1404bea4e) and adds +0x72c of every body j with the same label. Every body in a label group gets the same S. No average, component count or timestep enters, and adjusted auxiliary masses are not added. Report: investigation/force-cap.md. Function 0x1404be190-0x1404bebd9; instruction bytes f30f580490 at 0x1404beaad. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L604,L634; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
+          "label": "Cap-scale group flood",
+          "value": "component link slot +0x60",
+          "detail": "Builds one integer label per vehicle body (assembly +0x18). For each component link it calls vtable slot +0x60, follows the counterpart at +0x150 or +0x148 to its body through component +0x28 and gives that body the same label. The flood does not test joint limits, the lock input, relative motion or motor power. Multibody joints (vtable 0x140b02a08) return themselves from slot +0x60 (0x1400cb6a0, mov rax,rcx; ret), so a pivot, hinge, piston or other multibody joint puts its two bodies in one label group, free or locked. Winches (vtable 0x140b958e8) also return themselves. The extractor re-reads these slot pointers. Report: investigation/force-cap.md. Function 0x1404c88e0-0x1404c8eab; instruction bytes ff5060 at 0x1404c8b21. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/locked-group-builder.asm:L169-L195; ../force-cap/pseudocode/0x1404c88e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c8b21"
+          }
+        },
+        {
+          "label": "Cap scale examples",
+          "value": "1000; 1001 for 1000 + 1 on one joint; 992.727273 with an auxiliary mass of 1; 1000 and 1 when not joined",
+          "detail": "One body of mass 1000: S = 1000, so the caps are 5 × S = 5000, 100 × S = 100000 and 1000 × S = 1000000. Bodies of 1000 and 1 joined by a joint, free or locked: T = 1001, H = 1000, D = 1000 + 1000 ÷ 40 = 1025, r = 1001 ÷ 1025, adjusted masses 976.585366 and 24.414634, S = 1001 for both bodies and an air cap of 5 × S = 5005. One body of 1000 with one auxiliary mass of 1: D = 1000 + 1000 ÷ 120, S = 992.727273 and the adjusted auxiliary mass 8.272727, together 1001. Bodies of 1000 and 1 with no joint between them: S = 1000 and S = 1. The cap applies to each force separately, so it is not a budget for the whole vehicle. Calculations from the decoded arithmetic; no game measurement. Report: investigation/force-cap.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be88b, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be80f, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be363, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be36c, native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21.",
+          "evidenceId": "derived:1b100946af68",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
           "label": "Jet Exhaust · jet_engine_component_type",
           "value": "4",
           "detail": "jet_engine_exhaust_basic: definition attribute jet_engine_component_type. Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).",
@@ -65616,7 +66036,7 @@
       ],
       "limitations": [
         "Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its duct network; the Jet engines category lists that and the unit questions as open.",
-        "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons. The cap scale S is open, as the Jet engines category records.",
+        "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -65746,6 +66166,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
         },
         {
@@ -65794,7 +66224,7 @@
         },
         {
           "title": "Force units and limit",
-          "body": "The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
+          "body": "The force is in internal units. Before it is applied its size is limited to 100 × S, the same mechanism the control surfaces use with a limit of 5. S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; the Control surfaces category gives the rule and examples. With one body of mass 1000, S = 1000 and the cap is 100000. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
         }
       ],
       "findings": [
@@ -65909,7 +66339,7 @@
         {
           "label": "Exhaust force application limit",
           "value": "100",
-          "detail": "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Passed as the limit argument to the application helper 0x1401a7c70, together with the cap scale S from the dispatcher (stack argument stored at 0x140351f53), the summed adjusted mass of the joined bodies (investigation/force-cap.md). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351f59",
           "status": "observed",
           "source": {
@@ -66111,6 +66541,42 @@
           }
         },
         {
+          "label": "Cap scale S",
+          "value": "S = Σ adjusted body mass over the label group",
+          "detail": "For each body i the builder zeroes S_i in a parallel float list (0x1404bea4e) and adds +0x72c of every body j with the same label. Every body in a label group gets the same S. No average, component count or timestep enters, and adjusted auxiliary masses are not added. Report: investigation/force-cap.md. Function 0x1404be190-0x1404bebd9; instruction bytes f30f580490 at 0x1404beaad. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L604,L634; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
+          "label": "Cap-scale group flood",
+          "value": "component link slot +0x60",
+          "detail": "Builds one integer label per vehicle body (assembly +0x18). For each component link it calls vtable slot +0x60, follows the counterpart at +0x150 or +0x148 to its body through component +0x28 and gives that body the same label. The flood does not test joint limits, the lock input, relative motion or motor power. Multibody joints (vtable 0x140b02a08) return themselves from slot +0x60 (0x1400cb6a0, mov rax,rcx; ret), so a pivot, hinge, piston or other multibody joint puts its two bodies in one label group, free or locked. Winches (vtable 0x140b958e8) also return themselves. The extractor re-reads these slot pointers. Report: investigation/force-cap.md. Function 0x1404c88e0-0x1404c8eab; instruction bytes ff5060 at 0x1404c8b21. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/locked-group-builder.asm:L169-L195; ../force-cap/pseudocode/0x1404c88e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c8b21"
+          }
+        },
+        {
+          "label": "Cap scale examples",
+          "value": "1000; 1001 for 1000 + 1 on one joint; 992.727273 with an auxiliary mass of 1; 1000 and 1 when not joined",
+          "detail": "One body of mass 1000: S = 1000, so the caps are 5 × S = 5000, 100 × S = 100000 and 1000 × S = 1000000. Bodies of 1000 and 1 joined by a joint, free or locked: T = 1001, H = 1000, D = 1000 + 1000 ÷ 40 = 1025, r = 1001 ÷ 1025, adjusted masses 976.585366 and 24.414634, S = 1001 for both bodies and an air cap of 5 × S = 5005. One body of 1000 with one auxiliary mass of 1: D = 1000 + 1000 ÷ 120, S = 992.727273 and the adjusted auxiliary mass 8.272727, together 1001. Bodies of 1000 and 1 with no joint between them: S = 1000 and S = 1. The cap applies to each force separately, so it is not a budget for the whole vehicle. Calculations from the decoded arithmetic; no game measurement. Report: investigation/force-cap.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be88b, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be80f, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be363, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be36c, native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21.",
+          "evidenceId": "derived:1b100946af68",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
           "label": "Jet Exhaust Rotating · jet_engine_component_type",
           "value": "4",
           "detail": "jet_engine_exhaust_rotating: definition attribute jet_engine_component_type. Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).",
@@ -66237,7 +66703,7 @@
       ],
       "limitations": [
         "Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its duct network; the Jet engines category lists that and the unit questions as open.",
-        "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons. The cap scale S is open, as the Jet engines category records.",
+        "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -66369,6 +66835,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045e32d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
         },
         {
           "path": "stormworks64.exe",
@@ -72240,6 +72716,156 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404af8f7"
+        }
+      ]
+    },
+    {
+      "id": "part-linear-speed-sensor",
+      "summary": "Outputs the physics velocity of the point where it sits, in m/s, in one of four modes: full speed, along its own axis, horizontal or vertical.",
+      "sections": [
+        {
+          "title": "Reading",
+          "body": "Logic case 19 takes the body's linear velocity plus its angular velocity × the lever arm from the body origin to the sensor: the velocity of that point in the current physics state. It does not difference positions over time and does not subtract wind, so it reads speed over the ground, not airspeed.\n\nMode 0 outputs the length of that velocity, mode 1 its signed component along the sensor's own axis, mode 2 the horizontal speed sqrt(vx² + vz²) and mode 3 the vertical component vy. Any other mode value gives 0. Above a world height of 40000 the output is 0."
+        },
+        {
+          "title": "Placement",
+          "body": "Because the angular term is included, a sensor far from the centre of a turning or rolling vehicle reads more than one near the centre."
+        },
+        {
+          "title": "Timing",
+          "body": "There is no sensor timer, history or smoothing. The value is recomputed on every logic update, 60 per simulated second, and written only when it changes."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Linear Speed Sensor · tooltip",
+          "value": "This sensor outputs the speed of the component in one of 4 modes. Modes can be changed by selecting the sensor.",
+          "detail": "linear_speed_sensor: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L68-L68",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/linear_speed_sensor.xml",
+            "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+            "lineStart": 68,
+            "lineEnd": 68
+          }
+        },
+        {
+          "label": "Linear Speed Sensor · port Linear Speed",
+          "value": "The sensor's linear speed in m/s.",
+          "detail": "linear_speed_sensor: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L41-L41",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/linear_speed_sensor.xml",
+            "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+            "lineStart": 41,
+            "lineEnd": 41
+          }
+        },
+        {
+          "label": "Linear Speed Sensor · logic_gate_type",
+          "value": "19",
+          "detail": "linear_speed_sensor: definition attribute logic_gate_type. Value 19 (0x13) selects the linear speed case of the logic update.",
+          "evidenceId": "resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/linear_speed_sensor.xml",
+            "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Linear speed point velocity",
+          "value": "v + w × r",
+          "detail": "Logic case 19 rotates the component's offset from the body origin through the body transform without translation (0x140178e20 at 0x1403c5438), crosses the angular velocity at body state +0xa4 with it (0x1401758e0 at 0x1403c5476) and adds the linear velocity at +0x98 here (0x140175bb0). There is no position difference, no division by a sampling interval and no wind subtraction. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e82207dbff at 0x1403c5489. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L340-L362; ../force-cap/asm/point-transforms.asm; ../force-cap/pseudocode/0x140178e20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5489",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c5489"
+          }
+        },
+        {
+          "label": "Linear speed mode",
+          "value": "component +0x834: 0, 1, 2 or 3",
+          "detail": "Mode 0: length of the velocity (0x140175740). Mode 1: dot product with the sensor axis, built from definition +0x40 and the component rotation and rotated through the body transform. Mode 2: sqrt(vx² + vz²) (sqrtss at 0x1403c54db). Mode 3: vy. Any other value gives 0. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 418b8e34080000 at 0x1403c548e. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L363-L470; ../force-cap/pseudocode/0x1403c4d20.c:L366-L376. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c548e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c548e"
+          }
+        },
+        {
+          "label": "Linear speed height cutoff",
+          "value": "40000",
+          "detail": "The sensor's world Y (0x14017a230 at 0x1403c5637) is compared with this; above it the speed output is 0. The store at 0x1403c5664 runs only when the value changed. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 0f2f05c9b27e00 at 0x1403c5648 address binary32 40000 (bytes 00401c47) at 0x140bb0918. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L450-L470. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5648",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c5648"
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; the game was not run. The open timing question, when in a physics step the logic update reads the body state, is listed in the Speed, altitude and radar signals mechanics article."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/linear_speed_sensor.xml",
+          "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/linear_speed_sensor.xml",
+          "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+          "lineStart": 41,
+          "lineEnd": 41
+        },
+        {
+          "path": "rom/data/definitions/linear_speed_sensor.xml",
+          "sha256": "463518ace041308df1d065fdde101a8958385010e0f0d028884784ae6164c9f6",
+          "lineStart": 68,
+          "lineEnd": 68
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c5489"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c548e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c5648"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
         }
       ]
     },
@@ -99181,7 +99807,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -99632,13 +100258,37 @@
         {
           "label": "Radar line-of-sight query",
           "value": "call 0x1401a4300",
-          "detail": "Per candidate the update runs a segment query from the sensor to the target with mask 0x7f; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Per candidate the update runs a segment query from the sensor to the target with masks 0x7f and 0xff; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc033",
           "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403bc033"
+          }
+        },
+        {
+          "label": "Radar line-of-sight masks",
+          "value": "0x7f and 0xff",
+          "detail": "Sets argument 4 of the segment query to 0x7f; 0x1403bc013 (c7442420ff000000) stores argument 5, 0xff. The query 0x1401a4300 copies argument 4 to callback +0x18 (0x1401a4443) and argument 5 to +0x1c (0x1401a444e). Both are bit masks, not object or material IDs. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 41b97f000000 at 0x1403bc01b. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L1633-L1638; ../force-cap/asm/segment-query.asm:L80-L82; ../force-cap/pseudocode/0x1401a4300.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc01b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc01b"
+          }
+        },
+        {
+          "label": "Radar line-of-sight filter",
+          "value": "(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0",
+          "detail": "Broadphase filter of the segment query (slot +8 of callback vtable 0x140b3dac0). It rejects a proxy whose group (proxy +8) has bit 12 set (bt here), then requires group & callback +0x1c (0xff, test at 0x1400d9bf9) and the proxy's object mask (proxy +0xc) & callback +0x18 (0x7f, test at 0x1400d9c01) to be nonzero. The test uses collision bits only, with no render-material or opacity term. Report: investigation/force-cap.md. Function 0x1400d9bf0-0x1400d9c40; instruction bytes 0fbae00c at 0x1400d9bf3. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/segment-filter.asm:L8-L18; ../force-cap/pseudocode/0x1400d9bf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1400d9bf0@0x1400d9bf3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400d9bf3"
           }
         },
         {
@@ -99788,7 +100438,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -99877,6 +100527,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400d9bf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
         },
         {
@@ -99938,6 +100593,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bbec0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc01b"
         },
         {
           "path": "stormworks64.exe",
@@ -100293,13 +100953,37 @@
         {
           "label": "Radar line-of-sight query",
           "value": "call 0x1401a4300",
-          "detail": "Per candidate the update runs a segment query from the sensor to the target with mask 0x7f; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Per candidate the update runs a segment query from the sensor to the target with masks 0x7f and 0xff; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc033",
           "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403bc033"
+          }
+        },
+        {
+          "label": "Radar line-of-sight masks",
+          "value": "0x7f and 0xff",
+          "detail": "Sets argument 4 of the segment query to 0x7f; 0x1403bc013 (c7442420ff000000) stores argument 5, 0xff. The query 0x1401a4300 copies argument 4 to callback +0x18 (0x1401a4443) and argument 5 to +0x1c (0x1401a444e). Both are bit masks, not object or material IDs. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 41b97f000000 at 0x1403bc01b. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L1633-L1638; ../force-cap/asm/segment-query.asm:L80-L82; ../force-cap/pseudocode/0x1401a4300.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc01b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc01b"
+          }
+        },
+        {
+          "label": "Radar line-of-sight filter",
+          "value": "(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0",
+          "detail": "Broadphase filter of the segment query (slot +8 of callback vtable 0x140b3dac0). It rejects a proxy whose group (proxy +8) has bit 12 set (bt here), then requires group & callback +0x1c (0xff, test at 0x1400d9bf9) and the proxy's object mask (proxy +0xc) & callback +0x18 (0x7f, test at 0x1400d9c01) to be nonzero. The test uses collision bits only, with no render-material or opacity term. Report: investigation/force-cap.md. Function 0x1400d9bf0-0x1400d9c40; instruction bytes 0fbae00c at 0x1400d9bf3. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/segment-filter.asm:L8-L18; ../force-cap/pseudocode/0x1400d9bf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1400d9bf0@0x1400d9bf3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400d9bf3"
           }
         },
         {
@@ -100449,7 +101133,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -100538,6 +101222,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400d9bf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
         },
         {
@@ -100599,6 +101288,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bbec0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc01b"
         },
         {
           "path": "stormworks64.exe",
@@ -100954,13 +101648,37 @@
         {
           "label": "Radar line-of-sight query",
           "value": "call 0x1401a4300",
-          "detail": "Per candidate the update runs a segment query from the sensor to the target with mask 0x7f; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Per candidate the update runs a segment query from the sensor to the target with masks 0x7f and 0xff; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc033",
           "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403bc033"
+          }
+        },
+        {
+          "label": "Radar line-of-sight masks",
+          "value": "0x7f and 0xff",
+          "detail": "Sets argument 4 of the segment query to 0x7f; 0x1403bc013 (c7442420ff000000) stores argument 5, 0xff. The query 0x1401a4300 copies argument 4 to callback +0x18 (0x1401a4443) and argument 5 to +0x1c (0x1401a444e). Both are bit masks, not object or material IDs. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 41b97f000000 at 0x1403bc01b. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L1633-L1638; ../force-cap/asm/segment-query.asm:L80-L82; ../force-cap/pseudocode/0x1401a4300.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc01b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc01b"
+          }
+        },
+        {
+          "label": "Radar line-of-sight filter",
+          "value": "(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0",
+          "detail": "Broadphase filter of the segment query (slot +8 of callback vtable 0x140b3dac0). It rejects a proxy whose group (proxy +8) has bit 12 set (bt here), then requires group & callback +0x1c (0xff, test at 0x1400d9bf9) and the proxy's object mask (proxy +0xc) & callback +0x18 (0x7f, test at 0x1400d9c01) to be nonzero. The test uses collision bits only, with no render-material or opacity term. Report: investigation/force-cap.md. Function 0x1400d9bf0-0x1400d9c40; instruction bytes 0fbae00c at 0x1400d9bf3. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/segment-filter.asm:L8-L18; ../force-cap/pseudocode/0x1400d9bf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1400d9bf0@0x1400d9bf3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400d9bf3"
           }
         },
         {
@@ -101110,7 +101828,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -101199,6 +101917,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400d9bf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
         },
         {
@@ -101260,6 +101983,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bbec0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc01b"
         },
         {
           "path": "stormworks64.exe",
@@ -101363,6 +102091,10 @@
         {
           "title": "Variant tradeoffs",
           "body": "The tooltip gives no range, but radar_range is 20000. On the basic radars and sonars this field equals the stated range."
+        },
+        {
+          "title": "Missile orientation",
+          "body": "radar_type 1 sends the Missile radar down its own orientation branches in two places of the radar update. Its scan matrix turns in a different plane from the other radars' and with the opposite sign, and its scan planes start from a different basis of the part's axes. At zero angles the matrices are the identity, so they alone do not show which way the missile radar looks at rest."
         }
       ],
       "findings": [
@@ -101615,13 +102347,37 @@
         {
           "label": "Radar line-of-sight query",
           "value": "call 0x1401a4300",
-          "detail": "Per candidate the update runs a segment query from the sensor to the target with mask 0x7f; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Per candidate the update runs a segment query from the sensor to the target with masks 0x7f and 0xff; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc033",
           "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403bc033"
+          }
+        },
+        {
+          "label": "Radar line-of-sight masks",
+          "value": "0x7f and 0xff",
+          "detail": "Sets argument 4 of the segment query to 0x7f; 0x1403bc013 (c7442420ff000000) stores argument 5, 0xff. The query 0x1401a4300 copies argument 4 to callback +0x18 (0x1401a4443) and argument 5 to +0x1c (0x1401a444e). Both are bit masks, not object or material IDs. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 41b97f000000 at 0x1403bc01b. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L1633-L1638; ../force-cap/asm/segment-query.asm:L80-L82; ../force-cap/pseudocode/0x1401a4300.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc01b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc01b"
+          }
+        },
+        {
+          "label": "Radar line-of-sight filter",
+          "value": "(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0",
+          "detail": "Broadphase filter of the segment query (slot +8 of callback vtable 0x140b3dac0). It rejects a proxy whose group (proxy +8) has bit 12 set (bt here), then requires group & callback +0x1c (0xff, test at 0x1400d9bf9) and the proxy's object mask (proxy +0xc) & callback +0x18 (0x7f, test at 0x1400d9c01) to be nonzero. The test uses collision bits only, with no render-material or opacity term. Report: investigation/force-cap.md. Function 0x1400d9bf0-0x1400d9c40; instruction bytes 0fbae00c at 0x1400d9bf3. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/segment-filter.asm:L8-L18; ../force-cap/pseudocode/0x1400d9bf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1400d9bf0@0x1400d9bf3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400d9bf3"
           }
         },
         {
@@ -101771,7 +102527,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -101840,11 +102596,47 @@
             "lineStart": 2,
             "lineEnd": 2
           }
+        },
+        {
+          "label": "Missile radar orientation selector",
+          "value": "radar_type 1",
+          "detail": "Compares definition +0x2cc4 (radar_type) with 1 and jumps to the type-1 branch at 0x1403ba8dc. Both branches first build the same rotation in the Y-Z plane from a = -2π × component +0x420 (storage order). The type-1 branch then builds its second rotation in the X-Y plane from -component +0x468, where the other radars build one in the X-Z plane from +component +0x468. Storage order is not an Euler-angle convention. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 83b8c42c000001 at 0x1403ba806. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L397-L447; ../force-cap/pseudocode/0x1403ba040.c:L410. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403ba806",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ba806"
+          }
+        },
+        {
+          "label": "Missile radar angle sign",
+          "value": "-component +0x468",
+          "detail": "Flips the sign of component +0x468 (loaded at 0x1403ba942) for the type-1 matrix; the ordinary branch loads it at 0x1403ba879 and uses it as it is. At zero angles both matrices are the identity. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 410f57c5 at 0x1403ba94b. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L446-L447. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403ba94b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ba94b"
+          }
+        },
+        {
+          "label": "Missile radar plane basis selector",
+          "value": "radar_type 1",
+          "detail": "The second radar_type test jumps to 0x1403bb16e (je at 0x1403bac56). That branch starts the scan-plane construction from -R2, R0 and R1 of the component's world rows instead of the ordinary radar's basis. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 83b8c42c000001 at 0x1403bac4f. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L583-L584; ../force-cap/pseudocode/0x1403ba040.c:L503. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bac4f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bac4f"
+          }
         }
       ],
       "limitations": [
         "S is the target's physics-body mass, read per physics body; how vehicle mass accounting and the environment shape it are open questions listed under Other components.",
-        "Range, score, scan interval and FOV slider limits match the other advanced radars. The Missile radar (radar_type 1) also takes separate orientation branches in the update; how they set the look direction and sweep was not decoded.",
+        "Range, score, scan interval and FOV slider limits match the other advanced radars. The radar_type 1 selectors and their scan matrices are decoded; the complete scan frame, its six plane normals and the handedness of the reported azimuth and elevation were not established.",
         "20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."
       ],
       "sources": [
@@ -101871,6 +102663,11 @@
           "sha256": "2e3159f4a007df722500a5ad34933f241f93a29cf05874f01d141ad0a3fa4234",
           "lineStart": 72,
           "lineEnd": 72
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400d9bf3"
         },
         {
           "path": "stormworks64.exe",
@@ -101935,7 +102732,27 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ba806"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ba94b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bac4f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bbec0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc01b"
         },
         {
           "path": "stormworks64.exe",
@@ -102291,13 +103108,37 @@
         {
           "label": "Radar line-of-sight query",
           "value": "call 0x1401a4300",
-          "detail": "Per candidate the update runs a segment query from the sensor to the target with mask 0x7f; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Per candidate the update runs a segment query from the sensor to the target with masks 0x7f and 0xff; an intervening record can reject the target, with exceptions for the target itself and the same owner. Report: investigation/sensors-radio.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e8c882deff at 0x1403bc033. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403ba040.asm:L1937; ../sensors-radio/pseudocode/1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc033",
           "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403bc033"
+          }
+        },
+        {
+          "label": "Radar line-of-sight masks",
+          "value": "0x7f and 0xff",
+          "detail": "Sets argument 4 of the segment query to 0x7f; 0x1403bc013 (c7442420ff000000) stores argument 5, 0xff. The query 0x1401a4300 copies argument 4 to callback +0x18 (0x1401a4443) and argument 5 to +0x1c (0x1401a444e). Both are bit masks, not object or material IDs. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 41b97f000000 at 0x1403bc01b. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L1633-L1638; ../force-cap/asm/segment-query.asm:L80-L82; ../force-cap/pseudocode/0x1401a4300.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc01b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc01b"
+          }
+        },
+        {
+          "label": "Radar line-of-sight filter",
+          "value": "(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0",
+          "detail": "Broadphase filter of the segment query (slot +8 of callback vtable 0x140b3dac0). It rejects a proxy whose group (proxy +8) has bit 12 set (bt here), then requires group & callback +0x1c (0xff, test at 0x1400d9bf9) and the proxy's object mask (proxy +0xc) & callback +0x18 (0x7f, test at 0x1400d9c01) to be nonzero. The test uses collision bits only, with no render-material or opacity term. Report: investigation/force-cap.md. Function 0x1400d9bf0-0x1400d9c40; instruction bytes 0fbae00c at 0x1400d9bf3. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/segment-filter.asm:L8-L18; ../force-cap/pseudocode/0x1400d9bf0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1400d9bf0@0x1400d9bf3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400d9bf3"
           }
         },
         {
@@ -102447,7 +103288,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -102536,6 +103377,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1400d9bf3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
         },
         {
@@ -102597,6 +103443,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bbec0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc01b"
         },
         {
           "path": "stormworks64.exe",
@@ -103052,7 +103903,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -103623,7 +104474,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -104206,7 +105057,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -104776,7 +105627,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -105340,7 +106191,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -120223,7 +121074,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -120684,7 +121535,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -121145,7 +121996,7 @@
         {
           "label": "Physics-body mass sum",
           "value": "body +0x72c = sum of component mass",
-          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../sensors-legacy/asm/1404be190.asm:L192-L195; ../sensors-legacy/pseudocode/1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, and some component classes override the getter, so a body's total is not always the sum of definition masses. Report: investigation/sensors-legacy.md. Function 0x1404be190-0x1404bebd9; instruction bytes ff9098020000f30f58872c070000f30f11872c070000 at 0x1404be439. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L184-L186; ../force-cap/asm/mass-getters.asm; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be439",
           "status": "observed",
           "source": {
@@ -125069,6 +125920,10 @@
         {
           "title": "Pulse rate",
           "body": "Each update the locator takes the nearest transponder's 1 ÷ (0.002 d + 0.5) for distance d in metres, multiplies it by a noise factor 1 + n × 0.0078125 × 0.1, clamps the result to 0 to 1 and adds it to an accumulator. When the accumulator reaches 10 it drops by 10 and Transponder Pulse is on for that update.\n\nWithout noise that is 6 Hz within 250 m (a pulse every 10 updates), 2.4 Hz at 1000 m (25 updates) and 0.2927 Hz at 10000 m (205 updates). Only the nearest transponder counts; several do not add up. The part's radar_range of 20000 is not a cutoff in this loop."
+        },
+        {
+          "title": "Noise",
+          "body": "The noise value n comes from a smooth-noise helper with periods 128 and 128, evaluated at a shared counter, at Y = 1. It does not depend on where the transponders are or how far away they are, and one factor multiplies the nearest transponder's term after it is chosen. So the pulse rate wobbles over time in a deterministic pattern rather than with a random draw per update; for small counter values it repeats every 128 counter steps (inference from the reduced model in investigation/force-cap.md). Every transponder entry in the shared list counts, whatever its channel or line of sight: the loop tests only that the entry is present."
         }
       ],
       "findings": [
@@ -125188,13 +126043,49 @@
         {
           "label": "Locator noise scale",
           "value": "0.0078125",
-          "detail": "The term is multiplied by 1 + n × 0.0078125 × 0.1 (× 0.1 at 0x1403c8632), where n comes from the spatial-noise helper 0x1401e3460 (call at 0x1403c8625). Report: investigation/sensors-radio.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f30f59050e737e00 at 0x1403c862a address binary32 0.0078125 (bytes 0000003c) at 0x140baf940. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403c4d20.asm:L3322-L3325; ../sensors-radio/pseudocode/1401e3460.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The term is multiplied by 1 + n × 0.0078125 × 0.1 (× 0.1 at 0x1403c8632), where n comes from the noise helper 0x1401e3460 (call at 0x1403c8625) evaluated at a shared counter value, not at a position (investigation/force-cap.md). Report: investigation/sensors-radio.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f30f59050e737e00 at 0x1403c862a address binary32 0.0078125 (bytes 0000003c) at 0x140baf940. Interpretation rests on retained output investigation/native/behavior/../sensors-radio/asm/1403c4d20.asm:L3322-L3325; ../sensors-radio/pseudocode/1401e3460.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c862a",
           "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403c862a"
+          }
+        },
+        {
+          "label": "Locator noise periods",
+          "value": "128 and 128",
+          "detail": "After the beacon loop the case builds the noise helper's periods 128 and 128 (0x14017a7d0 at 0x1403c860a), then passes X = the shared counter, Y = 1 and a fourth argument 0 (0x1403c861a) to 0x1401e3460. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes ba80000000 at 0x1403c85fe. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L2982-L2992. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c85fe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c85fe"
+          }
+        },
+        {
+          "label": "Locator noise input",
+          "value": "shared counter",
+          "detail": "Calls 0x1402b7af0 on an object from the evaluator's arguments; that getter is mov eax,[rcx+4]; ret (8b4104c3, re-read by the extractor). Its integer is the noise X coordinate, so the noise depends on the counter, not on the beacon's position or distance, and one factor multiplies the nearest-beacon term. Report: investigation/force-cap.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e8d8f4eeff at 0x1403c8613. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/logic-sensors.asm:L2986-L2992; ../force-cap/pseudocode/0x1402b7af0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c8613",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c8613"
+          }
+        },
+        {
+          "label": "Locator noise gradient multiplier",
+          "value": "0",
+          "detail": "The noise helper clears xmm15 before its gradient terms, so for finite input the gradient components reduce to -1 (report). With integer X and Y = 1 the output repeats every 128 counter steps for small nonnegative counter values (inference from the report's reduced model). Report: investigation/force-cap.md. Function 0x1401e3480-0x1401e38e7; instruction bytes 450f57ff at 0x1401e3534. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/locator-noise.asm:L69; ../force-cap/asm/noise-math.asm; ../force-cap/pseudocode/0x1401e3460.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e3480@0x1401e3534",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e3534"
           }
         },
         {
@@ -125247,7 +126138,7 @@
         }
       ],
       "limitations": [
-        "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced."
+        "The noise input is a shared counter, but how fast that counter advances and the helper's exact output bounds were not reproduced. When a disabled or destroyed transponder's entry leaves the shared list, and which loaded or remote transponders fill it, was not traced."
       ],
       "sources": [
         {
@@ -125277,6 +126168,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e3534"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c857e"
         },
         {
@@ -125293,6 +126189,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c85e2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c85fe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c8613"
         },
         {
           "path": "stormworks64.exe",
@@ -135095,7 +136001,7 @@
         },
         {
           "title": "Burn Rate, altitude and force cap",
-          "body": "The Burn Rate slider runs from 1% to 100%, stored as 0.01 to 1. Thrust is multiplied by (1 - 2.2413793e-5 × y)^5.3595023 of the altitude y and is 0 above 40000. The applied force is capped at 1000 × S, S being the force helper's scale, as the jet exhaust is capped at 5 × S."
+          "body": "The Burn Rate slider runs from 1% to 100%, stored as 0.01 to 1. Thrust is multiplied by (1 - 2.2413793e-5 × y)^5.3595023 of the altitude y and is 0 above 40000. The applied force is capped at 1000 × S; control surfaces are capped at 5 × S and jet exhausts at 100 × S by the same mechanism. S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; the Control surfaces category gives the rule and examples."
         }
       ],
       "findings": [
@@ -135174,7 +136080,7 @@
         {
           "label": "Solid rocket thrust application limit",
           "value": "1000",
-          "detail": "Passed (0x140437db5) to the force limiter 0x1401a7ad0 (call at 0x140437dcd), which caps the applied force at 1000 × S, S the caller's scale; the jet exhaust passes 5 and the propellers 100. Report: investigation/weapons.md. Function 0x140437570-0x14043a701; instruction bytes f30f1005a78a7700 at 0x140437dad address binary32 1000 (bytes 00007a44) at 0x140bb085c. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/rocket-update.asm:L512-L523; ../weapons/asm/force-cap-helper.asm; ../weapons/pseudocode/0x140437570.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Passed (0x140437db5) to the force limiter 0x1401a7ad0 (call at 0x140437dcd), which caps the applied force at 1000 × S, S the cap scale the dispatcher passes to the caller (investigation/force-cap.md); the control surfaces pass 5, and the jet exhausts and propellers use 100. Report: investigation/weapons.md. Function 0x140437570-0x14043a701; instruction bytes f30f1005a78a7700 at 0x140437dad address binary32 1000 (bytes 00007a44) at 0x140bb085c. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/rocket-update.asm:L512-L523; ../weapons/asm/force-cap-helper.asm; ../weapons/pseudocode/0x140437570.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140437570@0x140437dad",
           "status": "observed",
           "source": {
@@ -135438,6 +136344,42 @@
           }
         },
         {
+          "label": "Cap scale S",
+          "value": "S = Σ adjusted body mass over the label group",
+          "detail": "For each body i the builder zeroes S_i in a parallel float list (0x1404bea4e) and adds +0x72c of every body j with the same label. Every body in a label group gets the same S. No average, component count or timestep enters, and adjusted auxiliary masses are not added. Report: investigation/force-cap.md. Function 0x1404be190-0x1404bebd9; instruction bytes f30f580490 at 0x1404beaad. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/scale-builder.asm:L604,L634; ../force-cap/pseudocode/0x1404be190.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
+          "label": "Cap-scale group flood",
+          "value": "component link slot +0x60",
+          "detail": "Builds one integer label per vehicle body (assembly +0x18). For each component link it calls vtable slot +0x60, follows the counterpart at +0x150 or +0x148 to its body through component +0x28 and gives that body the same label. The flood does not test joint limits, the lock input, relative motion or motor power. Multibody joints (vtable 0x140b02a08) return themselves from slot +0x60 (0x1400cb6a0, mov rax,rcx; ret), so a pivot, hinge, piston or other multibody joint puts its two bodies in one label group, free or locked. Winches (vtable 0x140b958e8) also return themselves. The extractor re-reads these slot pointers. Report: investigation/force-cap.md. Function 0x1404c88e0-0x1404c8eab; instruction bytes ff5060 at 0x1404c8b21. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/locked-group-builder.asm:L169-L195; ../force-cap/pseudocode/0x1404c88e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c8b21"
+          }
+        },
+        {
+          "label": "Cap scale examples",
+          "value": "1000; 1001 for 1000 + 1 on one joint; 992.727273 with an auxiliary mass of 1; 1000 and 1 when not joined",
+          "detail": "One body of mass 1000: S = 1000, so the caps are 5 × S = 5000, 100 × S = 100000 and 1000 × S = 1000000. Bodies of 1000 and 1 joined by a joint, free or locked: T = 1001, H = 1000, D = 1000 + 1000 ÷ 40 = 1025, r = 1001 ÷ 1025, adjusted masses 976.585366 and 24.414634, S = 1001 for both bodies and an air cap of 5 × S = 5005. One body of 1000 with one auxiliary mass of 1: D = 1000 + 1000 ÷ 120, S = 992.727273 and the adjusted auxiliary mass 8.272727, together 1001. Bodies of 1000 and 1 with no joint between them: S = 1000 and S = 1. The cap applies to each force separately, so it is not a budget for the whole vehicle. Calculations from the decoded arithmetic; no game measurement. Report: investigation/force-cap.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404beaad, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be88b, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be80f, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be363, native:stormworks64.exe:f9206d85c82f:0x1404be190@0x1404be36c, native:stormworks64.exe:f9206d85c82f:0x1404c88e0@0x1404c8b21.",
+          "evidenceId": "derived:1b100946af68",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          }
+        },
+        {
           "label": "Solid Rocket Booster (Small) · tooltip",
           "value": "A small single-use solid rocket booster.",
           "detail": "solid_rocket_nozzle_small: developer-authored short description; intended behaviour, not a measurement.",
@@ -135661,6 +136603,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b144f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404beaad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c8b21"
         },
         {
           "path": "stormworks64.exe",
@@ -151606,7 +152558,7 @@
         {
           "label": "Air force application limit",
           "value": "5",
-          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with the cap scale S from the dispatcher, the summed adjusted mass of the joined bodies (investigation/force-cap.md). Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10cb",
           "status": "observed",
           "source": {
@@ -151915,7 +152867,7 @@
         }
       ],
       "limitations": [
-        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+        "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces category explains its scale S.",
         "Internal mass and force units are not calibrated to kilograms and newtons."
       ],
       "sources": [
@@ -152101,7 +153053,7 @@
     "schemaVersion": 1,
     "categoryCount": 21,
     "categoriesInFamilies": 21,
-    "familyCount": 278,
+    "familyCount": 280,
     "familyTotal": 536,
     "familiesByCategory": {
       "Control surfaces": {
@@ -152153,7 +153105,7 @@
         "total": 16
       },
       "Other components": {
-        "withBehavior": 110,
+        "withBehavior": 112,
         "total": 269
       },
       "Propulsion": {
@@ -152204,7 +153156,6 @@
       "part-01-block-static",
       "part-01-block-weight",
       "part-air-filter",
-      "part-altimeter",
       "part-angular-speed-sensor",
       "part-artificial-horizon",
       "part-astronomy-sensor",
@@ -152324,7 +153275,6 @@
       "part-ladder-small",
       "part-landing-float",
       "part-laser-beacon",
-      "part-linear-speed-sensor",
       "part-lobster-pot",
       "part-map-icon",
       "part-mineral-converter",
@@ -152449,12 +153399,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8339,
+    "findingCount": 8384,
     "findingsByStatus": {
-      "derived": 692,
-      "observed": 7647
+      "derived": 699,
+      "observed": 7685
     },
-    "nativeFindingCount": 5979,
+    "nativeFindingCount": 6018,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -152505,9 +153455,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 406,
-      "native": 1220,
-      "resource": 2625
+      "derived": 407,
+      "native": 1244,
+      "resource": 2631
     }
   }
 }

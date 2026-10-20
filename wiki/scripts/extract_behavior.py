@@ -1874,7 +1874,7 @@ def surface_air(E):
     f["immersion"] = code(F_RUDDER, 0x1403E0175, "f3440f5cf2f3450f58f6", "Surface immersion fraction", "clamp(2 × (0.25 - (y - surface)), 0, 1)",
                           "After sampling the water surface height at the surface position (0x1402bbbb0, call at 0x1403e0158), the update forms the immersion fraction, clamped to 0 to 1 at 0x1403e017f-0x1403e01a6. The air force is multiplied by 1 minus it." + rep)
     f["limit"] = op(F_RUDDER, 0x1403E10CB, "f30f103d0df47c00", 0x140BB04E0, "Air force application limit",
-                    "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher." + rep)
+                    "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with the cap scale S from the dispatcher, the summed adjusted mass of the joined bodies (investigation/force-cap.md)." + rep)
     f["submit"] = code(F_RUDDER, 0x1403E11DB, "e8f068dcff", "Air force submission", "call 0x1401a7ad0",
                        "Submits the air vector and its lever arm to the force application helper once per component update." + rep)
     f["cap"] = code(F_APPLY, 0x1401A7B62, "f30f59c60f2fd0", "Force application cap", "|F| ≤ limit × S",
@@ -1920,6 +1920,129 @@ def surface_air(E):
     deflect = [f["demand"], f["cos"]]
     E.surface = {"f": f, "core": core, "wing": wing, "deflect": deflect}
     return E.surface
+
+
+# force-cap pass; files under investigation/native/force-cap/, report investigation/force-cap.md.
+FC = "../force-cap/"
+FC_REPORT = "investigation/force-cap.md"
+F_MASS_BUILD = 0x1404BE190   # assembly mass builder: raw body mass, floors, rescale, per-label cap scale S
+F_MASS_WALK = 0x1404BEC9D    # chained unwind chunk of the redistribution-group recursion 0x1404bec80
+F_LABELS = 0x1404C88E0       # connectivity-label flood over component links (vtable slot +0x60)
+# (slot, target): multibody joint vtable 0x140b02a08 and winch vtable 0x140b958e8, slots +0x60 and +0x68.
+CAP_SLOTS = ((0x140B02A68, 0x1400CB6A0), (0x140B02A70, 0x14008FD10), (0x140B95948, 0x1400CB6A0), (0x140B95950, 0x1400CB6A0))
+_FA, _FP = FC + "asm/", FC + "pseudocode/"
+WHERE.update({
+    (F_LABELS, 0x1404C8B21): _FA + "locked-group-builder.asm:L169-L195; " + _FP + "0x1404c88e0.c",
+    (F_MASS_WALK, 0x1404BEDF7): _FA + "group-traversal.asm:L153-L158; " + _FP + "0x1404bec80.c",
+    (F_MASS_BUILD, 0x1404BE439): _FA + "scale-builder.asm:L184-L186; " + _FA + "mass-getters.asm; " + _FP + "0x1404be190.c",
+    (F_MASS_BUILD, 0x140BB072C): _FA + "scale-builder.asm:L133,L274; " + _FP + "0x1404be190.c",
+    (F_MASS_BUILD, 0x140BB07A8): _FA + "scale-builder.asm:L134,L275; " + _FA + "external-mass-accessors.asm; " + _FP + "0x1404be190.c",
+    (F_MASS_BUILD, 0x1404BE80F): _FA + "scale-builder.asm:L458; " + _FP + "0x1404be190.c",
+    (F_MASS_BUILD, 0x1404BE88B): _FA + "scale-builder.asm:L491; " + _FP + "0x1404be190.c",
+    (F_MASS_BUILD, 0x1404BE3E1): _FA + "scale-builder.asm:L163-L164; " + _FP + "0x1404be190.c",
+    (F_MASS_BUILD, 0x1404BEAAD): _FA + "scale-builder.asm:L604,L634; " + _FP + "0x1404be190.c",
+    (F_DISPATCH, 0x140549782): _FA + "component-dispatch.asm:L299,L359",
+})
+# Sensor follow-ups in the same report: altimeter, linear speed, radar mask, missile radar selectors, locator counter.
+F_SEG_FILTER = 0x1400D9BF0   # segment-query broadphase filter, slot +8 of callback vtable 0x140b3dac0 (leaf)
+F_NOISE_BODY = 0x1401E3480   # chained unwind chunk of the noise helper 0x1401e3460
+F_COUNTER = 0x1402B7AF0      # shared counter getter: mov eax,[rcx+4]; ret (leaf)
+WHERE.update({
+    (0x1403C4D20, 0x1403C53A8): _FA + "logic-sensors.asm:L314-L326; " + _FA + "point-transforms.asm; " + _FP + "0x1403c4d20.c:L353-L365; " + _FP + "0x14017a230.c",
+    (0x1403C4D20, 0x1403C53B6): _FA + "logic-sensors.asm:L316-L321",
+    (0x1403C4D20, 0x1403C53C4): _FA + "logic-sensors.asm:L319-L321",
+    (0x1403C4D20, 0x1403C5489): _FA + "logic-sensors.asm:L340-L362; " + _FA + "point-transforms.asm; " + _FP + "0x140178e20.c",
+    (0x1403C4D20, 0x1403C548E): _FA + "logic-sensors.asm:L363-L470; " + _FP + "0x1403c4d20.c:L366-L376",
+    (0x1403C4D20, 0x1403C5648): _FA + "logic-sensors.asm:L450-L470",
+    (0x1403BA040, 0x1403BC01B): _FA + "advanced-radar.asm:L1633-L1638; " + _FA + "segment-query.asm:L80-L82; " + _FP + "0x1401a4300.c",
+    (F_SEG_FILTER, 0x1400D9BF3): _FA + "segment-filter.asm:L8-L18; " + _FP + "0x1400d9bf0.c",
+    (0x1403BA040, 0x1403BA806): _FA + "advanced-radar.asm:L397-L447; " + _FP + "0x1403ba040.c:L410",
+    (0x1403BA040, 0x1403BAC4F): _FA + "advanced-radar.asm:L583-L584; " + _FP + "0x1403ba040.c:L503",
+    (0x1403BA040, 0x1403BA94B): _FA + "advanced-radar.asm:L446-L447",
+    (0x1403C4D20, 0x1403C85FE): _FA + "logic-sensors.asm:L2982-L2992",
+    (0x1403C4D20, 0x1403C8613): _FA + "logic-sensors.asm:L2986-L2992; " + _FP + "0x1402b7af0.c",
+    (F_COUNTER, 0x1402B7AF0): _FP + "0x1402b7af0.c",
+    (F_NOISE_BODY, 0x1401E3534): _FA + "locator-noise.asm:L69; " + _FA + "noise-math.asm; " + _FP + "0x1401e3460.c",
+})
+
+
+def cap_scale(groups, aux=()):
+    """Cap scale S per body: groups lists raw body masses per joined label group, all in one redistribution group."""
+    m = [x for g in groups for x in g]
+    T, H = sum(m) + sum(aux), max([0.0] + m + list(aux))
+    D = sum(max(x, H / 40) for x in m) + sum(max(e, H / 120) for e in aux)
+    r = T / D if D > 0 else 1.0
+    adjusted = [r * max(x, H / 40) for x in m]
+    out, i = [], 0
+    for g in groups:
+        out.append(sum(adjusted[i:i + len(g)]))
+        i += len(g)
+    return out, adjusted, [r * max(e, H / 120) for e in aux]
+
+
+def force_cap(E):
+    """Cap scale S of the force application helpers, verified once and shared by every capped force."""
+    if hasattr(E, "force_cap"):
+        return E.force_cap
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / FC_REPORT).is_file():
+        raise ValueError("Force-cap report missing: " + FC_REPORT)
+    for slot, target in CAP_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Link vtable slot %#x does not point to %#x" % (slot, target))
+    if n.raw(0x1400CB6A0, 4).hex() != "488bc1c3" or n.raw(0x14008FD10, 3).hex() != "33c0c3":
+        raise ValueError("Link getters differ from mov rax,rcx / xor eax,eax")
+    rep = " Report: %s." % FC_REPORT
+    f = {}
+    f["labels"] = code(F_LABELS, 0x1404C8B21, "ff5060", "Cap-scale group flood", "component link slot +0x60",
+                       "Builds one integer label per vehicle body (assembly +0x18). For each component link it calls vtable slot +0x60, follows the counterpart at +0x150 or +0x148 to its body through component +0x28 and gives that body the same label. "
+                       "The flood does not test joint limits, the lock input, relative motion or motor power. Multibody joints (vtable 0x140b02a08) return themselves from slot +0x60 (0x1400cb6a0, mov rax,rcx; ret), "
+                       "so a pivot, hinge, piston or other multibody joint puts its two bodies in one label group, free or locked. Winches (vtable 0x140b958e8) also return themselves. The extractor re-reads these slot pointers." + rep)
+    f["walk"] = code(F_MASS_WALK, 0x1404BEDF7, "ff5068", "Mass-redistribution group test", "slot +0x68 null at both ends",
+                     "A second, separate grouping feeds the mass adjustment. Its recursion (call 0x1404bebe0 at 0x1404bee06) follows a counterpart only when slot +0x68 returns null at both ends. "
+                     "Multibody joints return null there (0x14008fd10, xor eax,eax; ret) and pass; winches return themselves and stop it. This group sets H, T and D below; it is not the S group." + rep)
+    f["raw"] = code(F_MASS_BUILD, 0x1404BE439, "ff9098020000", "Raw body mass", "m = Σ component mass getter",
+                    "For each body the builder zeroes +0x72c and, unless body byte +0x1478 is set, adds component mass getter slot +0x298 over the component list +0x3f0; the base getter 0x140328ea0 reads definition mass +0x2b0. "
+                    "The sum is stored at 0x1404be447. m is a component mass sum, not a read of the physics body's mass." + rep)
+    f["floor40"] = op(F_MASS_BUILD, 0x1404BE363, "f3440f1025c0236f00", 0x140BB072C, "Body mass floor divisor",
+                      "H ÷ this (divss at 0x1404be588) floors each body entry: max(m, H ÷ 40), where H is the largest body or auxiliary mass in the redistribution group, at least 0." + rep)
+    f["floor120"] = op(F_MASS_BUILD, 0x1404BE36C, "f3440f102d33246f00", 0x140BB07A8, "Auxiliary mass floor divisor",
+                       "H ÷ this (divss at 0x1404be58d) floors each auxiliary entry: max(e, H ÷ 120). Auxiliary masses e come from component getter slot +0x310 when slot +0x308 is true: "
+                       "a wheel's definition mass (getter 0x1403a5cc0) or 10 for a force emitter (getter 0x14033d540)." + rep)
+    f["ratio"] = code(F_MASS_BUILD, 0x1404BE80F, "f3440f5ec6", "Mass rescale ratio", "r = T ÷ D",
+                      "T = Σm + Σe and D = Σ max(m, H ÷ 40) + Σ max(e, H ÷ 120) over the redistribution group, and r = 1 when D is 0. The floored entries times r add back up to T." + rep)
+    f["adjusted"] = code(F_MASS_BUILD, 0x1404BE88B, "f30f118a2c070000", "Adjusted body mass", "body +0x72c = r × max(m, H ÷ 40)",
+                         "Writes the adjusted body mass. Body +0x730 becomes 10 × m ÷ adjusted mass (10 when that is 0); auxiliary entries get the same factor from e. Adjusted auxiliary masses are not written to any body's +0x72c." + rep)
+    f["root"] = code(F_MASS_BUILD, 0x1404BE3E1, "0fb6839c020000", "Root exclusion flag", "assembly +0x29c to first body +0x1478",
+                     "When assembly byte +0x29c is set, the builder copies it to the first body's +0x1478 (store at 0x1404be3e8). That skips the body's raw mass, so it is absent from T and H, and leaves the body out of D and the writeback; its adjusted mass stays 0." + rep)
+    f["sum"] = code(F_MASS_BUILD, 0x1404BEAAD, "f30f580490", "Cap scale S", "S = Σ adjusted body mass over the label group",
+                    "For each body i the builder zeroes S_i in a parallel float list (0x1404bea4e) and adds +0x72c of every body j with the same label. Every body in a label group gets the same S. "
+                    "No average, component count or timestep enters, and adjusted auxiliary masses are not added." + rep)
+    f["pass"] = code(F_DISPATCH, 0x140549782, "f30f103490", "Cap scale to the update", "stack argument 7",
+                     "The component dispatcher loads the body's S from that list and stores it as stack argument 7 at 0x1405498b3 (f30f11742430) before each component update. "
+                     "The update passes it to the force helpers, which limit each force to its limit × S." + rep)
+    one, _, _ = cap_scale([[1000.0]])
+    pair, adj, _ = cap_scale([[1000.0, 1.0]])
+    wheel, adj_w, aux_w = cap_scale([[1000.0]], aux=[1.0])
+    apart = [cap_scale([[1000.0]])[0][0], cap_scale([[1.0]])[0][0]]
+    g = lambda x: _num(round(x, 6))
+    f["examples"] = E.derived("Cap scale examples", "1000; 1001 for 1000 + 1 on one joint; %s with an auxiliary mass of 1; 1000 and 1 when not joined" % g(wheel[0]),
+                              "One body of mass 1000: S = %s, so the caps are 5 × S = %s, 100 × S = %s and 1000 × S = %s. "
+                              "Bodies of 1000 and 1 joined by a joint, free or locked: T = 1001, H = 1000, D = 1000 + 1000 ÷ 40 = 1025, r = 1001 ÷ 1025, adjusted masses %s and %s, S = %s for both bodies and an air cap of 5 × S = %s. "
+                              "One body of 1000 with one auxiliary mass of 1: D = 1000 + 1000 ÷ 120, S = %s and the adjusted auxiliary mass %s, together 1001. "
+                              "Bodies of 1000 and 1 with no joint between them: S = %s and S = %s. "
+                              "The cap applies to each force separately, so it is not a budget for the whole vehicle. Calculations from the decoded arithmetic; no game measurement." % (
+                                  g(one[0]), g(5 * one[0]), g(100 * one[0]), g(1000 * one[0]), g(adj[0]), g(adj[1]), g(pair[0]), g(5 * pair[0]),
+                                  g(wheel[0]), g(aux_w[0]), g(apart[0]), g(apart[1])) + rep,
+                              [f["sum"], f["adjusted"], f["ratio"], f["floor40"], f["floor120"], f["labels"]])
+    core = [f[x] for x in ("labels", "walk", "raw", "floor40", "floor120", "ratio", "adjusted", "root", "sum", "pass", "examples")]
+    E.force_cap = {"f": f, "core": core, "refs": [f["sum"], f["labels"], f["examples"]]}
+    return E.force_cap
+
+
+# One sentence for every entry that states a capped force; numbers in it occur in force_cap()["refs"].
+CAP_RULE = ("S is the summed adjusted mass of every body joined to this one by joints, free or locked, so all of them share one S; "
+            "the Control surfaces category gives the rule and examples.")
 
 
 # jet-engine pass; files under investigation/native/jet-engines/, report investigation/jet-engines.md.
@@ -2100,7 +2223,7 @@ def jet_engine(E):
     f["x_gate"] = code(F, 0x140351F11, "803de797990000", "Exhaust force application gate", "global byte 0x140ceb6ff",
                        "The force is submitted only while this global flag is set; the same flag gates the intake's force at 0x140353e2f." + rep)
     f["x_limit"] = op(F, 0x140351F59, "f30f100d2fe88500", 0x140BB0790, "Exhaust force application limit",
-                      "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53)." + rep)
+                      "Passed as the limit argument to the application helper 0x1401a7c70, together with the cap scale S from the dispatcher (stack argument stored at 0x140351f53), the summed adjusted mass of the joined bodies (investigation/force-cap.md)." + rep)
     f["x_submit"] = code(F, 0x140351F7A, "e8f15ce5ff", "Exhaust force submission", "call 0x1401a7c70",
                          "Submits the exhaust force vector once per update." + rep)
     f["x_cap"] = code(F_JET_FORCE, 0x1401A7D07, "f30f59c60f2fd0", "Jet force application cap", "|F| ≤ 100 × S",
@@ -5121,13 +5244,17 @@ def propulsion(B, E):
                         "Rotors with Power Connection A and B link the two port nodes to each other. The shaft solver then mixes the two groups' speeds across that link with fraction 0.95 and ratio 1, as it does across a gearbox. "
                         "The rotor's own load goes on A. The ports do not share a fixed part of the power and do not jump to one speed: groups of weight 11 at 10 RPS and 21 at rest publish %s and %s RPS." % (
                             _num(round(f["through"][0], 6)), _num(round(f["through"][1], 6)))),
+                section("Application cap",
+                        "Every propeller, rotor and fan force is capped at 100 × S on its own, and solid rockets at 1000 × S. " + CAP_RULE + " "
+                        "Each force emitter also adds an auxiliary mass of 10 to the mass adjustment. That changes how the body masses are scaled, but it is not added to S."),
                 section("Rockets", "Solid rocket boosters burn once. Each update a nozzle of width w uses trunc(400 × w² × burn rate) + 1 fuel units and pushes with 60 times that, so a slower burn rate pushes less for longer, and fuel sections lengthen the burn without adding thrust."),
                 section("Open questions",
                         "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; "
-                        "the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, "
+                        "for the cap scale S, which code sets the assembly root flag (+0x29c) that drops the first body from the mass sum, and which connector links (connection records of kind 8) join bodies into one S group; "
+                        "the SI calibration of mass, force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, "
                         "cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); "
                         "the editor-arrow sign table for reflected parts. No figure here was measured in a running game.")],
-               core + rotor + coax + shaft + [f["through_fig"]] + [fe(b) for _, bids in PROP_PARTS for b in bids] + list(figs.values()) + [srb, E.tooltip("propeller")] + [weapons_native(E)[k] for k in ("r_400", "r_60", "r_sum", "r_units")] + rate,
+               core + rotor + coax + shaft + [f["through_fig"]] + [fe(b) for _, bids in PROP_PARTS for b in bids] + list(figs.values()) + [srb, E.tooltip("propeller")] + [weapons_native(E)[k] for k in ("r_400", "r_60", "r_sum", "r_units")] + rate + force_cap(E)["core"],
                ["Static analysis of one build. Forces are in the game's internal force unit before the 100 × S application cap.", TICK])
 
     def family(fid, summary, sections, findings, limits=()):
@@ -5300,7 +5427,17 @@ def control_surfaces(B, E):
                 "Control surfaces and fins (rudder_type 0) have no wing term, so they push only when the air meets them at an angle.")
     units = ("The result is in the game's internal force units. Body mass is not calibrated to kilograms, so do not read it as newtons. "
              "The game queues the force once per update and the physics solver integrates it, so it is not multiplied by 60. "
-             "Before it is applied its size is limited to 5 × S, where S is a per-vehicle scale passed in by the component dispatcher; area scaling is linear only below that limit.")
+             "Before it is applied its size is limited to 5 × S, where S is the cap scale described below; area scaling is linear only below that limit.")
+    FC_ = force_cap(E)
+    cap_s = section("Application cap scale S",
+                    "Every capped force goes through a helper that limits its size to a fixed limit × S: 5 × S for wings, control surfaces and fins, 100 × S for jet exhausts, propellers, rotors and keels, and 1000 × S for solid rockets. "
+                    "S comes from the vehicle's bodies. Each body's raw mass m is the sum of its components' mass values, normally their definition mass. Bodies joined by joints share one S, whether the joint can move or is locked: "
+                    "S is the sum of the adjusted masses of every body in that joined group, and every body in it gets the same value.",
+                    "The adjustment lifts each body to at least H ÷ 40, where H is the heaviest mass in its group, and each auxiliary mass, such as a wheel's mass or 10 for a force emitter, to at least H ÷ 120. "
+                    "It then multiplies all of them by r = T ÷ D, so they add back up to the raw total T. Auxiliary masses change r but are not added to S.",
+                    "Examples: one body of mass 1000 has S = 1000, so its air forces are capped at 5000. Bodies of 1000 and 1 on a hinge, free or locked, adjust to 976.585366 and 24.414634, and both get S = 1001. "
+                    "One body of 1000 with an auxiliary mass of 1 gets S = 992.727273. Bodies of 1000 and 1 with no joint between them keep S = 1000 and S = 1. "
+                    "The cap limits each force separately; it is not a budget for the whole vehicle. Edge cases with connectors and the assembly root flag are listed under Propulsion.")
     B.category("Control surfaces",
                "Wings, control surfaces and fins push along their surface normal once airspeed passes 15 m/s, with force proportional to rudder_surface_area (wings 8 to 120, control surfaces 10 to 70, fins 2 to 12). Control surfaces deflect about 45° each way, fins about 14.3°.",
                [section("Sizing",
@@ -5317,14 +5454,15 @@ def control_surfaces(B, E):
                         "Plane resistance grows with airspeed × (airspeed - 15); the wing term grows with (airspeed - 15) × g. There is no stall angle, Reynolds-number term or separate skin drag in this routine.",
                         "Example: a small wing section (area 8) on a body of mass 1000 at 30 m/s and 10° angle of attack gets a normal force of 594.2, of which 585.1 is lift and 103.2 is drag."),
                 section("Force units and limit", units,
-                        "Partly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over.")],
+                        "Partly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over."),
+                cap_s],
                wings + cs + fins + rot + deg + gyro + [lift_sdk, lift_rt, kind("wing_small"), kind("control_surface_small"), kind("control_fin_small"),
-                                                    wing_ratio, cs_ratio, fin_ratio] + core + wing + deflect,
-               ["The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
+                                                    wing_ratio, cs_ratio, fin_ratio] + core + wing + deflect + FC_["core"],
+               ["The force equations and the cap scale S come from static decompilation of one build; the game was not run.",
                 "Which visible edge and editor arrow match positive deflection and the sign of the force was not checked in game.",
                 "Internal mass and force units are not calibrated to kilograms and newtons.",
                 "Reaction wheels are outside the air-force decode; their force fields are configuration only."])
-    wing_limits = ["The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.",
+    wing_limits = ["The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces category explains its scale S.",
                    "Internal mass and force units are not calibrated to kilograms and newtons."]
     surface_limits = wing_limits + ["Which visible edge and editor arrow match positive deflection was not checked in game."]
     B.family("wing-section", "rudder_surface_area 8, 20, 40, 70 and 120 across the five wing sizes. The air force scales linearly with it, and the wing term lifts even at zero angle of attack.",
@@ -5361,7 +5499,7 @@ def jet_engines(B, E):
     open_net = ("How ducts, splitters and merged assemblies build the neighbour lists was not traced, so the equilibrium pressure, RPS and thrust "
                 "of an assembled engine and its startup time are not predicted from a parts list.")
     open_units = "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units."
-    open_scale = "How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted."
+    FC_ = force_cap(E)["refs"]
     open_ab = ("The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws "
                "depends on the external fluid network, which was not modelled.")
     static = "Static decompilation of one build; the game was not run."
@@ -5382,7 +5520,7 @@ def jet_engines(B, E):
                         "Turn on the compressor's Compressor input and connect electricity. Each update it requests 0.1 charge, 6 per simulated second, and with full supply gains 0.01 RPS before its 0.99 retention and pressure load. "
                         "The chamber ignites once its RPS is above 0.5; the tooltip's internal pressure threshold does not exist in the decoded branch. Throttle 0 to 1 sets u."),
                 section("Thrust",
-                        "Exhaust force = 32 × (incoming pressure - 1000) × altitude factor × afterburner multiplier × (1 - Thrust Spoiler), before a cap of 100 × S, with S a per-vehicle scale. "
+                        "Exhaust force = 32 × (incoming pressure - 1000) × altitude factor × afterburner multiplier × (1 - Thrust Spoiler), before a cap of 100 × S. " + CAP_RULE + " "
                         "RPS enters only through the pressure the chamber adds, so the tooltip's proportionality to internal RPS describes the chain, not the exhaust formula. "
                         "The altitude factor 1 - height × 1.5 ÷ 40000 reaches 0 at a height of 26666.67, metres if the height field is in metres, which is an inference. The three exhausts use the same coefficient; the rotating one only changes direction."),
                 section("Fuel",
@@ -5391,9 +5529,9 @@ def jet_engines(B, E):
                 section("Units",
                         "Pressure, temperature, charge and force are the game's internal units. The force is applied once per update and integrated by the physics solver; do not multiply it by 60. "
                         "The medium turbine's shaft weight of 160 is a solver weight, not a torque in N m.")],
-               every + [kind("jet_engine_compressor"), T("jet_engine_compressor"), T("jet_engine_combustion_chamber"), P("jet_engine_exhaust_basic", "Thrust Spoiler"),
+               every + FC_ + [kind("jet_engine_compressor"), T("jet_engine_compressor"), T("jet_engine_combustion_chamber"), P("jet_engine_exhaust_basic", "Thrust Spoiler"),
                         T("jet_engine_exhaust_rotating")],
-               [static + " " + open_net, open_units + " " + open_scale,
+               [static + " " + open_net, open_units,
                 "SI torque, power and efficiency were not recovered. Intake behaviour was not decoded.", TICK])
     B.family("part-jet-engine-compressor",
              "Spins up from electricity and pushes pressure forward: q = 0.2 × (100 × RPS - pressure rise) per update, losing 0.0001 × q RPS for it.",
@@ -5439,11 +5577,11 @@ def jet_engines(B, E):
              [local, units + " The shaft weight 160 is a solver weight, not a torque in N m.", TICK])
     thrust_body = ("Force = 32 × (incoming pressure - 1000) × a × b × (1 - Thrust Spoiler) along the exhaust's thrust axis, with altitude factor a = clamp(1 - height × 1.5 ÷ 40000, 0, 1) and afterburner multiplier b = 1 when off. "
                    "At or below 1000 there is no force. No exhaust size, engine_max_force or RPS term enters; RPS matters only through the pressure the chamber adds upstream.")
-    cap_body = ("The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. "
-                "It is applied once per update and integrated by the physics solver; do not multiply it by 60.")
+    cap_body = ("The force is in internal units. Before it is applied its size is limited to 100 × S, the same mechanism the control surfaces use with a limit of 5. " + CAP_RULE + " "
+                "With one body of mass 1000, S = 1000 and the cap is 100000. It is applied once per update and integrated by the physics solver; do not multiply it by 60.")
     example = "At incoming pressure 16000, sea level and spoiler 0 the force is 480000; spoiler 0.5 gives 240000. With S = 1000 the cap limits both to 100000."
-    ex_common = J["exhaust"] + J["identity"] + rate
-    ex_limits = [local, units + " The cap scale S is open, as the Jet engines category records.", TICK]
+    ex_common = J["exhaust"] + J["identity"] + rate + FC_
+    ex_limits = [local, units, TICK]
     B.family("part-jet-engine-exhaust-basic",
              "Pushes with 32 × (incoming pressure - 1000), scaled by altitude and the Thrust Spoiler, capped at 100 × S.",
              [section("Thrust", thrust_body), section("Altitude and spoiler",
@@ -6696,7 +6834,7 @@ def weapons_native(E):
                    "The thrust is the nozzle axis × q × 60 (0x140437ce5-0x140437cef): raw thrust 60 × q internal force units per update." + rep)
     f["r_burn"] = code(F_ROCKET, 0x140437DD9, "01700c", "Fuel burned", "group+12 += q", "Added after the force is submitted; the nozzle stops when burned reaches capacity." + rep)
     f["r_cap"] = op(F_ROCKET, 0x140437DAD, "f30f1005a78a7700", 0x140BB085C, "Solid rocket thrust application limit",
-                    "Passed (0x140437db5) to the force limiter 0x1401a7ad0 (call at 0x140437dcd), which caps the applied force at 1000 × S, S the caller's scale; the jet exhaust passes 5 and the propellers 100." + rep)
+                    "Passed (0x140437db5) to the force limiter 0x1401a7ad0 (call at 0x140437dcd), which caps the applied force at 1000 × S, S the cap scale the dispatcher passes to the caller (investigation/force-cap.md); the control surfaces pass 5, and the jet exhausts and propellers use 100." + rep)
     f["r_ceil"] = op(F_ROCKET, 0x140437D24, "660f2f0554887700", 0x140BB0580, "Thrust altitude ceiling", "Above this height the altitude factor is 0." + rep, kind="f64")
     f["r_slope"] = op(F_ROCKET, 0x140437D3C, "f30f590d3c7b7700", 0x140BAF880, "Thrust altitude factor slope", "P(y) = (1 - slope × y)^exponent multiplies the thrust vector, the same curve as propellers and control surfaces." + rep)
     f["r_exp"] = op(F_ROCKET, 0x140437D50, "f30f100dac877700", 0x140BB0504, "Thrust altitude factor exponent", "Passed with 1 - slope × y to the power routine 0x1409b9c10." + rep)
@@ -7002,10 +7140,10 @@ def weapons(B, E):
                        "Halving the burn rate roughly halves thrust and doubles the burn time.")
     rate_sec = section("Burn Rate, altitude and force cap",
                        "The Burn Rate slider runs from 1% to 100%, stored as 0.01 to 1. Thrust is multiplied by (1 - 2.2413793e-5 × y)^5.3595023 of the altitude y and is 0 above 40000. "
-                       "The applied force is capped at 1000 × S, S being the force helper's scale, as the jet exhaust is capped at 5 × S.")
+                       "The applied force is capped at 1000 × S; control surfaces are capped at 5 × S and jet exhausts at 100 × S by the same mechanism. " + CAP_RULE)
     B.family("solid-rocket-booster",
              "Burns trunc(400 × w² × burn rate) + 1 fuel units per update and pushes with 60 times that; at burn rate 1 a full nozzle plus one matching fuel section burns 300 updates (5 s), the small size 100 updates.",
-             [burn, fuel_sec, rate_sec], law + figs + [E.tooltip("solid_rocket_nozzle_small"), E.port("solid_rocket_nozzle_medium", "Fuel Remaining")] + R,
+             [burn, fuel_sec, rate_sec], law + figs + [E.tooltip("solid_rocket_nozzle_small"), E.port("solid_rocket_nozzle_medium", "Fuel Remaining")] + R + force_cap(E)["refs"],
              ["Forces are internal units before the 1000 × S cap. One burning nozzle per fuel group is assumed; several nozzles on one group share its fuel.", TICK])
     for fid, suffix in (("solid-rocket-fuel", ""), ("solid-rocket-fuel-fins", "_fins")):
         units = ", ".join("%s %d" % (label.lower(), 20000 * int(E.block(fuel + suffix)["attributes"]["door_side_dist"]) ** 2 * int(E.block(fuel + suffix)["attributes"]["door_up_dist"]))
@@ -7104,6 +7242,8 @@ def sensor_native(E):
         if E.block(bid)["attributes"]["type"] != "57":
             raise ValueError("%s is not definition type 57" % bid)
     rep = " Report: %s." % SR_REPORT
+    if n.raw(F_COUNTER, 4).hex() != "8b4104c3":
+        raise ValueError("Counter getter 0x1402b7af0 differs from mov eax,[rcx+4]; ret")
     f = {}
     # Advanced radar: identity, range and timing.
     f["r_factory"] = code(F_FACTORY, 0x14045E6DC, "e80f92f5ff", "Type-56 component factory case", "call 0x1403b78f0",
@@ -7141,7 +7281,21 @@ def sensor_native(E):
     f["r_limit"] = code(F_RADAR, 0x1403BBEC0, "4183be8804000008", "Radar target limit", "8",
                         "Before each accepted target the update compares the result count at +0x488 with 8 and stops at 8 (jae at 0x1403bbec8). The report traces a descending sort by score before this loop." + rep)
     f["r_ray"] = code(F_RADAR, 0x1403BC033, "e8c882deff", "Radar line-of-sight query", "call 0x1401a4300",
-                      "Per candidate the update runs a segment query from the sensor to the target with mask 0x7f; an intervening record can reject the target, with exceptions for the target itself and the same owner." + rep)
+                      "Per candidate the update runs a segment query from the sensor to the target with masks 0x7f and 0xff; an intervening record can reject the target, with exceptions for the target itself and the same owner." + rep)
+    frep = " Report: %s." % FC_REPORT
+    f["r_mask"] = code(F_RADAR, 0x1403BC01B, "41b97f000000", "Radar line-of-sight masks", "0x7f and 0xff",
+                       "Sets argument 4 of the segment query to 0x7f; 0x1403bc013 (c7442420ff000000) stores argument 5, 0xff. The query 0x1401a4300 copies argument 4 to callback +0x18 (0x1401a4443) and argument 5 to +0x1c (0x1401a444e). "
+                       "Both are bit masks, not object or material IDs." + frep)
+    f["r_filter"] = code(F_SEG_FILTER, 0x1400D9BF3, "0fbae00c", "Radar line-of-sight filter", "(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0",
+                         "Broadphase filter of the segment query (slot +8 of callback vtable 0x140b3dac0). It rejects a proxy whose group (proxy +8) has bit 12 set (bt here), then requires group & callback +0x1c (0xff, test at 0x1400d9bf9) "
+                         "and the proxy's object mask (proxy +0xc) & callback +0x18 (0x7f, test at 0x1400d9c01) to be nonzero. The test uses collision bits only, with no render-material or opacity term." + frep)
+    f["r_missile"] = code(F_RADAR, 0x1403BA806, "83b8c42c000001", "Missile radar orientation selector", "radar_type 1",
+                          "Compares definition +0x2cc4 (radar_type) with 1 and jumps to the type-1 branch at 0x1403ba8dc. Both branches first build the same rotation in the Y-Z plane from a = -2π × component +0x420 (storage order). "
+                          "The type-1 branch then builds its second rotation in the X-Y plane from -component +0x468, where the other radars build one in the X-Z plane from +component +0x468. Storage order is not an Euler-angle convention." + frep)
+    f["r_missile_sign"] = code(F_RADAR, 0x1403BA94B, "410f57c5", "Missile radar angle sign", "-component +0x468",
+                               "Flips the sign of component +0x468 (loaded at 0x1403ba942) for the type-1 matrix; the ordinary branch loads it at 0x1403ba879 and uses it as it is. At zero angles both matrices are the identity." + frep)
+    f["r_missile_basis"] = code(F_RADAR, 0x1403BAC4F, "83b8c42c000001", "Missile radar plane basis selector", "radar_type 1",
+                                "The second radar_type test jumps to 0x1403bb16e (je at 0x1403bac56). That branch starts the scan-plane construction from -R2, R0 and R1 of the component's world rows instead of the ordinary radar's basis." + frep)
     f["r_turns"] = op(F_RADAR, 0x1403BC3DC, "f30f5e056c417f00", 0x140BB0550, "Radar angle unit",
                       "Each target's yaw is negated and divided by 2π before it is stored at record +0x34, and the pitch is divided by 2π at 0x1403bc42b, so reported angles are in turns." + rep)
     # Output noise.
@@ -7195,7 +7349,14 @@ def sensor_native(E):
     f["l_max"] = code(F_LOGIC, 0x1403C85E2, "e859605200", "Locator nearest beacon", "max over beacons",
                       "The running value starts at 0 (0x1403c855f) and keeps the larger term (max helper 0x1408ee640), so the nearest beacon sets it; beacons do not add up." + rep)
     f["l_noise"] = op(F_LOGIC, 0x1403C862A, "f30f59050e737e00", 0x140BAF940, "Locator noise scale",
-                      "The term is multiplied by 1 + n × 0.0078125 × 0.1 (× 0.1 at 0x1403c8632), where n comes from the spatial-noise helper 0x1401e3460 (call at 0x1403c8625)." + rep)
+                      "The term is multiplied by 1 + n × 0.0078125 × 0.1 (× 0.1 at 0x1403c8632), where n comes from the noise helper 0x1401e3460 (call at 0x1403c8625) evaluated at a shared counter value, not at a position (investigation/force-cap.md)." + rep)
+    f["l_period"] = code(F_LOGIC, 0x1403C85FE, "ba80000000", "Locator noise periods", "128 and 128",
+                         "After the beacon loop the case builds the noise helper's periods 128 and 128 (0x14017a7d0 at 0x1403c860a), then passes X = the shared counter, Y = 1 and a fourth argument 0 (0x1403c861a) to 0x1401e3460." + frep)
+    f["l_counter"] = code(F_LOGIC, 0x1403C8613, "e8d8f4eeff", "Locator noise input", "shared counter",
+                          "Calls 0x1402b7af0 on an object from the evaluator's arguments; that getter is mov eax,[rcx+4]; ret (8b4104c3, re-read by the extractor). "
+                          "Its integer is the noise X coordinate, so the noise depends on the counter, not on the beacon's position or distance, and one factor multiplies the nearest-beacon term." + frep)
+    f["l_grad"] = code(F_NOISE_BODY, 0x1401E3534, "450f57ff", "Locator noise gradient multiplier", "0",
+                       "The noise helper clears xmm15 before its gradient terms, so for finite input the gradient components reduce to -1 (report). With integer X and Y = 1 the output repeats every 128 counter steps for small nonnegative counter values (inference from the report's reduced model)." + frep)
     f["l_clamp"] = code(F_LOGIC, 0x1403C8656, "e8b55f5200", "Locator increment clamp", "0 to 1",
                         "Clamp helper 0x1408ee610 limits the noisy term to 0 to 1." + rep)
     f["l_acc"] = op(F_LOGIC, 0x1403C8679, "f30f100dcb7f7e00", 0x140BB064C, "Locator pulse threshold",
@@ -7684,10 +7845,10 @@ def sensors_and_radio(B, E):
     f = sensor_native(E)
     rate = update_rate(E)["findings"][0]
     radar_core = [f[k] for k in ("r_factory", "r_vtable", "r_fov", "r_field", "r_k", "r_range", "r_interval", "r_count", "r_cap", "r_div",
-                                 "r_score", "r_thr", "r_limit", "r_ray", "r_turns", "r_noise_a", "r_noise_d", "r_rand", "r_dnoise", "r_anoise")]
+                                 "r_score", "r_thr", "r_limit", "r_ray", "r_mask", "r_filter", "r_turns", "r_noise_a", "r_noise_d", "r_rand", "r_dnoise", "r_anoise")]
     sonar_core = [f[k] for k in ("s_factory", "s_vtable", "s_div", "s_score", "s_thr", "s_merge", "s_limit", "s_window", "s_speed", "s_amp",
                                  "s_pfac", "s_passive", "s_ray", "s_noise")]
-    locator = [f[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_clamp", "l_acc", "l_rate")]
+    locator = [f[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_period", "l_counter", "l_grad", "l_clamp", "l_acc", "l_rate")]
     noise = [f[k] for k in ("sdk_sonar", "sdk_radar", "sdk_dist", "sdk_default", "noise")] + f["sdk"]
     lf = legacy_sensor_native(E)
     legacy_core = [lf[k] for k in LEGACY_CORE] + [legacy_figures(E, bid) for _, bid, _ in LEGACY_SENSORS]
@@ -7722,6 +7883,9 @@ def sensors_and_radio(B, E):
                         "R is 4 × P at 0.01 per axis, equals radar_range at 0.02 and is 0.0064 × P at 0.25: the AWACS spans 2000000 m to 3200 m, the Missile 80000 m to 128 m. "
                         "A new scan runs every N = max(1, floor(R ÷ 2000 + 0.5)) updates, at 60 updates per second.",
                         "A target of body mass S at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250. There is no random roll in this test. Each scan keeps at most 8 targets, best score first, and runs a line-of-sight query to each."),
+                section("Radar line of sight",
+                        "The line-of-sight query from the radar to each candidate filters objects by collision bits, not by what they look like. An object can block only when its collision group lacks bit 0x1000 and shares a bit with 0xff, and its object mask shares a bit with 0x7f. "
+                        "The target itself and objects with the same owner do not block. Whether glass, water, terrain or another vehicle carries those bits depends on how each is registered with the physics scene; render materials and transparency play no part in this test."),
                 section("Legacy radar and sonar detection",
                         "The six legacy parts (Radar, Radar (Dish), Radar (Large), Radar (Huge), Sonar (Large) and Sonar (Small); definition type 16, logic case 50) use a different test: a target passes when S ÷ d > 0.25, that is d < 4 × S. radar_range does not enter the score. "
                         "It sets a far plane C = P × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead of the sensor, 0.775 × P at the saved default 0.1: 3875 m for the Radar, 15500 m for the Dish and Large, 38750 m for the Huge, 2325 m and 775 m for the sonars. "
@@ -7733,12 +7897,13 @@ def sensors_and_radio(B, E):
                         "Advanced sonars use radar_range as P. An active return passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < P × S ÷ 100. After a ping, targets show up as an echo window moves out by 12.333333 m per update, 740 m per second.",
                         "While not pinging, a sonar hears other sonars' pings of amplitude 235 when 235 × P × 0.00002 ÷ d > 0.01, so one ping is heard within 0.47 × P. Targets whose directions differ by less than 0.01 in squared length merge, and at most 16 targets are output."),
                 section("Transponder locator pulses",
-                        "The locator takes the nearest beacon's 1 ÷ (0.002 d + 0.5), applies a small noise factor, clamps it to 0 to 1 and adds it to an accumulator each update. Each time the accumulator reaches 10 it pulses. Without noise that is 6 Hz within 250 m, 2.4 Hz at 1000 m and 0.2927 Hz at 10000 m."),
+                        "The locator takes the nearest beacon's 1 ÷ (0.002 d + 0.5), applies a small noise factor, clamps it to 0 to 1 and adds it to an accumulator each update. Each time the accumulator reaches 10 it pulses. Without noise that is 6 Hz within 250 m, 2.4 Hz at 1000 m and 0.2927 Hz at 10000 m. "
+                        "The noise factor comes from a shared counter, not from the beacon's position, and one factor multiplies the nearest beacon's term."),
                 section("Output noise",
                         "The game reads radar_noise, radar_distance_noise and sonar_noise from the SDK game_constants file. Radar distances are multiplied by 1 − D + 2D U, and radar and sonar angles get −A + 2A U, with a fresh random U from 0 to 1 per value. "
                         "At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise."),
                 section("Open questions",
-                        "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which objects and materials block the line-of-sight query; "
+                        "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; "
                         "the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; "
                         "the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. "
                         "For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); "
@@ -7807,12 +7972,15 @@ def sensors_and_radio(B, E):
                   section("Outputs",
                           "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."),
                   section("Variant tradeoffs",
-                          "The tooltip gives no range, but radar_range is %s. On the basic radars and sonars this field equals the stated range." % rng)],
+                          "The tooltip gives no range, but radar_range is %s. On the basic radars and sonars this field equals the stated range." % rng)] +
+                 ([section("Missile orientation",
+                           "radar_type 1 sends the Missile radar down its own orientation branches in two places of the radar update. Its scan matrix turns in a different plane from the other radars' and with the opposite sign, "
+                           "and its scan planes start from a different basis of the part's axes. At zero angles the matrices are the identity, so they alone do not show which way the missile radar looks at rest.")] if missile else []),
                  [radar[bid], radar["radar"], E.tooltip("radar"), E.tooltip(bid), E.attr(bid, "type", "Definition type 56, the advanced radar class."),
                   E.attr(bid, "radar_speed", "Sweep step per update."), fig] + radar_core + [lf[k] for k in FOV_CORE + MASS_CORE] + [f["noise"], rate] +
-                 ([E.attr(bid, "radar_type", "radar_type 1 selects the missile orientation branches in the radar update.")] if missile else []),
+                 ([E.attr(bid, "radar_type", "radar_type 1 selects the missile orientation branches in the radar update."), f["r_missile"], f["r_missile_sign"], f["r_missile_basis"]] if missile else []),
                  ["S is the target's physics-body mass, read per physics body; how vehicle mass accounting and the environment shape it are open questions listed under Other components."] +
-                 (["Range, score, scan interval and FOV slider limits match the other advanced radars. The Missile radar (radar_type 1) also takes separate orientation branches in the update; how they set the look direction and sweep was not decoded."] if missile else []) +
+                 (["Range, score, scan interval and FOV slider limits match the other advanced radars. The radar_type 1 selectors and their scan matrices are decoded; the complete scan frame, its six plane normals and the handedness of the reported azimuth and elevation were not established."] if missile else []) +
                  (["20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."] if rng == "20000" else []))
 
 
@@ -7832,9 +8000,8 @@ KEELS = ("keel_small", "keel_medium", "keel_large")
 # Definitions the report compares by voxel flags and buoyancy surfaces; the plain block is the reference.
 WINDOW_SAMPLES = ("window_1x1", "window_large", "window_porthole", "01_block")
 # Open items, kept here once: keel items on the Keel page, window items on the Windows category.
-KEEL_OPEN = ["The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the vehicle's application scale S, so no heel curve per keel size is given.",
+KEEL_OPEN = ["The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the cap scale S of the joined bodies, so no heel curve per keel size is given.",
              "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
-             "How the game builds the cap scale S for craft joined by locked joints was not decoded, so keel forces near the 100 × S cap are not predicted.",
              "The equations come from static analysis of one build; the game was not run. Internal mass and force units are not calibrated to kilograms and newtons."]
 WINDOW_OPEN = ["Whether damage breaks window glass, whether mesh or material classification changes water ingress or buoyancy, and whether the compartment pressure and flooding solver treats a window differently from a block were not traced; no glass-breaking threshold or window pressure rule is known.",
                "The search covered every window definition, the type-9 class and its vtable, and executable strings. Glass shader and material references (0x140680528, 0x14068a0e8, 0x1407a6c46) are rendering candidates only. Static analysis of one build; the game was not run."]
@@ -7896,7 +8063,7 @@ def keel_windows_native(E):
     f["m"] = code(F_RUDDER, 0x1403E01E7, "f30f1083b0020000", "Keel definition mass read", "definition+0x2b0 (mass)",
                   "Reads the definition mass m, which the definition loader binds to the mass attribute (lea at 0x140316ae6). It is the definition value, not the rigid-body mass." + rep)
     f["K"] = op(F_RUDDER, 0x1403E01EF, "f30f590591027d00", 0x140BB0488, "Keel mass multiplier",
-                "K = min(S, this × m) (minss at 0x1403e01f7), S being the per-vehicle application scale passed as update argument 7. K scales the self-righting pair and the forward-speed memory force, not the water force." + rep)
+                "K = min(S, this × m) (minss at 0x1403e01f7), S being the cap scale passed as update argument 7, the summed adjusted mass of the joined bodies (investigation/force-cap.md). K scales the self-righting pair and the forward-speed memory force, not the water force." + rep)
     f["M"] = code(F_RUDDER, 0x1403E03E3, "f30f104608", "Keel body mass read", "physics state +8",
                   "Inside the immersed branch (it runs only for immersion w > 0) the water term reads the rigid-body mass M, the same field the air force reads, and multiplies it by a register holding 0.5 (0x1403e03f4)." + rep)
     f["D"] = op(F_RUDDER, 0x1403E03EC, "f30f101d20047d00", 0x140BB0814, "Keel water mass cap",
@@ -8089,8 +8256,8 @@ def keels(B, E):
               section("Immersion",
                       "w = clamp(2 × (0.25 - (y - surface)), 0, 1), y being the keel point's height and surface the sampled wave height there. w rises from 0 to 1 over the 0.5 m around the surface. At w = 0 the keel does nothing."),
               section("Application limit",
-                      "Each keel force goes through the application helper with limit 100, so its size is capped at 100 × S, S being a per-vehicle scale from the component dispatcher. "
-                      "With M = S = 10000 and w = 1 the water force is 16000 at 0.1 m/s sideways, 160000 at 1 m/s and 800000 at 5 m/s; at 10 m/s the raw 1600000 is capped to 1000000."),
+                      "Each keel force goes through the application helper with limit 100, so its size is capped at 100 × S. " + CAP_RULE + " "
+                      "A single body with no auxiliary masses has S equal to its mass M. With M = S = 10000 and w = 1 the water force is 16000 at 0.1 m/s sideways, 160000 at 1 m/s and 800000 at 5 m/s; at 10 m/s the raw 1600000 is capped to 1000000."),
               section("Downward force",
                       "A keel also queues a fixed world-down force of 1000 whenever it is immersed at all. It does not grow with keel size, body mass, depth or keel_force_factor. "
                       "The shipped keel_mass_scale is also 1000, but this is a force: the body's mass and inertia do not change."),
@@ -8112,7 +8279,7 @@ def keels(B, E):
               section("Operating conditions",
                       "Sideways water resistance is what lets a sail push the hull forward in a crosswind or upwind, so pair keels with sail anchors. keel_force_factor (default 1) scales only the self-righting and memory forces.")],
              core + [x for b in KEELS for x in K["size"][b]] + list(fig["size"].values()) +
-             [fig["water"], fig["water_ex"], fig["heel_ex"], fig["mem_ex"], fig["tuning"]] + K["rt"] + update_rate(E)["findings"][:1] + [T("keel_small"), T("rope_hook_sail")],
+             [fig["water"], fig["water_ex"], fig["heel_ex"], fig["mem_ex"], fig["tuning"]] + K["rt"] + update_rate(E)["findings"][:1] + [T("keel_small"), T("rope_hook_sail")] + force_cap(E)["refs"],
              KEEL_OPEN)
 
 
@@ -8173,6 +8340,35 @@ def remaining(B, E):
                WINDOW_OPEN)
 
 
+def motion_sensors(E):
+    """Altimeter (logic case 18) and linear speed sensor (logic case 19), from the force-cap report's sensor pass."""
+    if hasattr(E, "motion"):
+        return E.motion
+    code, op = E.code, E.operand
+    if not (E.root / FC_REPORT).is_file():
+        raise ValueError("Force-cap report missing: " + FC_REPORT)
+    rep = " Report: %s." % FC_REPORT
+    f = {}
+    f["alt"] = code(F_LOGIC, 0x1403C53A8, "e8834edbff", "Altimeter world position", "world Y of the part",
+                    "Logic case 18 passes the component's grid position and the physics state matrix at body +0x18 to 0x14017a230, which rotates the point and adds the matrix translation (matrix[13] for Y). "
+                    "The case outputs the resulting world Y. It makes no terrain, seabed, wave-height, pressure or previous-position read, so the datum is world y = 0." + rep)
+    f["alt_y"] = op(F_LOGIC, 0x1403C53B6, "0f2f0d5bb57e00", 0x140BB0918, "Altimeter height cutoff",
+                    "The world Y, narrowed to binary32, is compared with this; above it (ja at 0x1403c53bd) the output is 0." + rep)
+    f["alt_x"] = op(F_LOGIC, 0x1403C53C4, "660f2f0544b27e00", 0x140BB0610, "Altimeter X cutoff",
+                    "The world X coordinate is compared with this; above it the output is 0 (jbe at 0x1403c53cc skips the zeroing otherwise). Both tests are one-sided, not absolute-value clamps. "
+                    "The output store at 0x1403c53e1 runs only when the value changed." + rep, kind="f64")
+    f["spd"] = code(F_LOGIC, 0x1403C5489, "e82207dbff", "Linear speed point velocity", "v + w × r",
+                    "Logic case 19 rotates the component's offset from the body origin through the body transform without translation (0x140178e20 at 0x1403c5438), crosses the angular velocity at body state +0xa4 with it "
+                    "(0x1401758e0 at 0x1403c5476) and adds the linear velocity at +0x98 here (0x140175bb0). There is no position difference, no division by a sampling interval and no wind subtraction." + rep)
+    f["spd_mode"] = code(F_LOGIC, 0x1403C548E, "418b8e34080000", "Linear speed mode", "component +0x834: 0, 1, 2 or 3",
+                         "Mode 0: length of the velocity (0x140175740). Mode 1: dot product with the sensor axis, built from definition +0x40 and the component rotation and rotated through the body transform. "
+                         "Mode 2: sqrt(vx² + vz²) (sqrtss at 0x1403c54db). Mode 3: vy. Any other value gives 0." + rep)
+    f["spd_y"] = op(F_LOGIC, 0x1403C5648, "0f2f05c9b27e00", 0x140BB0918, "Linear speed height cutoff",
+                    "The sensor's world Y (0x14017a230 at 0x1403c5637) is compared with this; above it the speed output is 0. The store at 0x1403c5664 runs only when the value changed." + rep)
+    E.motion = f
+    return f
+
+
 def more_families(B, E):
     T, P, A = E.tooltip, E.port, E.attr
 
@@ -8201,6 +8397,26 @@ def more_families(B, E):
     simple("part-wind-sensor", "Relative wind in its own plane: direction −0.5 to 0.5 turns and speed in m/s.",
            [("Operating conditions", "Readings are relative to the sensor's motion, so a moving vehicle sees headwind; only wind in the sensor's plane is measured.")],
            [T("wind_sensor")], [])
+    mf = motion_sensors(E)
+    timing = ("There is no sensor timer, history or smoothing. The value is recomputed on every logic update, 60 per simulated second, and written only when it changes.")
+    motion_open = ["Static analysis of one build; the game was not run. The open timing question, when in a physics step the logic update reads the body state, is listed in the Speed, altitude and radar signals mechanics article."]
+    simple("part-altimeter", "Outputs the part's world height above the fixed sea-level datum y = 0, in metres: not clearance over terrain or the local wave surface.",
+           [("Reading",
+             ["Logic case 18 moves the part's position through the body's world transform and outputs the world Y coordinate. It reads no terrain, seabed, wave or pressure value and keeps no previous position, "
+              "so the output is height above y = 0, the sea level the tooltip names, whatever lies below the part. Over land it does not show height above the ground, and over water it does not measure from the local wave surface.",
+              "The output is 0 when the height is above 40000 or the world X coordinate is above 156000. Both tests are one-sided."]),
+            ("Timing", timing)],
+           [T("altimeter"), P("altimeter", "Altitude"), A("altimeter", "logic_gate_type", "Value 18 selects the altimeter case of the logic update."),
+            mf["alt"], mf["alt_y"], mf["alt_x"]] + R[:1], motion_open)
+    simple("part-linear-speed-sensor", "Outputs the physics velocity of the point where it sits, in m/s, in one of four modes: full speed, along its own axis, horizontal or vertical.",
+           [("Reading",
+             ["Logic case 19 takes the body's linear velocity plus its angular velocity × the lever arm from the body origin to the sensor: the velocity of that point in the current physics state. "
+              "It does not difference positions over time and does not subtract wind, so it reads speed over the ground, not airspeed.",
+              "Mode 0 outputs the length of that velocity, mode 1 its signed component along the sensor's own axis, mode 2 the horizontal speed sqrt(vx² + vz²) and mode 3 the vertical component vy. Any other mode value gives 0. Above a world height of 40000 the output is 0."]),
+            ("Placement", "Because the angular term is included, a sensor far from the centre of a turning or rolling vehicle reads more than one near the centre."),
+            ("Timing", timing)],
+           [T("linear_speed_sensor"), P("linear_speed_sensor", "Linear Speed"), A("linear_speed_sensor", "logic_gate_type", "Value 19 (0x13) selects the linear speed case of the logic update."),
+            mf["spd"], mf["spd_mode"], mf["spd_y"]] + R[:1], motion_open)
     simple("part-fish-finder", "Sonar that reports one random fish within 100 m while submerged; its radar_range field is 100.",
            [("Operating conditions", "Needs power, Activate on and submersion. Values give yaw in turns, horizontal distance and depth in metres.")],
            [T("fish_finder"), A("fish_finder", "radar_range", "Equals the stated 100 m range."), P("fish_finder", "Fish Data")], [])
@@ -8269,11 +8485,16 @@ def more_families(B, E):
              ["Each update the locator takes the nearest transponder's 1 ÷ (0.002 d + 0.5) for distance d in metres, multiplies it by a noise factor 1 + n × 0.0078125 × 0.1, clamps the result to 0 to 1 and adds it to an accumulator. "
               "When the accumulator reaches 10 it drops by 10 and Transponder Pulse is on for that update.",
               "Without noise that is 6 Hz within 250 m (a pulse every 10 updates), 2.4 Hz at 1000 m (25 updates) and 0.2927 Hz at 10000 m (205 updates). "
-              "Only the nearest transponder counts; several do not add up. The part's radar_range of 20000 is not a cutoff in this loop."])],
+              "Only the nearest transponder counts; several do not add up. The part's radar_range of 20000 is not a cutoff in this loop."]),
+            ("Noise",
+             ["The noise value n comes from a smooth-noise helper with periods 128 and 128, evaluated at a shared counter, at Y = 1. It does not depend on where the transponders are or how far away they are, and one factor multiplies the nearest transponder's term after it is chosen. "
+              "So the pulse rate wobbles over time in a deterministic pattern rather than with a random draw per update; for small counter values it repeats every 128 counter steps (inference from the reduced model in investigation/force-cap.md). "
+              "Every transponder entry in the shared list counts, whatever its channel or line of sight: the loop tests only that the entry is present."])],
            [T("transponder_locator"), P("transponder_locator", "Transponder Pulse"), E.realtime("transponder_variance", "Name suggests transponder noise."),
             A("transponder_locator", "logic_gate_type", "Logic case 55, the locator evaluator."), A("transponder_locator", "radar_range", "Not read as a distance cutoff by the locator loop.")] +
-           [sf[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_clamp", "l_acc", "l_rate")] + [update_rate(E)["findings"][0]],
-           ["The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced."])
+           [sf[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_period", "l_counter", "l_grad", "l_clamp", "l_acc", "l_rate")] + [update_rate(E)["findings"][0]],
+           ["The noise input is a shared counter, but how fast that counter advances and the helper's exact output bounds were not reproduced. "
+            "When a disabled or destroyed transponder's entry leaves the shared list, and which loaded or remote transponders fill it, was not traced."])
 
     # Radios: the shared receive routine, investigation/radio.md.
     rf = radio_native(E)

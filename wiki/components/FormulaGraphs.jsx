@@ -1097,8 +1097,8 @@ function JetGraph({ family }) {
           <Range id={`${uid}-s`} label="Thrust Spoiler" value={spoiler} min={0} max={1} step={0.05} onChange={(v) => setSpoiler(+v.toFixed(2))} valueText={fixed(spoiler, 2)} hint="0 keeps the whole force, 1 removes it." />
           <Check id={`${uid}-ab`} label="Afterburner on" checked={afterburner} onChange={setAfterburner} hint="Only the afterburner exhaust has this input." />
           <Range id={`${uid}-f`} label="Jet fuel stored in the exhaust" value={litres} min={0} max={4} step={0.01} onChange={(v) => setLitres(+v.toFixed(2))} valueText={`${fixed(litres, 2)} L`} hint="Multiplier 1 + 500 × amount = 1 + 50 × litres. 0.01 L gives 1.5; the full 4 L buffer gives 201." />
-          <Check id={`${uid}-cap`} label="Apply the 100 × S cap" checked={capped} onChange={setCapped} hint="S is a per-vehicle scale; how the game sets it for a given craft was not decoded." />
-          <Range id={`${uid}-k`} label="Example scale S" value={scale} min={100} max={10000} step={100} onChange={setScale} valueText={fixed(scale, 0)} hint={capped ? `Cap ${grouped(JET.limit * scale)}.` : 'Used only with the cap on.'} />
+          <Check id={`${uid}-cap`} label="Apply the 100 × S cap" checked={capped} onChange={setCapped} hint="S is the summed adjusted mass of the bodies joined to this one by joints, free or locked." />
+          <Range id={`${uid}-k`} label="Joined body mass S" value={scale} min={100} max={10000} step={100} onChange={setScale} valueText={fixed(scale, 0)} hint={capped ? `Cap ${grouped(JET.limit * scale)}. Equals the bodies' mass total when they carry no auxiliary masses, such as wheels or propellers.` : 'Used only with the cap on.'} />
           <Range id={`${uid}-x`} label="Selected incoming pressure" value={pressure} min={0} max={JET_PRESSURE_MAX} step={250} onChange={setPressure} valueText={fixed(pressure, 0)} hint="Internal pressure units, not RPS." />
         </>
       )}
@@ -2627,8 +2627,8 @@ function KeelGraph({ variant }) {
             <Range id={`${uid}-m`} label="Body mass M" value={mass} min={100} max={20000} step={100} onChange={setMass} valueText={String(mass)}
               hint={`D = min(0.5 × M, ${KEEL.massCap}) stops growing at a body mass of ${KEEL.massCap / KEEL.massFactor}. Internal mass units.`} />
           ) : null}
-          <Range id={`${uid}-s`} label="Application scale S" value={scale} min={100} max={20000} step={100} onChange={setScale} valueText={String(scale)}
-            hint="Per-vehicle scale from the component dispatcher; every keel force is capped at 100 × S. How the game sets S for joined craft is open." />
+          <Range id={`${uid}-s`} label="Joined body mass S" value={scale} min={100} max={20000} step={100} onChange={setScale} valueText={String(scale)}
+            hint="Summed adjusted mass of the bodies joined by joints, free or locked; every keel force is capped at 100 × S. A single body with no wheels or propellers has S equal to its mass." />
           <Range id={`${uid}-w`} label="Immersion w" value={immersion} min={0} max={1} step={0.05} onChange={(v) => setImmersion(+v.toFixed(2))} valueText={fixed(immersion, 2)}
             hint="Rises from 0 to 1 over the 0.5 m around the water surface at the keel point." />
           {mode === 'lateral' ? (

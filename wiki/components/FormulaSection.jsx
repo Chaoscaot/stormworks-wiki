@@ -26,7 +26,7 @@ const FINDINGS = {
   surface: [
     'Surface area coefficient', 'Surface area read', 'Surface airspeed threshold', 'Surface mass factor', 'Surface mass factor cap',
     'Surface pressure lapse', 'Surface pressure exponent', 'Surface pressure ceiling', 'Wing-section test', 'Wing speed ramp span',
-    'Wing direction exponent', 'Wing term multiplier', 'Air force application limit',
+    'Wing direction exponent', 'Wing term multiplier', 'Air force application limit', 'Cap scale S',
   ],
   classic: [
     'Engine speed factor slope', 'Engine speed factor offset', 'Engine speed factor linear term', 'Engine speed factor constant',
@@ -37,7 +37,7 @@ const FINDINGS = {
   jet: [
     'Exhaust force coefficient', 'Exhaust pressure threshold', 'Exhaust altitude factor slope', 'Exhaust altitude factor divisor',
     'Thrust spoiler factor', 'Afterburner enable test', 'Afterburner multiplier slope', 'Afterburner fuel reference amount',
-    'Jet fuel buffer capacity', 'Exhaust force application limit', 'Jet force application cap', 'Component updates per simulated second',
+    'Jet fuel buffer capacity', 'Exhaust force application limit', 'Jet force application cap', 'Cap scale S', 'Component updates per simulated second',
   ],
   chamber: [
     'Chamber fuel demand per RPS', 'Chamber ignition speed', 'Chamber pressure gain per throttle × RPS', 'Chamber heating per throttle × RPS',
@@ -78,7 +78,7 @@ const FINDINGS = {
     'Blade efficiency factor', 'Load scale', 'Intact blade count', 'Solver weight divisor', 'Intact blade weight factor', 'Air weight selector byte',
     'Marine weight selector', 'Load ratio factor', 'Load ratio lower clamp', 'Load ratio upper clamp and water factor', 'Below-water load factor',
     'Shaft speed removed', 'Thrust factor', 'Medium gate', 'Altitude factor slope', 'Altitude factor exponent', 'Altitude factor ceiling',
-    'Thrust application limit', 'Thrust cap test',
+    'Thrust application limit', 'Thrust cap test', 'Cap scale S',
   ],
   clutch: [
     'Clutch input', 'Clutch input exponent', 'Clutch power call', 'Clutch coupling', 'Clutch availability divisor', 'Clutch availability factor',
@@ -95,7 +95,7 @@ const FINDINGS = {
   booster: [
     'Fuel section volume', 'Fuel units per volume unit', 'Nozzle width read', 'Burn rate factor', 'Fuel use factor', 'Fuel use limit',
     'Thrust per fuel unit', 'Burn Rate slider scale', 'Thrust altitude factor slope', 'Thrust altitude factor exponent', 'Thrust altitude ceiling',
-    'Solid rocket thrust application limit', 'Component updates per simulated second',
+    'Solid rocket thrust application limit', 'Cap scale S', 'Component updates per simulated second',
   ],
   steam: [
     'Coal burn rate per voxel', 'Firebox target temperature', 'Firebox burn span', 'Fire temperature per coal burned', 'Firebox gas request divisor',
@@ -122,7 +122,7 @@ const FINDINGS = {
     'Keel type test', 'Keel lateral multiplier', 'Keel water mass cap', 'Keel area multiplier', 'Keel area factor ceiling',
     'Keel sideways speed lower clamp', 'Keel sideways speed upper clamp', 'Surface immersion fraction', 'Keel water force application limit',
     'Force application cap', 'Keel downward force', 'Keel definition mass read', 'Keel mass multiplier', 'Keel upright hemisphere test',
-    'Keel upright force scale', 'Keel upright lever', 'Keel upright and memory application limit',
+    'Keel upright force scale', 'Keel upright lever', 'Keel upright and memory application limit', 'Cap scale S',
   ],
 };
 
@@ -381,7 +381,7 @@ const SURFACE = {
   ),
   assumptions: [
     'Output is in the game\'s internal force units. Body mass is not calibrated to kilograms, so these are not newtons. The game applies the force once per update and the physics solver integrates it; do not multiply it by 60.',
-    'The application cap is not modelled. The game limits the force to 5 × a per-vehicle scale, so a large surface on a light craft can get less than the curve shows.',
+    'The application cap is not modelled. The game limits the force to 5 × S, where S is the summed adjusted mass of the bodies joined by joints, free or locked, so a large surface on a light craft can get less than the curve shows.',
     'Axis convention: forward is the reverse of dynamic_rotation_axes, and α is the angle between the airflow and that axis, toward the surface normal. Lift is the normal force × cos α and drag × sin α. Matching these axes to mesh edges and the editor arrow is an inference.',
     'α combines mounting angle, flight attitude and deflection. Control surfaces deflect up to about 45° and fins about 14.3°. Flow is taken in the plane of the forward axis and the normal, so sideslip is not shown.',
     'The surface is dry. Partly under water, the air force falls with the immersion fraction and a separate water force takes over.',
@@ -448,7 +448,7 @@ const JET_EXHAUST = {
         'a = clamp(1 - 1.5 * y / 40000, 0, 1), y = height; 0 from y = 26666.67',
         's = clamp(1 - Thrust Spoiler, 0, 1)',
         'b = 1 + 0.5 * m / 0.001 = 1 + 500 * m, m = jet fuel amount stored in the exhaust (10 L per amount); b = 1 when Afterburner is off or the buffer is empty',
-        'F_applied = min(F_raw, 100 * S), S = per-vehicle application scale from the component dispatcher',
+        'F_applied = min(F_raw, 100 * S), S = summed adjusted mass of the bodies joined by joints, free or locked',
         'Force in internal units, applied once per update; impulse per update = F_applied / 60',
       ].join('\n')}
     />
@@ -456,7 +456,7 @@ const JET_EXHAUST = {
   assumptions: [
     'The x axis is the exhaust\'s incoming pressure, not RPS. What pressure a given engine reaches depends on the compressor, chambers, turbines and the ducts between them, which the model does not solve.',
     'Output is in the game\'s internal force units. Body mass is not calibrated to kilograms, so these are not newtons. The game applies the force once per update and the physics solver integrates it; do not multiply it by 60.',
-    'The cap is off by default because how the game builds S for a given craft was not decoded. Tick it to see the effect of an example S.',
+    'The cap is off by default because S depends on the whole joined assembly, not on the exhaust. Tick it and set S to the mass total of the bodies joined by joints to see the effect.',
     'The stored jet fuel is what sits in the exhaust\'s own 4 L buffer. The exhaust never subtracts it; how fast the Fuel port refills it from the tank depends on the pipe network and is not modelled.',
     'Height is read from the vehicle; treating it as metres is an inference. The basic, rotating and afterburner exhausts share the coefficient; the rotating exhaust only turns the direction.',
   ],
@@ -687,7 +687,7 @@ const PROPELLER = {
     />
   ),
   assumptions: [
-    'Force is the raw internal force before the 100 × S application cap. S comes from the caller and its full source is open, so the chart applies no cap; it is not a force in newtons.',
+    'Force is the raw internal force before the 100 × S application cap, S being the summed adjusted mass of the bodies joined by joints. The chart applies no cap; it is not a force in newtons.',
     'Effective pitch is after the saved pitch. Rotors, the aircraft propeller, fixed marine propellers and fans start at saved pitch 1, so their inputs reach only 0 to 1; pitchable propellers and the tail rotor start at 0.',
     'Four intact blades, sea level, no cyclic input, unfolded. Each point is one update from the given published speed, not a steady state of a shaft group.',
     'For air parts both candidate weights are drawn; which one the game uses for a given part is an open question listed under Propulsion.',
@@ -816,7 +816,7 @@ const BOOSTER = {
   ),
   assumptions: [
     'One burning nozzle with full, undamaged sections of its own size. Several nozzles on one fuel group share its fuel and burn it faster.',
-    'Raw thrust is in the game\'s internal force unit at sea level, before the altitude factor and the 1000 × S application cap; S comes from the force helper\'s caller and is not plotted.',
+    'Raw thrust is in the game\'s internal force unit at sea level, before the altitude factor and the 1000 × S application cap; S, the summed adjusted mass of the bodies joined by joints, is not plotted.',
     'The burn rate is held fixed for the whole burn.',
   ],
 };
@@ -972,7 +972,7 @@ const KEEL_FORCE = {
   ),
   assumptions: [
     'Internal force and mass units; they are not calibrated to newtons or kilograms. The forces are queued once per update and integrated by the physics solver.',
-    'S is the per-vehicle application scale passed by the component dispatcher. How the game sets it for joined craft is open, so read forces near 100 × S with care.',
+    'S is the summed adjusted mass of every body joined to the keel\'s body by joints, free or locked. A single body with no auxiliary masses, such as wheels or propellers, has S equal to its mass.',
     'The water force uses the keel point velocity across the keel with the water treated as still. A fixed downward force of 1000 and a forward-speed memory force come on top and are not drawn.',
     'The torque is derived from the two recovered force applications with keel_force_factor 1. It is the keel\'s own contribution; the heel of a whole boat also depends on the sail, hull buoyancy and mass distribution.',
   ],

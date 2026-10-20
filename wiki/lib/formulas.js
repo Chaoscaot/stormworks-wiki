@@ -400,7 +400,8 @@ export function scoopInflow({ airspeed, networkPressure }) {
 
 // Air force of wings, control surfaces and fins: rudder update 0x1403dfd20, investigation/control-surfaces.md,
 // ported from investigation/native/control-surfaces/tools/model.py. One force along the surface normal, in internal
-// force units (mass is not calibrated to kilograms). The application cap, 5 × a per-vehicle scale, is not modelled.
+// force units (mass is not calibrated to kilograms). The application cap, 5 × S with S the summed adjusted mass of the
+// bodies joined by joints, is not modelled.
 // Two-dimensional convention from the report: forward is -dynamic_rotation_axes, and angle α is defined by
 // v / s = cos α × forward + sin α × normal. Lift and drag are projections of the one normal force on those axes.
 const f32 = Math.fround;
@@ -605,7 +606,7 @@ export function jetAltitudeFactor(altitude) {
 }
 
 // Exhaust (subtype 4). fuelAmount is the jet fuel stored in the exhaust's buffer and totalAmount all liquid in it.
-// scale is the per-vehicle application scale S; null leaves the force uncapped.
+// scale is the cap scale S, the summed adjusted mass of the bodies joined by joints; null leaves the force uncapped.
 export function jetExhaust({ pressure, altitude = 0, spoiler = 0, afterburner = false, fuelAmount = 0, totalAmount = null, scale = null }) {
   finite([pressure, altitude, spoiler, fuelAmount]);
   const total = totalAmount ?? fuelAmount;

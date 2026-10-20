@@ -1854,7 +1854,7 @@
       "title": "Speed, altitude and radar signals",
       "category": "Sensors",
       "summary": "Selected sensor descriptions state their units and radar input ranges.",
-      "body": "Linear speed uses m/s. Angular speed uses rotations per second, and its tooltip names the component y axis. Altitude is metres above sea level. The selected short range radar uses turns for yaw and elevation, with FOV input 0.01 to 0.125 and facing yaw -0.5 to 0.5. Its radar_range field is 5000. That value alone does not guarantee a detection distance for any target. A native decode of the advanced radars (definition type 56: Basic, AWACS, Dish, Phalanx and Missile; investigation/sensors-radio.md, shown on the Other components parts page) found that they also report angles in turns, dividing by 2π. Their working range is R = radar_range × 0.02 × 0.02 ÷ (FOV x × FOV y) on the native FOV fields, a new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates, and a target passes when its distance is at most R and R ÷ 10000 × signature ÷ distance exceeds 0.025. At the SDK defaults reported distances carry up to ±1% noise and angles up to ±0.001 turn. A later decode (investigation/sensors-legacy.md, shown on the Other components and legacy radar parts pages) found that the signature is the target's physics-body mass, built from the components' definition mass, and that the editor's FOV sliders set each advanced axis from 0.01 to 0.25. It also covers the short range radar here, a legacy type-16 radar: a target passes when signature ÷ distance exceeds 0.25, inside a far plane radar_range × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead, about 3875 m at the saved default 0.1, and inside side planes set by the FOV input. No scan counter precedes its candidate collection, so (inference) it collects on every update that passes its power and height gates.",
+      "body": "Linear speed uses m/s. Angular speed uses rotations per second, and its tooltip names the component y axis. Altitude is metres above sea level. The selected short range radar uses turns for yaw and elevation, with FOV input 0.01 to 0.125 and facing yaw -0.5 to 0.5. Its radar_range field is 5000. That value alone does not guarantee a detection distance for any target. A native decode of the advanced radars (definition type 56: Basic, AWACS, Dish, Phalanx and Missile; investigation/sensors-radio.md, shown on the Other components parts page) found that they also report angles in turns, dividing by 2π. Their working range is R = radar_range × 0.02 × 0.02 ÷ (FOV x × FOV y) on the native FOV fields, a new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates, and a target passes when its distance is at most R and R ÷ 10000 × signature ÷ distance exceeds 0.025. At the SDK defaults reported distances carry up to ±1% noise and angles up to ±0.001 turn. A later decode (investigation/sensors-legacy.md, shown on the Other components and legacy radar parts pages) found that the signature is the target's physics-body mass, built from the components' definition mass, and that the editor's FOV sliders set each advanced axis from 0.01 to 0.25. It also covers the short range radar here, a legacy type-16 radar: a target passes when signature ÷ distance exceeds 0.25, inside a far plane radar_range × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead, about 3875 m at the saved default 0.1, and inside side planes set by the FOV input. No scan counter precedes its candidate collection, so (inference) it collects on every update that passes its power and height gates. A later static decode (investigation/force-cap.md, shown on the Altimeter and Linear Speed Sensor parts pages) found that the altimeter outputs the part's world Y: height above the fixed sea-level datum y = 0, not clearance over terrain or the local wave surface. It outputs 0 above a height of 40000 or at world X above 156000. The linear speed sensor outputs the physics velocity of its own point, body velocity plus angular velocity × lever arm, in m/s. It does not difference positions, smooth or subtract wind; its four modes give the full speed, the component along its axis, the horizontal speed and the vertical speed. Both are recomputed on every logic update, 60 per simulated second, with no sensor timer of their own. The advanced radar's line-of-sight query filters by collision bits: an object can block only when its collision group lacks bit 0x1000 and shares a bit with 0xff, and its object mask shares a bit with 0x7f. Render materials and transparency take no part in that test.",
       "findings": [
         {
           "label": "Linear Speed Sensor: Linear Speed",
@@ -2037,12 +2037,77 @@
           },
           "status": "observed",
           "evidenceType": "component-interface-description"
+        },
+        {
+          "label": "Altimeter world height",
+          "value": "world Y",
+          "detail": "Logic case 18 transforms the component position through the body matrix, translation included (0x14017a230), and outputs world Y with no terrain, wave or pressure read. It outputs 0 when Y exceeds binary32 40000 or world X exceeds binary64 156000. Bytes e8 83 4e db ff at 0x1403c53a8, literal 00 40 1c 47 at 0x140bb0918, literal 00 00 00 00 00 0b 03 41 at 0x140bb0610. Report: investigation/force-cap.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c53a8",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c53a8"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Linear speed point velocity",
+          "value": "v + w × r",
+          "detail": "Logic case 19 crosses the angular velocity (body state +0xa4) with the rotated lever arm and adds the linear velocity (+0x98) through 0x140175bb0. No position difference or sampling interval is used. Bytes e8 22 07 db ff at 0x1403c5489. Report: investigation/force-cap.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c5489",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c5489"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Linear speed mode",
+          "value": "0, 1, 2 or 3",
+          "detail": "Component +0x834 selects the vector length (0), the component along the sensor axis (1), sqrt(vx² + vz²) (2) or vy (3); other values give 0. Bytes 41 8b 8e 34 08 00 00 at 0x1403c548e. Report: investigation/force-cap.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c548e",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c548e"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Radar line-of-sight masks",
+          "value": "0x7f and 0xff",
+          "detail": "The advanced radar passes 0x7f as argument 4 and 0xff as argument 5 (0x1403bc013) of the segment query 0x1401a4300. Bytes 41 b9 7f 00 00 00 at 0x1403bc01b. Report: investigation/force-cap.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403bc01b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc01b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Radar line-of-sight filter",
+          "value": "(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0",
+          "detail": "The broadphase filter 0x1400d9bf0 rejects proxy group bit 12, then tests group & 0xff and object mask & 0x7f. Bytes 0f ba e0 0c at 0x1400d9bf3. Report: investigation/force-cap.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1400d9bf3",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400d9bf3"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The radar formulas come from those native decodes. How the body-mass producer's adjustments and a vehicle's contents change the signature, which objects block the radar line-of-sight query, and the speed and altitude sensors' update timing, filtering and altitude datum were not recovered."
+        "The radar formulas and the speed and altitude readings come from those native decodes. How the body-mass producer's adjustments and a vehicle's contents change the signature, which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, and when within a physics step the speed and altitude sensors read the body state were not recovered."
       ]
     },
     {
@@ -2940,7 +3005,7 @@
       "title": "Jet startup, turbines and afterburners",
       "category": "Engines",
       "summary": "Jet component descriptions separate electrical startup, combustion and exhaust controls.",
-      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × a per-vehicle scale. RPS reaches the exhaust only through the pressure the chamber adds. The exhaust branch never subtracts jet fuel; its Fuel port exchanges with the pipe network separately.",
+      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. The exhaust branch never subtracts jet fuel; its Fuel port exchanges with the pipe network separately.",
       "findings": [
         {
           "label": "Jet Compressor: Compressor",
@@ -4360,7 +4425,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The propeller law comes from that native decode, not from these fields alone. Not recovered: the SI calibration of the internal force and of the cap scale S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract."
+        "The propeller law comes from that native decode, not from these fields alone. The cap scale S is the summed adjusted body mass of the joined bodies (investigation/force-cap.md). Not recovered: the SI calibration of the internal force and of the mass unit behind S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract."
       ]
     },
     {
@@ -13832,7 +13897,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 393,
+    "findingCount": 398,
     "sourceCount": 71,
     "categories": [
       "Control",

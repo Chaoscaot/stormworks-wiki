@@ -1,18 +1,5 @@
 [
   {
-    "key": "category:Control surfaces",
-    "title": "Control surfaces: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts#control-surfaces",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/0/limitations/0",
-        "text": "The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "category:Electricity",
     "title": "Electricity: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts#electricity",
@@ -120,7 +107,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/8/limitations/1",
-        "text": "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.",
+        "text": "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -237,8 +224,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/12/sections/9/body",
-        "text": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which objects and materials block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
+        "pointer": "/categories/12/sections/10/body",
+        "text": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -250,8 +237,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/13/sections/6/body",
-        "text": "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); the editor-arrow sign table for reflected parts. No figure here was measured in a running game.",
+        "pointer": "/categories/13/sections/7/body",
+        "text": "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; for the cap scale S, which code sets the assembly root flag (+0x29c) that drops the first body from the mass sum, and which connector links (connection records of kind 8) join bodies into one S group; the SI calibration of mass, force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); the editor-arrow sign table for reflected parts. No figure here was measured in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -676,19 +663,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/32/limitations/0",
-        "text": "The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the vehicle's application scale S, so no heel curve per keel size is given.",
+        "text": "The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the cap scale S of the joined bodies, so no heel curve per keel size is given.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/32/limitations/1",
         "text": "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/32/limitations/2",
-        "text": "How the game builds the cap scale S for craft joined by locked joints was not decoded, so keel forces near the 100 × S cap are not predicted.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -719,7 +700,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/120/limitations/2",
+        "pointer": "/families/121/limitations/2",
         "text": "The effect of the overspeed damage on the engine was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -732,7 +713,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/122/limitations/2",
+        "pointer": "/families/123/limitations/2",
         "text": "The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws depends on the external fluid network, which was not modelled.",
         "scope": "Practical behavior guidance"
       }
@@ -745,7 +726,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/137/limitations/0",
+        "pointer": "/families/139/limitations/0",
         "text": "The maximum port count, editor size limits and the payload handling of composite, video and audio bridges were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -758,7 +739,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/177/limitations/1",
+        "pointer": "/families/179/limitations/1",
         "text": "The volume pumped per stroke and per simulated second was not decoded: the pumpjack's own pump branch, its pressure limit and the oil well supply are still open.",
         "scope": "Practical behavior guidance"
       }
@@ -771,8 +752,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/186/limitations/1",
-        "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. The Missile radar (radar_type 1) also takes separate orientation branches in the update; how they set the look direction and sweep was not decoded.",
+        "pointer": "/families/188/limitations/1",
+        "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. The radar_type 1 selectors and their scan matrices are decoded; the complete scan frame, its six plane normals and the handedness of the reported azimuth and elevation were not established.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -784,7 +765,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/193/limitations/0",
+        "pointer": "/families/195/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -797,7 +778,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/199/limitations/0",
+        "pointer": "/families/201/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -810,7 +791,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/200/limitations/0",
+        "pointer": "/families/202/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -823,7 +804,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/226/limitations/0",
+        "pointer": "/families/228/limitations/0",
         "text": "Reaction kinetics not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -836,8 +817,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/234/limitations/0",
-        "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
+        "pointer": "/families/236/limitations/0",
+        "text": "The noise input is a shared counter, but how fast that counter advances and the helper's exact output bounds were not reproduced. When a disabled or destroyed transponder's entry leaves the shared list, and which loaded or remote transponders fill it, was not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -849,13 +830,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/235/limitations/0",
+        "pointer": "/families/237/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/235/limitations/1",
+        "pointer": "/families/237/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -868,7 +849,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/238/limitations/0",
+        "pointer": "/families/240/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -881,7 +862,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/239/limitations/0",
+        "pointer": "/families/241/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -894,7 +875,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/248/limitations/0",
+        "pointer": "/families/250/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -907,7 +888,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/249/limitations/0",
+        "pointer": "/families/251/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1076,7 +1057,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/21/limitations/2",
-        "text": "The propeller law comes from that native decode, not from these fields alone. Not recovered: the SI calibration of the internal force and of the cap scale S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract.",
+        "text": "The propeller law comes from that native decode, not from these fields alone. The cap scale S is the summed adjusted body mass of the joined bodies (investigation/force-cap.md). Not recovered: the SI calibration of the internal force and of the mass unit behind S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1141,7 +1122,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/8/limitations/2",
-        "text": "The radar formulas come from those native decodes. How the body-mass producer's adjustments and a vehicle's contents change the signature, which objects block the radar line-of-sight query, and the speed and altitude sensors' update timing, filtering and altitude datum were not recovered.",
+        "text": "The radar formulas and the speed and altitude readings come from those native decodes. How the body-mass producer's adjustments and a vehicle's contents change the signature, which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, and when within a physics step the speed and altitude sensors read the body state were not recovered.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

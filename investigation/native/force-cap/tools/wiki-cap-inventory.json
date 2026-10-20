@@ -1,0 +1,1057 @@
+[
+  {
+    "file": "wiki/README.md",
+    "line": 37,
+    "statement": "Modular engine cylinder, fluid radiator, heat exchanger, air scoop, wing section, control surface, control fin, diesel engine, jet exhaust, jet combustion chamber, PID controller, powered joint, advanced radar, legacy radar and sonar, radio and propeller, rotor and ducted fan articles (and their component pages) have an \"Interactive graphs\" section. `components/FormulaSection.jsx` renders the formula as MathML, the assumptions and the cited executable constants on the server. `components/FormulaGraphs.jsx` is the client chart: native sliders, a select and checkboxes drive an SVG plot, a persistent selected-point readout and a data table, all server-rendered in their default state. The formulas live in `lib/formulas.js`, and `graphKindsForFamily` decides which families get a graph. The jet exhaust graph plots force in internal units against the exhaust's incoming pressure, with altitude, Thrust Spoiler, afterburner and stored-fuel inputs and an optional 100 × S application cap for an example scale S. It does not plot force against RPS, because the pressure an assembled engine reaches depends on its duct network, which was not reconstructed. The combustion chamber graph plots jet fuel L/s and the pressure and temperature added per update against RPS and throttle. The joint graph plots speed and holding cap against the six Gear Ratio options, relative to 1:1, for every powered pivot, hinge, turret ring, piston and track. The modular engine cylinder graph has two plots: the efficiency factors against crank speed, and crank RPS over simulated time from `modularEngineResponse`, a port of `investigation/native/modular-engines/tools/engine_step.py` for a chosen cylinder count and size, crankshafts, flywheel, fuel throttle, air:fuel ratio and an optional clutch to an output held at a fixed speed. The advanced radar graph plots the farthest distance at which a target passes the radar's score test against the target's physics-body mass (game mass units, log scale), with the radar and both FOV axes over the editor's 0.01 to 0.25 range as inputs; it levels off at the working range R from mass 250. The legacy radar and sonar graph plots the farthest on-axis passing distance, min(C, 4 × S), against the same mass for the six type-16 sensors, with the far plane C at the saved radar_fov default 0.1. The propeller graph, a port of `investigation/native/propulsion/tools/model.py` checked bit for bit against its worked examples, plots raw internal force (before the 100 × S cap) or RPS removed per update against published shaft RPS for any of the 23 force-emitter parts, with effective pitch, relative flow U and a hub-under-water toggle as inputs. Air parts draw two lines, one per candidate solver weight, because the selector byte between them is an open question."
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 1091,
+    "statement": "...(capped ? [{ label: `Applied force, capped at 100 × S = ${grouped(JET.limit * scale)}`, className: 'graph-line-b' }] : []),"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 1100,
+    "statement": "<Check id={`${uid}-cap`} label=\"Apply the 100 × S cap\" checked={capped} onChange={setCapped} hint=\"S is a per-vehicle scale; how the game sets it for a given craft was not decoded.\" />"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 1134,
+    "statement": "['Cap 100 × S', capped ? grouped(at.cap) : 'Not applied'],"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 1698,
+    "statement": "force: { label: 'Internal force', key: 'force', axis: 'Internal force (raw, before the 100 × S cap)', digits: 1 },"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 2139,
+    "statement": "['Applied force cap', '1000 × S'],"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 2590,
+    "statement": "{ key: 'raw', className: 'graph-line-b', dot: 'graph-dot-b', label: 'Before the 100 × S cap', at: (v) => keelLateral({ keel: k, speed: v, ...input }).raw },"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 2604,
+    "statement": "? `Opposing water force against sideways water speed from 0 to 60 m/s: a straight line until the 100 × S cap or the 50 m/s clamp. ${summary}`"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 2630,
+    "statement": "<Range id={`${uid}-s`} label=\"Application scale S\" value={scale} min={100} max={20000} step={100} onChange={setScale} valueText={String(scale)}"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 2631,
+    "statement": "hint=\"Per-vehicle scale from the component dispatcher; every keel force is capped at 100 × S. How the game sets S for joined craft is open.\" />"
+  },
+  {
+    "file": "wiki/components/FormulaGraphs.jsx",
+    "line": 2663,
+    "statement": "['Cap 100 × S', grouped(KEEL.limit * scale)],"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 40,
+    "statement": "'Jet fuel buffer capacity', 'Exhaust force application limit', 'Jet force application cap', 'Component updates per simulated second',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 124,
+    "statement": "'Force application cap', 'Keel downward force', 'Keel definition mass read', 'Keel mass multiplier', 'Keel upright hemisphere test',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 384,
+    "statement": "'The application cap is not modelled. The game limits the force to 5 × a per-vehicle scale, so a large surface on a light craft can get less than the curve shows.',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 451,
+    "statement": "'F_applied = min(F_raw, 100 * S), S = per-vehicle application scale from the component dispatcher',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 685,
+    "statement": "'Applied force = T * min(1, 100 * S / |T|) for the caller\\'s scale S',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 690,
+    "statement": "'Force is the raw internal force before the 100 × S application cap. S comes from the caller and its full source is open, so the chart applies no cap; it is not a force in newtons.',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 694,
+    "statement": "'Not modelled: the shaft group the part shares speed with, the coaxial force couple, the hinge motor and the application cap.',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 813,
+    "statement": "'Applied: F * (1 - 2.2413793e-5 * y)^5.3595023 (0 above 40000), then capped at 1000 * S',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 819,
+    "statement": "'Raw thrust is in the game\\'s internal force unit at sea level, before the altitude factor and the 1000 × S application cap; S comes from the force helper\\'s caller and is not plotted.',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 969,
+    "statement": "'each force |F| <= 100 * S; each self-righting force is 400 * K * w * sin(theta / 2) before that cap',"
+  },
+  {
+    "file": "wiki/components/FormulaSection.jsx",
+    "line": 975,
+    "statement": "'S is the per-vehicle application scale passed by the component dispatcher. How the game sets it for joined craft is open, so read forces near 100 × S with care.',"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/0/sections/5/body",
+    "statement": "The result is in the game's internal force units. Body mass is not calibrated to kilograms, so do not read it as newtons. The game queues the force once per update and the physics solver integrates it, so it is not multiplied by 60. Before it is applied its size is limited to 5 × S, where S is a per-vehicle scale passed in by the component dispatcher; area scaling is linear only below that limit.\n\nPartly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/0/limitations/0",
+    "statement": "The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/8/sections/2/body",
+    "statement": "Exhaust force = 32 × (incoming pressure - 1000) × altitude factor × afterburner multiplier × (1 - Thrust Spoiler), before a cap of 100 × S, with S a per-vehicle scale. RPS enters only through the pressure the chamber adds, so the tooltip's proportionality to internal RPS describes the chain, not the exhaust formula. The altitude factor 1 - height × 1.5 ÷ 40000 reaches 0 at a height of 26666.67, metres if the height field is in metres, which is an inference. The three exhausts use the same coefficient; the rotating one only changes direction."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/8/limitations/1",
+    "statement": "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/13/summary",
+    "statement": "Propellers, rotors and ducted fans share one force-emitter update. Shaft speed and normalized pitch set a load that takes speed off the shaft and turns it into internal force T = 1500 × K × removed RPS × efficiency. force_emitter_max_force sets the solver weight K, not a thrust ceiling, and a separate 100 × S cap limits the applied force. Marine parts push only with the hub underwater, air parts only above it."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/13/sections/6/body",
+    "statement": "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); the editor-arrow sign table for reflected parts. No figure here was measured in a running game."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/categories/13/limitations/0",
+    "statement": "Static analysis of one build. Forces are in the game's internal force unit before the 100 × S application cap."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/6/findings/6/detail",
+    "statement": "Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap. Inputs: resource:rom/data/definitions/control_fin_small.xml:a509f2ae7837:L2-L2, resource:rom/data/definitions/control_fin_medium.xml:b6453433b64e:L2-L2, resource:rom/data/definitions/control_fin_large.xml:cd025ced7844:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/6/findings/19/detail",
+    "statement": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/6/findings/21/label",
+    "statement": "Force application cap"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/6/findings/21/detail",
+    "statement": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes f30f59c60f2fd0 at 0x1401a7b62. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L15-L45; ../control-surfaces/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/6/limitations/0",
+    "statement": "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/7/findings/6/detail",
+    "statement": "Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap. Inputs: resource:rom/data/definitions/control_surface_small.xml:07241759448e:L2-L2, resource:rom/data/definitions/control_surface_medium.xml:590d199e73be:L2-L2, resource:rom/data/definitions/control_surface_large.xml:571599dfbf3f:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/7/findings/20/detail",
+    "statement": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/7/findings/22/label",
+    "statement": "Force application cap"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/7/findings/22/detail",
+    "statement": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes f30f59c60f2fd0 at 0x1401a7b62. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L15-L45; ../control-surfaces/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/7/limitations/0",
+    "statement": "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/11/summary",
+    "statement": "Air fans on the shared force-emitter law with pitch fixed at 1; at 10 RPS they give 145.979 or 254.764 and 225.830 or 432.141 internal force per RPS depending on the air weight branch, before the application cap."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/11/sections/1/body",
+    "statement": "Small Ducted Fan: K 2 or 1, 145.979 or 254.764 per RPS; Large Ducted Fan: K 10 or 5, 225.830 or 432.141 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000. Their small F gives a small K, so they take more speed off the shaft per RPS than the rotors."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/11/findings/2/detail",
+    "statement": "F = 2000, rotation_speed 1, blade_physics_length 1.5, blade_efficiency 0.01, efficiency 1, flags 524288. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 2: b = 0.9047, q = 0.2262, removed 0.4866 RPS, post-load 9.5124 RPS, raw force 1459.786, 145.979 per input RPS; at 60 RPS raw force 116642.3, removed 38.881 RPS; K = F × B ÷ 8000 = 1: b = 0.9047, q = 0.4523, removed 1.6984 RPS, post-load 8.3006 RPS, raw force 2547.636, 254.764 per input RPS; at 60 RPS raw force 79234.4, removed 52.823 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/11/findings/3/detail",
+    "statement": "F = 10000, rotation_speed 1, blade_physics_length 4.1, blade_efficiency 0.01, efficiency 1, flags 524288. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 10: b = 2.4728, q = 0.1236, removed 0.1506 RPS, post-load 9.8484 RPS, raw force 2258.301, 225.830 per input RPS; at 60 RPS raw force 319447.6, removed 21.297 RPS; K = F × B ÷ 8000 = 5: b = 2.4728, q = 0.2473, removed 0.5762 RPS, post-load 9.4228 RPS, raw force 4321.407, 432.141 per input RPS; at 60 RPS raw force 309402.6, removed 41.254 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, resource:rom/data/definitions/fan_large.xml:1e82d0cb0a4f:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/11/findings/51/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/11/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/26/summary",
+    "statement": "Heavy rotors on the shared force-emitter law with rotation_speed 1.5 and blade_efficiency 0.02; at 10 RPS they give 92.023 or 183.756 and 110.818 or 221.394 internal force per RPS depending on the air weight branch, before the application cap."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/26/sections/1/body",
+    "statement": "Heavy Rotor: K 120 or 60, 92.023 or 183.756 per RPS; Heavy Large Rotor: K 200 or 100, 110.818 or 221.394 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/26/findings/2/detail",
+    "statement": "F = 120000, rotation_speed 1.5, blade_physics_length 3, blade_efficiency 0.02, efficiency 1, flags 536870913. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 120: b = 5.4281, q = 0.0226, removed 0.0051 RPS, post-load 9.9939 RPS, raw force 920.228, 92.023 per input RPS; at 60 RPS raw force 195269.5, removed 1.085 RPS; K = F × B ÷ 8000 = 60: b = 5.4281, q = 0.0452, removed 0.0204 RPS, post-load 9.9786 RPS, raw force 1837.558, 183.756 per input RPS; at 60 RPS raw force 370444.5, removed 4.116 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/26/findings/3/detail",
+    "statement": "F = 200000, rotation_speed 1.5, blade_physics_length 4.25, blade_efficiency 0.02, efficiency 1, flags 536870913. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 200: b = 7.6898, q = 0.0192, removed 0.0037 RPS, post-load 9.9953 RPS, raw force 1108.178, 110.818 per input RPS; at 60 RPS raw force 236323.0, removed 0.788 RPS; K = F × B ÷ 8000 = 100: b = 7.6898, q = 0.0384, removed 0.0148 RPS, post-load 9.9842 RPS, raw force 2213.942, 221.394 per input RPS; at 60 RPS raw force 454734.3, removed 3.032 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/26/findings/55/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/26/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/27/summary",
+    "statement": "Large and huge rotors on the shared force-emitter law with efficiency 1.25; at 10 RPS they give 68.139 or 135.901 and 58.019 or 115.972 internal force per RPS depending on the air weight branch, before the application cap."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/27/sections/1/body",
+    "statement": "Large Rotor: K 40 or 20, 68.139 or 135.901 per RPS; Huge Rotor: K 200 or 100, 58.019 or 115.972 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/27/findings/2/detail",
+    "statement": "F = 40000, rotation_speed 1, blade_physics_length 4, blade_efficiency 0.01, efficiency 1.25, flags 536870913. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 40: b = 2.4125, q = 0.0302, removed 0.0091 RPS, post-load 9.9899 RPS, raw force 681.392, 68.139 per input RPS; at 60 RPS raw force 142638.5, removed 1.902 RPS; K = F × B ÷ 8000 = 20: b = 2.4125, q = 0.0603, removed 0.0362 RPS, post-load 9.9628 RPS, raw force 1359.006, 135.901 per input RPS; at 60 RPS raw force 260502.7, removed 6.947 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/27/findings/3/detail",
+    "statement": "F = 200000, rotation_speed 1, blade_physics_length 8.25, blade_efficiency 0.01, efficiency 1.25, flags 536870913. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 200: b = 4.9758, q = 0.0124, removed 0.0015 RPS, post-load 9.9975 RPS, raw force 580.193, 58.019 per input RPS; at 60 RPS raw force 124632.5, removed 0.332 RPS; K = F × B ÷ 8000 = 100: b = 4.9758, q = 0.0249, removed 0.0062 RPS, post-load 9.9928 RPS, raw force 1159.716, 115.972 per input RPS; at 60 RPS raw force 245190.4, removed 1.308 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/27/findings/55/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/27/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/sections/2/body",
+    "statement": "Each keel force goes through the application helper with limit 100, so its size is capped at 100 × S, S being a per-vehicle scale from the component dispatcher. With M = S = 10000 and w = 1 the water force is 16000 at 0.1 m/s sideways, 160000 at 1 m/s and 800000 at 5 m/s; at 10 m/s the raw 1600000 is capped to 1000000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/1/detail",
+    "statement": "K = min(S, this × m) (minss at 0x1403e01f7), S being the per-vehicle application scale passed as update argument 7. K scales the self-righting pair and the forward-speed memory force, not the water force. Report: investigation/keel-windows.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f590591027d00 at 0x1403e01ef address binary32 4 (bytes 00008040) at 0x140bb0488. Interpretation rests on retained output investigation/native/behavior/../keel-windows/asm/rudder-update.asm:L277-L280; ../keel-windows/pseudocode/0x1403dfd20.c:L209-L213. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/12/detail",
+    "statement": "A type-2 keel passes this limit with its water force (other types pass 5), so |F| ≤ 100 × S after the helper's cap. The shipped keel_lateral_max_acc_scale is 20; the call uses 100. Report: investigation/keel-windows.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f1005f8017d00 at 0x1403e0590 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../keel-windows/asm/rudder-update.asm:L461-L472; ../keel-windows/pseudocode/0x1403dfd20.c:L278-L286; ../keel-windows/asm/force-queue.asm; ../keel-windows/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/21/detail",
+    "statement": "Both self-righting forces and the memory force go to the application helper with this limit, each capped separately at 100 × S. When |h × F+| exceeds it, the torque shrinks by 100 × S ÷ |h × F+|. Report: investigation/keel-windows.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d08fc7c00 at 0x1403e0b80 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../keel-windows/asm/rudder-update.asm:L766-L840; ../keel-windows/pseudocode/0x1403dfd20.c:L408-L442; ../keel-windows/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/25/label",
+    "statement": "Force application cap"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/25/detail",
+    "statement": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes f30f59c60f2fd0 at 0x1401a7b62. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L15-L45; ../control-surfaces/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/42/value",
+    "statement": "40 × u × min(0.5 × M, 400) × w × 10, at most 100 × S"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/42/detail",
+    "statement": "With area 13 the area factor is 10 for every keel, so F = -40 × 10 × min(0.5 × M, 400) × w × n × clamp(u, -50, 50): 160000 × w × u for a body mass of 800 or more, linear in sideways speed and the same for all three sizes. The raw force saturates at 8000000 × w at 50 m/s. The application helper then caps it at 100 × S. Report: investigation/keel-windows.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e04d1, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e03ec, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e041f, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0401, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0448, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0459, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0590, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0175, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/43/detail",
+    "statement": "Body mass M = 10000, S = 10000, w = 1, side axis horizontal, no rotation: the opposing force is 16000 at 0.1, 80000 at 0.5, 160000 at 1, 320000 at 2, 800000 at 5, 1000000 at 10 at 0.1, 0.5, 1, 2, 5, 10 m/s. At 10 m/s the raw force 1600000 exceeds the cap 100 × S = 1000000. Computed from the recovered constants; no game measurement (investigation/native/keel-windows/tools/model-examples.json). Report: investigation/keel-windows.md. Inputs: derived:7057ad32c4af, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0590, native:stormworks64.exe:f9206d85c82f:0x1401a7ad0@0x1401a7b62."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/findings/44/detail",
+    "statement": "S = 10000, w = 1, h = 1: 800 × K × sin 30° for K = 2000, 4000 and 8000 (small, medium, large). Each force, 400 × K × sin 15°, stays below the cap 100 × S = 1000000. Computed from the recovered constants; no game measurement (investigation/native/keel-windows/tools/model-examples.json). Report: investigation/keel-windows.md. Inputs: derived:bb83b50139de, derived:30348d0d85bc, derived:c73cba9d533a, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0b80, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e08f5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/limitations/0",
+    "statement": "The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the vehicle's application scale S, so no heel curve per keel size is given."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/32/limitations/2",
+    "statement": "How the game builds the cap scale S for craft joined by locked joints was not decoded, so keel forces near the 100 × S cap are not predicted."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/37/summary",
+    "statement": "Fixed-pitch underwater propellers with solver weight K = F ÷ 1000 (20, 100 and 200). They push only with the hub at or below the water surface; at 10 RPS in still water the raw internal force is 2220.143, 7298.928 and 10290.409 per RPS before the application cap."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/37/sections/1/body",
+    "statement": "Small Propeller: K 20, 2220.143 per RPS, 0.7400 RPS removed; Large Propeller: K 100, 7298.928 per RPS, 0.4866 RPS removed; Giant Propeller: K 200, 10290.409 per RPS, 0.3430 RPS removed. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nF rises 1 : 5 : 10 across the sizes, but the figures rise far less, because a larger F raises K and lowers the load ratio. The small propeller takes the most speed off its shaft per update."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/37/findings/3/detail",
+    "statement": "F = 20000, rotation_speed 1, blade_physics_length 0.25, blade_efficiency 0.075, efficiency 1, flags 524291. At 10 published RPS, effective pitch 1, 4 intact blades, still water with the hub submerged, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 20: b = 1.1309, q = 0.2827, removed 0.7400 RPS, post-load 9.2590 RPS, raw force 22201.426, 2220.143 per input RPS; at 60 RPS raw force 1335638.0, removed 44.521 RPS. Internal force units, not newtons. The weight branch is fixed by the marine flags. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/37/findings/4/detail",
+    "statement": "F = 100000, rotation_speed 1, blade_physics_length 0.5, blade_efficiency 0.15, efficiency 1, flags 524291. At 10 published RPS, effective pitch 1, 4 intact blades, still water with the hub submerged, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 100: b = 4.5234, q = 0.2262, removed 0.4866 RPS, post-load 9.5124 RPS, raw force 72989.281, 7298.928 per input RPS; at 60 RPS raw force 5832116.5, removed 38.881 RPS. Internal force units, not newtons. The weight branch is fixed by the marine flags. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/37/findings/5/detail",
+    "statement": "F = 200000, rotation_speed 0.5, blade_physics_length 1, blade_efficiency 0.25, efficiency 1, flags 524291. At 10 published RPS, effective pitch 1, 4 intact blades, still water with the hub submerged, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 200: b = 7.5391, q = 0.1885, removed 0.3430 RPS, post-load 9.6560 RPS, raw force 102904.094, 10290.409 per input RPS; at 60 RPS raw force 10100251.0, removed 33.668 RPS. Internal force units, not newtons. The weight branch is fixed by the marine flags. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/37/findings/61/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/37/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/47/summary",
+    "statement": "Aircraft propeller on the shared force-emitter law with rotation_speed 3; at 10 RPS it gives 109.488 or 218.296 internal force per RPS by air weight branch, before the application cap."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/47/sections/1/body",
+    "statement": "Aircraft Propeller: K 70 or 35, 109.488 or 218.296 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/47/findings/1/detail",
+    "statement": "F = 70000, rotation_speed 3, blade_physics_length 1.25, blade_efficiency 0.02, efficiency 1, flags 5. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 70: b = 4.5234, q = 0.0323, removed 0.0104 RPS, post-load 9.9886 RPS, raw force 1094.875, 109.488 per input RPS; at 60 RPS raw force 228170.4, removed 2.173 RPS; K = F × B ÷ 8000 = 35: b = 4.5234, q = 0.0646, removed 0.0416 RPS, post-load 9.9574 RPS, raw force 2182.961, 218.296 per input RPS; at 60 RPS raw force 411612.9, removed 7.840 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/47/findings/42/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/47/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/48/summary",
+    "statement": "Underwater thruster on the marine force-emitter law with K = F ÷ 1000 = 40; 4440.285 internal force per RPS at 10 RPS in still water, before the application cap. Mount it on a robotic pivot to steer the push."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/48/sections/1/body",
+    "statement": "Azimuth Thruster: K 40, 4440.285 per RPS, 0.7400 RPS removed. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nIt removes the same speed per RPS as the small marine propeller: with the same blade_physics_length 0.25, twice the blade_efficiency (0.15) and twice the F (40000), its load and K both double and q is unchanged. Each removed RPS therefore pushes twice as hard."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/48/findings/1/detail",
+    "statement": "F = 40000, rotation_speed 1, blade_physics_length 0.25, blade_efficiency 0.15, efficiency 1, flags 524291. At 10 published RPS, effective pitch 1, 4 intact blades, still water with the hub submerged, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 40: b = 2.2617, q = 0.2827, removed 0.7400 RPS, post-load 9.2590 RPS, raw force 44402.852, 4440.285 per input RPS; at 60 RPS raw force 2671276.0, removed 44.521 RPS. Internal force units, not newtons. The weight branch is fixed by the marine flags. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, resource:rom/data/definitions/azimuth_thruster.xml:0ea762c2e74b:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/48/findings/41/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/48/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/sections/1/body",
+    "statement": "With the Afterburner input on and any liquid in its buffer, b = 1 + 0.5 × stored jet fuel ÷ 0.001 = 1 + 500 × stored amount. 0.001 amount (0.01 L) gives 1.5; a full 0.4 amount (4 L) buffer gives 201. The ratio has no upper clamp, so a full buffer multiplies thrust far beyond the tooltip's description, until the 100 × S cap."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/sections/3/body",
+    "statement": "The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/findings/9/detail",
+    "statement": "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/findings/11/label",
+    "statement": "Jet force application cap"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/findings/11/value",
+    "statement": "|F| ≤ 100 × S"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/findings/11/detail",
+    "statement": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = min(F_raw, 100 × S) along the thrust axis. NaN coordinates become 0. Report: investigation/jet-engines.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f59c60f2fd0 at 0x1401a7d07. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/force-queue.asm:L20-L53; ../jet-engines/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/findings/13/detail",
+    "statement": "Sea level, spoiler 0: F_raw = 32 × (16000 - 1000) = 480000 internal force units. Spoiler 0.5 halves it. An enabled afterburner holding 0.001 amount (0.01 L) of jet fuel has b = 1.5; holding a full 0.4 amount buffer, b = 201. With S = 1000 the application cap limits every one of these to 100 × S = 100000. Calculations from the recovered constants, not game measurements. Report: investigation/jet-engines.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351e5f, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351e09, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351ee4, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351eb8, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351eb3, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351ddb, native:stormworks64.exe:f9206d85c82f:0x1401a7c70@0x1401a7d07, native:stormworks64.exe:f9206d85c82f:0x140350a50@0x140350ba3."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/122/limitations/1",
+    "statement": "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons. The cap scale S is open, as the Jet engines category records."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/summary",
+    "statement": "Pushes with 32 × (incoming pressure - 1000), scaled by altitude and the Thrust Spoiler, capped at 100 × S."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/sections/2/body",
+    "statement": "The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/findings/9/detail",
+    "statement": "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/findings/11/label",
+    "statement": "Jet force application cap"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/findings/11/value",
+    "statement": "|F| ≤ 100 × S"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/findings/11/detail",
+    "statement": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = min(F_raw, 100 × S) along the thrust axis. NaN coordinates become 0. Report: investigation/jet-engines.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f59c60f2fd0 at 0x1401a7d07. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/force-queue.asm:L20-L53; ../jet-engines/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/findings/13/detail",
+    "statement": "Sea level, spoiler 0: F_raw = 32 × (16000 - 1000) = 480000 internal force units. Spoiler 0.5 halves it. An enabled afterburner holding 0.001 amount (0.01 L) of jet fuel has b = 1.5; holding a full 0.4 amount buffer, b = 201. With S = 1000 the application cap limits every one of these to 100 × S = 100000. Calculations from the recovered constants, not game measurements. Report: investigation/jet-engines.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351e5f, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351e09, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351ee4, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351eb8, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351eb3, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351ddb, native:stormworks64.exe:f9206d85c82f:0x1401a7c70@0x1401a7d07, native:stormworks64.exe:f9206d85c82f:0x140350a50@0x140350ba3."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/123/limitations/1",
+    "statement": "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons. The cap scale S is open, as the Jet engines category records."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/124/sections/2/body",
+    "statement": "The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. It is applied once per update and integrated by the physics solver; do not multiply it by 60."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/124/findings/9/detail",
+    "statement": "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53). Report: investigation/jet-engines.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100d2fe88500 at 0x140351f59 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/update.asm:L880-L891; ../jet-engines/asm/force-queue.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/124/findings/11/label",
+    "statement": "Jet force application cap"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/124/findings/11/value",
+    "statement": "|F| ≤ 100 × S"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/124/findings/11/detail",
+    "statement": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = min(F_raw, 100 × S) along the thrust axis. NaN coordinates become 0. Report: investigation/jet-engines.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f59c60f2fd0 at 0x1401a7d07. Interpretation rests on retained output investigation/native/behavior/../jet-engines/asm/force-queue.asm:L20-L53; ../jet-engines/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/124/findings/13/detail",
+    "statement": "Sea level, spoiler 0: F_raw = 32 × (16000 - 1000) = 480000 internal force units. Spoiler 0.5 halves it. An enabled afterburner holding 0.001 amount (0.01 L) of jet fuel has b = 1.5; holding a full 0.4 amount buffer, b = 201. With S = 1000 the application cap limits every one of these to 100 × S = 100000. Calculations from the recovered constants, not game measurements. Report: investigation/jet-engines.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351e5f, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351e09, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351ee4, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351eb8, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351eb3, native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351ddb, native:stormworks64.exe:f9206d85c82f:0x1401a7c70@0x1401a7d07, native:stormworks64.exe:f9206d85c82f:0x140350a50@0x140350ba3."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/124/limitations/1",
+    "statement": "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons. The cap scale S is open, as the Jet engines category records."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/196/sections/1/body",
+    "statement": "Rotor End (Light): K 10 or 5, 26.603 or 52.979 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/196/findings/1/detail",
+    "statement": "F = 10000, rotation_speed 1, blade_physics_length 1.25, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 10: b = 0.7539, q = 0.0377, removed 0.0142 RPS, post-load 9.9848 RPS, raw force 266.026, 26.603 per input RPS; at 60 RPS raw force 54742.0, removed 2.920 RPS; K = F × B ÷ 8000 = 5: b = 0.7539, q = 0.0754, removed 0.0565 RPS, post-load 9.9425 RPS, raw force 529.789, 52.979 per input RPS; at 60 RPS raw force 95536.3, removed 10.191 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_light_end.xml:eb7f6d40c229:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_light_end.xml:eb7f6d40c229:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c128, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/rotor_coaxial_light_end.xml:eb7f6d40c229:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_light_end.xml:eb7f6d40c229:L2-L2, resource:rom/data/definitions/rotor_coaxial_light_end.xml:eb7f6d40c229:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/196/findings/48/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/196/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/217/summary",
+    "statement": "Passive and active sonar; tooltip range and radar_range both 100000. Active returns pass out to 1000 × S m, and one standard ping is heard within 47000 m."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/217/sections/2/body",
+    "statement": "With P = radar_range = 100000, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < 1000 × S m. Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second.\n\nWhile it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within 47000 m, the medium advanced sonar's figure. Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/217/findings/5/value",
+    "statement": "active: distance < 1000 × S, capped at 100000 m; one standard ping heard within 47000 m"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/217/findings/5/detail",
+    "statement": "P = 100000. Active score P ÷ 10000 × S ÷ d > 0.01 gives d < P × S ÷ 100 = 1000 × S, capped at P. Passive score 235 × P × 0.00002 ÷ d > 0.01 gives d < 235 × 0.00002 ÷ 0.01 × P = 0.47 × P = 47000 m for one amplitude-235 ping. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403bf8e0@0x1403c0236, native:stormworks64.exe:f9206d85c82f:0x1403bf8e0@0x1403c1464, native:stormworks64.exe:f9206d85c82f:0x1403bf740@0x1403bf859, native:stormworks64.exe:f9206d85c82f:0x1403bf8e0@0x1403c0f10."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/226/sections/1/body",
+    "statement": "Rotor (Tail): K 4 or 2, 33.907 or 66.682 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/226/findings/1/detail",
+    "statement": "F = 4000, rotation_speed 1, blade_physics_length 1, blade_efficiency 0.01, efficiency 1, flags 5. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 4: b = 0.6031, q = 0.0754, removed 0.0565 RPS, post-load 9.9425 RPS, raw force 339.065, 33.907 per input RPS; at 60 RPS raw force 61143.3, removed 10.191 RPS; K = F × B ÷ 8000 = 2: b = 0.6031, q = 0.1508, removed 0.2223 RPS, post-load 9.7767 RPS, raw force 666.822, 66.682 per input RPS; at 60 RPS raw force 81007.1, removed 27.002 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/226/findings/42/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/226/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/251/sections/1/body",
+    "statement": "Small Pitchable Propeller: K 10, 4073.904 per RPS, 2.7159 RPS removed; Pitchable Propeller: K 40, 20411.306 per RPS, 3.4019 RPS removed; Large Pitchable Propeller: K 80, 35002.234 per RPS, 2.9169 RPS removed. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nTheir weight counts intact blades: each lost blade lowers K and the load by one quarter of the 4-blade value."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/251/findings/3/detail",
+    "statement": "F = 20000, rotation_speed 1, blade_physics_length 0.27, blade_efficiency 0.075, efficiency 1, flags 7. At 10 published RPS, effective pitch 1, 4 intact blades, still water with the hub submerged, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F × B ÷ 8000 = 10: b = 1.2213, q = 0.6107, removed 2.7159 RPS, post-load 7.2831 RPS, raw force 40739.035, 4073.904 per input RPS; at 60 RPS raw force 837523.7, removed 55.835 RPS. Internal force units, not newtons. The weight branch is fixed by the marine flags. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/propeller_pitch_small.xml:d7b2238acdba:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf98, resource:rom/data/definitions/propeller_pitch_small.xml:d7b2238acdba:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/propeller_pitch_small.xml:d7b2238acdba:L2-L2, resource:rom/data/definitions/propeller_pitch_small.xml:d7b2238acdba:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c1a8, resource:rom/data/definitions/propeller_pitch_small.xml:d7b2238acdba:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/251/findings/4/detail",
+    "statement": "F = 80000, rotation_speed 1, blade_physics_length 1.27, blade_efficiency 0.075, efficiency 1, flags 7. At 10 published RPS, effective pitch 1, 4 intact blades, still water with the hub submerged, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F × B ÷ 8000 = 40: b = 5.7448, q = 0.7181, removed 3.4019 RPS, post-load 6.5971 RPS, raw force 204113.062, 20411.306 per input RPS; at 60 RPS raw force 3415645.5, removed 56.927 RPS. Internal force units, not newtons. The weight branch is fixed by the marine flags. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/propeller_pitch.xml:34143f31286d:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf98, resource:rom/data/definitions/propeller_pitch.xml:34143f31286d:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/propeller_pitch.xml:34143f31286d:L2-L2, resource:rom/data/definitions/propeller_pitch.xml:34143f31286d:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c1a8, resource:rom/data/definitions/propeller_pitch.xml:34143f31286d:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/251/findings/5/detail",
+    "statement": "F = 160000, rotation_speed 1, blade_physics_length 2.27, blade_efficiency 0.075, efficiency 1, flags 7. At 10 published RPS, effective pitch 1, 4 intact blades, still water with the hub submerged, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F × B ÷ 8000 = 80: b = 10.2682, q = 0.6418, removed 2.9169 RPS, post-load 7.0821 RPS, raw force 350022.344, 35002.234 per input RPS; at 60 RPS raw force 6744406.0, removed 56.203 RPS. Internal force units, not newtons. The weight branch is fixed by the marine flags. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/propeller_pitch_large.xml:5e0c4d98f1f4:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf98, resource:rom/data/definitions/propeller_pitch_large.xml:5e0c4d98f1f4:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/propeller_pitch_large.xml:5e0c4d98f1f4:L2-L2, resource:rom/data/definitions/propeller_pitch_large.xml:5e0c4d98f1f4:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c1a8, resource:rom/data/definitions/propeller_pitch_large.xml:5e0c4d98f1f4:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/251/findings/54/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/251/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/257/sections/2/body",
+    "statement": "The Burn Rate slider runs from 1% to 100%, stored as 0.01 to 1. Thrust is multiplied by (1 - 2.2413793e-5 × y)^5.3595023 of the altitude y and is 0 above 40000. The applied force is capped at 1000 × S, S being the force helper's scale, as the jet exhaust is capped at 5 × S."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/257/findings/6/detail",
+    "statement": "Passed (0x140437db5) to the force limiter 0x1401a7ad0 (call at 0x140437dcd), which caps the applied force at 1000 × S, S the caller's scale; the jet exhaust passes 5 and the propellers 100. Report: investigation/weapons.md. Function 0x140437570-0x14043a701; instruction bytes f30f1005a78a7700 at 0x140437dad address binary32 1000 (bytes 00007a44) at 0x140bb085c. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/rocket-update.asm:L512-L523; ../weapons/asm/force-cap-helper.asm; ../weapons/pseudocode/0x140437570.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/257/limitations/0",
+    "statement": "Forces are internal units before the 1000 × S cap. One burning nozzle per fuel group is assumed; several nozzles on one group share its fuel."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/264/sections/1/body",
+    "statement": "Rotor Propeller End (Small): K 120 or 60, 10.755 or 21.489 per RPS; Rotor Propeller End (Large): K 200 or 100, 13.633 or 27.289 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/264/findings/2/detail",
+    "statement": "F = 120000, rotation_speed 1, blade_physics_length 2.75, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 120: b = 1.6586, q = 0.0069, removed 0.0005 RPS, post-load 9.9985 RPS, raw force 107.546, 10.755 per input RPS; at 60 RPS raw force 23168.8, removed 0.103 RPS; K = F × B ÷ 8000 = 60: b = 1.6586, q = 0.0138, removed 0.0019 RPS, post-load 9.9971 RPS, raw force 214.891, 21.489 per input RPS; at 60 RPS raw force 46100.2, removed 0.410 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_prop_small_end.xml:6a370a4589ce:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_prop_small_end.xml:6a370a4589ce:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c128, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/rotor_coaxial_prop_small_end.xml:6a370a4589ce:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_prop_small_end.xml:6a370a4589ce:L2-L2, resource:rom/data/definitions/rotor_coaxial_prop_small_end.xml:6a370a4589ce:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/264/findings/3/detail",
+    "statement": "F = 200000, rotation_speed 1, blade_physics_length 4, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 200: b = 2.4125, q = 0.006, removed 0.0004 RPS, post-load 9.9986 RPS, raw force 136.332, 13.633 per input RPS; at 60 RPS raw force 29422.2, removed 0.078 RPS; K = F × B ÷ 8000 = 100: b = 2.4125, q = 0.0121, removed 0.0015 RPS, post-load 9.9975 RPS, raw force 272.887, 27.289 per input RPS; at 60 RPS raw force 58616.5, removed 0.313 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_prop_end.xml:58592bf5a3e8:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_prop_end.xml:58592bf5a3e8:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c128, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c168, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_prop_end.xml:58592bf5a3e8:L2-L2, resource:rom/data/definitions/rotor_coaxial_prop_end.xml:58592bf5a3e8:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/264/findings/54/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/264/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/265/sections/2/body",
+    "statement": "Rotor (Light): K 10 or 5, 26.603 or 52.979 per RPS; Rotor (Small): K 50 or 25, 54.522 or 108.862 per RPS; Rotor (Large): K 200 or 100, 54.577 or 109.043 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/265/findings/3/detail",
+    "statement": "F = 10000, rotation_speed 1, blade_physics_length 1.25, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 10: b = 0.7539, q = 0.0377, removed 0.0142 RPS, post-load 9.9848 RPS, raw force 266.026, 26.603 per input RPS; at 60 RPS raw force 54742.0, removed 2.920 RPS; K = F × B ÷ 8000 = 5: b = 0.7539, q = 0.0754, removed 0.0565 RPS, post-load 9.9425 RPS, raw force 529.789, 52.979 per input RPS; at 60 RPS raw force 95536.3, removed 10.191 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_light.xml:c0c0b4d8ecec:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_light.xml:c0c0b4d8ecec:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c128, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/rotor_coaxial_light.xml:c0c0b4d8ecec:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_light.xml:c0c0b4d8ecec:L2-L2, resource:rom/data/definitions/rotor_coaxial_light.xml:c0c0b4d8ecec:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/265/findings/4/detail",
+    "statement": "F = 50000, rotation_speed 1, blade_physics_length 4, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 50: b = 2.4125, q = 0.0241, removed 0.0058 RPS, post-load 9.9932 RPS, raw force 545.216, 54.522 per input RPS; at 60 RPS raw force 115428.0, removed 1.231 RPS; K = F × B ÷ 8000 = 25: b = 2.4125, q = 0.0483, removed 0.0232 RPS, post-load 9.9758 RPS, raw force 1088.617, 108.862 per input RPS; at 60 RPS raw force 217467.0, removed 4.639 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_small.xml:ebc968bd433c:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_small.xml:ebc968bd433c:L2-L2, resource:rom/data/definitions/rotor_coaxial_small.xml:ebc968bd433c:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c168, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_small.xml:ebc968bd433c:L2-L2, resource:rom/data/definitions/rotor_coaxial_small.xml:ebc968bd433c:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/265/findings/5/detail",
+    "statement": "F = 200000, rotation_speed 1, blade_physics_length 8, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 200: b = 4.825, q = 0.0121, removed 0.0015 RPS, post-load 9.9975 RPS, raw force 545.775, 54.577 per input RPS; at 60 RPS raw force 117233.0, removed 0.313 RPS; K = F × B ÷ 8000 = 100: b = 4.825, q = 0.0241, removed 0.0058 RPS, post-load 9.9932 RPS, raw force 1090.432, 109.043 per input RPS; at 60 RPS raw force 230856.1, removed 1.231 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_large.xml:0c21ab40591f:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_large.xml:0c21ab40591f:L2-L2, resource:rom/data/definitions/rotor_coaxial_large.xml:0c21ab40591f:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/rotor_coaxial_large.xml:0c21ab40591f:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_large.xml:0c21ab40591f:L2-L2, resource:rom/data/definitions/rotor_coaxial_large.xml:0c21ab40591f:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/265/findings/63/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/265/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/266/sections/2/body",
+    "statement": "Rotor Propeller (Small): K 120 or 60, 10.755 or 21.489 per RPS; Rotor Propeller (Large): K 200 or 100, 13.633 or 27.289 per RPS. Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\n\nAir parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; each figure gives both, the first for F ÷ 1000."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/266/findings/2/detail",
+    "statement": "F = 120000, rotation_speed 1, blade_physics_length 2.75, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 120: b = 1.6586, q = 0.0069, removed 0.0005 RPS, post-load 9.9985 RPS, raw force 107.546, 10.755 per input RPS; at 60 RPS raw force 23168.8, removed 0.103 RPS; K = F × B ÷ 8000 = 60: b = 1.6586, q = 0.0138, removed 0.0019 RPS, post-load 9.9971 RPS, raw force 214.891, 21.489 per input RPS; at 60 RPS raw force 46100.2, removed 0.410 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_prop_small.xml:b94fdc6dd0f8:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_prop_small.xml:b94fdc6dd0f8:L2-L2, resource:rom/data/definitions/rotor_coaxial_prop_small.xml:b94fdc6dd0f8:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, resource:rom/data/definitions/rotor_coaxial_prop_small.xml:b94fdc6dd0f8:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_prop_small.xml:b94fdc6dd0f8:L2-L2, resource:rom/data/definitions/rotor_coaxial_prop_small.xml:b94fdc6dd0f8:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/266/findings/3/detail",
+    "statement": "F = 200000, rotation_speed 1, blade_physics_length 4, blade_efficiency 0.01, efficiency 1.25, flags 1073741825. At 10 published RPS, effective pitch 1, 4 intact blades, still air at altitude 0, no cyclic, unfolded, before the 100 × S cap: w = 9.999. K = F ÷ 1000 = 200: b = 2.4125, q = 0.006, removed 0.0004 RPS, post-load 9.9986 RPS, raw force 136.332, 13.633 per input RPS; at 60 RPS raw force 29422.2, removed 0.078 RPS; K = F × B ÷ 8000 = 100: b = 2.4125, q = 0.0121, removed 0.0015 RPS, post-load 9.9975 RPS, raw force 272.887, 27.289 per input RPS; at 60 RPS raw force 58616.5, removed 0.313 RPS. Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given. Report: investigation/propulsion.md. Inputs: resource:rom/data/definitions/rotor_coaxial_prop.xml:49d978374ce9:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5bf60, resource:rom/data/definitions/rotor_coaxial_prop.xml:49d978374ce9:L2-L2, resource:rom/data/definitions/rotor_coaxial_prop.xml:49d978374ce9:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c108, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c168, native:stormworks64.exe:f9206d85c82f:0x1403168d0@0x140b5c148, resource:rom/data/definitions/rotor_coaxial_prop.xml:49d978374ce9:L2-L2, resource:rom/data/definitions/rotor_coaxial_prop.xml:49d978374ce9:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e03b, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e04d, native:stormworks64.exe:f9206d85c82f:0x14033dff0@0x14033e066, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f214, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f25b, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f31a, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f33e, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f2d4, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f378, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3c6, native:stormworks64.exe:f9206d85c82f:0x14033f00c@0x14033f3d5."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/266/findings/56/detail",
+    "statement": "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60. Report: investigation/propulsion.md. Function 0x1401a7c70-0x1401a7e5b; instruction bytes f30f10b424980000000f28c6f30f59c60f2fd0 at 0x1401a7cfb. Interpretation rests on retained output investigation/native/behavior/../propulsion/asm/vector-cap.asm:L41-L57; ../propulsion/pseudocode/0x1401a7c70.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/266/limitations/0",
+    "statement": "Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/275/sections/0/body",
+    "statement": "At the same body mass, airspeed, altitude and angle, the computed wing force scales linearly with rudder_surface_area: 8, 20, 40, 70 and 120, or 1, 2.5, 5, 8.75 and 15 times the small wing. The application cap can limit the gain on a light craft. The listed voxel count is not a multiplier."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/275/findings/6/detail",
+    "statement": "Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap. Inputs: resource:rom/data/definitions/wing_small.xml:e5faf82baa25:L2-L2, resource:rom/data/definitions/wing_medium.xml:cd1177566a7e:L2-L2, resource:rom/data/definitions/wing_large.xml:36a47f33d6d4:L2-L2, resource:rom/data/definitions/wing_xl.xml:7c416650d225:L2-L2, resource:rom/data/definitions/wing_xxl.xml:1630857c20e1:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1118, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/275/findings/19/detail",
+    "statement": "Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher. Report: investigation/control-surfaces.md. Function 0x1403dfd20-0x1403e123f; instruction bytes f30f103d0df47c00 at 0x1403e10cb address binary32 5 (bytes 0000a040) at 0x140bb04e0. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/rudder-update.asm:L1047,L1080-L1093; ../control-surfaces/asm/force-queue.asm:L15-L45. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/275/findings/21/label",
+    "statement": "Force application cap"
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/275/findings/21/detail",
+    "statement": "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here. Report: investigation/control-surfaces.md. Function 0x1401a7ad0-0x1401a7c6a; instruction bytes f30f59c60f2fd0 at 0x1401a7b62. Interpretation rests on retained output investigation/native/behavior/../control-surfaces/asm/force-queue.asm:L15-L45; ../control-surfaces/pseudocode/0x1401a7ad0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/275/findings/33/detail",
+    "statement": "Area 8, body mass 1000, sea level, dry, airspeed 30 m/s at 10° angle of attack, wing term on: P = 1, B = 0.03, q = 15, g = 0.6. Normal force 594.1561, lift = normal × cos 10° = 585.1295, drag = normal × sin 10° = 103.1741, before the application cap. A calculation from the recovered constants, with no game measurement. Report: investigation/control-surfaces.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1120, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0db2, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0d30, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0f6b, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e0ff1, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e1051, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10eb, native:stormworks64.exe:f9206d85c82f:0x1403dfd20@0x1403e10f8."
+  },
+  {
+    "file": "wiki/data/behavior.json",
+    "pointer": "/families/275/limitations/0",
+    "statement": "The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale."
+  },
+  {
+    "file": "wiki/data/mechanics.json",
+    "pointer": "/articles/21/body",
+    "statement": "The small boat propeller receives engine power and its tooltip says it operates only underwater. The controllable-pitch boat propeller also requires underwater operation and takes desired pitch from -1 to 1. Its force_emitter_max_force field is 80000 versus 20000 for the selected small fixed-pitch propeller. A native decode (investigation/propulsion.md, shown on the Propulsion parts pages) found that every propeller, rotor and ducted fan runs one force-emitter update. Each update it scales the published shaft speed by 0.9999 to w, forms the effective pitch p = clamp(saved pitch + Pitch input, -1, 1) and the load b = (2 × w × rotation_speed × π × blade_physics_length × p × 0.75 + p × U) × blade_efficiency × intact blades × 0.32, where U is minus the hub's velocity through still water along the thrust axis, signed by the pitch. With K = force_emitter_max_force ÷ 1000, or F × intact blades ÷ 8000 for the pitchable propellers, q = clamp(b ÷ 2K, -10, 10) is multiplied by 10 below the water surface; the propeller removes w × (1 - 1 ÷ (1 + q²)) RPS from its shaft and pushes with 1500 × K × removed RPS, signed by the pitch, in the game's internal force unit. Thrust is queued only when the hub is at or below the sampled water surface; the shaft load applies either way. force_emitter_max_force is therefore a solver weight, not a thrust ceiling: at 10 RPS and pitch 1 the small fixed propeller gives about 22201 internal force, and the small, standard and large pitchable propellers about 4074, 20411 and 35002 per RPS. Pitch is a normalized number, not a blade angle; zero pitch gives no load and no thrust. A separate application cap of 100 × S limits the force actually applied."
+  },
+  {
+    "file": "wiki/data/mechanics.json",
+    "pointer": "/articles/21/limitations/2",
+    "statement": "The propeller law comes from that native decode, not from these fields alone. Not recovered: the SI calibration of the internal force and of the cap scale S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract."
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 403,
+    "statement": "// force units (mass is not calibrated to kilograms). The application cap, 5 × a per-vehicle scale, is not modelled."
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 608,
+    "statement": "// scale is the per-vehicle application scale S; null leaves the force uncapped."
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 613,
+    "statement": "if (scale !== null && (!Number.isFinite(scale) || scale <= 0)) throw new RangeError('The application scale must be a positive number.');"
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 834,
+    "statement": "// the 100 × S application cap, with the hub medium gate applied. No cyclic, coaxial couple, folded state or shaft history."
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 902,
+    "statement": "// Force after the application cap for a chosen scale S: raw × min(1, 100 × S ÷ |raw|)."
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 1052,
+    "statement": "// D = trunc(400 × w² × burn rate) + 1 in binary32 order, raw thrust 60 × D before the altitude factor and the 1000 × S cap."
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 1321,
+    "statement": "// self-righting pair ±200 × K × w × (d + up) at r0 ± 2d, K = min(S, 4 × definition mass). Each force is capped at 100 × S by"
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 1336,
+    "statement": "// Opposing water force magnitude at sideways water speed `speed` (m/s), before (raw) and after the 100 × S cap."
+  },
+  {
+    "file": "wiki/lib/formulas.js",
+    "line": 1349,
+    "statement": "// Each force, 400 × h × K × w × sin(θ/2), is capped separately at 100 × S, which scales the torque by the same factor."
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 1877,
+    "statement": "\"Passed as the limit argument (stored at 0x1403e11d0) to the application helper together with a per-vehicle scale S from the dispatcher.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 1880,
+    "statement": "f[\"cap\"] = code(F_APPLY, 0x1401A7B62, \"f30f59c60f2fd0\", \"Force application cap\", \"|F| ≤ limit × S\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 1881,
+    "statement": "\"The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = F × min(1, 5 × S ÷ |F|) for the air call. NaN coordinates become 0. No timestep multiplies the vector here.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 1907,
+    "statement": "\"Area 8, body mass 1000, sea level, dry, airspeed 30 m/s at 10° angle of attack, wing term on: P = 1, B = 0.03, q = 15, g = 0.6. Normal force %.4f, lift = normal × cos 10° = %.4f, drag = normal × sin 10° = %.4f, before the application cap. A calculation from the recovered constants, with no game measurement.\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 2103,
+    "statement": "\"Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53).\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 2106,
+    "statement": "f[\"x_cap\"] = code(F_JET_FORCE, 0x1401A7D07, \"f30f59c60f2fd0\", \"Jet force application cap\", \"|F| ≤ 100 × S\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 2107,
+    "statement": "\"The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = min(F_raw, 100 × S) along the thrust axis. NaN coordinates become 0.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 2164,
+    "statement": "\"Sea level, spoiler 0: F_raw = 32 × (16000 - 1000) = %s internal force units. Spoiler 0.5 halves it. An enabled afterburner holding 0.001 amount (0.01 L) of jet fuel has b = 1.5; holding a full 0.4 amount buffer, b = 201. With S = 1000 the application cap limits every one of these to 100 × S = %s. Calculations from the recovered constants, not game measurements.\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5014,
+    "statement": "\"zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5072,
+    "statement": "\"no cyclic, unfolded, before the 100 × S cap: w = %s. %s. %s\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5105,
+    "statement": "\"force_emitter_max_force sets the solver weight K, not a thrust ceiling, and a separate 100 × S cap limits the applied force. Marine parts push only with the hub underwater, air parts only above it.\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5127,
+    "statement": "\"the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, \""
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5131,
+    "statement": "[\"Static analysis of one build. Forces are in the game's internal force unit before the 100 × S application cap.\", TICK])"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5137,
+    "statement": "list(limits) + [\"Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion.\", TICK])"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5146,
+    "statement": "still = \"Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap.\""
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5158,
+    "statement": "\"Fixed-pitch underwater propellers with solver weight K = F ÷ 1000 (%s, %s and %s). They push only with the hub at or below the water surface; at 10 RPS in still water the raw internal force is %s, %s and %s per RPS before the application cap.\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5183,
+    "statement": "\"Large and huge rotors on the shared force-emitter law with efficiency 1.25; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap.\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5191,
+    "statement": "\"Heavy rotors on the shared force-emitter law with rotation_speed 1.5 and blade_efficiency 0.02; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap.\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5199,
+    "statement": "\"Air fans on the shared force-emitter law with pitch fixed at 1; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap.\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5248,
+    "statement": "\"Aircraft propeller on the shared force-emitter law with rotation_speed 3; at 10 RPS it gives %s internal force per RPS by air weight branch, before the application cap.\" % air_pair(\"aircraft_propeller\"),"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5263,
+    "statement": "\"Underwater thruster on the marine force-emitter law with K = F ÷ 1000 = %s; %s internal force per RPS at 10 RPS in still water, before the application cap. Mount it on a robotic pivot to steer the push.\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5287,
+    "statement": "\"Force at equal airflow, body mass, altitude and angle, relative to the smallest size: the ratio of rudder_surface_area, because area multiplies the whole air force before the application cap.\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5303,
+    "statement": "\"Before it is applied its size is limited to 5 × S, where S is a per-vehicle scale passed in by the component dispatcher; area scaling is linear only below that limit.\")"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5323,
+    "statement": "[\"The force equations come from static decompilation of one build; the game was not run. How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5327,
+    "statement": "wing_limits = [\"The equation comes from static decompilation; the game was not run. Figures here stop before the application cap; the Control surfaces limits describe what is open about its per-vehicle scale.\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5333,
+    "statement": "\"The application cap can limit the gain on a light craft. The listed voxel count is not a multiplier.\"),"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5364,
+    "statement": "open_scale = \"How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted.\""
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5385,
+    "statement": "\"Exhaust force = 32 × (incoming pressure - 1000) × altitude factor × afterburner multiplier × (1 - Thrust Spoiler), before a cap of 100 × S, with S a per-vehicle scale. \""
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5442,
+    "statement": "cap_body = (\"The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. \""
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5446,
+    "statement": "ex_limits = [local, units + \" The cap scale S is open, as the Jet engines category records.\", TICK]"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5448,
+    "statement": "\"Pushes with 32 × (incoming pressure - 1000), scaled by altitude and the Thrust Spoiler, capped at 100 × S.\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 5459,
+    "statement": "\"0.001 amount (0.01 L) gives 1.5; a full 0.4 amount (4 L) buffer gives 201. The ratio has no upper clamp, so a full buffer multiplies thrust far beyond the tooltip's description, until the 100 × S cap.\"),"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 6699,
+    "statement": "\"Passed (0x140437db5) to the force limiter 0x1401a7ad0 (call at 0x140437dcd), which caps the applied force at 1000 × S, S the caller's scale; the jet exhaust passes 5 and the propellers 100.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7005,
+    "statement": "\"The applied force is capped at 1000 × S, S being the force helper's scale, as the jet exhaust is capped at 5 × S.\")"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7009,
+    "statement": "[\"Forces are internal units before the 1000 × S cap. One burning nozzle per fuel group is assumed; several nozzles on one group share its fuel.\", TICK])"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7835,
+    "statement": "KEEL_OPEN = [\"The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the vehicle's application scale S, so no heel curve per keel size is given.\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7837,
+    "statement": "\"How the game builds the cap scale S for craft joined by locked joints was not decoded, so keel forces near the 100 × S cap are not predicted.\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7899,
+    "statement": "\"K = min(S, this × m) (minss at 0x1403e01f7), S being the per-vehicle application scale passed as update argument 7. K scales the self-righting pair and the forward-speed memory force, not the water force.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7921,
+    "statement": "\"A type-2 keel passes this limit with its water force (other types pass 5), so |F| ≤ 100 × S after the helper's cap. The shipped keel_lateral_max_acc_scale is 20; the call uses 100.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7939,
+    "statement": "\"Both self-righting forces and the memory force go to the application helper with this limit, each capped separately at 100 × S. When |h × F+| exceeds it, the torque shrinks by 100 × S ÷ |h × F+|.\" + rep)"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7994,
+    "statement": "fig[\"water\"] = E.derived(\"Keel water force law\", \"40 × u × min(0.5 × M, 400) × w × 10, at most 100 × S\","
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 7996,
+    "statement": "\"The raw force saturates at 8000000 × w at 50 m/s. The application helper then caps it at 100 × S.\" + rep,"
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 8000,
+    "statement": "\"At 10 m/s the raw force %s exceeds the cap 100 × S = %s. Computed from the recovered constants; no game measurement (%s).\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 8014,
+    "statement": "\"S = 10000, w = 1, h = 1: 800 × K × sin 30° for K = %s, %s and %s (small, medium, large). Each force, 400 × K × sin 15°, stays below the cap 100 × S = 1000000. Computed from the recovered constants; no game measurement (%s).\" % ("
+  },
+  {
+    "file": "wiki/scripts/extract_behavior.py",
+    "line": 8092,
+    "statement": "\"Each keel force goes through the application helper with limit 100, so its size is capped at 100 × S, S being a per-vehicle scale from the component dispatcher. \""
+  },
+  {
+    "file": "wiki/scripts/extract_mechanics.py",
+    "line": 542,
+    "statement": "'Pitch is a normalized number, not a blade angle; zero pitch gives no load and no thrust. A separate application cap of 100 × S limits the force actually applied.',"
+  },
+  {
+    "file": "wiki/scripts/extract_mechanics.py",
+    "line": 544,
+    "statement": "[block_limit, static_limit, 'The propeller law comes from that native decode, not from these fields alone. Not recovered: the SI calibration of the internal force and of the cap scale S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract.'])"
+  }
+]
