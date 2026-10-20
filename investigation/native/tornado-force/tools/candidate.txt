@@ -1,0 +1,49 @@
+61-   1404e395f:	f2 41 0f 5c 4c 24 08                            	subsd  xmm1,QWORD PTR [r12+0x8]
+62-   1404e3966:	f2 0f 10 47 78                                  	movsd  xmm0,QWORD PTR [rdi+0x78]
+63-   1404e396b:	f2 41 0f 5c 04 24                               	subsd  xmm0,QWORD PTR [r12]
+64-   1404e3971:	66 0f 5a d2                                     	cvtpd2ps xmm2,xmm2
+65-   1404e3975:	66 0f 5a c9                                     	cvtpd2ps xmm1,xmm1
+66-   1404e3979:	66 0f 5a c0                                     	cvtpd2ps xmm0,xmm0
+67-   1404e397d:	f3 0f 11 54 24 28                               	movss  DWORD PTR [rsp+0x28],xmm2
+68-   1404e3983:	f3 0f 11 4c 24 24                               	movss  DWORD PTR [rsp+0x24],xmm1
+69-   1404e3989:	f3 0f 11 44 24 20                               	movss  DWORD PTR [rsp+0x20],xmm0
+70-   1404e398f:	48 8d 4c 24 20                                  	lea    rcx,[rsp+0x20]
+71-   1404e3994:	e8 17 1e c9 ff                                  	call   0x1401757b0
+72-   1404e3999:	f3 44 0f 10 44 24 20                            	movss  xmm8,DWORD PTR [rsp+0x20]
+73:   1404e39a0:	f3 45 0f 59 c5                                  	mulss  xmm8,xmm13
+74-   1404e39a5:	f3 0f 10 7c 24 24                               	movss  xmm7,DWORD PTR [rsp+0x24]
+75:   1404e39ab:	f3 41 0f 59 fd                                  	mulss  xmm7,xmm13
+76-   1404e39b0:	f3 0f 10 74 24 28                               	movss  xmm6,DWORD PTR [rsp+0x28]
+77:   1404e39b6:	f3 41 0f 59 f5                                  	mulss  xmm6,xmm13
+78-   1404e39bb:	f3 0f 11 74 24 28                               	movss  DWORD PTR [rsp+0x28],xmm6
+79-   1404e39c1:	f3 41 0f 10 45 00                               	movss  xmm0,DWORD PTR [r13+0x0]
+80-   1404e39c7:	41 0f 2f c6                                     	comiss xmm0,xmm14
+81-   1404e39cb:	76 12                                           	jbe    0x1404e39df
+82-   1404e39cd:	41 0f 57 f4                                     	xorps  xmm6,xmm12
+83-   1404e39d1:	41 0f 57 fc                                     	xorps  xmm7,xmm12
+84-   1404e39d5:	45 0f 57 c4                                     	xorps  xmm8,xmm12
+85-   1404e39d9:	f3 0f 11 74 24 28                               	movss  DWORD PTR [rsp+0x28],xmm6
+--
+145-   1404e3ae3:	48 8d 4b 30                                     	lea    rcx,[rbx+0x30]
+146-   1404e3ae7:	e8 d4 cb 40 00                                  	call   0x1408f06c0
+147-   1404e3aec:	48 8b 9c 24 58 01 00 00                         	mov    rbx,QWORD PTR [rsp+0x158]
+148-   1404e3af4:	41 0f 28 c0                                     	movaps xmm0,xmm8
+149-   1404e3af8:	f3 0f 58 85 a0 01 00 00                         	addss  xmm0,DWORD PTR [rbp+0x1a0]
+150-   1404e3b00:	f3 0f 11 85 a0 01 00 00                         	movss  DWORD PTR [rbp+0x1a0],xmm0
+151-   1404e3b08:	0f 28 cf                                        	movaps xmm1,xmm7
+152-   1404e3b0b:	f3 0f 58 8d a4 01 00 00                         	addss  xmm1,DWORD PTR [rbp+0x1a4]
+153-   1404e3b13:	f3 0f 11 8d a4 01 00 00                         	movss  DWORD PTR [rbp+0x1a4],xmm1
+154-   1404e3b1b:	0f 28 c6                                        	movaps xmm0,xmm6
+155-   1404e3b1e:	f3 0f 58 85 a8 01 00 00                         	addss  xmm0,DWORD PTR [rbp+0x1a8]
+156-   1404e3b26:	f3 0f 11 85 a8 01 00 00                         	movss  DWORD PTR [rbp+0x1a8],xmm0
+157:   1404e3b2e:	f3 45 0f 59 c2                                  	mulss  xmm8,xmm10
+158:   1404e3b33:	f3 41 0f 59 fa                                  	mulss  xmm7,xmm10
+159:   1404e3b38:	f3 41 0f 59 f2                                  	mulss  xmm6,xmm10
+160-   1404e3b3d:	f3 45 0f 5a c0                                  	cvtss2sd xmm8,xmm8
+161-   1404e3b42:	45 0f 57 c9                                     	xorps  xmm9,xmm9
+162-   1404e3b46:	f3 44 0f 5a cf                                  	cvtss2sd xmm9,xmm7
+163-   1404e3b4b:	45 0f 57 d2                                     	xorps  xmm10,xmm10
+164-   1404e3b4f:	f3 44 0f 5a d6                                  	cvtss2sd xmm10,xmm6
+165-   1404e3b54:	48 8b 46 10                                     	mov    rax,QWORD PTR [rsi+0x10]
+166-   1404e3b58:	f2 44 0f 58 40 78                               	addsd  xmm8,QWORD PTR [rax+0x78]
+167-   1404e3b5e:	f2 44 0f 58 88 80 00 00 00                      	addsd  xmm9,QWORD PTR [rax+0x80]

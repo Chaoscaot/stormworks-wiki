@@ -45,6 +45,7 @@ LEFTOVERS = 'investigation/leftovers.md'
 WEATHER_EXAMPLES = 'investigation/native/weather/tools/examples.json'
 HAZARDS = 'investigation/hazards.md'
 HAZARD_SUMS = 'investigation/native/hazards/SHA256SUMS'
+TORNADO_FORCE = 'investigation/tornado-force.md'
 NATURAL = 'rom/data/missions/default_natural_disasters/script.lua'
 LOCATIONS = 'rom/data/missions/default_mission_locations/script.lua'
 FIRE = 'rom/data/missions/default_forest_fire_missions/script.lua'
@@ -616,8 +617,9 @@ def lua(label, val, detail, path, needle, end=None, status='observed'):
 
 def hazards():
     """Natural disaster spawning from the shipped addons and hazard bounds from the hazard decode, re-read from the executable."""
-    if not (ROOT / HAZARDS).is_file():
-        raise ValueError(f'Hazard report missing: {HAZARDS}')
+    for report in (HAZARDS, TORNADO_FORCE):
+        if not (ROOT / report).is_file():
+            raise ValueError(f'Hazard report missing: {report}')
     sums = dict(reversed(line.split('  ', 1)) for line in (ROOT / HAZARD_SUMS).read_text().splitlines())
     for path, copy in HAZARD_LUA.items():
         read(path)
@@ -717,9 +719,10 @@ def hazards():
                'The weather update passes strength 800, inner radius 100 m and outer radius 300 m to the scene event 116 (EMP) constructor (call at 0x1405e2732). That the strike is lightning is an inference from the weather-update ownership. '
                'The pulse interferes with electrics; it is not an HP-damage equation.',
                '0x1405e2728', '41 b8 20 03 00 00', report=LEFTOVERS, literals={'0x1405e2732': 'e8 69 a9 c4 ff', '0x140bb0790': '00 00 c8 42', '0x140bb07f8': '00 00 96 43'}),
-        native('Hazard wind and current on vehicles', 'relative-velocity input, not a force',
+        native('Hazard wind and current on vehicles', 'relative-velocity input to the surface forces',
                'The vehicle update 0x1404bab00 samples the weather wind, tornado wind included (0x1404bad1e), scales it by 1 minus a position factor from 0x1402c10e0 and passes it to the surface context builder (0x1404baded). '
-               'The air callback 0x14048e2d0 subtracts it from each surface point\'s velocity. The surface traversal also calls the water sampler (0x14048bf6e) for current.',
+               'The air callback 0x14048e2d0 subtracts it from each surface point\'s velocity. The surface traversal also calls the water sampler (0x14048bf6e) for current. '
+               'A separate tornado-enabled vehicle force, listed below, is not part of this route.',
                '0x1404bad1e', 'e8 0d 6b e0 ff', report=r, literals={'0x1404baded': 'e8 1e f8 fc ff', '0x14048bf6e': 'e8 3d fc e2 ff'}),
     ]
     tornado.append(native('Deferred damage record', 'ring append 0x1408aee00',
@@ -845,7 +848,38 @@ def hazards():
                'For a free body with unit linear factors that is F ÷ (60 × m) at dt = 1/60 s; torque goes through inverse inertia. The tornado wind cap of 100 limits a velocity, not this force.',
                '0x140128734', 'f2 41 0f 59 80 60 04 00 00', report=r, literals={'0x14012874b': 'f2 41 0f 59 c0', '0x140128759': '0f 11 82 a0 01 00 00'}),
     ]
-    return dict(spawning=spawning, tornado=tornado, ocean=ocean, meteor=meteor, volcano=volcano, fire=fire, scheduling=scheduling, force=force, radii=radii)
+    t = TORNADO_FORCE
+    push = [
+        native('Tornado force gate', 'a flagged tornado entry anywhere, vehicle state 0, 2, 3, 5 or 7',
+               'The vehicle update 0x1404d61f0 skips the branch for an empty weather list (0x1404d6521) and otherwise looks for an entry with byte +0x38 set (0x1404d6551), stopping at the first. '
+               'The vehicle state at +0x28c must be at most 7 (0x1404d656b) and have its bit set in the mask 0xad (0x1404d64fa, bit test 0x1404d6574), which admits states 0, 2, 3, 5 and 7. '
+               'The producer has no distance-to-tornado test; each tornado\'s radius only attenuates its own wind inside the tornado sampler (radius read at 0x1402bea23). The states are known only by number.',
+               '0x1404d6574', '41 0f a3 c6', report=t,
+               literals={'0x1404d6521': '0f 84 22 01 00 00', '0x1404d6551': '44 38 64 31 38', '0x1404d656b': '83 f8 07', '0x1404d64fa': '41 be ad 00 00 00', '0x1404d6578': '0f 83 cb 00 00 00', '0x1402bea23': 'f3 0f 10 4f 4c'}),
+        native('Tornado-enabled vehicle force', 'F = E × (1 − A) × (7.5 × W.x, 30 × W.y, 7.5 × W.z)',
+               'W is the weather wind at the vehicle position with tornado sampling on (flag at 0x1404d658c, call 0x1402c1830 at 0x1404d659a): ordinary wind plus every tornado\'s wind, not one tornado\'s share. '
+               'The vertical scale is the float 30; the horizontal scale is 30 × 0.25 = 7.5, two multiplies per axis (0x1404d65db, 0x1404d65e0), not a loaded 7.5. '
+               'A comes from 0x1402c10e0 (call at 0x1404d65ca): 1 inside the inner box of a configured volume, blending across its outer box, the maximum over all volumes; it does not read velocity. '
+               '1 − A is formed at 0x1404d65d2. The wind is not made relative to the vehicle\'s velocity.',
+               '0x1404d650c', 'f3 44 0f 10 25 fb a1 6d 00', report=t,
+               literals={'0x140bb0710': '00 00 f0 41', '0x1404d6515': 'f3 44 0f 10 05 9e 96 6d 00', '0x140bafbbc': '00 00 80 3e', '0x1404d658c': '41 b1 01', '0x1404d659a': 'e8 91 b2 de ff',
+                         '0x1404d65ca': 'e8 11 ab de ff', '0x1404d65d2': 'f3 0f 5c d0', '0x1404d65db': 'f3 41 0f 59 dc', '0x1404d65e0': 'f3 41 0f 59 d8', '0x1404d65ee': 'f3 41 0f 59 cc',
+                         '0x1404d6604': 'f3 41 0f 59 c4', '0x1404d6609': 'f3 41 0f 59 c0'}),
+        native('Tornado force vehicle flag', 'E = 0 when vehicle byte +0x61c is set, else 1',
+               'The test at 0x1404d659f selects 1 when the byte is zero (0x1404d65a6) and otherwise a zeroed register (0x1404d65a8). What sets the byte is open.',
+               '0x1404d659f', '44 38 a7 1c 06 00 00', report=t, literals={'0x1404d65a6': '74 06', '0x1404d65a8': '41 0f 28 f2'}),
+        native('Uncapped tornado force submission', 'force event 0x1401a7470, not the joined-mass cap 0x1401a7ad0',
+               'The call at 0x1404d6644 goes to the plain force-event helper, which skips a zero vector and copies F unchanged with a zero lever arm (0x1404d6625), so it adds no torque. '
+               'It never reaches the cap helper\'s length comparison (0x1401a7b66), which limits part forces to k times the summed adjusted mass of the joined bodies (the k × S cap of investigation/force-cap.md; that S is not tornado strength). '
+               'The event consumer 0x1401a16a0 (table slot 0x140b82d38) adds F to the body force at +0x460 (0x14019a3c2). No vehicle_damage test was found from the update entry through this chain.',
+               '0x1404d6644', 'e8 27 0e cd ff', report=t,
+               literals={'0x1404d6625': '4c 89 65 f0', '0x1404d662d': 'c6 44 24 20 01', '0x140b82d38': 'a0 16 1a 40 01 00 00 00', '0x1401a7b66': '0f 2f d0', '0x1401a7b69': '76 28', '0x14019a3c2': 'f2 0f 11 81 60 04 00 00'}),
+        native('Tornado force and mass', 'no mass factor in F; the solver applies inverse mass',
+               'Solver setup 0x140128560 reads the body\'s inverse mass (0x14012865a) and multiplies it into the accumulated force (0x140128734) with its integration factor. '
+               'F itself does not scale with mass, so at the same wind a lighter body gains more speed from it. A body with zero inverse mass gets no linear change.',
+               '0x14012865a', 'f2 41 0f 10 90 d0 03 00 00', report=t, literals={'0x140128734': 'f2 41 0f 59 80 60 04 00 00'}),
+    ]
+    return dict(spawning=spawning, tornado=tornado, ocean=ocean, meteor=meteor, volcano=volcano, fire=fire, scheduling=scheduling, force=force, push=push, radii=radii)
 
 
 def build_articles():
@@ -1084,6 +1118,7 @@ def build_articles():
     article('environment-hazards', 'Weather temperature, lighting and hazards', 'Environment',
             'Parts sample a weather temperature that blends air and water by depth: air follows a warmth fraction from world Z, scrolling weather textures, month and time of day, minus rain cooling and 6.5 °C per 1000 m of height. '
             'The native lighting table and the tornado, whirlpool and tsunami vectors are decoded; the realtime environment file\'s hour markers and force terms are not what the game uses. '
+            'While a tornado exists, vehicles also get a direct wind force that skips the joined-mass force cap. '
             'Two shipped addons spawn natural disasters and native code spreads forest fires; each hazard has a decoded reach or an open item.',
             'Every part that samples its surroundings outside an enclosed compartment (heat exchangers, radiators, engines, fluid tanks, steam and nuclear parts) uses one weather routine. '
             'It blends an air temperature Ta and a water temperature Tw by f = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so the sample is pure air from 0.25 m above the surface and pure water from 23.75 m below it.'
@@ -1144,7 +1179,7 @@ def build_articles():
             '| Hazard | Natural addon | Mission addon | Direct reach | Damage | Still open |\n'
             '| --- | --- | --- | --- | --- | --- |\n'
             '| Large wave | weight 0.5, tsunami of magnitude 0.1 | none | the tsunami band | none in the water sampler | vehicle and character damage |\n'
-            '| Tornado | weight 0.2 | 0.1 + 0.9 × D, wind above 70 | wind 0 from 3000 m off the top (fresh spawn) | raycast request of 2500 × S, queued as a deferred record | final component and character damage |\n'
+            '| Tornado | weight 0.2 | 0.1 + 0.9 × D, wind above 70 | wind 0 from 3000 m off the top (fresh spawn); the vehicle force it enables has no distance test | raycast request of 2500 × S, queued as a deferred record | final component and character damage |\n'
             '| Whirlpool | weight 0.1, magnitude 1 | 0.1 + 0.3 × D, ocean tile | current 0 from 200π ≈ 628.32 m | none in the water sampler | collision, flooding and drowning damage |\n'
             '| Tsunami | weight 0.1, magnitude 0.9 | 0.1 + 0.3 × D, magnitude 1 | 0 unless abs(q) < 3.04159283638 | none in the water sampler | collision, flooding and drowning damage |\n'
             '| Meteor shower | weight 0.05 | 0.1 + 0.3 × D | one main and ten secondaries at M = 1; blast amplitude 0 from 250 × strength | explosion of strength size, or 3 × size with the tsunami flag, capped at 10 | block damage falloff and the tsunami reach |\n'
@@ -1189,15 +1224,24 @@ def build_articles():
             '\n\n'
             '## How hazard wind and current push a vehicle'
             '\n\n'
-            'Hazard wind and current enter as velocities, not forces. The vehicle update samples the weather wind, tornado wind included, and the hull air callback uses the point velocity v + ω × r minus that wind at each surface point; the water callback subtracts the sampled current the same way. '
+            'Hazard wind and current reach a vehicle by two routes. In the surface route they enter as velocities, not forces. The vehicle update samples the weather wind, tornado wind included, and the hull air callback uses the point velocity v + ω × r minus that wind at each surface point; the water callback subtracts the sampled current the same way. '
             'Each callback writes a force and lever arm per surface point. A pass sums the forces and the torques r × F, and the vehicle submits both to its Bullet body, which adds them to the body\'s total force and torque. '
             'The solver turns total force into a velocity change: for a free body with unit linear factors, Δv = F × dt ÷ m, which is F ÷ (60 × m) at dt = 1/60 s. '
-            'The push therefore depends on the hull\'s surfaces, shielding, air or water density, drag and lift terms and its own motion. A stationary, unshielded surface sees air moving at minus the sampled wind. '
-            'No single force or acceleration applies to every vehicle at a given distance from a tornado; to isolate a tornado\'s push on one vehicle, compare the surface forces with and without its wind (inference). The wind cap of 100 limits the velocity, not the force. '
-            'Each reach above bounds one direct contribution. None is a safe distance from debris, projectiles, collisions, secondary events or ordinary weather.',
+            'The push therefore depends on the hull\'s surfaces, shielding, air or water density, drag and lift terms and its own motion. A stationary, unshielded surface sees air moving at minus the sampled wind.'
+            '\n\n'
+            'The second route is a direct force that exists only while a tornado does. When the weather list holds at least one flagged tornado entry, the vehicle update adds F = E × (1 − A) × (7.5 × W.x, 30 × W.y, 7.5 × W.z) to vehicles in states 0, 2, 3, 5 and 7. '
+            'W is the full wind at the vehicle position, ordinary weather wind plus the wind of every tornado; it is not made relative to the vehicle\'s motion. '
+            'A is a spatial suppression factor, 1 inside the inner box of a configured volume and blending to 0 across its outer box, and E is 0 when a vehicle flag byte is set and 1 otherwise. '
+            'The update tests no distance to the tornado, so once a tornado exists, ordinary wind pushes eligible vehicles this way even outside every tornado\'s wind radius. '
+            'F goes to the vehicle body with no lever arm, so it adds no torque, and it bypasses the joined-mass cap that part forces such as jet exhaust and propellers pass through. '
+            'F has no mass factor: the solver multiplies it by inverse mass, so at the same wind a lighter vehicle gains more speed. No vehicle_damage test was found on this route, so it acts with vehicle damage off. '
+            'This route was traced for vehicles only.'
+            '\n\n'
+            'No single force or acceleration applies to every vehicle at a given distance from a tornado; to isolate a tornado\'s push on one vehicle, compare both routes with and without its wind (inference). The wind cap of 100 bounds each tornado\'s wind vector, not either force. '
+            'Each reach above bounds one direct contribution, except the tornado-enabled vehicle force, which has no distance test. None is a safe distance from debris, projectiles, collisions, secondary events or ordinary weather.',
             [config(n) for n in ['sunrise_start_hour','sunrise_hour','sunrise_end_hour','sunset_start_hour','sunset_hour','sunset_end_hour','tornado_base_radius_inner','tornado_base_radius_outer','tornado_wind_component_vertical','tornado_wind_component_radial','tornado_wind_component_tangential','whirlpool_vertical_force','whirlpool_radial_force','whirlpool_tangent_force']] +
             [absent([n for n in env_names if n.startswith(('sunrise_', 'sunset_', 'tornado_', 'whirlpool_'))], 'Lighting and hazard names', 'None of the sunrise, sunset, tornado or whirlpool names in the environment file occurs in the executable.'),
-             realtime_loader()] + wx['temperature'] + wx['lighting'] + wx['tornado'] + wx['whirlpool'] + hz['spawning'] + hz['tornado'] + hz['ocean'] + hz['meteor'] + hz['volcano'] + hz['fire'] + hz['scheduling'] + hz['force'],
+             realtime_loader()] + wx['temperature'] + wx['lighting'] + wx['tornado'] + wx['whirlpool'] + hz['spawning'] + hz['tornado'] + hz['ocean'] + hz['meteor'] + hz['volcano'] + hz['fire'] + hz['scheduling'] + hz['force'] + hz['push'],
             [native_limit,
              'The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.',
              'Final vehicle and character damage was not traced: the consumer of the tornado\'s deferred damage record, how the volcano damage message becomes HP, and any damage from whirlpool and tsunami water beyond collision, flooding or drowning.',
@@ -1205,7 +1249,9 @@ def build_articles():
              'Volcano lava and projectile paths and their contact damage, the full eruption acceptance test and its height-map helper were not decoded.',
              'Forest fire scheduling and damage were not established: how initial fires start, including the lightning and explosion ignition chances, how often the tree update runs, vehicle and character heat and damage, and how far a fire spreads over several generations.',
              'Whether native code schedules natural disasters besides the two addons was not established: indirect calls, save restore paths and every writer of the volcano activation flag were not ruled out.',
-             'The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, other wind and current consumers, and the kilograms per editor mass unit.'])
+             'The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.',
+             'The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, of the vehicle flag that zeroes the force and of the suppression volumes, '
+             'the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update.'])
     article('jet-engines', 'Jet startup, turbines and afterburners', 'Engines',
             'Jet component descriptions separate electrical startup, combustion and exhaust controls.',
             'The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. '

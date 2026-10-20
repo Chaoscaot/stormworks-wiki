@@ -1,0 +1,51 @@
+698763-   1402be2e4:	d1 ea                                           	shr    edx,1
+698764-   1402be2e6:	3b ca                                           	cmp    ecx,edx
+698765-   1402be2e8:	0f 83 af 00 00 00                               	jae    0x1402be39d
+698766-   1402be2ee:	41 83 f8 20                                     	cmp    r8d,0x20
+698767-   1402be2f2:	0f 86 a5 00 00 00                               	jbe    0x1402be39d
+698768-   1402be2f8:	48 8d 4f 68                                     	lea    rcx,[rdi+0x68]
+698769-   1402be2fc:	e8 bf ff 61 00                                  	call   0x1408de2c0
+698770-   1402be301:	e9 97 00 00 00                                  	jmp    0x1402be39d
+698771-   1402be306:	4d 6b c7 38                                     	imul   r8,r15,0x38
+698772-   1402be30a:	4d 03 c6                                        	add    r8,r14
+698773-   1402be30d:	48 8d 54 24 68                                  	lea    rdx,[rsp+0x68]
+698774-   1402be312:	48 8b cf                                        	mov    rcx,rdi
+698775:   1402be315:	e8 66 06 00 00                                  	call   0x1402be980
+698776-   1402be31a:	49 6b d7 38                                     	imul   rdx,r15,0x38
+698777-   1402be31e:	8b 08                                           	mov    ecx,DWORD PTR [rax]
+698778-   1402be320:	42 89 4c 32 18                                  	mov    DWORD PTR [rdx+r14*1+0x18],ecx
+698779-   1402be325:	8b 48 04                                        	mov    ecx,DWORD PTR [rax+0x4]
+698780-   1402be328:	42 89 4c 32 1c                                  	mov    DWORD PTR [rdx+r14*1+0x1c],ecx
+698781-   1402be32d:	8b 40 08                                        	mov    eax,DWORD PTR [rax+0x8]
+698782-   1402be330:	42 89 44 32 20                                  	mov    DWORD PTR [rdx+r14*1+0x20],eax
+698783-   1402be335:	8b 47 74                                        	mov    eax,DWORD PTR [rdi+0x74]
+698784-   1402be338:	03 c6                                           	add    eax,esi
+698785-   1402be33a:	33 d2                                           	xor    edx,edx
+698786-   1402be33c:	f7 77 70                                        	div    DWORD PTR [rdi+0x70]
+698787-   1402be33f:	44 8b c2                                        	mov    r8d,edx
+--
+702154-   1402c1bc8:	74 67                                           	je     0x1402c1c31
+702155-   1402c1bca:	39 b7 88 00 00 00                               	cmp    DWORD PTR [rdi+0x88],esi
+702156-   1402c1bd0:	76 5f                                           	jbe    0x1402c1c31
+702157-   1402c1bd2:	8b 87 84 00 00 00                               	mov    eax,DWORD PTR [rdi+0x84]
+702158-   1402c1bd8:	33 d2                                           	xor    edx,edx
+702159-   1402c1bda:	03 c6                                           	add    eax,esi
+702160-   1402c1bdc:	4d 8b c7                                        	mov    r8,r15
+702161-   1402c1bdf:	f7 b7 80 00 00 00                               	div    DWORD PTR [rdi+0x80]
+702162-   1402c1be5:	48 8d 0c 92                                     	lea    rcx,[rdx+rdx*4]
+702163-   1402c1be9:	48 c1 e1 05                                     	shl    rcx,0x5
+702164-   1402c1bed:	48 8d 54 24 30                                  	lea    rdx,[rsp+0x30]
+702165-   1402c1bf2:	48 03 4f 78                                     	add    rcx,QWORD PTR [rdi+0x78]
+702166:   1402c1bf6:	e8 85 cd ff ff                                  	call   0x1402be980
+702167-   1402c1bfb:	ff c6                                           	inc    esi
+702168-   1402c1bfd:	f3 0f 10 00                                     	movss  xmm0,DWORD PTR [rax]
+702169-   1402c1c01:	f3 0f 58 43 14                                  	addss  xmm0,DWORD PTR [rbx+0x14]
+702170-   1402c1c06:	f3 0f 11 43 14                                  	movss  DWORD PTR [rbx+0x14],xmm0
+702171-   1402c1c0b:	f3 0f 10 48 04                                  	movss  xmm1,DWORD PTR [rax+0x4]
+702172-   1402c1c10:	f3 0f 58 4b 18                                  	addss  xmm1,DWORD PTR [rbx+0x18]
+702173-   1402c1c15:	f3 0f 11 4b 18                                  	movss  DWORD PTR [rbx+0x18],xmm1
+702174-   1402c1c1a:	f3 0f 10 40 08                                  	movss  xmm0,DWORD PTR [rax+0x8]
+702175-   1402c1c1f:	f3 0f 58 43 1c                                  	addss  xmm0,DWORD PTR [rbx+0x1c]
+702176-   1402c1c24:	f3 0f 11 43 1c                                  	movss  DWORD PTR [rbx+0x1c],xmm0
+702177-   1402c1c29:	3b b7 88 00 00 00                               	cmp    esi,DWORD PTR [rdi+0x88]
+702178-   1402c1c2f:	72 a1                                           	jb     0x1402c1bd2

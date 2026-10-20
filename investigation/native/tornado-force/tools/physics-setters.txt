@@ -1,0 +1,65 @@
+263539-   14011ca3d:	f2 0f 59 d7                                     	mulsd  xmm2,xmm7
+263540-   14011ca41:	f2 0f 59 7f 10                                  	mulsd  xmm7,QWORD PTR [rdi+0x10]
+263541-   14011ca46:	f2 0f 58 e2                                     	addsd  xmm4,xmm2
+263542-   14011ca4a:	f2 0f 58 fd                                     	addsd  xmm7,xmm5
+263543-   14011ca4e:	f2 0f 58 f8                                     	addsd  xmm7,xmm0
+263544-   14011ca52:	41 0f 28 c1                                     	movaps xmm0,xmm9
+263545-   14011ca56:	f2 0f 59 fe                                     	mulsd  xmm7,xmm6
+263546-   14011ca5a:	f2 0f 58 e7                                     	addsd  xmm4,xmm7
+263547-   14011ca5e:	f2 44 0f 58 c4                                  	addsd  xmm8,xmm4
+263548-   14011ca63:	f2 41 0f 5e c0                                  	divsd  xmm0,xmm8
+263549:   14011ca68:	f2 0f 11 83 e0 03 00 00                         	movsd  QWORD PTR [rbx+0x3e0],xmm0
+263550-   14011ca70:	e9 93 03 00 00                                  	jmp    0x14011ce08
+263551-   14011ca75:	f2 45 0f 10 6f 08                               	movsd  xmm13,QWORD PTR [r15+0x8]
+263552-   14011ca7b:	f2 0f 10 9b 60 02 00 00                         	movsd  xmm3,QWORD PTR [rbx+0x260]
+263553-   14011ca83:	41 0f 28 c5                                     	movaps xmm0,xmm13
+263554-   14011ca87:	f2 0f 10 93 80 02 00 00                         	movsd  xmm2,QWORD PTR [rbx+0x280]
+263555-   14011ca8f:	f2 0f 10 a3 a0 02 00 00                         	movsd  xmm4,QWORD PTR [rbx+0x2a0]
+263556-   14011ca97:	f2 45 0f 10 07                                  	movsd  xmm8,QWORD PTR [r15]
+263557-   14011ca9c:	f2 45 0f 10 57 10                               	movsd  xmm10,QWORD PTR [r15+0x10]
+263558-   14011caa2:	41 0f 28 e8                                     	movaps xmm5,xmm8
+263559-   14011caa6:	f2 41 0f 10 7f 20                               	movsd  xmm7,QWORD PTR [r15+0x20]
+--
+265566-   14011ee03:	48 89 83 78 04 00 00                            	mov    QWORD PTR [rbx+0x478],rax
+265567-   14011ee0a:	48 8b 87 98 09 00 00                            	mov    rax,QWORD PTR [rdi+0x998]
+265568-   14011ee11:	48 89 83 98 04 00 00                            	mov    QWORD PTR [rbx+0x498],rax
+265569-   14011ee18:	33 c0                                           	xor    eax,eax
+265570-   14011ee1a:	48 89 83 40 03 00 00                            	mov    QWORD PTR [rbx+0x340],rax
+265571-   14011ee21:	48 89 83 20 03 00 00                            	mov    QWORD PTR [rbx+0x320],rax
+265572-   14011ee28:	48 89 83 60 03 00 00                            	mov    QWORD PTR [rbx+0x360],rax
+265573-   14011ee2f:	48 89 83 80 03 00 00                            	mov    QWORD PTR [rbx+0x380],rax
+265574-   14011ee36:	48 89 83 a0 03 00 00                            	mov    QWORD PTR [rbx+0x3a0],rax
+265575-   14011ee3d:	48 89 83 c0 03 00 00                            	mov    QWORD PTR [rbx+0x3c0],rax
+265576:   14011ee44:	48 89 83 e0 03 00 00                            	mov    QWORD PTR [rbx+0x3e0],rax
+265577-   14011ee4b:	48 89 83 00 04 00 00                            	mov    QWORD PTR [rbx+0x400],rax
+265578-   14011ee52:	48 89 83 20 04 00 00                            	mov    QWORD PTR [rbx+0x420],rax
+265579-   14011ee59:	48 89 83 40 04 00 00                            	mov    QWORD PTR [rbx+0x440],rax
+265580-   14011ee60:	48 89 83 60 04 00 00                            	mov    QWORD PTR [rbx+0x460],rax
+265581-   14011ee67:	48 89 83 80 04 00 00                            	mov    QWORD PTR [rbx+0x480],rax
+265582-   14011ee6e:	48 89 83 a0 04 00 00                            	mov    QWORD PTR [rbx+0x4a0],rax
+265583-   14011ee75:	38 87 e8 07 00 00                               	cmp    BYTE PTR [rdi+0x7e8],al
+265584-   14011ee7b:	0f 95 c0                                        	setne  al
+265585-   14011ee7e:	88 83 a8 04 00 00                               	mov    BYTE PTR [rbx+0x4a8],al
+265586-   14011ee84:	44 38 97 00 08 00 00                            	cmp    BYTE PTR [rdi+0x800],r10b
+--
+283887-   140133c4e:	74 65                                           	je     0x140133cb5
+283888-   140133c50:	41 83 f9 05                                     	cmp    r9d,0x5
+283889-   140133c54:	74 5f                                           	je     0x140133cb5
+283890-   140133c56:	f6 80 a0 01 00 00 03                            	test   BYTE PTR [rax+0x1a0],0x3
+283891-   140133c5d:	75 56                                           	jne    0x140133cb5
+283892-   140133c5f:	f2 0f 10 80 00 04 00 00                         	movsd  xmm0,QWORD PTR [rax+0x400]
+283893-   140133c67:	f2 0f 10 90 08 04 00 00                         	movsd  xmm2,QWORD PTR [rax+0x408]
+283894-   140133c6f:	f2 0f 59 80 e0 03 00 00                         	mulsd  xmm0,QWORD PTR [rax+0x3e0]
+283895-   140133c77:	f2 0f 59 90 e8 03 00 00                         	mulsd  xmm2,QWORD PTR [rax+0x3e8]
+283896-   140133c7f:	f2 0f 10 a0 10 04 00 00                         	movsd  xmm4,QWORD PTR [rax+0x410]
+283897:   140133c87:	0f 10 88 60 04 00 00                            	movups xmm1,XMMWORD PTR [rax+0x460]
+283898-   140133c8e:	66 0f 14 c2                                     	unpcklpd xmm0,xmm2
+283899-   140133c92:	66 0f 58 c8                                     	addpd  xmm1,xmm0
+283900-   140133c96:	0f 11 88 60 04 00 00                            	movups XMMWORD PTR [rax+0x460],xmm1
+283901-   140133c9d:	f2 0f 59 a0 f0 03 00 00                         	mulsd  xmm4,QWORD PTR [rax+0x3f0]
+283902-   140133ca5:	f2 0f 58 a0 70 04 00 00                         	addsd  xmm4,QWORD PTR [rax+0x470]
+283903-   140133cad:	f2 0f 11 a0 70 04 00 00                         	movsd  QWORD PTR [rax+0x470],xmm4
+283904-   140133cb5:	ff c2                                           	inc    edx
+283905-   140133cb7:	49 83 c0 08                                     	add    r8,0x8
+283906-   140133cbb:	3b 91 c4 01 00 00                               	cmp    edx,DWORD PTR [rcx+0x1c4]
+283907-   140133cc1:	0f 8c 79 ff ff ff                               	jl     0x140133c40

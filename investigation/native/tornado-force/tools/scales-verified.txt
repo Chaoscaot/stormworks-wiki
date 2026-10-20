@@ -1,0 +1,43 @@
+   1404d65d2:	f3 0f 5c d0          	subss  xmm2,xmm0
+   1404d65d6:	f3 0f 10 5d 3c       	movss  xmm3,DWORD PTR [rbp+0x3c]
+   1404d65db:	f3 41 0f 59 dc       	mulss  xmm3,xmm12
+   1404d65e0:	f3 41 0f 59 d8       	mulss  xmm3,xmm8
+   1404d65e5:	f3 0f 59 da          	mulss  xmm3,xmm2
+   1404d65e9:	f3 0f 10 4d 38       	movss  xmm1,DWORD PTR [rbp+0x38]
+   1404d65ee:	f3 41 0f 59 cc       	mulss  xmm1,xmm12
+   1404d65f3:	f3 0f 59 ca          	mulss  xmm1,xmm2
+   1404d65f7:	f3 0f 59 de          	mulss  xmm3,xmm6
+   1404d65fb:	f3 0f 59 ce          	mulss  xmm1,xmm6
+   1404d65ff:	f3 0f 10 45 34       	movss  xmm0,DWORD PTR [rbp+0x34]
+   1404d6604:	f3 41 0f 59 c4       	mulss  xmm0,xmm12
+   1404d6609:	f3 41 0f 59 c0       	mulss  xmm0,xmm8
+   1404d660e:	f3 0f 59 c2          	mulss  xmm0,xmm2
+   1404d6612:	f3 0f 59 c6          	mulss  xmm0,xmm6
+   1404d6616:	f3 0f 11 45 b0       	movss  DWORD PTR [rbp-0x50],xmm0
+   1404d661b:	f3 0f 11 4d b4       	movss  DWORD PTR [rbp-0x4c],xmm1
+   1404d6620:	f3 0f 11 5d b8       	movss  DWORD PTR [rbp-0x48],xmm3
+   1404d6625:	4c 89 65 f0          	mov    QWORD PTR [rbp-0x10],r12
+   1404d6629:	44 89 65 f8          	mov    DWORD PTR [rbp-0x8],r12d
+   1404d662d:	c6 44 24 20 01       	mov    BYTE PTR [rsp+0x20],0x1
+   1404d6632:	4c 8d 4d f0          	lea    r9,[rbp-0x10]
+   1404d6636:	4c 8d 45 b0          	lea    r8,[rbp-0x50]
+   1404d663a:	48 8b 97 78 04 00 00 	mov    rdx,QWORD PTR [rdi+0x478]
+   1404d6641:	49 8b cf             	mov    rcx,r15
+   1404d6644:	e8 27 0e cd ff       	call   0x1401a7470
+   1404d6649:	48 8d 5d 20          	lea    rbx,[rbp+0x20]
+   1404d664d:	41 be 03 00 00 00    	mov    r14d,0x3
+   1404d6653:	41 8b f6             	mov    esi,r14d
+   1404d6656:	48 8b cb             	mov    rcx,rbx
+   1404d6659:	e8 c2 ef c9 ff       	call   0x140175620
+   1404d665e:	48 83 c3 0c          	add    rbx,0xc
+   1404d6662:	48 83 ee 01          	sub    rsi,0x1
+   1404d6666:	75 ee                	jne    0x1404d6656
+   1404d6668:	c7 45 20 00 00 80 3f 	mov    DWORD PTR [rbp+0x20],0x3f800000
+   1404d666f:	c7 45 30 00 00 80 3f 	mov    DWORD PTR [rbp+0x30],0x3f800000
+   1404d6676:	c7 45 40 00 00 80 3f 	mov    DWORD PTR [rbp+0x40],0x3f800000
+   1404d667d:	41 b1 01             	mov    r9b,0x1
+   1404d6680:	45 0f b6 c1          	movzx  r8d,r9b
+   1404d6684:	48 8d 95 d0 00 00 00 	lea    rdx,[rbp+0xd0]
+   1404d668b:	48 8b cf             	mov    rcx,rdi
+   1404d668e:	e8                   	.byte 0xe8
+   1404d668f:	dd                   	.byte 0xdd

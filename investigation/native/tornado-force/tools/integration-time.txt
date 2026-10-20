@@ -1,0 +1,47 @@
+273825-   140128641:	0f 11 4a 50                                     	movups XMMWORD PTR [rdx+0x50],xmm1
+273826-   140128645:	41 0f 10 40 70                                  	movups xmm0,XMMWORD PTR [r8+0x70]
+273827-   14012864a:	0f 11 42 60                                     	movups XMMWORD PTR [rdx+0x60],xmm0
+273828-   14012864e:	41 0f 10 88 80 00 00 00                         	movups xmm1,XMMWORD PTR [r8+0x80]
+273829-   140128656:	0f 11 4a 70                                     	movups XMMWORD PTR [rdx+0x70],xmm1
+273830-   14012865a:	f2 41 0f 10 90 d0 03 00 00                      	movsd  xmm2,QWORD PTR [r8+0x3d0]
+273831:   140128663:	0f 28 c2                                        	movaps xmm0,xmm2
+273832:   140128666:	0f 28 ca                                        	movaps xmm1,xmm2
+273833:   140128669:	f2 41 0f 59 88 e8 03 00 00                      	mulsd  xmm1,QWORD PTR [r8+0x3e8]
+273834-   140128672:	f2 41 0f 59 80 e0 03 00 00                      	mulsd  xmm0,QWORD PTR [r8+0x3e0]
+273835-   14012867b:	f2 41 0f 59 90 f0 03 00 00                      	mulsd  xmm2,QWORD PTR [r8+0x3f0]
+273836-   140128684:	4c 89 82 e0 01 00 00                            	mov    QWORD PTR [rdx+0x1e0],r8
+273837-   14012868b:	66 0f 14 c1                                     	unpcklpd xmm0,xmm1
+273838-   14012868f:	0f 11 82 00 01 00 00                            	movups XMMWORD PTR [rdx+0x100],xmm0
+273839-   140128696:	0f 28 ca                                        	movaps xmm1,xmm2
+--
+275028-   140129d37:	57                                              	push   rdi
+275029-   140129d38:	41 54                                           	push   r12
+275030-   140129d3a:	41 55                                           	push   r13
+275031-   140129d3c:	41 56                                           	push   r14
+275032-   140129d3e:	41 57                                           	push   r15
+275033-   140129d40:	48 81 ec 60 02 00 00                            	sub    rsp,0x260
+275034:   140129d47:	0f 29 b4 24 50 02 00 00                         	movaps XMMWORD PTR [rsp+0x250],xmm6
+275035-   140129d4f:	48 8b 05 ba b2 b8 00                            	mov    rax,QWORD PTR [rip+0xb8b2ba]        # 0x140cb5010
+275036-   140129d56:	48 33 c4                                        	xor    rax,rsp
+275037-   140129d59:	48 89 84 24 40 02 00 00                         	mov    QWORD PTR [rsp+0x240],rax
+275038:   140129d61:	0f 28 f2                                        	movaps xmm6,xmm2
+275039-   140129d64:	4c 8b ea                                        	mov    r13,rdx
+275040-   140129d67:	4c 8b f1                                        	mov    r14,rcx
+275041-   140129d6a:	48 89 4c 24 28                                  	mov    QWORD PTR [rsp+0x28],rcx
+275042-   140129d6f:	44 8b a2 a8 01 00 00                            	mov    r12d,DWORD PTR [rdx+0x1a8]
+275043-   140129d76:	45 85 e4                                        	test   r12d,r12d
+275044-   140129d79:	0f 89 88 01 00 00                               	jns    0x140129f07
+--
+275132-   140129ede:	74 0b                                           	je     0x140129eeb
+275133-   140129ee0:	48 8d 54 24 50                                  	lea    rdx,[rsp+0x50]
+275134-   140129ee5:	e8 e6 53 00 00                                  	call   0x14012f2d0
+275135-   140129eea:	90                                              	nop
+275136-   140129eeb:	48 8b 55 10                                     	mov    rdx,QWORD PTR [rbp+0x10]
+275137-   140129eef:	48 03 d3                                        	add    rdx,rbx
+275138:   140129ef2:	0f 28 de                                        	movaps xmm3,xmm6
+275139-   140129ef5:	4d 8b c5                                        	mov    r8,r13
+275140-   140129ef8:	49 8b ce                                        	mov    rcx,r14
+275141-   140129efb:	e8 60 e6 ff ff                                  	call   0x140128560
+275142-   140129f00:	45 89 a5 a8 01 00 00                            	mov    DWORD PTR [r13+0x1a8],r12d
+275143-   140129f07:	41 8b c4                                        	mov    eax,r12d
+275144-   140129f0a:	e9 58 01 00 00                                  	jmp    0x14012a067

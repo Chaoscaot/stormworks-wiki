@@ -1,0 +1,28 @@
+   14030b0a8:	f3 0f 11 44 24 28                               	movss  DWORD PTR [rsp+0x28],xmm0
+   14030b0ae:	88 44 24 20                                     	mov    BYTE PTR [rsp+0x20],al
+   14030b0b2:	e8 29 75 ff ff                                  	call   0x1403025e0
+   14030b0b7:	4c 8b 06                                        	mov    r8,QWORD PTR [rsi]
+   14030b0ba:	4d 8b 08                                        	mov    r9,QWORD PTR [r8]
+   14030b0bd:	41 80 79 70 00                                  	cmp    BYTE PTR [r9+0x70],0x0
+   14030b0c2:	0f 85 11 01 00 00                               	jne    0x14030b1d9
+   14030b0c8:	49 83 c1 08                                     	add    r9,0x8
+   14030b0cc:	4c 8b 45 6f                                     	mov    r8,QWORD PTR [rbp+0x6f]
+   14030b0d0:	49 81 c0 60 08 00 00                            	add    r8,0x860
+   14030b0d7:	c6 44 24 50 01                                  	mov    BYTE PTR [rsp+0x50],0x1
+   14030b0dc:	c6 44 24 48 00                                  	mov    BYTE PTR [rsp+0x48],0x0
+   14030b0e1:	f3 44 0f 11 44 24 40                            	movss  DWORD PTR [rsp+0x40],xmm8
+   14030b0e8:	f3 44 0f 11 44 24 38                            	movss  DWORD PTR [rsp+0x38],xmm8
+   14030b0ef:	f3 0f 11 74 24 30                               	movss  DWORD PTR [rsp+0x30],xmm6
+   14030b0f5:	f3 0f 10 35 13 56 8a 00                         	movss  xmm6,DWORD PTR [rip+0x8a5613]        # 0x140bb0710
+   14030b0fd:	f3 0f 11 74 24 28                               	movss  DWORD PTR [rsp+0x28],xmm6
+   14030b103:	f3 44 0f 11 44 24 20                            	movss  DWORD PTR [rsp+0x20],xmm8
+   14030b10a:	48 8d 55 cf                                     	lea    rdx,[rbp-0x31]
+   14030b10e:	49 8b cd                                        	mov    rcx,r13
+   14030b111:	e8 5a de f7 ff                                  	call   0x140288f70
+   14030b116:	48 8b f8                                        	mov    rdi,rax
+   14030b119:	48 8b 0e                                        	mov    rcx,QWORD PTR [rsi]
+   14030b11c:	48 8b 19                                        	mov    rbx,QWORD PTR [rcx]
+   14030b11f:	48 8d 4b 50                                     	lea    rcx,[rbx+0x50]
+   14030b123:	4c 8b 00                                        	mov    r8,QWORD PTR [rax]
+   14030b126:	33 d2                                           	xor    edx,edx
+   14030b128:	4d 85 c0                                        	test   r8,r8

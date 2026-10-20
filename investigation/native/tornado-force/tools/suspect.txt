@@ -1,0 +1,17 @@
+   140597a0a:	48 8d 05 ef 85 a6 ff                            	lea    rax,[rip+0xffffffffffa685ef]        # 0x140000000
+   140597a11:	80 bc 02 5c 05 cc 00 00                         	cmp    BYTE PTR [rdx+rax*1+0xcc055c],0x0
+   140597a19:	0f 84 40 15 00 00                               	je     0x140598f5f
+   140597a1f:	f3 41 0f 10 74 24 40                            	movss  xmm6,DWORD PTR [r12+0x40]
+   140597a26:	44 0f 28 e6                                     	movaps xmm12,xmm6
+   140597a2a:	f3 44 0f 59 25 ed 8e 61 00                      	mulss  xmm12,DWORD PTR [rip+0x618eed]        # 0x140bb0920
+   140597a33:	f3 44 0f 11 64 24 48                            	movss  DWORD PTR [rsp+0x48],xmm12
+   140597a3a:	f3 0f 59 35 5e 8b 61 00                         	mulss  xmm6,DWORD PTR [rip+0x618b5e]        # 0x140bb05a0
+   140597a42:	f3 0f 11 75 f8                                  	movss  DWORD PTR [rbp-0x8],xmm6
+   140597a47:	33 c0                                           	xor    eax,eax
+   140597a49:	44 8b f8                                        	mov    r15d,eax
+   140597a4c:	48 89 44 24 70                                  	mov    QWORD PTR [rsp+0x70],rax
+   140597a51:	8b f0                                           	mov    esi,eax
+   140597a53:	48 89 44 24 78                                  	mov    QWORD PTR [rsp+0x78],rax
+   140597a58:	8b f8                                           	mov    edi,eax
+   140597a5a:	89 45 80                                        	mov    DWORD PTR [rbp-0x80],eax
+   140597a5d:	48 89 44 24 58                                  	mov    QWORD PTR [rsp+0x58],rax

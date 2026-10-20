@@ -1,0 +1,38 @@
+MANUAL: The lead is substantially correct for the supplied `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`. Vehicle update `0x1404d61f0` contains a tornado-triggered force producer. Its submission call is `0x1404d6644`, `e8 27 0e cd ff`, to `0x1401a7470`. It bypasses the `k*S` clamp in `0x1401a7ad0`.
+0x140bb0710 OK claimed=00 00 f0 41 actual=00 00 f0 41
+0x140bafbbc OK claimed=00 00 80 3e actual=00 00 80 3e
+0x140bafecc OK claimed=00 00 80 3f actual=00 00 80 3f
+0x140bb05a0 OK claimed=00 00 f0 40 actual=00 00 f0 40
+0x1404d650c OK claimed=f3 44 0f 10 25 fb a1 6d 00 actual=f3 44 0f 10 25 fb a1 6d 00
+0x1404d6515 OK claimed=f3 44 0f 10 05 9e 96 6d 00 actual=f3 44 0f 10 05 9e 96 6d 00
+0x1404d658c OK claimed=41 b1 01 actual=41 b1 01
+MANUAL: | Sample combined weather | `0x1404d659a` | `e8 91 b2 de ff`, call `0x1402c1830` |
+MANUAL: | Sample spatial suppression | `0x1404d65ca` | `e8 11 ab de ff`, call `0x1402c10e0` |
+0x1404d65cf OK claimed=0f 28 d7 actual=0f 28 d7
+0x1404d65d2 OK claimed=f3 0f 5c d0 actual=f3 0f 5c d0
+0x1404d65db OK claimed=f3 41 0f 59 dc actual=f3 41 0f 59 dc
+0x1404d65e0 OK claimed=f3 41 0f 59 d8 actual=f3 41 0f 59 d8
+0x1404d65ee OK claimed=f3 41 0f 59 cc actual=f3 41 0f 59 cc
+0x1404d6604 OK claimed=f3 41 0f 59 c4 actual=f3 41 0f 59 c4
+0x1404d6609 OK claimed=f3 41 0f 59 c0 actual=f3 41 0f 59 c0
+0x1404d65e5 OK claimed=f3 0f 59 da actual=f3 0f 59 da
+0x1404d65f3 OK claimed=f3 0f 59 ca actual=f3 0f 59 ca
+0x1404d660e OK claimed=f3 0f 59 c2 actual=f3 0f 59 c2
+0x1404d65f7 OK claimed=f3 0f 59 de actual=f3 0f 59 de
+0x1404d65fb OK claimed=f3 0f 59 ce actual=f3 0f 59 ce
+0x1404d6612 OK claimed=f3 0f 59 c6 actual=f3 0f 59 c6
+0x1404d651e OK claimed=45 85 c9 actual=45 85 c9
+0x1404d6521 OK claimed=0f 84 22 01 00 00 actual=0f 84 22 01 00 00
+MANUAL: - At least one entry must have byte `+0x38` nonzero. Test `0x1404d6551`, `44 38 64 31 38`, followed by `0x1404d6556`, `75 0d`. Entries have stride `0xa0`, obtained by the LEA and shift at `0x1404d6549`, `48 8d 0c 92`, and `0x1404d654d`, `48 c1 e1 05`.
+MANUAL: - Vehicle state at `+0x28c` must be in `{0,2,3,5,7}`. The mask is `0xad`, loaded at `0x1404d64fa`, `41 be ad 00 00 00`. `0x1404d656b`, `83 f8 07`, rejects values above seven through `0x1404d656e`, `0f 87 d5 00 00 00`. `0x1404d6574`, `41 0f a3 c6`, tests the mask; `0x1404d6578`, `0f 83 cb 00 00 00`, skips an unset bit. Semantic names of these states are not established here.
+0x1404d659f OK claimed=44 38 a7 1c 06 00 00 actual=44 38 a7 1c 06 00 00
+0x1404d65a6 OK claimed=74 06 actual=74 06
+0x1404d65a8 OK claimed=41 0f 28 f2 actual=41 0f 28 f2
+0x1404d6500 OK claimed=45 0f 57 d2 actual=45 0f 57 d2
+MANUAL: - There is no local distance-to-tornado or inside-radius test in this producer. Each tornado contribution has its own radius attenuation inside `0x1402be980`. The radius read is `0x1402bea23`, `f3 0f 10 4f 4c`; the zero-attenuation exit is `0x1402bea6d`, `0f 86 6b 06 00 00`. Consequently, the ordinary-weather part can still be submitted outside every tornado's wind radius while the list gate is satisfied.
+MANUAL: `0x1401a7470` skips an exactly zero vector, allocates an event and copies the vector unchanged to event `+0x10..+0x18`. It copies the application offset to `+0x1c..+0x24`. The vehicle caller supplies a zero offset at `0x1404d6625`, `4c 89 65 f0`, and `0x1404d6629`, `44 89 65 f8`. It supplies a true event flag at `0x1404d662d`, `c6 44 24 20 01`. There is no magnitude normalization, S read or cap argument in this helper.
+MANUAL: Both submission helpers use event table `0x140b82d30`. Table slot `0x140b82d38` contains bytes `a0 16 1a 40 01 00 00 00`, pointing to consumer `0x1401a16a0`. Thus the vtable hint is corroborated by the constructor, table and consumer, rather than assumed from the scratch list.
+MANUAL: The ordinary cap helper `0x1401a7ad0` divides each input component by S, compares squared length against `k*k`, normalizes if necessary, multiplies by k, and restores S. For positive finite S this gives magnitude at most `k*S`. The comparison is `0x1401a7b66`, `0f 2f d0`, followed by `0x1401a7b69`, `76 28`, which skips normalization when within the cap. Normalization call `0x1401a7b70` is `e8 3b dc fc ff`. Division anchors are `0x1401a7b0e`, `f3 0f 5e e7`, `0x1401a7b19`, `f3 0f 5e df`, and `0x1401a7b23`, `f3 0f 5e ef`. The tornado-triggered call targets the other helper directly and never traverses this comparison. The established interpretation of S is in `investigation/force-cap.md`; it is not recomputed here.
+MANUAL: The event requires a nonnull target and physics body. It skips body flag `0x800` at body `+0x1a0`: `0x1401a16d3`, `f7 81 a0 01 00 00 00 08 00 00`, and `0x1401a16dd`, `0f 85 af 00 00 00`. No additional static/kinematic rejection precedes accumulation. Later wake-state handling checks low flag bits, but does not undo the accumulation.
+MANUAL: Consumer `0x1401a16a0` converts the vector to doubles and calls `0x14019a370`. That helper accumulates into body `+0x460,+0x468,+0x470`, after per-axis factors from `+0x3e0,+0x3e8,+0x3f0`. X anchors are `0x14019a38a`, `f2 0f 59 81 e0 03 00 00`, and `0x14019a3c2`, `f2 0f 11 81 60 04 00 00`. The zero application offset produces no torque through its cross-product calculation.
+MANUAL: This is a **force submission**, not an immediate impulse or direct velocity assignment. Physics preparation `0x140128560` reads these accumulators and multiplies by inverse mass and an incoming integration factor. `0x14012865a`, `f2 41 0f 10 90 d0 03 00 00`, reads inverse mass. `0x140128734`, `f2 41 0f 59 80 60 04 00 00`, multiplies the X factor by the force accumulator; `0x14012874b`, `f2 41 0f 59 c0`, applies the incoming factor held in `xmm8`. The setter establishes reciprocal mass at `0x14013a3aa`, `f2 0f 5e c4`, and stores it at `0x14013a3b4`, `f2 0f 11 81 d0 03 00 00`. Its double unity is `0x140bb01c0`, `00 00 00 00 00 00 f0 3f`; zero mass selects zero inverse mass.
