@@ -3569,8 +3569,8 @@
       "id": "marine-propellers",
       "title": "Underwater propellers and pitch control",
       "category": "Physics",
-      "summary": "Marine propeller tooltips restrict operation to underwater use.",
-      "body": "The small boat propeller receives engine power and its tooltip says it operates only underwater. The controllable-pitch boat propeller also requires underwater operation and takes desired pitch from -1 to 1. Its force_emitter_max_force field is 80000 versus 20000 for the selected small fixed-pitch propeller. These fields are configuration values and do not establish measured thrust or a speed-to-force equation.",
+      "summary": "Marine propellers push only with the hub at or below the water surface, and pitch is a normalized -1 to 1 value in a decoded RPS and flow law.",
+      "body": "The small boat propeller receives engine power and its tooltip says it operates only underwater. The controllable-pitch boat propeller also requires underwater operation and takes desired pitch from -1 to 1. Its force_emitter_max_force field is 80000 versus 20000 for the selected small fixed-pitch propeller. A native decode (investigation/propulsion.md, shown on the Propulsion parts pages) found that every propeller, rotor and ducted fan runs one force-emitter update. Each update it scales the published shaft speed by 0.9999 to w, forms the effective pitch p = clamp(saved pitch + Pitch input, -1, 1) and the load b = (2 × w × rotation_speed × π × blade_physics_length × p × 0.75 + p × U) × blade_efficiency × intact blades × 0.32, where U is minus the hub's velocity through still water along the thrust axis, signed by the pitch. With K = force_emitter_max_force ÷ 1000, or F × intact blades ÷ 8000 for the pitchable propellers, q = clamp(b ÷ 2K, -10, 10) is multiplied by 10 below the water surface; the propeller removes w × (1 - 1 ÷ (1 + q²)) RPS from its shaft and pushes with 1500 × K × removed RPS, signed by the pitch, in the game's internal force unit. Thrust is queued only when the hub is at or below the sampled water surface; the shaft load applies either way. force_emitter_max_force is therefore a solver weight, not a thrust ceiling: at 10 RPS and pitch 1 the small fixed propeller gives about 22201 internal force, and the small, standard and large pitchable propellers about 4074, 20411 and 35002 per RPS. Pitch is a normalized number, not a blade angle; zero pitch gives no load and no thrust. A separate application cap of 100 × S limits the force actually applied.",
       "findings": [
         {
           "label": "Small Propeller: force_emitter_max_force",
@@ -3674,15 +3674,15 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "No newtons, blade angle, cavitation, water-relative speed curve, stall behavior or propulsive efficiency is inferred from these fields or input ranges."
+        "The propeller law comes from that native decode, not from these fields alone. Not recovered: the SI calibration of the internal force and of the cap scale S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract."
       ]
     },
     {
       "id": "air-propellers-rotors",
       "title": "Aircraft propellers and rotor controls",
       "category": "Physics",
-      "summary": "Rotor descriptions distinguish collective, swashplate and tail-rotor controls.",
-      "body": "The aircraft propeller takes collective from -1 to 1, and its tooltip links thrust to received engine torque without giving an equation. The selected large helicopter rotor has roll, pitch and collective inputs from -1 to 1. Its tooltip describes pitch and roll control through the swashplate and says force decreases underwater. The tail rotor takes yaw from -1 to 1 to control generated force.",
+      "summary": "Rotor and propeller inputs are normalized pitch and cyclic values in a decoded thrust, shaft-load and force-geometry law.",
+      "body": "The aircraft propeller takes collective from -1 to 1, and its tooltip links thrust to received engine torque without giving an equation. The selected large helicopter rotor has roll, pitch and collective inputs from -1 to 1. Its tooltip describes pitch and roll control through the swashplate and says force decreases underwater. The tail rotor takes yaw from -1 to 1 to control generated force. A native decode (investigation/propulsion.md, shown on the Propulsion parts pages) found one force-emitter update for all of them. The effective pitch is clamp(saved pitch + Collective, -1, 1), a normalized number, not degrees or turns; the saved pitch starts at force_emitter_default_pitch, 1 for the main rotors and the aircraft propeller and 0 for the tail rotor, so Collective -1 gives zero thrust on a main rotor and the tail rotor's Yaw is a signed pitch. From the shaft speed, pitch and air-relative flow the part computes a load b, removes w × (1 - 1 ÷ (1 + q²)) RPS from its shaft with q = clamp(b ÷ 2K, -10, 10), and pushes with 1500 × K × removed RPS × efficiency, where K = force_emitter_max_force ÷ 1000 or ÷ 2000 with 4 intact blades. Roll and Pitch move the force point by -4 × input along local X and Z and tilt its direction by 0.4 × input. Thrust is scaled by (1 - 2.2413793e-5 × altitude)^5.3595023, 0 above 40000. With the hub below the water surface the scalar update gives no thrust and multiplies q by 10, so the rotor brakes its shaft; that is the decreased underwater force. A physical rotor hinge gets a motor with impulse limit 1000, and coaxial rotors add an opposing force pair of 800 × b × clamp(|pitch + Collective + 0.1|, 0, 1) about the rotor axis.",
       "findings": [
         {
           "label": "Aircraft Propeller: Power Received",
@@ -3842,7 +3842,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Input ranges are not degrees or turns. Blade aerodynamics, cyclic phase, reaction torque, torque-to-thrust conversion, underwater reduction and ground effect are not recovered."
+        "The rotor law comes from that native decode. Not recovered: which loaded value selects K = F ÷ 1000 or F ÷ 2000 for air parts, the visible cyclic blade phase, whether the engine adds ground effect outside the scalar law, and the SI calibration of thrust and reaction torque."
       ]
     },
     {

@@ -1,0 +1,13 @@
+   14033e03b:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   140341762:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   140342282:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   140342ac7:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   140342b26:	44 38 a0 80 05 00 00 	cmp    BYTE PTR [rax+0x580],r12b
+   140342f47:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   140342f6e:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   1403e6e32:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   1403e73fe:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   1403e7d40:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   1403e9dcc:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   1403ea24a:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   1403f72b7:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0

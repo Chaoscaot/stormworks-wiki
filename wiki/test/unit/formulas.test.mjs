@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -882,4 +882,124 @@ test('radio graph constants remain tied to verified native and definition findin
   assert.equal(radioAntennaFor('part-rx-huge-v2').id, 'rx_huge');
   assert.equal(radioAntennaFor(null, 'rx_med_v2').id, 'rx_med');
   assert.deepEqual(graphKindsForFamily('part-rx-directional'), [], 'directional antennas have no graph');
+});
+
+// Worked examples from investigation/native/propulsion/tools/model.py (worked-examples.json): definition, blade-scaled
+// weight, published RPS, then solver weight K, RPS removed and raw internal force at effective pitch 1, no flow, 4 blades.
+const PROPELLER_EXAMPLES = [
+  ['propeller', false, 10, 20.0, 0.7400475740432739, 22201.42578125],
+  ['propeller_pitch_small', true, 10, 10.0, 2.715935707092285, 40739.03515625],
+  ['aircraft_propeller', false, 10, 70.0, 0.010427385568618774, 1094.87548828125],
+  ['aircraft_propeller', true, 10, 35.0, 0.041580211371183395, 2182.9609375],
+  ['huge_rotor', true, 60, 100.0, 1.3076821565628052, 245190.40625],
+  ['fan_small', false, 1, 2.0, 0.0005112374783493578, 1.533712387084961],
+  ['giga_prop_small', false, 20, 200.0, 2.4880566596984863, 746417.0],
+  ['rotor_coaxial_prop_end', false, 5, 200.0, 4.529499710770324e-05, 16.985624313354492],
+];
+const propVariant = (id) => PROPELLER_VARIANTS.find((v) => v.id === id);
+
+test('propeller model reproduces the investigation worked examples bit for bit', () => {
+  for (const [id, bladeScaled, rps, weight, removed, raw] of PROPELLER_EXAMPLES) {
+    const r = propellerForce({ variant: propVariant(id), rps, bladeScaled });
+    assert.equal(r.weight, weight, `${id} K`);
+    assert.equal(r.removed, removed, `${id} removed`);
+    assert.equal(r.raw, raw, `${id} raw`);
+    assert.equal(r.force, raw, `${id} pushes in its own medium`);
+  }
+});
+
+test('propeller model boundaries follow the decoded update', () => {
+  const small = propVariant('propeller');
+  const rotor = propVariant('large_rotor');
+  // Zero pitch or speed: no load and no thrust. Negative pitch or RPS reverses the push.
+  assert.equal(propellerForce({ variant: small, rps: 10, pitch: 0 }).raw, 0);
+  assert.equal(propellerForce({ variant: small, rps: 0 }).removed, 0);
+  assert.equal(propellerForce({ variant: small, rps: 10, pitch: -1 }).raw, -22201.42578125);
+  assert.ok(propellerForce({ variant: small, rps: -10 }).raw < 0);
+  // Pitch is clamped to -1 to 1.
+  assert.equal(propellerForce({ variant: small, rps: 10, pitch: 3 }).raw, 22201.42578125);
+  // Wrong medium: no thrust, but the shaft is still loaded; under water q is multiplied by 10 for any part.
+  const dry = propellerForce({ variant: small, rps: 10, submerged: false });
+  assert.equal(dry.force, 0);
+  assert.ok(dry.removed > 0 && dry.removed < 0.7400475740432739);
+  const wet = propellerForce({ variant: rotor, rps: 10, submerged: true });
+  const air = propellerForce({ variant: rotor, rps: 10 });
+  assert.equal(wet.force, 0);
+  assert.equal(wet.ratio, Math.fround(air.ratio * 10));
+  assert.ok(wet.removed > air.removed * 50);
+  // Raw force exceeds F, so F is not a thrust ceiling; the separate cap is 100 × S.
+  assert.ok(propellerForce({ variant: small, rps: 10 }).raw > small.maxForce);
+  assert.equal(propellerCapped(22201.42578125, 100), 10000);
+  assert.equal(propellerCapped(-500, 100), -500);
+  // Ratio clamp: at most 100 / 101 of the speed above water and 10000 / 10001 below.
+  const fast = propellerForce({ variant: propVariant('fan_small'), rps: 1000, submerged: false });
+  assert.ok(Math.abs(fast.ratio) <= PROPULSION.ratioClamp);
+  // Altitude factor for air parts: 1 at sea level, 0 above 40000; marine parts ignore it.
+  assert.equal(propellerAltitude(0), 1);
+  assert.equal(propellerAltitude(40001), 0);
+  assert.equal(propellerForce({ variant: rotor, rps: 10, altitude: 50000 }).raw, 0);
+  assert.equal(propellerForce({ variant: small, rps: 10, altitude: 50000 }).raw, 22201.42578125);
+  // No intact blades: no load.
+  assert.equal(propellerForce({ variant: small, rps: 10, blades: 0 }).raw, 0);
+  // Marine branches are fixed by the flags.
+  assert.throws(() => propellerForce({ variant: small, rps: 10, bladeScaled: true }), RangeError);
+  assert.throws(() => propellerForce({ variant: propVariant('propeller_pitch'), rps: 10, bladeScaled: false }), RangeError);
+});
+
+test('propeller model matches every row of worked-examples.json when the investigation is present', (t) => {
+  const file = new URL('../../../investigation/native/propulsion/tools/worked-examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const rows = JSON.parse(readFileSync(file, 'utf8'));
+  for (const ex of rows) {
+    const r = propellerForce({ variant: propVariant(ex.definition), rps: ex.rps, bladeScaled: ex.mode !== 'definition_weight' });
+    assert.equal(r.weight, ex.weight, `${ex.definition} ${ex.mode} ${ex.rps}`);
+    assert.equal(r.removed, ex.removed_rps, `${ex.definition} ${ex.mode} ${ex.rps}`);
+    assert.equal(r.post, ex.post_load_rps, `${ex.definition} ${ex.mode} ${ex.rps}`);
+    assert.equal(r.raw, ex.raw_axial_force, `${ex.definition} ${ex.mode} ${ex.rps}`);
+  }
+  assert.equal(rows.length, 195, '23 definitions, 39 weight branches, 5 speeds');
+});
+
+test('propeller graph constants and parts remain tied to verified native and definition findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const fams = new Map(data.families.map((f) => [f.id, f]));
+  const any = (label) => data.families.flatMap((f) => f.findings).find((x) => x.label === label);
+  assert.equal(Number(any('Solver weight divisor').value), PROPULSION.weightDivisor);
+  assert.equal(Math.fround(Number(any('Rotor speed factor').value)), PROPULSION.speedFactor);
+  assert.equal(Number(any('Load term factor').value), PROPULSION.loadFactor);
+  assert.equal(Math.fround(Number(any('Load scale').value)), PROPULSION.loadScale);
+  assert.equal(Number(any('Load ratio factor').value), PROPULSION.ratioHalf);
+  assert.equal(Number(any('Load ratio lower clamp').value), -PROPULSION.ratioClamp);
+  assert.equal(Number(any('Load ratio upper clamp and water factor').value), PROPULSION.waterFactor);
+  assert.equal(Number(any('Intact blade weight factor').value), PROPULSION.bladeWeight);
+  assert.equal(Number(any('Thrust factor').value), PROPULSION.thrustFactor);
+  assert.equal(Math.fround(Number(any('Altitude factor slope').value)), PROPULSION.altitudeSlope);
+  assert.equal(Math.fround(Number(any('Altitude factor exponent').value)), PROPULSION.altitudeExponent);
+  assert.equal(Number(any('Altitude factor ceiling').value), PROPULSION.altitudeCeiling);
+  assert.equal(Number(any('Thrust application limit').value), PROPULSION.capLimit);
+  for (const label of ['Effective pitch', 'Shaft speed removed', 'Medium gate', 'Air weight selector byte', 'Rotor hinge impulse limit']) {
+    assert.ok(any(label)?.source?.address, `${label}: native address is required`);
+  }
+  assert.equal(any('Rotor hinge impulse limit').value, '1000');
+  assert.equal(Math.fround(Number(any('Coaxial couple pitch offset').value)), Math.fround(0.1));
+  // Loader fallbacks for attributes a definition omits.
+  const fallback = { force_emitter_rotation_speed: 1, force_emitter_blade_physics_length: 4, force_emitter_blade_efficiency: 0.01, force_emitter_efficiency: 1, force_emitter_default_pitch: 0 };
+  const keys = { maxForce: 'force_emitter_max_force', rotationSpeed: 'force_emitter_rotation_speed', length: 'force_emitter_blade_physics_length',
+    bladeEfficiency: 'force_emitter_blade_efficiency', efficiency: 'force_emitter_efficiency', defaultPitch: 'force_emitter_default_pitch', flags: 'flags' };
+  const blocks = new Map(JSON.parse(readFileSync(new URL('../../data/blocks.json', import.meta.url), 'utf8')).blocks.map((b) => [b.id, b]));
+  for (const v of PROPELLER_VARIANTS) {
+    const b = blocks.get(v.id);
+    assert.equal(b.name, v.label, v.id);
+    for (const [key, attr] of Object.entries(keys)) {
+      assert.equal(Number(b.attributes[attr] ?? fallback[attr]), v[key], `${v.id} ${attr}`);
+    }
+    const fam = fams.get(v.families[0]);
+    assert.ok(fam, v.id);
+    assert.equal(Number(fam.findings.find((x) => x.label === `${v.label} · force_emitter_max_force`)?.value), v.maxForce, v.id);
+    assert.ok(fam.findings.some((x) => x.label === `${v.label} force at 10 RPS`), `${v.id} figures finding`);
+    assert.deepEqual(graphKindsForFamily(v.families[0]), ['propeller']);
+  }
+  assert.equal(PROPELLER_VARIANTS.length, 23);
+  assert.equal(propellerVariantFor('helicopter-rotor', 'huge_rotor').id, 'huge_rotor');
+  assert.equal(propellerVariantFor('ducted-fan').id, 'fan_small');
 });

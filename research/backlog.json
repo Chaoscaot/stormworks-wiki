@@ -250,14 +250,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/13/limitations/0",
-        "text": "Force-emitter fields are configuration; their runtime use was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/13/sections/2/body",
-        "text": "Whether force_emitter_max_force is a thrust cap and how RPS maps to thrust were not recovered; measure thrust against RPS with a fixed test rig.",
+        "pointer": "/categories/13/sections/6/body",
+        "text": "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); the editor-arrow sign table for reflected parts. No figure here was measured in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -455,25 +449,6 @@
         "pointer": "/families/86/limitations/4",
         "text": "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the speed step, fuel use, heating and starter equations of the classic engine update are covered by the practical behaviour research.",
         "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:ducted-fan",
-    "title": "Ducted Fan: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/ducted-fan",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/7/findings/0/detail",
-        "text": "fan_small: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/7/findings/1/detail",
-        "text": "fan_large: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
       }
     ]
   },
@@ -721,98 +696,6 @@
     ]
   },
   {
-    "key": "family:heavy-helicopter-rotor",
-    "title": "Heavy Helicopter Rotor: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/heavy-helicopter-rotor",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/20/findings/0/detail",
-        "text": "large_rotor: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/20/findings/1/detail",
-        "text": "huge_rotor: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/20/findings/2/detail",
-        "text": "heavy_rotor: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/20/findings/3/detail",
-        "text": "heavy_rotor_large: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/206/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/206/findings/9/detail",
-        "text": "heavy_rotor: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/206/findings/23/detail",
-        "text": "heavy_rotor_large: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:helicopter-rotor",
-    "title": "Helicopter Rotor: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/helicopter-rotor",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/21/findings/0/detail",
-        "text": "large_rotor: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/21/findings/1/detail",
-        "text": "huge_rotor: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/207/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/207/limitations/5",
-        "text": "Input values do not establish blade angles.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/207/findings/9/detail",
-        "text": "large_rotor: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/207/findings/23/detail",
-        "text": "huge_rotor: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
     "key": "family:impeller-pump",
     "title": "Impeller Pump: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/impeller-pump",
@@ -938,61 +821,6 @@
         "file": "wiki/data/families.json",
         "pointer": "/families/264/limitations/4",
         "text": "The per-update exchange, compartment volumes, capacity weighting, port order and a fixed-flow model come from native code and are in the practical behaviour research. Physical energy units and an installation-independent effectiveness curve were not recovered. The tooltip's size rule is not a measured performance curve.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:marine-propeller",
-    "title": "Marine Propeller: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/marine-propeller",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/30/sections/1/body",
-        "text": "Thrust per RPS for each size.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/30/findings/0/detail",
-        "text": "propeller: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/30/findings/1/detail",
-        "text": "large_propeller: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/30/findings/2/detail",
-        "text": "giga_prop_small: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/271/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/271/findings/6/detail",
-        "text": "propeller: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/271/findings/17/detail",
-        "text": "large_propeller: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/271/findings/28/detail",
-        "text": "giga_prop_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -1257,7 +1085,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/178/limitations/0",
+        "pointer": "/families/179/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -1270,7 +1098,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/179/limitations/0",
+        "pointer": "/families/180/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -1283,7 +1111,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/205/limitations/0",
+        "pointer": "/families/206/limitations/0",
         "text": "Reaction kinetics not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1296,13 +1124,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/211/limitations/0",
+        "pointer": "/families/212/limitations/0",
         "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/211/findings/2/detail",
+        "pointer": "/families/212/findings/2/detail",
         "text": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
         "scope": "Practical behavior guidance"
       }
@@ -1315,13 +1143,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/212/limitations/0",
+        "pointer": "/families/213/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/212/limitations/1",
+        "pointer": "/families/213/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -1334,7 +1162,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/213/limitations/0",
+        "pointer": "/families/214/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1360,7 +1188,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/214/limitations/0",
+        "pointer": "/families/215/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -1373,7 +1201,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/215/limitations/0",
+        "pointer": "/families/216/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1386,7 +1214,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/216/limitations/0",
+        "pointer": "/families/217/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1412,7 +1240,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/217/limitations/0",
+        "pointer": "/families/218/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1438,7 +1266,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/218/limitations/0",
+        "pointer": "/families/219/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1464,7 +1292,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/219/limitations/0",
+        "pointer": "/families/220/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1490,7 +1318,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/220/limitations/0",
+        "pointer": "/families/221/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1503,7 +1331,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/221/limitations/0",
+        "pointer": "/families/222/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1529,68 +1357,13 @@
     ]
   },
   {
-    "key": "family:pitchable-marine-propeller",
-    "title": "Pitchable Marine Propeller: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/pitchable-marine-propeller",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/225/findings/0/detail",
-        "text": "propeller_pitch_small: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/225/findings/1/detail",
-        "text": "propeller_pitch: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/225/findings/2/detail",
-        "text": "propeller_pitch_large: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/349/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/349/limitations/5",
-        "text": "The conversion from pitch input to blade angle is unknown.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/349/findings/7/detail",
-        "text": "propeller_pitch_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/349/findings/19/detail",
-        "text": "propeller_pitch: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/349/findings/31/detail",
-        "text": "propeller_pitch_large: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
     "key": "family:solid-rocket-booster",
     "title": "Solid Rocket Booster: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/solid-rocket-booster",
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/229/limitations/0",
+        "pointer": "/families/230/limitations/0",
         "text": "Thrust and burn time per segment were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1603,7 +1376,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/230/limitations/0",
+        "pointer": "/families/231/limitations/0",
         "text": "Heat per coal not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1616,7 +1389,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/231/limitations/0",
+        "pointer": "/families/232/limitations/0",
         "text": "Torque per pressure was not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1629,114 +1402,9 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/232/limitations/0",
+        "pointer": "/families/233/limitations/0",
         "text": "Track physics was not decoded.",
         "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:terminal-rotor-propeller",
-    "title": "Terminal Rotor Propeller: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/terminal-rotor-propeller",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/467/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/467/findings/9/detail",
-        "text": "rotor_coaxial_prop_small_end: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/467/findings/23/detail",
-        "text": "rotor_coaxial_prop_end: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:through-drive-rotor",
-    "title": "Through-drive Rotor: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/through-drive-rotor",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/233/limitations/0",
-        "text": "How power splits between the two connections was not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/233/sections/0/body",
-        "text": "Each has two power connections (A and B), which allows rotors to be stacked along one drivetrain; how power divides between them was not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/470/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/470/limitations/5",
-        "text": "Mechanical power sharing between the two ports is unknown.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/470/findings/10/detail",
-        "text": "rotor_coaxial_light: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/470/findings/25/detail",
-        "text": "rotor_coaxial_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/470/findings/40/detail",
-        "text": "rotor_coaxial_large: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:through-drive-rotor-propeller",
-    "title": "Through-drive Rotor Propeller: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/through-drive-rotor-propeller",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/471/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/471/limitations/5",
-        "text": "Mechanical power sharing between the two ports is unknown.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/471/findings/10/detail",
-        "text": "rotor_coaxial_prop_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/471/findings/25/detail",
-        "text": "rotor_coaxial_prop: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
-        "scope": "Definition-only extraction"
       }
     ]
   },
@@ -1747,7 +1415,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/234/limitations/0",
+        "pointer": "/families/237/limitations/0",
         "text": "Whether the wording difference reflects different mechanics is unknown.",
         "scope": "Practical behavior guidance"
       }
@@ -1760,13 +1428,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/235/limitations/0",
+        "pointer": "/families/238/limitations/0",
         "text": "The metre interpretation is unverified.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/235/sections/1/body",
+        "pointer": "/families/238/sections/1/body",
         "text": "Verify speed per RPS with a linear speed sensor.",
         "scope": "Practical behavior guidance"
       }
@@ -1793,7 +1461,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/22/limitations/2",
-        "text": "Input ranges are not degrees or turns. Blade aerodynamics, cyclic phase, reaction torque, torque-to-thrust conversion, underwater reduction and ground effect are not recovered.",
+        "text": "The rotor law comes from that native decode. Not recovered: which loaded value selects K = F ÷ 1000 or F ÷ 2000 for air parts, the visible cyclic blade phase, whether the engine adds ground effect outside the scalar law, and the SI calibration of thrust and reaction torque.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1927,14 +1595,8 @@
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/21/body",
-        "text": "The small boat propeller receives engine power and its tooltip says it operates only underwater. The controllable-pitch boat propeller also requires underwater operation and takes desired pitch from -1 to 1. Its force_emitter_max_force field is 80000 versus 20000 for the selected small fixed-pitch propeller. These fields are configuration values and do not establish measured thrust or a speed-to-force equation.",
-        "scope": "Shipped-resource mechanics article"
-      },
-      {
-        "file": "wiki/data/mechanics.json",
         "pointer": "/articles/21/limitations/2",
-        "text": "No newtons, blade angle, cavitation, water-relative speed curve, stall behavior or propulsive efficiency is inferred from these fields or input ranges.",
+        "text": "The propeller law comes from that native decode, not from these fields alone. Not recovered: the SI calibration of the internal force and of the cap scale S, the separate water-interaction helper 0x1402fe950, cavitation and stall outside the smooth scalar saturation, and any effect of water currents, which the scalar path does not subtract.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

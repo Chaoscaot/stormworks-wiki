@@ -3772,45 +3772,506 @@ def engines(B, E):
               "Part availability in current game modes was not established.", TICK])
 
 
+# propulsion pass; files under investigation/native/propulsion/, report investigation/propulsion.md.
+PR = "../propulsion/"
+PR_REPORT = "investigation/propulsion.md"
+PR_DATA = "investigation/native/propulsion/propulsion.json"
+PR_CHECK = "investigation/native/propulsion/tools/verification.json"
+F_EMIT_CTOR = 0x14033B7D0    # force-emitter constructor
+F_EMIT_DEF = 0x14033DE70     # vtable slot +0x8: bind the definition, initialise the saved pitch (leaf)
+F_EMIT_BIND = 0x14033DE90    # vtable slot +0x18: controls, ports A/B and the A/B node link
+F_EMIT_WEIGHT = 0x14033DFF0  # effective max-force helper (leaf)
+F_EMIT_FLOW = 0x14033E431    # chained chunk of the relative-flow phase 0x14033e3a0 (vtable slot +0x358)
+F_EMIT_FORCE = 0x14033EFB0   # force and load phase, vtable slot +0x360: entry chunk with the folded test
+F_EMIT_BODY = 0x14033F00C    # chained chunk of 0x14033efb0: load, thrust, hinge, cyclic, cap and couple
+F_EMIT_FOLD = 0x14034031B    # chained chunk of 0x14033efb0: folded branch
+F_EMIT_CAP = 0x1401A7C70     # thrust cap helper: limit |F ÷ S| to L, then queue the body force
+EMIT_VTABLE = 0x140B71978    # c_scene_vehicle_component_force_emitter
+EMIT_SLOTS = ((EMIT_VTABLE + 0x8, F_EMIT_DEF), (EMIT_VTABLE + 0x18, F_EMIT_BIND), (EMIT_VTABLE + 0x358, 0x14033E3A0),
+              (EMIT_VTABLE + 0x360, F_EMIT_FORCE))
+# (attribute, model parameter, name string bound by the definition loader, definition offset, loader fallback)
+EMIT_FIELDS = (("force_emitter_max_force", "max_force", 0x140B5BF80, 0x848, 0.0),
+               ("force_emitter_max_vector", "max_vector", 0x140B5BF60, 0x84C, 0.0),
+               ("force_emitter_default_pitch", "default_pitch", 0x140B5BF98, 0x85C, 0.0),
+               ("force_emitter_blade_height", "blade_height", 0x140B5C128, 0x860, 0.0),
+               ("force_emitter_rotation_speed", "rotation_speed", 0x140B5C108, 0x864, 1.0),
+               ("force_emitter_blade_physics_length", "blade_physics_length", 0x140B5C168, 0x868, 4.0),
+               ("force_emitter_blade_efficiency", "blade_efficiency", 0x140B5C148, 0x86C, 0.01),
+               ("force_emitter_efficiency", "efficiency", 0x140B5C1A8, 0x870, 1.0))
+# Every shipped force-emitter definition, by wiki family.
+PROP_PARTS = (("marine-propeller", ("propeller", "large_propeller", "giga_prop_small")),
+              ("pitchable-marine-propeller", ("propeller_pitch_small", "propeller_pitch", "propeller_pitch_large")),
+              ("helicopter-rotor", ("large_rotor", "huge_rotor")),
+              ("heavy-helicopter-rotor", ("heavy_rotor", "heavy_rotor_large")),
+              ("ducted-fan", ("fan_small", "fan_large")),
+              ("through-drive-rotor", ("rotor_coaxial_light", "rotor_coaxial_small", "rotor_coaxial_large")),
+              ("through-drive-rotor-propeller", ("rotor_coaxial_prop_small", "rotor_coaxial_prop")),
+              ("terminal-rotor-propeller", ("rotor_coaxial_prop_small_end", "rotor_coaxial_prop_end")),
+              ("part-rotor-coaxial-light-end", ("rotor_coaxial_light_end",)),
+              ("part-aircraft-propeller", ("aircraft_propeller",)),
+              ("part-tail-rotor", ("tail_rotor",)),
+              ("part-azimuth-thruster", ("azimuth_thruster",)))
+_PA, _PP = PR + "asm/", PR + "pseudocode/"
+_PF, _PC = _PA + "force-and-load.asm", "; " + _PP + "0x14033efb0.c"
+WHERE.update({
+    (F_EMIT_CTOR, None): _PA + "constructor-window.asm:L65-L68; " + _PP + "0x14033b7d0.c",
+    (F_EMIT_DEF, None): _PA + "bind-ports.asm:L7-L10; " + _PP + "0x14033de70.c",
+    (F_EMIT_BIND, None): _PA + "bind-ports.asm:L60-L111; " + _PP + "0x14033de90.c",
+    (F_EMIT_WEIGHT, None): _PA + "effective-weight.asm:L20-L43; " + _PP + "0x14033dff0.c",
+    (F_EMIT_FLOW, None): _PA + "relative-flow.asm:L44-L53,L378-L388,L530,L667; " + _PP + "0x14033e3a0.c",
+    (F_EMIT_FORCE, None): _PF + ":L25-L26" + _PC,
+    (F_EMIT_BODY, 0x14033F214): _PF + ":L149-L166" + _PC,
+    (F_EMIT_BODY, 0x14033F23A): _PF + ":L153-L170" + _PC,
+    (F_EMIT_BODY, 0x14033F25B): _PF + ":L170-L176" + _PC,
+    (F_EMIT_BODY, 0x14033F2A7): _PF + ":L191-L201" + _PC,
+    (F_EMIT_BODY, 0x14033F378): _PF + ":L93-L104,L246-L248" + _PC,
+    (F_EMIT_BODY, 0x14033F3C6): _PF + ":L246-L272" + _PC,
+    (F_EMIT_BODY, 0x14033F3D5): _PF + ":L251-L274" + _PC,
+    (F_EMIT_BODY, 0x14033F47B): _PF + ":L153,L276-L312" + _PC + "; " + _PA + "hinge-event-queue.asm",
+    (F_EMIT_BODY, 0x14033F4F0): _PF + ":L336-L345" + _PC,
+    (F_EMIT_BODY, 0x14033F5BF): _PF + ":L370-L400" + _PC,
+    (F_EMIT_BODY, 0x14033F6E3): _PF + ":L440-L470" + _PC,
+    (F_EMIT_BODY, 0x14033F8B9): _PF + ":L561-L590" + _PC,
+    (F_EMIT_BODY, 0x14033F918): _PF + ":L561-L590" + _PC,
+    (F_EMIT_BODY, 0x14033F93A): _PF + ":L588-L760" + _PC,
+    (F_EMIT_BODY, 0x14033FA45): _PF + ":L637-L654" + _PC,
+    (F_EMIT_BODY, 0x14033FC30): _PF + ":L735-L860" + _PC,
+    (F_EMIT_BODY, None): _PF + ":L149-L590" + _PC,
+    (F_EMIT_FOLD, None): _PF + ":L1170-L1190" + _PC,
+    (F_EMIT_CAP, None): _PA + "vector-cap.asm:L41-L57; " + _PP + "0x1401a7c70.c",
+})
+WHERE.update({(F_DEFSER, s): _PA + "definition-bindings.asm; " + _PA + "definition-loader-one-default.asm; " + _PA + "definition-loader-zero-default.asm"
+              for _, _, s, _, _ in EMIT_FIELDS})
+WHERE.update({(F_DEFSER, 0x140317596): _PA + "definition-bindings.asm:L48-L49", (F_DEFSER, 0x1403175BD): _PA + "definition-bindings.asm:L56-L57"})
+
+
+def _f32(x):
+    return struct.unpack("<f", struct.pack("<f", x))[0]
+
+
+def emitter_model(a, flags, rps, pitch=1.0, flow=0.0, blades=4, scaled=False, submerged=None, altitude=0.0):
+    """Port of investigation/native/propulsion/tools/model.py calculate(): binary32 in instruction order, no fold or cap."""
+    f = _f32
+    marine = bool(flags & 2)
+    if submerged is None:
+        submerged = marine
+    p = f(max(-1.0, min(1.0, pitch)))
+    F = f(a["max_force"])
+    if scaled:
+        F = f(f(blades * f(0.125)) * F)
+    K = f(F / f(1000))
+    w = f(rps * f(0.9999))
+    c = f(w * f(a["rotation_speed"]))
+    b = f(c + c)
+    for x in (f(math.pi), a["blade_physics_length"], p, f(0.75)):
+        b = f(b * f(x))
+    b = f(b + f(p * f(flow)))
+    for x in (a["blade_efficiency"], blades, f(0.32)):
+        b = f(b * f(x))
+    q = f(max(-10.0, min(10.0, f(f(b * f(0.5)) / K)))) if K > 0 else 0.0
+    if submerged:
+        q = f(q * f(10))
+    removed = f(f(f(1) - f(f(1) / f(f(q * q) + f(1)))) * w)
+    T = f(f(f(f(removed * K) * f(1500)) * f(a["efficiency"])) * (-1 if p < 0 else 1))
+    if not marine:
+        T = f(T * (f((1 - f(2.2413793e-5) * altitude) ** f(5.3595023)) if altitude <= 40000 else 0))
+    return {"K": K, "w": w, "load": b, "ratio": q, "removed": removed, "post": f(w - removed), "raw": T,
+            "gated": T if submerged == marine else 0.0}
+
+
+def through_drive(IA, vA, IB, vB, h=0.95):
+    """Published speeds of two groups joined by one through-drive link: N += v × I × h, D += I × h on each side."""
+    return (IA * vA + vB * IB * h) / (IA + IB * h), (IB * vB + vA * IA * h) / (IB + IA * h)
+
+
+def propulsion_native(E):
+    """Shared force-emitter update of every propeller, rotor and ducted fan, verified once."""
+    if hasattr(E, "prop"):
+        return E.prop
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / PR_REPORT).is_file():
+        raise ValueError("Propulsion report missing: " + PR_REPORT)
+    for slot, target in EMIT_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Force-emitter vtable slot %#x does not point to %#x" % (slot, target))
+    data = json.loads((E.root / PR_DATA).read_bytes())
+    defs = {d["id"]: d for d in data["definitions"]}
+    if sorted(b for _, bids in PROP_PARTS for b in bids) != sorted(defs):
+        raise ValueError("Propulsion parts differ from " + PR_DATA)
+    # propulsion.json must describe the shipped definitions, and its figures must follow from the model above.
+    for bid, d in defs.items():
+        attrs = E.block(bid)["attributes"]
+        if E.file(DEFS + bid + ".xml")[0] != d["resource_sha256"] or int(attrs["flags"]) != d["flags"]:
+            raise ValueError("Definition differs from %s: %s" % (PR_DATA, bid))
+        for name, key, _, _, fallback in EMIT_FIELDS:
+            if float(attrs.get(name, fallback)) != d["parameters"][key]:
+                raise ValueError("%s %s differs from %s" % (bid, name, PR_DATA))
+        expect = [True] if d["flags"] & 6 == 6 else [False] if d["flags"] & 2 else [False, True]
+        if [m["blade_scaled"] for m in d["weight_modes"]] != expect:
+            raise ValueError("Weight modes of %s differ from the decoded selector" % bid)
+        for m in d["weight_modes"]:
+            for rps, fig in d["figures"][m["name"]].items():
+                r = emitter_model(d["parameters"], d["flags"], float(rps), scaled=m["blade_scaled"])
+                for key, mine in (("weight", "K"), ("removed_rps", "removed"), ("post_load_rps", "post"), ("raw_axial_force", "raw")):
+                    if abs(r[mine] - fig[key]) > 1e-9 * max(1.0, abs(fig[key])):
+                        raise ValueError("Figures differ from %s: %s %s at %s RPS" % (PR_DATA, bid, key, rps))
+    ex = json.loads((E.root / PR_CHECK).read_bytes())["through_drive_example"]
+    pa, pb = through_drive(ex["I_A"], ex["v_A"], ex["I_B"], ex["v_B"], ex["h"])
+    if abs(pa - ex["published_A"]) > 1e-9 or abs(pb - ex["published_B"]) > 1e-9:
+        raise ValueError("Through-drive example differs from " + PR_CHECK)
+    rep = " Report: %s." % PR_REPORT
+    f = {"defs": defs, "through": (pa, pb, ex)}
+    # Dispatch and definition fields.
+    f["call"] = code(F_EMP_PASS, 0x1404996A7, "41ff9260030000", "Force phase call", "vtable slot +0x360",
+                     "The vehicle component pass calls slot +0x360 of each component. In the force-emitter vtable 0x140b71978 (RTTI c_scene_vehicle_component_force_emitter) that slot holds the force and load phase 0x14033efb0, "
+                     "slot +0x358, called once per update by the component dispatcher at 0x1405498d6, the relative-flow phase 0x14033e3a0, slot +0x18 the port binding 0x14033de90 and slot +0x8 the definition binding 0x14033de70; the extractor re-reads all four. "
+                     "Every propeller, rotor, rotor propeller, ducted fan and the azimuth thruster use this one class." + rep)
+    for name, key, s, off, fallback in EMIT_FIELDS:
+        f["bind_" + key] = E.string(F_DEFSER, s, name, name + " binding",
+                                    "The definition loader binds %s to definition +0x%x with fallback %s when the attribute is absent." % (name, off, _num(fallback)) + rep)
+    f["len_default"] = op(F_DEFSER, 0x140317596, "f30f1005ea8e8900", 0x140BB0488, "Blade length fallback",
+                          "The value passed as the fallback of force_emitter_blade_physics_length (lea r9 at 0x14031758f)." + rep)
+    f["beff_default"] = op(F_DEFSER, 0x1403175BD, "f30f100593838900", 0x140BAF958, "Blade efficiency fallback",
+                           "The value passed as the fallback of force_emitter_blade_efficiency (lea r9 at 0x1403175b6)." + rep)
+    f["ctor"] = code(F_EMIT_CTOR, 0x14033B913, "48c7866402000004000000", "Default blade count", "4 blades, saved pitch 0",
+                     "The constructor writes 4 to the blade count at +0x264 and 0 to the saved pitch at +0x268 in one store." + rep)
+    f["saved_pitch"] = code(F_EMIT_DEF, 0x14033DE74, "8b825c080000898168020000", "Saved pitch initial value", "force_emitter_default_pitch",
+                            "Binding the definition copies the integer force_emitter_default_pitch (definition +0x85c) to the saved pitch at +0x268. A saved blade_pitch value can replace it." + rep)
+    # Effective weight.
+    f["w_count"] = code(F_EMIT_WEIGHT, 0x14033E020, "4585d08d42010f46c2", "Intact blade count", "B = intact blades",
+                        "The helper counts the set bits of the blade mask (+0x304, set to 0xffffffff at binding, 0x14033dfda) among the configured blades (+0x264). The force phase counts B the same way (0x14033f290)." + rep)
+    f["w_select"] = code(F_EMIT_WEIGHT, 0x14033E03B, "80b88005000000", "Air weight selector byte", "byte +0x580 behind the definition's first pointer",
+                         "For a definition without flag 2 (air parts), a nonzero byte here selects the blade-scaled weight F × B × 0.125, and zero selects F. "
+                         "Which resource field or loaded mesh state sets the byte is an open question listed under Propulsion, so every air figure on these pages is given for both branches." + rep)
+    f["w_marine"] = code(F_EMIT_WEIGHT, 0x14033E04D, "488b81b8020000a8027616a8047612", "Marine weight selector", "flags & 2 and flags & 4",
+                         "For a definition with flag 2 (marine) the blade-scaled weight applies only when flag 4 is also set. The fixed marine propellers and the azimuth thruster (flags 524291) therefore use F, "
+                         "and the pitchable propellers (flags 7) use F × B × 0.125. The air selector byte plays no part for them." + rep)
+    f["w_eighth"] = op(F_EMIT_WEIGHT, 0x14033E066, "f30f5905921a8700", 0x140BAFB00, "Intact blade weight factor",
+                       "When selected, the effective max force is F × B × 0.125, F ÷ 2 with 4 intact blades, and the solver weight becomes K = F × B ÷ 8000." + rep)
+    f["w_force"] = code(F_EMIT_WEIGHT, 0x14033E06E, "f30f5981480800" + "00", "Effective max force", "× force_emitter_max_force",
+                        "The helper ends by multiplying by F, force_emitter_max_force at definition +0x848." + rep)
+    # Force and load phase.
+    f["fold"] = code(F_EMIT_FORCE, 0x14033EFF0, "80bf70020000000f8542130000", "Folded test", "state +0x270",
+                     "A nonzero folded state (saved as folded) jumps to the branch at 0x14034033f, which queues no thrust." + rep)
+    f["k_div"] = op(F_EMIT_BODY, 0x14033F214, "f3440f101d3f168700", 0x140BB085C, "Solver weight divisor",
+                    "The effective max force from 0x14033dff0 (call at 0x14033f204) is divided by this at 0x14033f21d: K = F_effective ÷ 1000." + rep)
+    f["k_store"] = code(F_EMIT_BODY, 0x14033F23A, "f30f11afe0010000", "Solver weight K", "node weight = K",
+                        "With a connected primary shaft (+0x1d8), K is stored as the node weight (+0x1e0), the previous private speed (+0x154, cached at 0x14033f22c) is submitted at +0x1e4 (0x14033f242), "
+                        "and the published group speed (+0x1e8) becomes the new private speed (0x14033f24a). The speed removed below is therefore submitted on the next update." + rep)
+    f["damp"] = op(F_EMIT_BODY, 0x14033F25B, "f30f590d610c8700", 0x140BAFEC4, "Rotor speed factor",
+                   "w = private speed × 0.9999 (binary32 0.9998999834), stored back at 0x14033f275." + rep)
+    f["pitch"] = code(F_EMIT_BODY, 0x14033F2A7, "660f6e9f680200000f5bdbf30f58da", "Effective pitch", "p = clamp(saved pitch + input, -1, 1)",
+                      "Adds the integer saved pitch (+0x268) to the clamped Collective or Pitch input (+0x260) and clamps the sum to -1 to 1 (0x14033f2b6-0x14033f2c6). The value is normalized, not degrees or turns." + rep)
+    f["flow"] = code(F_EMIT_BODY, 0x14033F2E0, "f30f59876c020000", "Flow term", "p × U",
+                     "Multiplies effective pitch by the relative flow U cached at +0x26c by the flow phase." + rep)
+    f["rot"] = code(F_EMIT_BODY, 0x14033F2EC, "f3450f59b864080000", "Rotation speed factor", "w × force_emitter_rotation_speed",
+                    "Multiplies w by definition +0x864, then doubles it (0x14033f2fe)." + rep)
+    f["pi"] = op(F_EMIT_BODY, 0x14033F303, "f3440f593da4108700", 0x140BB03B0, "Load term π", "2 × w × rotation_speed × π." + rep)
+    f["len"] = code(F_EMIT_BODY, 0x14033F30C, "f3450f59b868080000", "Blade length factor", "× force_emitter_blade_physics_length",
+                    "Multiplies by definition +0x868, then by the effective pitch p (0x14033f315)." + rep)
+    f["k075"] = op(F_EMIT_BODY, 0x14033F31A, "f3440f593d8d0a8700", 0x140BAFDB0, "Load term factor",
+                   "Completes 2 × w × R × π × L × p × 0.75, to which p × U is added (0x14033f323)." + rep)
+    f["beff"] = code(F_EMIT_BODY, 0x14033F330, "f3450f59b86c080000", "Blade efficiency factor", "× force_emitter_blade_efficiency × B",
+                     "Multiplies by definition +0x86c and by the intact blade count B (0x14033f339)." + rep)
+    f["k032"] = op(F_EMIT_BODY, 0x14033F33E, "f3440f593dbd088700", 0x140BAFC04, "Load scale",
+                   "b = (2 × w × R × π × L × p × 0.75 + p × U) × blade_efficiency × B × 0.32." + rep)
+    f["half"] = op(F_EMIT_BODY, 0x14033F2D4, "f3440f1025df098700", 0x140BAFCBC, "Load ratio factor",
+                   "q = b × 0.5 ÷ K (0x14033f355-0x14033f35a) when K > 0 (comiss at 0x14033f2ca); otherwise q = 0." + rep)
+    f["qmin"] = op(F_EMIT_BODY, 0x14033F349, "f30f1005431c8700", 0x140BB0F94, "Load ratio lower clamp", "q is clamped below at this value." + rep)
+    f["qmax"] = op(F_EMIT_BODY, 0x14033F2F5, "f3440f10054e138700", 0x140BB064C, "Load ratio upper clamp and water factor",
+                   "The same register clamps q above (0x14033f368) and multiplies q below water (0x14033f37e)." + rep)
+    f["water"] = code(F_EMIT_BODY, 0x14033F378, "440f2fee7605f3410f59d0", "Below-water load factor", "q × 10 when hub depth < 0",
+                      "Hub depth is the hub's world height minus the sampled water surface (sampler call 0x1402bbbb0 at 0x14033f13c, subtraction at 0x14033f162). Below the surface q is multiplied by 10, "
+                      "so its unsaturated square grows 100 times. This happens before the medium gate, for air and marine parts alike." + rep)
+    f["removed"] = code(F_EMIT_BODY, 0x14033F3C6, "f3440f59d1f3410f5ccaf3440f59d5", "Shaft speed removed", "removed = w × (1 - 1 ÷ (1 + q²))",
+                        "q² + 1 (0x14033f3a3), its reciprocal (0x14033f3ac) and 1 minus that (0x14033f3ba) multiply w. The post-load speed w - removed is stored as the private speed (0x14033f3de), and removed × K follows. "
+                        "At the clamp the removed share is at most 100 ÷ 101 above water and 10000 ÷ 10001 below." + rep)
+    f["k1500"] = op(F_EMIT_BODY, 0x14033F3D5, "f3440f591586148700", 0x140BB0864, "Thrust factor",
+                    "T = removed × K × 1500 × force_emitter_efficiency (definition +0x870, 0x14033f3e6) × sign, with sign -1 for negative pitch and +1 otherwise (0x14033f39c-0x14033f3c2). "
+                    "No constant thrust per RPS exists: T grows about with RPS cubed at low speed and close to linearly once q saturates." + rep)
+    f["hinge"] = code(F_EMIT_BODY, 0x14033F47B, "410f28db", "Rotor hinge impulse limit", "1000",
+                      "With a physical rotor hinge (+0x2f0), the update queues a hinge motor update (call 0x1401a8e10 at 0x14033f48c). Its limit argument is copied from xmm11, which still holds the 1000 loaded at 0x14033f214, "
+                      "so the limit is 1000 for every rotor and does not follow K (the investigation report says K). The motor is enabled only with a connected primary shaft (setne at 0x14033f46f), "
+                      "and its target angular speed is minus the previous private speed × force_emitter_rotation_speed × orientation and reflection signs (0x14033f457-0x14033f47f)." + rep)
+    f["hinge_set"] = joint_motor(E)["hinge_store"]
+    f["gate"] = code(F_EMIT_BODY, 0x14033F4F0, "410f2ff5760e41f680b802000002", "Medium gate", "marine: depth ≤ 0; air: depth ≥ 0",
+                     "With the hub above water (depth > 0) a marine definition (flag 2) queues no thrust; with the hub below water an air definition queues none (0x14033f504-0x14033f512). Both pass at depth 0. "
+                     "The test uses the hub position, not blade immersion, and the shaft load above is applied either way." + rep)
+    f["lever"] = op(F_EMIT_BODY, 0x14033F5BF, "f30f593dc10e8700", 0x140BB0488, "Cyclic lever arm",
+                    "Roll (+0x258) and Pitch (+0x25c), each clamped to -1 to 1, move the force application point by -4 × input along the component's local X and Z (0x14033f5ab-0x14033f5e0)." + rep)
+    f["tilt"] = op(F_EMIT_BODY, 0x14033F6E3, "f30f590569058700", 0x140BAFC54, "Cyclic direction tilt",
+                   "The force direction becomes force_dir + 0.4 × (Roll, 0, Pitch) in component axes, without normalization (0x14033f6dc-0x14033f72f). Reflection bits flip the local signs." + rep)
+    f["alt_skip"] = code(F_EMIT_BODY, 0x14033F812, "f683b802000002", "Altitude factor for air parts only", "flag 2 skips it",
+                         "Marine definitions skip the altitude factor (ja at 0x14033f85b)." + rep)
+    f["alt_top"] = op(F_EMIT_BODY, 0x14033F819, "f2440f100d5e0d8700", 0x140BB0580, "Altitude factor ceiling",
+                      "Above this body altitude (comisd at 0x14033f865) the factor is 0." + rep, kind="f64")
+    f["alt_k"] = op(F_EMIT_BODY, 0x14033F847, "f3440f101530008700", 0x140BAF880, "Altitude factor slope",
+                    "P = (1 - 2.2413793e-5 × y)^5.3595023, with y the altitude of the body transform, through the power routine 0x1409b9c10 (call at 0x14033f890). P is 1 at y = 0 and about 0.30 at y = 20000." + rep)
+    f["alt_exp"] = op(F_EMIT_BODY, 0x14033F888, "f30f100d740c8700", 0x140BB0504, "Altitude factor exponent", "Exponent of P." + rep)
+    f["permit"] = code(F_EMIT_BODY, 0x14033F8B9, "4c39a750030000757244382536be9a007469", "Force application permission", "+0x350 empty and global 0x140ceb6ff set",
+                       "Thrust is queued only while component +0x350 is null (filled through the component-grid lookup 0x140329540) and the global byte at 0x140ceb6ff is set. "
+                       "Inference from the report: the lookup is a placement test, not a ground-clearance term." + rep)
+    f["cap_l"] = op(F_EMIT_BODY, 0x14033F918, "f30f1005700e8700", 0x140BB0790, "Thrust application limit",
+                    "Passed as the limit L, with the caller's scale S (stack argument at rbp+0x110), to the cap helper 0x1401a7c70 (call at 0x14033f92b)." + rep)
+    f["cap"] = code(F_EMIT_CAP, 0x1401A7CFB, "f30f10b424980000000f28c6f30f59c60f2fd0", "Thrust cap test", "|F ÷ S|² > L²",
+                    "The helper divides the force by S, compares its squared length with L² = 10000, rescales it to length L if larger, multiplies back by S (0x1401a7d38-0x1401a7d40), "
+                    "zeroes NaN components and queues a body force. Applied force = raw × min(1, 100 × S ÷ |raw|), independent of force_emitter_max_force. For a constant force over one 1/60 s update the impulse is F ÷ 60." + rep)
+    f["couple_flag"] = code(F_EMIT_BODY, 0x14033F93A, "48a900000040", "Coaxial couple flag", "flags & 0x40000000",
+                            "Definitions with this bit, the rotor and rotor propeller parts with and without port B (flags 1073741825), also apply two equal and opposite forces along local X at hub + Z and hub - Z." + rep)
+    f["couple_pitch"] = op(F_EMIT_BODY, 0x14033FA45, "f30f580583008700", 0x140BAFAD0, "Coaxial couple pitch offset",
+                           "The couple uses clamp(|saved pitch + Collective + 0.1|, 0, 1) (andps at 0x14033fa4d, clamp at 0x14033fa51-0x14033fa6c). The investigation report gives 0.01; the constant is binary32 0.1." + rep)
+    f["couple_k"] = op(F_EMIT_BODY, 0x14033FC30, "f30f100d1c0c8700", 0x140BB0854, "Coaxial couple factor",
+                       "Each force is 800 × b × that clamp × the sign factor × the altitude factor P along local X (0x14033fc41-0x14033fc56), so the pair forms a moment about the rotor axis. "
+                       "Each force goes through the same limit 100 and scale S via 0x1401a7ad0 (calls at 0x14033fdbc and 0x14033fe1f)." + rep)
+    f["fold_half"] = op(F_EMIT_FOLD, 0x140340371, "f30f590d43f98600", 0x140BAFCBC, "Folded speed factor",
+                        "A folded part still submits K and its previous private speed (0x140340361, 0x140340379), then keeps half the published speed as its private speed (0x140340381). It queues no thrust." + rep)
+    f["flow_branch"] = code(F_EMIT_FLOW, 0x14033EA21, "41f687b802000002", "Relative flow", "U along force_dir, signed by pitch",
+                            "The flow phase forms the body-point velocity (linear plus angular × offset) and projects it on the transformed force_dir. Air parts use wind minus that velocity; "
+                            "marine parts (flag 2) use the negative body-point velocity alone, so the scalar path treats the water as still. The result, signed by saved pitch plus input, is cached at +0x26c (0x14033ec8a, 0x14033eeec). "
+                            "A separate water-interaction call (0x1402fe950 at 0x14033e9f7) sits outside this model." + rep)
+    f["bridge"] = code(F_EMIT_BIND, 0x14033DFC7, "4889483848894138", "Port A/B link", "reciprocal node links",
+                       "When both Power Connection A (definition input 0, stored at +0x1d0, 0x14033df38) and B (output 1, +0x220, 0x14033df4f) exist, the binding points the primary node (+0x1b8) and the secondary node (+0x208) "
+                       "at each other through node +0x38 and sets primary +0x48 to 1000000 (0x14033dfb4). Both nodes keep traversal fraction 1 and ratio 1. End parts have no port B and get no link." + rep)
+    sh = electricity_native(E)["f"]
+    f["shaft"] = [sh[k] for k in ("shaft_one", "shaft_mul", "shaft_div", "shaft_bridge", "shaft_pub")]
+    f["through_fig"] = E.derived("Through-drive coupling example", "%s and %s RPS" % (_num(round(pa, 6)), _num(round(pb, 6))),
+                                 "Group A (I = %s, 10 RPS) and group B (I = %s, at rest) joined by one through-drive link (h = 0.95, ratio 1): A publishes (11 × 10 + 0) ÷ (11 + 21 × 0.95) = %s RPS and "
+                                 "B (0 + 10 × 11 × 0.95) ÷ (21 + 11 × 0.95) = %s RPS on the same update. The two ports do not jump to one speed, and no fixed share of power goes to either side." % (
+                                     _num(ex["I_A"]), _num(ex["I_B"]), _num(round(pa, 6)), _num(round(pb, 6))) + rep,
+                                 [f["bridge"]] + f["shaft"])
+    f["core"] = [f[k] for k in ("call", "w_count", "w_select", "w_marine", "w_eighth", "w_force", "k_div", "k_store", "damp", "pitch", "flow", "rot", "pi",
+                                "len", "k075", "beff", "k032", "half", "qmin", "qmax", "water", "removed", "k1500", "gate", "alt_skip", "alt_top", "alt_k", "alt_exp",
+                                "permit", "cap_l", "cap", "fold", "fold_half", "flow_branch", "ctor", "saved_pitch")]
+    f["rotor"] = [f[k] for k in ("lever", "tilt", "hinge", "hinge_set")]
+    f["coaxial"] = [f[k] for k in ("couple_flag", "couple_pitch", "couple_k")]
+    E.prop = f
+    return f
+
+
+def emitter_inputs(E, bid):
+    """Definition attributes behind one part's figures, or the loader binding where the attribute is absent."""
+    f = propulsion_native(E)
+    attrs = E.block(bid)["attributes"]
+    return [E.attr(bid, name, "Read by the force-emitter update.") if name in attrs else f["bind_" + key] for name, key, _, _, _ in EMIT_FIELDS] + [
+        E.attr(bid, "flags", "Bit 2 marks a marine part; bit 4 with bit 2 selects the blade-scaled weight; bit 0x40000000 adds the coaxial couple.")]
+
+
+def emitter_figures(E, bid):
+    """Derived 10 RPS reference figures of one part, both weight branches for air parts."""
+    f = propulsion_native(E)
+    d = f["defs"][bid]
+    a, name = d["parameters"], E.block(bid)["name"]
+    marine = bool(d["flags"] & 2)
+    runs = [(m["blade_scaled"], emitter_model(a, d["flags"], 10.0, scaled=m["blade_scaled"]), emitter_model(a, d["flags"], 60.0, scaled=m["blade_scaled"]))
+            for m in d["weight_modes"]]
+    label = {False: "K = F ÷ 1000", True: "K = F × B ÷ 8000"}
+    per = lambda r: "%.3f" % (r["raw"] / 10)
+    value = " or ".join("%s per RPS" % per(r) for _, r, _ in runs)
+    rows = []
+    for scaled, r, r60 in runs:
+        rows.append("%s = %s: b = %s, q = %s, removed %s RPS, post-load %s RPS, raw force %s, %s per input RPS; at 60 RPS raw force %s, removed %s RPS" % (
+            label[scaled], _num(r["K"]), _num(round(r["load"], 4)), _num(round(r["ratio"], 4)), "%.4f" % r["removed"], "%.4f" % r["post"], "%.3f" % r["raw"], per(r),
+            "%.1f" % r60["raw"], "%.3f" % r60["removed"]))
+    detail = ("F = %s, rotation_speed %s, blade_physics_length %s, blade_efficiency %s, efficiency %s, flags %d. At 10 published RPS, effective pitch 1, 4 intact blades, still %s, "
+              "no cyclic, unfolded, before the 100 × S cap: w = %s. %s. %s" % (
+                  _num(a["max_force"]), _num(a["rotation_speed"]), _num(a["blade_physics_length"]), _num(_f32(a["blade_efficiency"])), _num(a["efficiency"]), d["flags"],
+                  "water with the hub submerged" if marine else "air at altitude 0", _num(round(runs[0][1]["w"], 4)), "; ".join(rows),
+                  "Internal force units, not newtons. The weight branch is fixed by the marine flags." if marine else
+                  "Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given."))
+    return E.derived("%s force at 10 RPS" % name, value, detail + " Report: %s." % PR_REPORT,
+                     emitter_inputs(E, bid) + [f[k] for k in ("w_select", "w_marine", "w_eighth", "k_div", "damp", "k075", "k032", "half", "water", "removed", "k1500")])
+
+
+def _fig(E, bid, scaled=None):
+    """K, internal force per RPS and removed RPS at 10 RPS for one branch, as the figures finding formats them."""
+    d = propulsion_native(E)["defs"][bid]
+    if scaled is None:
+        scaled = d["weight_modes"][0]["blade_scaled"]
+    r = emitter_model(d["parameters"], d["flags"], 10.0, scaled=scaled)
+    return _num(r["K"]), "%.3f" % (r["raw"] / 10), "%.4f" % r["removed"]
+
+
 def propulsion(B, E):
-    fe = lambda b: E.attr(b, "force_emitter_max_force", "Force-emitter configuration; not measured thrust.")
-    marine = [fe(b) for b in ("propeller", "large_propeller", "giga_prop_small")]
-    pitch = [fe(b) for b in ("propeller_pitch_small", "propeller_pitch", "propeller_pitch_large")]
-    rotors = [fe(b) for b in ("large_rotor", "huge_rotor", "heavy_rotor", "heavy_rotor_large")]
-    eff = [E.attr(b, "force_emitter_efficiency", "Rotor efficiency field.") for b in ("large_rotor", "heavy_rotor")]
-    fans = [fe(b) for b in ("fan_small", "fan_large")]
+    f = propulsion_native(E)
+    N = lambda bid: E.block(bid)["name"]
+    fe = lambda b: E.attr(b, "force_emitter_max_force", "Effective max force F: the solver weight is K = F ÷ 1000, or F × B ÷ 8000 when blade-scaled, and F also sets the load ratio. It is not a thrust ceiling.")
+    eff = lambda b: E.attr(b, "force_emitter_efficiency", "Multiplies the thrust T after the shaft load; it does not change the load.")
     srb = E.tooltip("solid_rocket_nozzle_small")
+    core, rotor, coax, shaft = f["core"], f["rotor"], f["coaxial"], f["shaft"]
+    rate = update_rate(E)["findings"]
+    figs = {bid: emitter_figures(E, bid) for _, bids in PROP_PARTS for bid in bids}
+    air_pair = lambda bid: "%s or %s" % (_fig(E, bid, False)[1], _fig(E, bid, True)[1])
+    law = ("Each update the part reads its published shaft speed and computes w = RPS × 0.9999, the effective pitch p = clamp(saved pitch + input, -1, 1) and the load "
+           "b = (2 × w × rotation_speed × π × blade_physics_length × p × 0.75 + p × U) × blade_efficiency × B × 0.32, where U is the relative flow along the thrust axis and B the number of intact blades. "
+           "With q = clamp(b × 0.5 ÷ K, -10, 10), multiplied by 10 when the hub is below the water surface, it removes w × (1 - 1 ÷ (1 + q²)) RPS from its own speed and pushes with T = 1500 × K × removed RPS × efficiency, signed by the pitch.")
     B.category("Propulsion",
-               "Propellers and rotors carry a force_emitter_max_force field that ranks variants (marine 20000 to 200000, rotors 40000 to 200000); marine propellers work only underwater and rotors lose force underwater.",
-               [section("Variant ranking",
-                        "force_emitter_max_force: marine propellers 20000, 100000 and 200000; pitchable propellers 20000, 80000 and 160000; helicopter rotors 40000 and 200000; heavy rotors 120000 and 200000; ducted fans 2000 and 10000. Helicopter and through-drive rotors also carry force_emitter_efficiency 1.25 where most other emitters carry 1."),
-                section("Operating conditions",
-                        "Marine propellers and the azimuth thruster operate only underwater; helicopter rotors produce less force underwater. Solid rocket boosters burn once; a slower burn-rate setting lasts longer but gives less thrust."),
-                section("Measurement questions",
-                        "Whether force_emitter_max_force is a thrust cap and how RPS maps to thrust were not recovered; measure thrust against RPS with a fixed test rig.")],
-               marine + pitch + rotors + eff + fans + [srb, E.tooltip("propeller")],
-               ["Force-emitter fields are configuration; their runtime use was not decoded."])
-    B.family("marine-propeller", "force_emitter_max_force rises 20000 → 100000 → 200000 across sizes; underwater only.",
-             [section("Variant tradeoffs", "The large propeller's field is 5 times the small one's and the giant propeller's 10 times."),
-              section("Open measurement questions", "Thrust per RPS for each size.")],
-             marine + [E.tooltip("propeller"), E.derived("Force field ratios", "1 : 5 : 10", "100000 ÷ 20000 and 200000 ÷ 20000.", marine)],
-             ["Configuration values only."])
-    B.family("pitchable-marine-propeller", "force_emitter_max_force 20000, 80000 and 160000; pitch input −1 to 1.",
-             [section("Variant tradeoffs", "Standard and large variants carry 4 and 8 times the small variant's field.")],
-             pitch + [E.port("propeller_pitch", "Pitch"), E.derived("Force field ratios", "1 : 4 : 8", "80000 ÷ 20000 and 160000 ÷ 20000.", pitch)],
-             ["Configuration values only."])
-    B.family("helicopter-rotor", "force_emitter_max_force 40000 (large) and 200000 (huge), efficiency field 1.25; reduced output underwater.",
-             [section("Variant tradeoffs", "The huge rotor's field is 5 times the large rotor's.")],
-             rotors[:2] + [eff[0], E.tooltip("large_rotor"), E.derived("Huge/large ratio", 5, "200000 ÷ 40000.", rotors[:2])],
-             ["Configuration values only."])
-    B.family("heavy-helicopter-rotor", "force_emitter_max_force 120000 and 200000 with thrust vectoring through roll, pitch and collective.",
-             [section("Variant tradeoffs", "The heavy rotor's field (120000) is three times the large helicopter rotor's 40000, at efficiency field 1 instead of 1.25.")],
-             rotors + eff,
-             ["Configuration values only."])
-    B.family("ducted-fan", "force_emitter_max_force 2000 (small) and 10000 (large); force follows supplied torque.",
-             [section("Variant tradeoffs", "The large fan's field is 5 times the small fan's.")],
-             fans + [E.tooltip("fan_small"), E.derived("Large/small ratio", 5, "10000 ÷ 2000.", fans)],
-             ["Configuration values only."])
+               "Propellers, rotors and ducted fans share one force-emitter update. Shaft speed and normalized pitch set a load that takes speed off the shaft and turns it into internal force T = 1500 × K × removed RPS × efficiency. "
+               "force_emitter_max_force sets the solver weight K, not a thrust ceiling, and a separate 100 × S cap limits the applied force. Marine parts push only with the hub underwater, air parts only above it.",
+               [section("Shared update", law,
+                        "The part submits K as its shaft weight together with the speed it kept on the previous update, so the shaft group feels the load one update later. "
+                        "At low speed in still air or water T grows about with RPS cubed; once q reaches its clamp it grows close to linearly. Zero pitch gives no load and no thrust, and negative pitch or RPS reverses the push."),
+                section("What force_emitter_max_force does",
+                        "K = F ÷ 1000. The pitchable marine propellers use K = F × B ÷ 8000 instead, F ÷ 2000 with 4 intact blades. Air parts use one of the two, chosen by a definition byte that the decode could not tie to a resource field, so their figures come in pairs. "
+                        "A larger F raises K, which lowers q, so less speed is removed per update while each removed RPS pushes harder. F ratios between sizes are therefore not thrust ratios, and raw force can exceed F: "
+                        "the small marine propeller (F = 20000) gives raw force %.3f at 10 RPS." % emitter_model(f["defs"]["propeller"]["parameters"], f["defs"]["propeller"]["flags"], 10.0)["raw"]),
+                section("Water and air",
+                        "The hub decides the medium: depth = hub height - sampled water surface. Marine parts push only at depth ≤ 0, air parts only at depth ≥ 0. Below the surface q is multiplied by 10 for every part, "
+                        "so a submerged rotor brakes its shaft far harder and, in this update, pushes not at all; the rotor tooltips call this decreased force. A dry marine propeller still loads its shaft. "
+                        "Air parts multiply T by P = (1 - 2.2413793e-5 × y)^5.3595023 of the body altitude y, 0 above 40000. Marine parts take U from their own velocity through still water, air parts from wind minus their velocity."),
+                section("Rotors, cyclic and reaction",
+                        "Roll and Pitch move the force point by -4 × input along local X and Z and tilt the push by 0.4 × input, which tips the vehicle without a blade-phase model. "
+                        "A physical rotor hinge gets a motor with impulse limit 1000 and a target speed from the shaft speed. Rotors with the coaxial flag add two opposite forces of 800 × b × clamp(|saved pitch + Collective + 0.1|, 0, 1), a moment about the rotor axis."),
+                section("Through-drive ports",
+                        "Rotors with Power Connection A and B link the two port nodes to each other. The shaft solver then mixes the two groups' speeds across that link with fraction 0.95 and ratio 1, as it does across a gearbox. "
+                        "The rotor's own load goes on A. The ports do not share a fixed part of the power and do not jump to one speed: groups of weight 11 at 10 RPS and 21 at rest publish %s and %s RPS." % (
+                            _num(round(f["through"][0], 6)), _num(round(f["through"][1], 6)))),
+                section("Rockets", "Solid rocket boosters burn once; a slower burn-rate setting lasts longer but gives less thrust."),
+                section("Open questions",
+                        "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; "
+                        "the full source of the cap scale S and the SI calibration of force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, "
+                        "cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); "
+                        "the editor-arrow sign table for reflected parts. No figure here was measured in a running game.")],
+               core + rotor + coax + shaft + [f["through_fig"]] + [fe(b) for _, bids in PROP_PARTS for b in bids] + list(figs.values()) + [srb, E.tooltip("propeller")] + rate,
+               ["Static analysis of one build. Forces are in the game's internal force unit before the 100 × S application cap.", TICK])
+
+    def family(fid, summary, sections, findings, limits=()):
+        bids = dict(PROP_PARTS)[fid]
+        B.family(fid, summary, sections,
+                 [fe(b) for b in bids] + [figs[b] for b in bids] + [x for b in bids for x in emitter_inputs(E, b)] + findings + core + shaft + rate,
+                 list(limits) + ["Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion.", TICK])
+
+    def table(bids, air):
+        if air:
+            return "; ".join("%s: K %s or %s, %s per RPS" % (N(b), _fig(E, b, False)[0], _fig(E, b, True)[0], air_pair(b)) for b in bids)
+        return "; ".join("%s: K %s, %s per RPS, %s RPS removed" % ((N(b),) + _fig(E, b)) for b in bids)
+
+    air_note = ("Air parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; "
+                "each figure gives both, the first for F ÷ 1000.")
+    still = "Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap."
+    rotor_pitch = ("The saved pitch starts at force_emitter_default_pitch 1, so effective pitch is clamp(1 + Collective): Collective -1 gives zero load and zero thrust, and 0 or more gives full pitch 1. "
+                   "Pitch alone cannot reverse their push; reversing the shaft does.")
+    cyclic = ("Roll and Pitch, clamped to -1 to 1, move the point where the force acts by -4 × input along local X and Z and tilt the force direction by 0.4 × input. "
+              "This tips the vehicle; no blade-by-blade phase is modelled.")
+    hinge = ("The rotor body turns on a physical hinge whose motor is on while the RPS port is connected. Its impulse limit is 1000 for every size, and its target speed follows the speed the rotor kept on the previous update × force_emitter_rotation_speed.")
+    under = ("With the hub below the water surface the rotor pushes not at all in this update, while its load ratio q is multiplied by 10, so it brakes the shaft much harder. The tooltip's decreased force is this cut-off.")
+    alt = "Thrust is multiplied by (1 - 2.2413793e-5 × y)^5.3595023 of the vehicle's altitude y: 1 at sea level, 0 above 40000."
+    couple = ("Because of the coaxial flag the rotor also applies two equal and opposite forces along local X, above and below the hub, each 800 × b × clamp(|saved pitch + Collective + 0.1|, 0, 1). "
+              "They form a moment about the rotor axis that turns the vehicle against the rotor.")
+
+    family("marine-propeller",
+           "Fixed-pitch underwater propellers with solver weight K = F ÷ 1000 (%s, %s and %s). They push only with the hub at or below the water surface; at 10 RPS in still water the raw internal force is %s, %s and %s per RPS before the application cap." % (
+               _fig(E, "propeller")[0], _fig(E, "large_propeller")[0], _fig(E, "giga_prop_small")[0], _fig(E, "propeller")[1], _fig(E, "large_propeller")[1], _fig(E, "giga_prop_small")[1]),
+           [section("How thrust follows RPS", law,
+                    "The pitch is fixed at force_emitter_default_pitch 1 and the part has no pitch input, so turning the shaft backwards reverses the push. Thrust grows about with RPS cubed at low speed and close to linearly at high speed."),
+            section("Sizes", table(dict(PROP_PARTS)["marine-propeller"], False) + ". " + still,
+                    "F rises 1 : 5 : 10 across the sizes, but the figures rise far less, because a larger F raises K and lowers the load ratio. The small propeller takes the most speed off its shaft per update."),
+            section("Water and flow",
+                    "The hub must be at or below the sampled water surface; above it the propeller pushes not at all but still loads its shaft. Under water its load ratio q is multiplied by 10. "
+                    "The flow term U is minus the hub's velocity through still water, projected on the thrust axis and signed by the pitch: positive U adds to the load and negative U takes from it. Water currents are not subtracted."),
+            section("Variant tradeoffs", "The giant propeller turns its rotation_speed of 0.5 and blade_efficiency of 0.25 into the highest force per RPS, at the lowest speed loss per RPS of the three.")],
+           [E.tooltip("propeller")])
+    family("pitchable-marine-propeller",
+           "Underwater propellers whose Pitch input sets a normalized pitch from -1 to 1; solver weight K = F × B ÷ 8000 (%s, %s and %s with 4 intact blades); %s, %s and %s per RPS at 10 RPS and pitch 1." % (
+               _fig(E, "propeller_pitch_small")[0], _fig(E, "propeller_pitch")[0], _fig(E, "propeller_pitch_large")[0],
+               _fig(E, "propeller_pitch_small")[1], _fig(E, "propeller_pitch")[1], _fig(E, "propeller_pitch_large")[1]),
+           [section("How pitch works",
+                    "The definitions carry no force_emitter_default_pitch, so the saved pitch starts at 0 and the Pitch input is the effective pitch p, clamped to -1 to 1. It is a normalized number, not a blade angle in degrees or turns. "
+                    "p = 0 gives no load and no thrust, the sign of p sets the direction, and |p| scales both the speed taken from the shaft and the push.",
+                    law),
+            section("Sizes", table(dict(PROP_PARTS)["pitchable-marine-propeller"], False) + ". " + still,
+                    "Their weight counts intact blades: each lost blade lowers K and the load by one quarter of the 4-blade value."),
+            section("Water and flow",
+                    "The hub must be at or below the sampled water surface for thrust; under water q is multiplied by 10. U comes from the propeller's own velocity through still water, signed by the pitch.")],
+           [E.port("propeller_pitch", "Pitch"), E.tooltip("propeller_pitch")])
+    family("helicopter-rotor",
+           "Large and huge rotors on the shared force-emitter law with efficiency 1.25; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap." % (
+               air_pair("large_rotor"), air_pair("huge_rotor")),
+           [section("Thrust and shaft load", law, rotor_pitch),
+            section("Sizes", table(dict(PROP_PARTS)["helicopter-rotor"], True) + ". " + still, air_note),
+            section("Cyclic and hinge", cyclic, hinge),
+            section("Water and altitude", under, alt)],
+           rotor + [eff("large_rotor"), eff("huge_rotor"), E.tooltip("large_rotor")])
+    family("heavy-helicopter-rotor",
+           "Heavy rotors on the shared force-emitter law with rotation_speed 1.5 and blade_efficiency 0.02; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap." % (
+               air_pair("heavy_rotor"), air_pair("heavy_rotor_large")),
+           [section("Thrust and shaft load", law, rotor_pitch),
+            section("Sizes", table(dict(PROP_PARTS)["heavy-helicopter-rotor"], True) + ". " + still, air_note),
+            section("Cyclic and hinge", cyclic, hinge),
+            section("Water and altitude", under, alt)],
+           rotor + [E.tooltip("heavy_rotor")])
+    family("ducted-fan",
+           "Air fans on the shared force-emitter law with pitch fixed at 1; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap." % (
+               air_pair("fan_small"), air_pair("fan_large")),
+           [section("Thrust and shaft load", law,
+                    "The fans have only an RPS port, so the effective pitch stays at force_emitter_default_pitch 1. Turning the shaft backwards reverses the push."),
+            section("Sizes", table(dict(PROP_PARTS)["ducted-fan"], True) + ". " + still, air_note + " Their small F gives a small K, so they take more speed off the shaft per RPS than the rotors."),
+            section("Water and altitude",
+                    "With the hub below the water surface a fan pushes not at all, and its load ratio is multiplied by 10. " + alt)],
+           [E.tooltip("fan_small")])
+    family("through-drive-rotor",
+           "Rotors with Power Connection A and B on the shared force-emitter law; the two ports are linked through the shaft solver with fraction 0.95 and ratio 1, and at 10 RPS the rotors give %s, %s and %s internal force per RPS by air weight branch." % (
+               air_pair("rotor_coaxial_light"), air_pair("rotor_coaxial_small"), air_pair("rotor_coaxial_large")),
+           [section("How the two ports share speed",
+                    "At binding the rotor links its A and B port nodes to each other. Every update the shaft solver adds each side's speed to the other side with weight × 0.95 at ratio 1, the same bridge a gearbox uses. "
+                    "The rotor's own load is submitted on A. There is no fixed split of power between the ports, and they do not take one speed at once: groups of weight 11 at 10 RPS on A and 21 at rest on B publish %s and %s RPS. "
+                    "Stacking rotors adds one link, and one more factor 0.95, per rotor." % (_num(round(f["through"][0], 6)), _num(round(f["through"][1], 6)))),
+            section("Thrust and shaft load", law, rotor_pitch),
+            section("Sizes", table(dict(PROP_PARTS)["through-drive-rotor"], True) + ". " + still, air_note),
+            section("Cyclic, hinge and reaction", cyclic, hinge, couple),
+            section("Water and altitude", under, alt)],
+           rotor + coax + [f["bridge"], f["through_fig"]] + [eff("rotor_coaxial_light")])
+    family("through-drive-rotor-propeller",
+           "Rotor propellers with Power Connection A and B on the shared force-emitter law; the ports are linked through the shaft solver with fraction 0.95 and ratio 1, and at 10 RPS they give %s and %s internal force per RPS by air weight branch." % (
+               air_pair("rotor_coaxial_prop_small"), air_pair("rotor_coaxial_prop")),
+           [section("How the two ports share speed",
+                    "As on the through-drive rotors, the binding links ports A and B and the shaft solver mixes their speeds with weight × 0.95 at ratio 1. The load is submitted on A. "
+                    "Groups of weight 11 at 10 RPS and 21 at rest publish %s and %s RPS, so neither a fixed power share nor an instant common speed applies." % (_num(round(f["through"][0], 6)), _num(round(f["through"][1], 6)))),
+            section("Thrust and shaft load", law, rotor_pitch),
+            section("Sizes", table(dict(PROP_PARTS)["through-drive-rotor-propeller"], True) + ". " + still, air_note),
+            section("Cyclic, hinge and reaction", cyclic, hinge, couple),
+            section("Water and altitude", under, alt)],
+           rotor + coax + [f["bridge"], f["through_fig"]])
+    family("terminal-rotor-propeller",
+           "End rotor propellers with one power connection on the shared force-emitter law; at 10 RPS they give %s and %s internal force per RPS by air weight branch, the same as their through-drive counterparts." % (
+               air_pair("rotor_coaxial_prop_small_end"), air_pair("rotor_coaxial_prop_end")),
+           [section("Thrust and shaft load", law, rotor_pitch),
+            section("Sizes", table(dict(PROP_PARTS)["terminal-rotor-propeller"], True) + ". " + still, air_note),
+            section("End of a stack", "The end parts have no port B, so the binding installs no A/B link; they close a stack of through-drive parts. " + couple),
+            section("Cyclic and hinge", cyclic, hinge),
+            section("Water and altitude", under, alt)],
+           rotor + coax + [f["bridge"]])
+    family("part-rotor-coaxial-light-end",
+           "Light end rotor with one power connection on the shared force-emitter law; at 10 RPS it gives %s internal force per RPS by air weight branch, like the light through-drive rotor." % air_pair("rotor_coaxial_light_end"),
+           [section("Thrust and shaft load", law, rotor_pitch),
+            section("Figures", table(("rotor_coaxial_light_end",), True) + ". " + still, air_note),
+            section("End of a stack", "It has no port B, so the binding installs no A/B link. " + couple),
+            section("Cyclic and hinge", cyclic, hinge),
+            section("Water and altitude", under, alt)],
+           rotor + coax + [f["bridge"]])
+    family("part-aircraft-propeller",
+           "Aircraft propeller on the shared force-emitter law with rotation_speed 3; at 10 RPS it gives %s internal force per RPS by air weight branch, before the application cap." % air_pair("aircraft_propeller"),
+           [section("Thrust and shaft load", law,
+                    "Collective drives the pitch input. The saved pitch starts at 1, so Collective -1 gives zero thrust and 0 or more gives full pitch 1; it cannot reverse the push. "
+                    "The tooltip's torque wording describes the shaft load: every RPS the propeller removes from its shaft becomes 1500 × K internal force."),
+            section("Figures", table(("aircraft_propeller",), True) + ". " + still, air_note),
+            section("Water and altitude", "With the hub below the water surface it pushes not at all and its load ratio is multiplied by 10. " + alt)],
+           [E.port("aircraft_propeller", "Collective"), E.tooltip("aircraft_propeller")])
+    family("part-tail-rotor",
+           "Tail rotor on the shared force-emitter law whose Yaw input sets a signed pitch from -1 to 1; at 10 RPS and pitch 1 it gives %s internal force per RPS by air weight branch." % air_pair("tail_rotor"),
+           [section("Thrust and shaft load", law,
+                    "force_emitter_default_pitch is 0, so the Yaw input is the effective pitch: 0 gives no thrust and no load, and the sign sets the push direction. Drive it from the main rotor's engine and feed the gyro's stabilised yaw."),
+            section("Figures", table(("tail_rotor",), True) + ". " + still, air_note),
+            section("Water and altitude", "With the hub below the water surface it pushes not at all and its load ratio is multiplied by 10. " + alt)],
+           [E.port("tail_rotor", "Yaw"), E.port("gyro", "Stabilised Yaw")])
+    family("part-azimuth-thruster",
+           "Underwater thruster on the marine force-emitter law with K = F ÷ 1000 = %s; %s internal force per RPS at 10 RPS in still water, before the application cap. Mount it on a robotic pivot to steer the push." % (
+               _fig(E, "azimuth_thruster")[0], _fig(E, "azimuth_thruster")[1]),
+           [section("Thrust and shaft load", law,
+                    "Pitch is fixed at 1, so reversing the shaft reverses the push. It pushes only with the hub at or below the water surface, and under water its load ratio q is multiplied by 10."),
+            section("Figures", table(("azimuth_thruster",), False) + ". " + still,
+                    "It removes the same speed per RPS as the small marine propeller: with the same blade_physics_length 0.25, twice the blade_efficiency (0.15) and twice the F (40000), its load and K both double and q is unchanged. "
+                    "Each removed RPS therefore pushes twice as hard.")],
+           [E.tooltip("azimuth_thruster")])
     B.family("solid-rocket-booster", "Single-use boosters; stacked fuel segments extend the burn, slower burn rates trade thrust for duration.",
              [section("Setup and interactions", "Stack solid rocket fuel segments above the nozzle to lengthen the burn; set Burn Rate in the properties. Medium and larger nozzles report Fuel Remaining.")],
              [srb, E.port("solid_rocket_nozzle_medium", "Fuel Remaining")],
@@ -5124,20 +5585,6 @@ def more_families(B, E):
            [T("hydrogen_fuel_cell"), T("electrolyser")], ["Conversion rates were not recovered."])
     simple("part-electrolyser", "Splits fresh water into hydrogen and oxygen with electricity; the electrodes must be submerged.",
            [("Setup and interactions", "Feed its outputs to a fuel cell or a liquid fuel rocket's tanks.")], [T("electrolyser"), T("liquid_rocket_small")], [])
-
-    # Propulsion singletons.
-    simple("part-aircraft-propeller", "force_emitter_max_force 70000; thrust follows supplied torque, collective sets pitch.",
-           [("Variant tradeoffs", "Its force field of 70000 sits between the large helicopter rotor (40000) and the heavy rotor (120000).")],
-           [A("aircraft_propeller", "force_emitter_max_force", "Force-emitter configuration."), A("large_rotor", "force_emitter_max_force", "Comparison."),
-            A("heavy_rotor", "force_emitter_max_force", "Comparison."), T("aircraft_propeller")], ["Configuration only."])
-    simple("part-tail-rotor", "force_emitter_max_force 4000; yaw input −1 to 1.", [("Setup and interactions", "Drive from the same engine as the main rotor and feed the gyro's stabilised yaw.")],
-           [A("tail_rotor", "force_emitter_max_force", "Force-emitter configuration."), P("tail_rotor", "Yaw"), P("gyro", "Stabilised Yaw")], ["Configuration only."])
-    simple("part-azimuth-thruster", "Underwater-only thruster (force field 40000) meant to sit on a robotic pivot for steering.",
-           [("Setup and interactions", "Mount on a robotic pivot to steer the thrust.")], [A("azimuth_thruster", "force_emitter_max_force", "Force-emitter configuration."), T("azimuth_thruster")], [])
-    tdr = [A(b, "force_emitter_max_force", "Force-emitter configuration.") for b in ("rotor_coaxial_light", "rotor_coaxial_small", "rotor_coaxial_large")]
-    simple("through-drive-rotor", "Pass-through rotors with force fields 10000, 50000 and 200000 and efficiency field 1.25.",
-           [("Setup and interactions", "Each has two power connections (A and B), which allows rotors to be stacked along one drivetrain; how power divides between them was not recovered.")],
-           tdr + [A("rotor_coaxial_light", "force_emitter_efficiency", "Efficiency field.")], ["How power splits between the two connections was not recovered."])
 
     # Steam components.
     simple("steam-firebox", "Ignition consumes one coal; it heats coolant pumped through it and has its own air supply and exhaust ports.",

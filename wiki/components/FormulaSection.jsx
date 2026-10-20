@@ -73,6 +73,13 @@ const FINDINGS = {
     'Antenna range sum', 'Receiver power factor', 'Transmitter power factor', 'Submerged fraction', 'Submerged range factor',
     'Antenna distance', 'Signal strength', 'Strongest signal selection', 'Payload level factor',
   ],
+  propeller: [
+    'Rotor speed factor', 'Effective pitch', 'Rotation speed factor', 'Load term π', 'Blade length factor', 'Load term factor', 'Flow term',
+    'Blade efficiency factor', 'Load scale', 'Intact blade count', 'Solver weight divisor', 'Intact blade weight factor', 'Air weight selector byte',
+    'Marine weight selector', 'Load ratio factor', 'Load ratio lower clamp', 'Load ratio upper clamp and water factor', 'Below-water load factor',
+    'Shaft speed removed', 'Thrust factor', 'Medium gate', 'Altitude factor slope', 'Altitude factor exponent', 'Altitude factor ceiling',
+    'Thrust application limit', 'Thrust cap test',
+  ],
 };
 
 const TITLES = {
@@ -89,6 +96,7 @@ const TITLES = {
   radar: 'Radar detection distance against target body mass and FOV',
   legacy: 'Legacy radar and sonar detection distance against target body mass',
   radio: 'Radio signal strength against distance, height and power',
+  propeller: 'Propeller and rotor force and shaft load against RPS',
 };
 
 /*
@@ -598,9 +606,45 @@ const RADIO_STRENGTH = {
   ],
 };
 
+const PROPELLER = {
+  intro: (
+    <p>
+      Every propeller, rotor and ducted fan runs one update. Shaft speed and pitch set a load that the part takes off its own shaft
+      speed, and each removed RPS becomes 1500 × K internal force. The chart plots that force, or the speed removed, against the
+      published shaft speed for one part. Air parts get two lines because the game picks one of two solver weights with a
+      definition byte that has not been tied to a resource field.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="b"><mi>b</mi>{mo('=')}<mrow>{mo('(')}{mn('2')}{mi('w')}{mi('R')}{mi('π')}{mi('L')}{mi('p')}{mo('×')}{mn('0.75')}{mo('+')}{mi('p')}{mi('U')}{mo(')')}</mrow>{sub('E', 'b')}{mi('B')}{mo('×')}{mn('0.32')}<mspace width="1em" />{mi('w')}{mo('=')}{mn('0.9999')}{mo('×')}<mtext>RPS</mtext></mrow>,
+        <mrow key="q">{mi('q')}{mo('=')}{fn('clamp')}<mrow>{mo('(')}<mfrac>{mi('b')}<mrow>{mn('2')}{mi('K')}</mrow></mfrac>{mo(',')}{mn('−10')}{mo(',')}{mn('10')}{mo(')')}</mrow><mspace width="0.5em" /><mtext>× 10 under water</mtext></mrow>,
+        <mrow key="t">{sub('Δ', 'RPS')}{mo('=')}{mi('w')}<mrow>{mo('(')}{mn('1')}{mo('−')}<mfrac>{mn('1')}<mrow>{mn('1')}{mo('+')}<msup>{mi('q')}{mn('2')}</msup></mrow></mfrac>{mo(')')}</mrow><mspace width="1em" />{mi('T')}{mo('=')}{mn('1500')}{mi('K')}{sub('Δ', 'RPS')}{mi('E')}<mo>sgn</mo>{mi('p')}</mrow>,
+      ]}
+      text={[
+        'w = 0.9999 * published RPS; p = clamp(saved pitch + input, -1, 1), the effective pitch',
+        'b = (2 * w * R * pi * L * p * 0.75 + p * U) * E_b * B * 0.32; R rotation_speed, L blade_physics_length, E_b blade_efficiency, B intact blades, U relative flow',
+        'K = F / 1000, or F * B / 8000 when blade-scaled (pitchable marine propellers; air parts by an open selector)',
+        'q = clamp(b / (2 * K), -10, 10), then q * 10 with the hub below the water surface',
+        'removed RPS = w * (1 - 1 / (1 + q^2)); T = 1500 * K * removed * E * sign(p), E = efficiency',
+        'Air parts: T * (1 - 2.2413793e-5 * y)^5.3595023, 0 above y = 40000. Marine parts push only with the hub under water, air parts only above it',
+        'Applied force = T * min(1, 100 * S / |T|) for the caller\'s scale S',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Force is the raw internal force before the 100 × S application cap. S comes from the caller and its full source is open, so the chart applies no cap; it is not a force in newtons.',
+    'Effective pitch is after the saved pitch. Rotors, the aircraft propeller, fixed marine propellers and fans start at saved pitch 1, so their inputs reach only 0 to 1; pitchable propellers and the tail rotor start at 0.',
+    'Four intact blades, sea level, no cyclic input, unfolded. Each point is one update from the given published speed, not a steady state of a shaft group.',
+    'For air parts both candidate weights are drawn; which one the game uses for a given part is an open question listed under Propulsion.',
+    'Not modelled: the shaft group the part shares speed with, the coaxial force couple, the hinge motor and the application cap.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
-  pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH,
+  pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
 };
 
 function Evidence({ items }) {

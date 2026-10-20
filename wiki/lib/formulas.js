@@ -13,6 +13,7 @@
 // Advanced radar: investigation/sensors-radio.md (initializer 0x1403b7fc0, candidate test in 0x140909e40).
 // Legacy radar and sonar, signature and FOV sliders: investigation/sensors-legacy.md (logic case 50, helper 0x14090a290).
 // Radio: investigation/radio.md (receive routine 0x14054a780).
+// Propellers, rotors and ducted fans: investigation/propulsion.md (force-emitter force and load phase 0x14033efb0).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -821,6 +822,81 @@ export function radioSignal({ rxRange, txRange, rx = [0, 0, 0], tx = [0, 0, 0], 
   return { distance, bonus, baseRange: base, submerged, range, candidate, strength: Math.max(0, candidate), heard: candidate > 0, level: clamp(2 * Math.max(0, candidate), 0, 1) };
 }
 
+// Propellers, rotors and ducted fans, investigation/propulsion.md, ported from investigation/native/propulsion/tools/model.py.
+// Every part runs the force-emitter phase 0x14033efb0. binary32 in instruction order; Math.pow stands in for the native
+// powf in the altitude factor. rps is the published shaft speed, pitch the effective pitch after the saved offset, flow
+// the cached relative flow U along the thrust axis (m/s, already signed by the pitch). force is raw internal force before
+// the 100 × S application cap, with the hub medium gate applied. No cyclic, coaxial couple, folded state or shaft history.
+export const PROPULSION = {
+  speedFactor: f32(0.9999), loadFactor: 0.75, loadScale: f32(0.32), ratioHalf: 0.5, ratioClamp: 10, waterFactor: 10, weightDivisor: 1000,
+  bladeWeight: 0.125, thrustFactor: 1500, altitudeSlope: f32(2.2413793e-5), altitudeExponent: f32(5.3595023), altitudeCeiling: 40000, capLimit: 100, blades: 4,
+};
+// flags: bit 2 marine, bits 2 and 4 together the blade-scaled weight; air parts (no bit 2) take either weight.
+const emitter = (id, label, family, flags, maxForce, rotationSpeed, length, bladeEfficiency, efficiency, defaultPitch) => ({
+  id, label, families: [family], flags, maxForce, rotationSpeed, length, bladeEfficiency, efficiency, defaultPitch,
+  marine: (flags & 2) !== 0, weights: (flags & 6) === 6 ? [true] : (flags & 2) ? [false] : [false, true],
+});
+export const PROPELLER_VARIANTS = [
+  emitter('propeller', 'Small Propeller', 'marine-propeller', 524291, 20000, 1, 0.25, 0.075, 1, 1),
+  emitter('large_propeller', 'Large Propeller', 'marine-propeller', 524291, 100000, 1, 0.5, 0.15, 1, 1),
+  emitter('giga_prop_small', 'Giant Propeller', 'marine-propeller', 524291, 200000, 0.5, 1, 0.25, 1, 1),
+  emitter('propeller_pitch_small', 'Small Pitchable Propeller', 'pitchable-marine-propeller', 7, 20000, 1, 0.27, 0.075, 1, 0),
+  emitter('propeller_pitch', 'Pitchable Propeller', 'pitchable-marine-propeller', 7, 80000, 1, 1.27, 0.075, 1, 0),
+  emitter('propeller_pitch_large', 'Large Pitchable Propeller', 'pitchable-marine-propeller', 7, 160000, 1, 2.27, 0.075, 1, 0),
+  emitter('azimuth_thruster', 'Azimuth Thruster', 'part-azimuth-thruster', 524291, 40000, 1, 0.25, 0.15, 1, 1),
+  emitter('large_rotor', 'Large Rotor', 'helicopter-rotor', 536870913, 40000, 1, 4, 0.01, 1.25, 1),
+  emitter('huge_rotor', 'Huge Rotor', 'helicopter-rotor', 536870913, 200000, 1, 8.25, 0.01, 1.25, 1),
+  emitter('heavy_rotor', 'Heavy Rotor', 'heavy-helicopter-rotor', 536870913, 120000, 1.5, 3, 0.02, 1, 1),
+  emitter('heavy_rotor_large', 'Heavy Large Rotor', 'heavy-helicopter-rotor', 536870913, 200000, 1.5, 4.25, 0.02, 1, 1),
+  emitter('rotor_coaxial_light', 'Rotor (Light)', 'through-drive-rotor', 1073741825, 10000, 1, 1.25, 0.01, 1.25, 1),
+  emitter('rotor_coaxial_small', 'Rotor (Small)', 'through-drive-rotor', 1073741825, 50000, 1, 4, 0.01, 1.25, 1),
+  emitter('rotor_coaxial_large', 'Rotor (Large)', 'through-drive-rotor', 1073741825, 200000, 1, 8, 0.01, 1.25, 1),
+  emitter('rotor_coaxial_light_end', 'Rotor End (Light)', 'part-rotor-coaxial-light-end', 1073741825, 10000, 1, 1.25, 0.01, 1.25, 1),
+  emitter('rotor_coaxial_prop_small', 'Rotor Propeller (Small)', 'through-drive-rotor-propeller', 1073741825, 120000, 1, 2.75, 0.01, 1.25, 1),
+  emitter('rotor_coaxial_prop', 'Rotor Propeller (Large)', 'through-drive-rotor-propeller', 1073741825, 200000, 1, 4, 0.01, 1.25, 1),
+  emitter('rotor_coaxial_prop_small_end', 'Rotor Propeller End (Small)', 'terminal-rotor-propeller', 1073741825, 120000, 1, 2.75, 0.01, 1.25, 1),
+  emitter('rotor_coaxial_prop_end', 'Rotor Propeller End (Large)', 'terminal-rotor-propeller', 1073741825, 200000, 1, 4, 0.01, 1.25, 1),
+  emitter('aircraft_propeller', 'Aircraft Propeller', 'part-aircraft-propeller', 5, 70000, 3, 1.25, 0.02, 1, 1),
+  emitter('tail_rotor', 'Rotor (Tail)', 'part-tail-rotor', 5, 4000, 1, 1, 0.01, 1, 0),
+  emitter('fan_small', 'Small Ducted Fan', 'ducted-fan', 524288, 2000, 1, 1.5, 0.01, 1, 1),
+  emitter('fan_large', 'Large Ducted Fan', 'ducted-fan', 524288, 10000, 1, 4.1, 0.01, 1, 1),
+];
+export const propellerVariantFor = (family, variant = null) =>
+  PROPELLER_VARIANTS.find((v) => v.id === variant) ?? PROPELLER_VARIANTS.find((v) => v.families.includes(family)) ?? PROPELLER_VARIANTS[0];
+
+// Altitude factor of air parts: (1 - 2.2413793e-5 × y)^5.3595023 of the body altitude y, 0 above 40000.
+export const propellerAltitude = (y) => (y <= PROPULSION.altitudeCeiling ? f32(Math.pow(1 - PROPULSION.altitudeSlope * y, PROPULSION.altitudeExponent)) : 0);
+
+// One update of one part. bladeScaled selects K = F × B ÷ 8000 instead of F ÷ 1000; marine parts have it fixed by flags.
+export function propellerForce({ variant, rps, pitch = 1, flow = 0, blades = PROPULSION.blades, bladeScaled = null, submerged = null, altitude = 0 }) {
+  finite([rps, pitch, flow, blades, altitude]);
+  if (blades < 0) throw new RangeError('Blade count must be nonnegative.');
+  const v = variant;
+  const scaled = bladeScaled ?? v.weights[0];
+  if (!v.weights.includes(scaled)) throw new RangeError(`${v.label} does not use that weight branch.`);
+  const under = submerged ?? v.marine;
+  const p = f32(clamp(pitch, -1, 1));
+  let F = f32(v.maxForce);
+  if (scaled) F = f32(f32(blades * f32(PROPULSION.bladeWeight)) * F);
+  const K = f32(F / f32(PROPULSION.weightDivisor));
+  const w = f32(rps * PROPULSION.speedFactor);
+  const c = f32(w * f32(v.rotationSpeed));
+  let b = f32(c + c);
+  for (const x of [f32(Math.PI), v.length, p, f32(PROPULSION.loadFactor)]) b = f32(b * f32(x));
+  b = f32(b + f32(p * f32(flow)));
+  for (const x of [v.bladeEfficiency, blades, PROPULSION.loadScale]) b = f32(b * f32(x));
+  let q = K > 0 ? f32(clamp(f32(f32(b * f32(PROPULSION.ratioHalf)) / K), -PROPULSION.ratioClamp, PROPULSION.ratioClamp)) : 0;
+  if (under) q = f32(q * f32(PROPULSION.waterFactor));
+  const removed = f32(f32(f32(1) - f32(f32(1) / f32(f32(q * q) + f32(1)))) * w);
+  let raw = f32(f32(f32(f32(removed * K) * f32(PROPULSION.thrustFactor)) * f32(v.efficiency)) * (p < 0 ? -1 : 1));
+  if (!v.marine) raw = f32(raw * propellerAltitude(altitude));
+  const pushes = under === v.marine;
+  return { weight: K, damped: w, load: b, ratio: q, removed, post: f32(w - removed), raw, pushes, force: pushes ? raw : 0, perRps: rps ? raw / rps : null };
+}
+
+// Force after the application cap for a chosen scale S: raw × min(1, 100 × S ÷ |raw|).
+export const propellerCapped = (force, scale) => Math.sign(force) * Math.min(Math.abs(force), PROPULSION.capLimit * scale);
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -842,5 +918,6 @@ const FAMILY_GRAPHS = {
   ...Object.fromEntries(RADAR_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['radar']])),
   ...Object.fromEntries(LEGACY_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['legacy']])),
   ...Object.fromEntries(RADIO_ANTENNAS.flatMap((a) => a.families).map((id) => [id, ['radio']])),
+  ...Object.fromEntries(PROPELLER_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['propeller']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

@@ -5,7 +5,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1685,9 +1685,123 @@ function RadioGraph({ family, variant }) {
   );
 }
 
+/* ---------- propellers, rotors and ducted fans ---------- */
+
+const PROP_RPS_MAX = 60;
+const PROP_TABLE = [1, 5, 10, 20, 40, 60];
+const PROP_PLOTS = {
+  force: { label: 'Internal force', key: 'force', axis: 'Internal force (raw, before the 100 × S cap)', digits: 1 },
+  removed: { label: 'Shaft speed removed per update', key: 'removed', axis: 'RPS removed per update', digits: 4 },
+};
+const PROP_BRANCH = { false: 'K = F ÷ 1000', true: 'K = F × B ÷ 8000' };
+const PROP_LINES = ['graph-line-a', 'graph-line-b'];
+const PROP_DOTS = ['graph-dot-a', 'graph-dot-b'];
+const num = (v, d) => (Number.isFinite(v) ? v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) : 'n/a');
+const propTick = (v) => (Math.abs(v) >= 1e6 ? `${+(v / 1e6).toPrecision(3)}M` : Math.abs(v) >= 1e4 ? `${+(v / 1e3).toPrecision(3)}k` : tick(v));
+
+function PropellerGraph({ family, variant }) {
+  const uid = useUid();
+  const start = propellerVariantFor(family, variant);
+  const [part, setPart] = useState(start.id);
+  const [plot, setPlot] = useState('force');
+  const [pitch, setPitch] = useState(1);
+  const [flow, setFlow] = useState(0);
+  const [under, setUnder] = useState(start.marine);
+  const [rps, setRps] = useState(10);
+  const v = PROPELLER_VARIANTS.find((x) => x.id === part);
+  const pl = PROP_PLOTS[plot];
+  const pick = (id) => {
+    const next = PROPELLER_VARIANTS.find((x) => x.id === id);
+    setPart(id);
+    setUnder(next.marine);
+  };
+  const run = (r, scaled) => propellerForce({ variant: v, rps: r, pitch, flow, bladeScaled: scaled, submerged: under });
+  const samples = useMemo(
+    () => steps(0, PROP_RPS_MAX, 0.5).map((r) => ({ r, by: v.weights.map((s) => propellerForce({ variant: v, rps: r, pitch, flow, bladeScaled: s, submerged: under })) })),
+    [v, pitch, flow, under],
+  );
+  const here = v.weights.map((s) => run(rps, s));
+  const y = forceDomain(samples.flatMap((s) => s.by.map((x) => x[pl.key])));
+  const medium = v.marine ? (under ? 'hub under water: pushes' : 'hub above water: no thrust, shaft still loaded') : (under ? 'hub under water: no thrust, load ratio × 10' : 'hub above water: pushes');
+  const values = here.map((x, i) => `${v.weights.length > 1 ? `${PROP_BRANCH[v.weights[i]]}: ` : ''}${num(x[pl.key], pl.digits)}`).join('; ');
+  const summary = `${v.label} at ${fixed(rps, 1)} RPS, effective pitch ${fixed(pitch, 2)}, flow ${flow} m/s, ${medium}. ${pl.label}: ${values}.`;
+  const status = useSettled(summary);
+  const desc = `${pl.label} against published shaft RPS from 0 to ${PROP_RPS_MAX}${v.weights.length > 1 ? ', one line per candidate solver weight' : ''}. Thrust grows about with RPS cubed at low speed and close to linearly once the load ratio saturates. ${summary}`;
+  const pitchHint = v.defaultPitch === 1
+    ? 'Effective pitch after the saved pitch. This part starts at saved pitch 1, so its Collective input gives 0 to 1 here, and parts without an input stay at 1.'
+    : 'Effective pitch after the saved pitch. This part starts at saved pitch 0, so its Pitch or Yaw input is the effective pitch.';
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={v.weights.map((s, i) => ({
+        label: v.weights.length > 1 ? `${PROP_BRANCH[s]}, ${s ? 'blade-scaled weight' : 'definition weight'} (the air selector is open)` : `${PROP_BRANCH[s]}, fixed by the marine flags`,
+        className: PROP_LINES[i],
+      }))}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Part</label>
+            <select id={`${uid}-part`} value={part} onChange={(ev) => pick(ev.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {PROPELLER_VARIANTS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`F ${v.maxForce}, rotation_speed ${v.rotationSpeed}, blade_physics_length ${v.length}, blade_efficiency ${v.bladeEfficiency}, efficiency ${v.efficiency}; ${v.marine ? 'marine' : 'air'} part.`}</span>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-plot`}>Plot</label>
+            <select id={`${uid}-plot`} value={plot} onChange={(e) => setPlot(e.target.value)} aria-describedby={`${uid}-plot-hint`}>
+              {Object.entries(PROP_PLOTS).map(([k, x]) => <option key={k} value={k}>{x.label}</option>)}
+            </select>
+            <span id={`${uid}-plot-hint`} className="graph-field-hint">Removed speed is what the part takes off its own shaft speed; it reaches the shaft group on the next update.</span>
+          </div>
+          <Range id={`${uid}-p`} label="Effective pitch" value={pitch} min={-1} max={1} step={0.05} onChange={(x) => setPitch(+x.toFixed(2))} valueText={fixed(pitch, 2)} hint={pitchHint} />
+          <Range id={`${uid}-u`} label="Relative flow U" value={flow} min={-40} max={40} step={1} onChange={setFlow} valueText={`${flow} m/s`} hint="Flow along the thrust axis, already signed by the pitch. It adds p × U to the load term; 0 is still air or water." />
+          <Check id={`${uid}-w`} label="Hub below the water surface" checked={under} onChange={setUnder} hint={v.marine ? 'Marine parts push only with the hub under water.' : 'Air parts push only with the hub above water.'} />
+          <Range id={`${uid}-x`} label="Selected shaft speed" value={rps} min={0} max={PROP_RPS_MAX} step={0.5} onChange={setRps} valueText={`${fixed(rps, 1)} RPS`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`${pl.label} of the ${v.label} against shaft RPS`}
+          desc={desc}
+          x={{ min: 0, max: PROP_RPS_MAX, ticks: steps(0, PROP_RPS_MAX, 10), format: (r) => fixed(r, r % 1 ? 1 : 0), label: 'Published shaft speed (RPS)' }}
+          y={{ ...y, format: propTick }}
+          series={v.weights.map((s, i) => ({ key: String(s), className: PROP_LINES[i], points: samples.map((x) => [x.r, x.by[i][pl.key]]) }))}
+          selected={{ x: rps, points: v.weights.map((s, i) => ({ key: String(s), y: here[i][pl.key], className: PROP_DOTS[i] })) }}
+          onSelect={(r) => setRps(snap(r, 0, PROP_RPS_MAX, 0.5))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${v.label} at ${fixed(rps, 1)} RPS`}
+          rows={[
+            ['Medium', medium, here[0].pushes ? 'graph-ok' : 'graph-no'],
+            ...v.weights.flatMap((s, i) => {
+              const tag = v.weights.length > 1 ? ` (${PROP_BRANCH[s]})` : '';
+              return [
+                [`Solver weight K${tag}`, num(here[i].weight, 0)],
+                [`Load ratio q${tag}`, fixed(here[i].ratio, 4)],
+                [`RPS removed${tag}`, fixed(here[i].removed, 4)],
+                [`Internal force${tag}`, num(here[i].force, 1)],
+              ];
+            }),
+          ]}
+        />
+      )}
+      table={{
+        caption: `${v.label}, ${pl.label.toLowerCase()}, pitch ${fixed(pitch, 2)}, flow ${flow} m/s, ${under ? 'hub under water' : 'hub above water'}`,
+        cols: ['Shaft speed (RPS)', ...v.weights.map((s) => PROP_BRANCH[s])],
+        rows: PROP_TABLE.map((r) => [fixed(r, 0), ...v.weights.map((s) => num(run(r, s)[pl.key], pl.digits))]),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
-  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph,
+  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

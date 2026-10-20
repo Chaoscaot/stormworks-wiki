@@ -63455,7 +63455,7 @@
           "key": "attributes.force_emitter_max_force",
           "label": "Force emitter field",
           "unit": null,
-          "meaning": "Selected propeller/rotor configuration. This is not measured thrust in newtons."
+          "meaning": "Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research."
         }
       ],
       "findings": [
@@ -63579,7 +63579,7 @@
         {
           "label": "Heavy Rotor · Force emitter field",
           "value": "120000",
-          "detail": "heavy_rotor: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "heavy_rotor: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/heavy_rotor.xml:65165d3ed53b:L2-L2",
           "status": "observed",
           "source": {
@@ -63777,7 +63777,7 @@
         {
           "label": "Heavy Large Rotor · Force emitter field",
           "value": "200000",
-          "detail": "heavy_rotor_large: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "heavy_rotor_large: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/heavy_rotor_large.xml:99cab671d722:L2-L2",
           "status": "observed",
           "source": {
@@ -63871,7 +63871,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules."
+        "Shaft speed is in RPS and force is in the game's internal unit. The thrust, shaft-load, solver-weight and port-coupling equations come from native code and are in the practical behaviour research; open items shared by all propellers and rotors are listed under Propulsion on the parts index."
       ]
     },
     {
@@ -63920,7 +63920,7 @@
           "key": "attributes.force_emitter_max_force",
           "label": "Force emitter field",
           "unit": null,
-          "meaning": "Selected propeller/rotor configuration. This is not measured thrust in newtons."
+          "meaning": "Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research."
         }
       ],
       "findings": [
@@ -64044,7 +64044,7 @@
         {
           "label": "Large Rotor · Force emitter field",
           "value": "40000",
-          "detail": "large_rotor: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "large_rotor: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2",
           "status": "observed",
           "source": {
@@ -64242,7 +64242,7 @@
         {
           "label": "Huge Rotor · Force emitter field",
           "value": "200000",
-          "detail": "huge_rotor: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "huge_rotor: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/huge_rotor.xml:93339c463637:L2-L2",
           "status": "observed",
           "source": {
@@ -64336,8 +64336,8 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "Input values do not establish blade angles."
+        "Shaft speed is in RPS and force is in the game's internal unit. The thrust, shaft-load, solver-weight and port-coupling equations come from native code and are in the practical behaviour research; open items shared by all propellers and rotors are listed under Propulsion on the parts index.",
+        "Roll, Pitch and Collective are normalized inputs from -1 to 1, not blade angles; the practical behaviour research gives how they move the force and set the pitch."
       ]
     },
     {
@@ -82185,7 +82185,7 @@
           "key": "attributes.force_emitter_max_force",
           "label": "Force emitter field",
           "unit": null,
-          "meaning": "Selected propeller/rotor configuration. This is not measured thrust in newtons."
+          "meaning": "Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research."
         }
       ],
       "findings": [
@@ -82270,7 +82270,7 @@
         {
           "label": "Small Propeller · Force emitter field",
           "value": "20000",
-          "detail": "propeller: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "propeller: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/propeller.xml:355c36851a7c:L2-L2",
           "status": "observed",
           "source": {
@@ -82429,7 +82429,7 @@
         {
           "label": "Large Propeller · Force emitter field",
           "value": "100000",
-          "detail": "large_propeller: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "large_propeller: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/large_propeller.xml:9a7c12b9b768:L2-L2",
           "status": "observed",
           "source": {
@@ -82588,7 +82588,7 @@
         {
           "label": "Giant Propeller · Force emitter field",
           "value": "200000",
-          "detail": "giga_prop_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "giga_prop_small: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/giga_prop_small.xml:c84fbc23b871:L2-L2",
           "status": "observed",
           "source": {
@@ -82686,7 +82686,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules."
+        "Shaft speed is in RPS and force is in the game's internal unit. The thrust, shaft-load, solver-weight and port-coupling equations come from native code and are in the practical behaviour research; open items shared by all propellers and rotors are listed under Propulsion on the parts index."
       ]
     },
     {
@@ -104295,7 +104295,7 @@
           "key": "attributes.force_emitter_max_force",
           "label": "Force emitter field",
           "unit": null,
-          "meaning": "Selected propeller/rotor configuration. This is not measured thrust in newtons."
+          "meaning": "Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research."
         }
       ],
       "findings": [
@@ -104393,7 +104393,7 @@
         {
           "label": "Small Pitchable Propeller · Force emitter field",
           "value": "20000",
-          "detail": "propeller_pitch_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "propeller_pitch_small: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/propeller_pitch_small.xml:d7b2238acdba:L2-L2",
           "status": "observed",
           "source": {
@@ -104555,7 +104555,7 @@
         {
           "label": "Pitchable Propeller · Force emitter field",
           "value": "80000",
-          "detail": "propeller_pitch: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "propeller_pitch: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/propeller_pitch.xml:34143f31286d:L2-L2",
           "status": "observed",
           "source": {
@@ -104719,7 +104719,7 @@
         {
           "label": "Large Pitchable Propeller · Force emitter field",
           "value": "160000",
-          "detail": "propeller_pitch_large: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "propeller_pitch_large: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/propeller_pitch_large.xml:5e0c4d98f1f4:L2-L2",
           "status": "observed",
           "source": {
@@ -104809,8 +104809,8 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "The conversion from pitch input to blade angle is unknown."
+        "Shaft speed is in RPS and force is in the game's internal unit. The thrust, shaft-load, solver-weight and port-coupling equations come from native code and are in the practical behaviour research; open items shared by all propellers and rotors are listed under Propulsion on the parts index.",
+        "Pitch is a normalized effective pitch from -1 to 1, not a blade angle; the practical behaviour research gives how it enters the shaft load and thrust."
       ]
     },
     {
@@ -134870,7 +134870,7 @@
           "key": "attributes.force_emitter_max_force",
           "label": "Force emitter field",
           "unit": null,
-          "meaning": "Selected propeller/rotor configuration. This is not measured thrust in newtons."
+          "meaning": "Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research."
         }
       ],
       "findings": [
@@ -134994,7 +134994,7 @@
         {
           "label": "Rotor Propeller End (Small) · Force emitter field",
           "value": "120000",
-          "detail": "rotor_coaxial_prop_small_end: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "rotor_coaxial_prop_small_end: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/rotor_coaxial_prop_small_end.xml:6a370a4589ce:L2-L2",
           "status": "observed",
           "source": {
@@ -135184,7 +135184,7 @@
         {
           "label": "Rotor Propeller End (Large) · Force emitter field",
           "value": "200000",
-          "detail": "rotor_coaxial_prop_end: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "rotor_coaxial_prop_end: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/rotor_coaxial_prop_end.xml:58592bf5a3e8:L2-L2",
           "status": "observed",
           "source": {
@@ -135270,7 +135270,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules."
+        "Shaft speed is in RPS and force is in the game's internal unit. The thrust, shaft-load, solver-weight and port-coupling equations come from native code and are in the practical behaviour research; open items shared by all propellers and rotors are listed under Propulsion on the parts index."
       ]
     },
     {
@@ -135777,7 +135777,7 @@
           "key": "attributes.force_emitter_max_force",
           "label": "Force emitter field",
           "unit": null,
-          "meaning": "Selected propeller/rotor configuration. This is not measured thrust in newtons."
+          "meaning": "Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research."
         }
       ],
       "findings": [
@@ -135914,7 +135914,7 @@
         {
           "label": "Rotor (Light) · Force emitter field",
           "value": "10000",
-          "detail": "rotor_coaxial_light: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "rotor_coaxial_light: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/rotor_coaxial_light.xml:c0c0b4d8ecec:L2-L2",
           "status": "observed",
           "source": {
@@ -136115,7 +136115,7 @@
         {
           "label": "Rotor (Small) · Force emitter field",
           "value": "50000",
-          "detail": "rotor_coaxial_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "rotor_coaxial_small: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/rotor_coaxial_small.xml:ebc968bd433c:L2-L2",
           "status": "observed",
           "source": {
@@ -136317,7 +136317,7 @@
         {
           "label": "Rotor (Large) · Force emitter field",
           "value": "200000",
-          "detail": "rotor_coaxial_large: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "rotor_coaxial_large: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/rotor_coaxial_large.xml:0c21ab40591f:L2-L2",
           "status": "observed",
           "source": {
@@ -136406,8 +136406,8 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "Mechanical power sharing between the two ports is unknown."
+        "Shaft speed is in RPS and force is in the game's internal unit. The thrust, shaft-load, solver-weight and port-coupling equations come from native code and are in the practical behaviour research; open items shared by all propellers and rotors are listed under Propulsion on the parts index.",
+        "Power Connection A and B are linked through the shaft solver's speed bridge, fraction 0.95 and ratio 1 per link, with the rotor's load on A; the practical behaviour research gives the coupling. No fixed power split applies."
       ]
     },
     {
@@ -136456,7 +136456,7 @@
           "key": "attributes.force_emitter_max_force",
           "label": "Force emitter field",
           "unit": null,
-          "meaning": "Selected propeller/rotor configuration. This is not measured thrust in newtons."
+          "meaning": "Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research."
         }
       ],
       "findings": [
@@ -136593,7 +136593,7 @@
         {
           "label": "Rotor Propeller (Small) · Force emitter field",
           "value": "120000",
-          "detail": "rotor_coaxial_prop_small: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "rotor_coaxial_prop_small: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/rotor_coaxial_prop_small.xml:b94fdc6dd0f8:L2-L2",
           "status": "observed",
           "source": {
@@ -136795,7 +136795,7 @@
         {
           "label": "Rotor Propeller (Large) · Force emitter field",
           "value": "200000",
-          "detail": "rotor_coaxial_prop: attributes.force_emitter_max_force. Selected propeller/rotor configuration. This is not measured thrust in newtons.",
+          "detail": "rotor_coaxial_prop: attributes.force_emitter_max_force. Effective max force F. The force-emitter update uses it for the shaft solver weight K = F ÷ 1000 (F × intact blades ÷ 8000 when blade-scaled) and the load ratio; it is not a thrust ceiling. The thrust equation is in the practical behaviour research.",
           "evidenceId": "resource:rom/data/definitions/rotor_coaxial_prop.xml:49d978374ce9:L2-L2",
           "status": "observed",
           "source": {
@@ -136880,8 +136880,8 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "Mechanical power sharing between the two ports is unknown."
+        "Shaft speed is in RPS and force is in the game's internal unit. The thrust, shaft-load, solver-weight and port-coupling equations come from native code and are in the practical behaviour research; open items shared by all propellers and rotors are listed under Propulsion on the parts index.",
+        "Power Connection A and B are linked through the shaft solver's speed bridge, fraction 0.95 and ratio 1 per link, with the rotor's load on A; the practical behaviour research gives the coupling. No fixed power split applies."
       ]
     },
     {
