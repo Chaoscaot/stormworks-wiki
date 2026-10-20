@@ -1,0 +1,35 @@
+## 5. Hoses, winches, connectors and enclosed pipes
+
+### Old coiled Hose
+
+`water_hose.xml` is component type 20, with child `water_hose_b`, type 7. The definition documents a maximum length of 16 m at line 346. RTTI and vtable anchors identify `c_scene_vehicle_component_winch`, vtable `0x140b958e8`, slot +0x358 bytes `70 3a 3e 40 01 00 00 00`, update `0x1403e3a70`. Constructor installs it at `0x1403e2703`.
+
+When linked component+0x148 is nonzero, `0x1403e3b09`, bytes `e8 c2 9d f0 ff`, calls the two-port solver with ports `self+0x230` and `linked+0x230`, bias 0, factor 1, one-way false and mask -1. The branch does not allocate a hose compartment, add volume or read hose length. Thus the decoded hydraulic operation bridges the endpoint networks. The actual winch-length controller is outside this fluid decode.
+
+### Current hose anchors and winches
+
+`rope_hook_fluid.xml:2-3` identifies component type 48, subtype 1, and documents a single hose link. `rope_hook_winch*.xml:2` identifies the current winches as type 48, subtype 3. Hose pulleys are subtype 8, with two Fluid Node ports; their descriptions and ports are retained.
+
+RTTI `c_scene_vehicle_component_rope_hook`, vtable `0x140b600f0`, has a second component pass at slot +0x360, bytes `40 68 3b 40 01 00 00 00`, function `0x1403b6840`. Initializer `0x1403b4a50` binds first and second type-3 ports at self+0x930 and +0x968, within port structures self+0x918 and +0x950. Its normal update at +0x358 also maintains attachment state; the fluid transfer itself is in +0x360.
+
+The body component pass dispatches slot +0x360 at `0x1404996a7`, bytes `41 ff 92 60 03 00 00`, retained in `rope-hook-dispatch.asm`. The two side paths call `0x1402ed8d0`:
+
+- First side `0x1403b6c4a`, bytes `e8 81 6c f3 ff`, requires a connected network at self+0x938 and link-valid flag +0xaa8. It connects port self+0x918 to the linked object's first port, or its second port when the linked object is a hose pulley and points back from its second side.
+- Second side `0x1403b6ef1`, bytes `e8 da 69 f3 ff`, requires self+0x970 and flag +0xaa9. It uses self+0x950 and makes the same linked-side selection.
+
+Both calls use bias 0, one-way false and all species. Factor is 1 when the current component subtype is 8, otherwise 0.5. The subtype test and factor load are at `0x1403b6be7-0x1403b6bf5` and `0x1403b6e90-0x1403b6e99`. No length is loaded in these exchange branches and no internal fluid state is supplied. The endpoint network's pressure law is unchanged.
+
+The extra network builder `0x1404a2130` tests subtype 8 and creates a V=4 fluid network when its first fluid port needs one. The store at `0x1404a226f` is `c7 40 08 00 00 80 40`. It registers the two eligible pulley ports in that state through `0x1402ec100` at `0x1404a22c6` and `0x1404a22f1`. This is an internal shared network for the pulley ports, not a volume proportional to deployed hose length.
+
+The link-valid flags' complete creation policy, invalid attachments, every current winch-to-equipment combination and handheld free-end valve operation remain open. `inventory_equipment_hose.xml:144` documents a 20 m carried hose and secondary-action valve, but this resource is not proof that the handheld free end uses either of the decoded calls. Do not silently equate handheld equipment, current rope-hook hoses and the old type-20 Hose.
+
+### Fluid connector
+
+`connector_water.xml` is type 17. Its line 109 documents fluid transfer between attached connectors. Vtable `0x140b50988`, RTTI `c_scene_vehicle_component_connector`, has update slot +0x358 bytes `30 41 3d 40 01 00 00 00`, `0x1403d4130`.
+
+At `0x1403d44d4`, bytes `e8 f7 93 f1 ff`, it bridges ports self+0x8d0 and attached+0x8d0 with bias 0, factor 0.5, one-way false and mask -1. Gates include attached pointer +0x950, a network at +0x8f0 and flag +0x970. It does not merge the two network objects or add connector storage volume in this path. The connector's complete attachment/release mechanics are outside the hydraulic conclusion.
+
+### Enclosed pipes
+
+All retained `trans_block_*.xml` definitions are type 6, like the open pipe definitions. Their fluid connection faces are type 3. The existing `0x1404a0f50` traversal tests component virtual type 6 and matching connection faces. It does not distinguish enclosed pipe meshes when adding traversed faces and does not add per-block volume. They therefore participate in the ordinary V=4 network result. The resource evidence rules out treating an enclosed pipe as a separate tank merely because its mesh is enclosed.
+

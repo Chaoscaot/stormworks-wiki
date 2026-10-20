@@ -347,14 +347,38 @@ def build(root):
         child = b["attributes"].get("child_name")
         if child and child.startswith(("multibody_", "linear_")):
             bases.setdefault(child, []).append(b["name"])
+    # Winch end pieces have no tooltip either; a type-20 winch or the Hose names one as child_name and owns the reel (investigation/winches.md).
+    spools = {}
+    for b in blocks:
+        child = b["attributes"].get("child_name")
+        if child and b["attributes"].get("type") == "20":
+            spools.setdefault(child, []).append("%s (%s)" % (b["name"], b["id"]))
+    defs = root / "rom/data/definitions"
     for bid in sorted(set(by_id) - covered):
         block = by_id[bid]
-        body = None
+        body = summary = None
         if bid in bases and not (block["description"] or block["short_description"]):
             body = ("The moving half of a joint. %s places it as its child_name and runs the joint's motor; this definition has no tooltip of its own. "
                     "The practical behaviour research gives the assembled joint's rule." % " or ".join(bases[bid]))
+        elif block["attributes"].get("type") == "7" and block["name"] == "winch end" and not (block["description"] or block["short_description"]):
+            names = lambda xs: xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+            if bid in spools:
+                body = ("The end piece of a legacy winch or hose. %s name%s it as child_name, build%s the rope to it and own%s the controls, reel speed, length limits and electricity; "
+                        "this definition has no tooltip of its own. The practical behaviour research gives the assembled winch's rule." % (
+                            names(spools[bid]), *(("s",) * 3 if len(spools[bid]) == 1 else ("",) * 3)))
+                summary = "End piece of %s; the winch owns the reel." % names(spools[bid])
+            else:
+                # winch_large_b would belong to winch_large_a by name; that winch names another end piece.
+                twins = [c for c in sorted(spools) if (defs / (c + ".xml")).read_bytes() == (defs / (bid + ".xml")).read_bytes()]
+                spool = by_id.get(bid[:-2] + "_a")
+                if not twins or spool is None or spool["attributes"].get("child_name") not in twins:
+                    raise ValueError("Winch end piece without a parent or twin: " + bid)
+                used = spool["attributes"]["child_name"]
+                body = ("A winch end piece whose definition file is identical to %s. No shipped definition names it as child_name; the %s (%s) names %s instead. "
+                        "This definition has no tooltip of its own." % (names(twins), spool["name"], spool["id"], used))
+                summary = "Winch end piece identical to %s, which the %s uses; no shipped winch names this one as child_name." % (used, spool["name"])
         specs.append(dict(id="part-" + bid.replace("_", "-"), title=block["name"], category=fallback_category(block),
-                          ids=[bid], summary=None, body=body, sections=[], fields=[], limits=["Singleton fallback. No equivalence with similarly named definitions is asserted."]))
+                          ids=[bid], summary=summary, body=body, sections=[], fields=[], limits=["Singleton fallback. No equivalence with similarly named definitions is asserted."]))
     families = []
     mapping = {}
     for spec in specs:

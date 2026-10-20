@@ -112,6 +112,12 @@ const FINDINGS = {
     'Tread speed pi factor', 'Tread speed', 'Wheel angle step divisor', 'Linear speed output', 'Wheel slip velocity limit',
     'Wheel shaft weight', 'Suspended wheel shaft weight factor', 'Track RPS average',
   ],
+  winch: [
+    'cable_length binding', 'Rope winch step per metre of cable_length', 'Rope winch Speed defaults', 'Rope winch button step', 'Speed input step',
+    'Shared cable limit', 'Rope length acceptance', 'Rope winch electrical gate', 'Rope winch charge request',
+    'Legacy reel step per Speed', 'Legacy Up step', 'Legacy Down step', 'Legacy reel charge request', 'Legacy rest-length clamp', 'Legacy Speed defaults',
+    'Ticks per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -136,6 +142,7 @@ const TITLES = {
   steam: 'Firebox, boiler and turbine warm-up over time',
   piston: 'Steam piston drive against crank phase',
   wheel: 'Wheel tread speed against RPS',
+  winch: 'Winch reel speed and time to reel a length',
 };
 
 /*
@@ -902,10 +909,41 @@ const WHEEL_SPEED = {
   ],
 };
 
+const WINCH_REEL = {
+  intro: (
+    <p>
+      Rope-node winches step the rope by 0.0002 × cable_length × Speed metres per update, so a bigger winch reels faster. Legacy
+      winches and the Hose step by 0.004 × Speed × p metres, p being the share of each 0.01 charge request the network supplies, so
+      every size reels at the same rate. The chart draws the reel speed against the Speed property, or the time to reel a chosen
+      length, for each winch.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="r">{sub('v', 'rope')}{mo('=')}{mn('60')}{mo('×')}{mn('0.0002')}{mi('C')}{mi('V')}<mspace width="1em" /><mtext>m/s, C = cable_length</mtext></mrow>,
+        <mrow key="l">{sub('v', 'legacy')}{mo('=')}{mn('60')}{mo('×')}{mn('0.004')}{mi('V')}{mi('p')}<mspace width="1em" /><mtext>m/s, p = supplied fraction</mtext></mrow>,
+        <mrow key="t">{mi('t')}{mo('=')}<mo>⌈</mo>{mi('L')}{mo('÷')}{sub('s', 'update')}<mo>⌉</mo>{mo('÷')}{mn('60')}<mspace width="1em" /><mtext>s</mtext></mrow>,
+      ]}
+      text={[
+        'rope-node: m/s = 60 * 0.0002 * cable_length * Speed   (Speed 0.1 to 10, default 1)',
+        'legacy and Hose: m/s = 60 * 0.004 * Speed * p   (Speed 0.1 to 5, default 1; p = supplied fraction of a 0.01 request)',
+        't = ceil(L / step per update) / 60   seconds',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'These are changes of the rope\'s rest length. A loaded hook can lag behind, and no loaded travel was measured.',
+    'Rope-node winches reel at full rate whenever the electrical gate passes; supply only matters for legacy spools. Holding both controls cancels in both kinds.',
+    'The time ignores bounds. A rope-node rope stays above 0.1 m and below the sum of both ends\' cable_length, and a step that would cross a bound is dropped; a legacy rope is clamped to 0.25 m to cable_length.',
+    'Two rope-node winches on one rope reel at the sum of their rates. The Speed input of the larger rope-node winches scales the rate by a value from -1 to 1.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
-  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED,
+  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED, winch: WINCH_REEL,
 };
 
 function Evidence({ items }) {

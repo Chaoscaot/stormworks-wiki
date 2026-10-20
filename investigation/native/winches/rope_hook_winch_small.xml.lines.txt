@@ -1,0 +1,8 @@
+2: <definition name="Small Winch" category="4" type="48" mass="10" value="100" flags="532481" audio_filename_loop="audio/fx/servo_medium_loop.ogg" mesh_data_name="meshes/component_winch_electric.mesh" constraint_axis="1" max_motor_force="100" cable_length="10" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="10000" force_emitter_max_vector="1" force_emitter_default_pitch="1" force_emitter_blade_physics_length="4.1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" logic_gate_subtype="3" magnet_force="1">
+3: <tooltip_properties description="Draw a rope logic link between two Rope Nodes to form a cable. Can be extended and retracted." short_description="A mechanical winch that can transfer electric/fluid through an attached cable, with an extension length of 10m."/>
+53: <logic_nodes>
+54: <logic_node label="Down" mode="1" description="Lowers the winch cable down when receiving an on signal.">
+57: <logic_node label="Up" mode="1" description="Raises the winch cable up when receiving an on signal.">
+60: <logic_node label="Rope Node" mode="1" type="8">
+63: <logic_node label="Electric Node" mode="1" type="4">
+66: <logic_node orientation="3" label="Fluid" type="3" description="Fluid connection for the hose coil.">

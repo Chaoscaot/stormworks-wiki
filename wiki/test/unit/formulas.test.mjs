@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1350,5 +1350,127 @@ test('wheel model reproduces investigation/native/wheels/wheels.json when presen
     const w = WHEELS.find((x) => x.radius === ex.radius_m);
     const r = treadSpeed({ wheel: w, rps: ex.rps });
     assert.ok(Math.abs(r.ms - ex.m_s) <= 1e-12 * ex.m_s && Math.abs(r.kmh - ex.km_h) <= 1e-12 * ex.km_h, `${ex.radius_m} m at ${ex.rps} RPS`);
+  }
+});
+
+test('winch constants and parts remain tied to the verified native findings and shipped definitions', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const all = data.families.flatMap((f) => f.findings);
+  const value = (label) => {
+    const x = all.find((f) => f.label === label);
+    assert.ok(x?.source?.address, label);
+    return Number(x.value);
+  };
+  assert.equal(value('Rope winch step per metre of cable_length'), WINCH.ropeStep);
+  assert.equal(value('Legacy reel step per Speed'), WINCH.legacyStep);
+  assert.equal(value('Rope winch charge request'), WINCH.request);
+  assert.equal(value('Legacy reel charge request'), WINCH.request);
+  assert.equal(value('Legacy minimum rest length'), WINCH.legacyMin);
+  assert.equal(value('Speed input threshold'), WINCH.speedGate);
+  assert.equal(WINCH.ropeMin, WINCH.speedGate);
+  assert.equal(all.find((f) => f.label === 'Rope winch Speed defaults').value, 'Speed 1, editor range 0.1 to 10');
+  assert.equal(all.find((f) => f.label === 'Legacy Speed defaults').value, 'Speed 1, editor range 0.1 to 5');
+  assert.deepEqual(WINCH_GROUPS.map((g) => [g.kind, g.speedMin, g.speedMax]), [['rope', 0.1, 10], ['legacy', 0.1, 5]]);
+  const blocks = new Map(JSON.parse(readFileSync(new URL('../../data/blocks.json', import.meta.url), 'utf8')).blocks.map((b) => [b.id, b]));
+  const families = new Map(JSON.parse(readFileSync(new URL('../../data/families.json', import.meta.url), 'utf8')).families.map((f) => [f.id, f]));
+  for (const w of WINCHES) {
+    const b = blocks.get(w.id);
+    assert.equal(Number(b.attributes.cable_length), w.capacity, w.id);
+    assert.equal(Number(b.attributes.type), w.kind === 'rope' ? 48 : 20, w.id);
+    assert.equal(b.name, w.label, w.id);
+    assert.deepEqual(families.get(w.family).variants.map((x) => x.id), [w.id]);
+    assert.deepEqual(graphKindsForFamily(w.family), ['winch']);
+    // The extractor's per-definition figures use the same law.
+    const r = winchRate({ winch: w });
+    const fig = all.find((f) => f.label.startsWith(`${w.label} (${w.id}) reel speed`));
+    assert.ok(fig, w.id);
+    assert.equal(fig.value.split(' m/s')[0], String(+r.perSecond.toPrecision(6)), w.id);
+  }
+  for (const id of ['part-winch-b', 'part-water-hose-b', 'part-rope-hook-fluid']) assert.deepEqual(graphKindsForFamily(id), []);
+  assert.equal(winchFor('part-winch-huge-a').id, 'winch_huge_a');
+  assert.equal(winchFor(null, 'rope_hook_winch_large').id, 'rope_hook_winch_large');
+});
+
+test('winch reel rates and reel times follow the decoded steps', () => {
+  const near = (a, b) => assert.ok(Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(b)), `${a} != ${b}`);
+  const rope = (id) => winchFor(null, id);
+  near(winchRate({ winch: rope('rope_hook_winch_small') }).perSecond, 0.12);
+  near(winchRate({ winch: rope('rope_hook_winch') }).perSecond, 0.48);
+  near(winchRate({ winch: rope('rope_hook_winch_large') }).perSecond, 1.8);
+  near(winchRate({ winch: rope('rope_hook_winch_huge') }).perSecond, 7.2);
+  near(winchRate({ winch: rope('rope_hook_winch_huge'), speed: 10 }).perSecond, 72);
+  near(winchRate({ winch: rope('rope_hook_winch_small'), speed: 0.1 }).perSecond, 0.012);
+  for (const id of ['winch_electric', 'winch_a', 'winch_large_a', 'winch_huge_a', 'water_hose']) {
+    near(winchRate({ winch: rope(id) }).perSecond, 0.24);
+    near(winchRate({ winch: rope(id), speed: 5 }).perSecond, 1.2);
+    near(winchRate({ winch: rope(id), supply: 0.5 }).perSecond, 0.12);
+  }
+  // Supply does not slow a rope-node winch.
+  near(winchRate({ winch: rope('rope_hook_winch'), supply: 0.2 }).perSecond, 0.48);
+  near(winchRate({ winch: rope('winch_a') }).chargePerSecond, 0.6);
+  assert.deepEqual(reelTime({ winch: rope('winch_a'), length: 10 }), { updates: 2500, seconds: 2500 / 60 });
+  assert.deepEqual(reelTime({ winch: rope('rope_hook_winch'), length: 0.48 }), { updates: 60, seconds: 1 });
+  assert.equal(reelTime({ winch: rope('winch_a'), length: 1, supply: 0 }).seconds, Infinity);
+  assert.throws(() => winchRate({ winch: rope('winch_a'), speed: Number.NaN }), RangeError);
+});
+
+// investigation/native/winches/model-examples.json, written by tools/model.py; kept inline so the test runs without investigation/.
+const WINCH_EXAMPLES = {
+  old_medium_one_update_up_full_supply: { length_m: 4.996, draw: 0.010000000000000009, energy_left: 0.99 },
+  old_both_full_supply: { length_m: 5.0, draw: 0.020000000000000018, energy_left: 0.98 },
+  'old_both_0.015_energy': { length_m: 4.998, draw: 0.015, energy_left: 0.0 },
+  old_at_max_still_draws: { length_m: 20, draw: 0.010000000000000009, energy_left: 0.99 },
+  current_medium_down_one_update: { length_m: 5.008, movement_flag: true },
+  current_huge_down_one_update: { length_m: 5.12, movement_flag: true },
+  current_both: { length_m: 5, movement_flag: false },
+  current_reject_upper_boundary: { length_m: 9.999, movement_flag: false },
+  current_relative_speed_ignores_digital_gate: { length_m: 5.004, movement_flag: true },
+  old_medium_one_second_up_full_supply: { length_m: 4.760000000000026, draw: 0.6000000000000005 },
+};
+
+function winchExamples() {
+  const old = (r) => ({ length_m: r.length, draw: r.draw, energy_left: r.energyLeft });
+  const cur = (r) => ({ length_m: r.length, movement_flag: r.moving });
+  let state = { length: 5, energyLeft: 1 };
+  for (let i = 0; i < 60; i += 1) state = legacyReelStep({ length: state.length, capacity: 20, up: true, energy: state.energyLeft });
+  return {
+    old_medium_one_update_up_full_supply: old(legacyReelStep({ length: 5, capacity: 20, up: true })),
+    old_both_full_supply: old(legacyReelStep({ length: 5, capacity: 20, up: true, down: true })),
+    'old_both_0.015_energy': old(legacyReelStep({ length: 5, capacity: 20, up: true, down: true, energy: 0.015 })),
+    old_at_max_still_draws: old(legacyReelStep({ length: 20, capacity: 20, down: true })),
+    current_medium_down_one_update: cur(ropeReelStep({ length: 5, capacity: 40, down: true })),
+    current_huge_down_one_update: cur(ropeReelStep({ length: 5, capacity: 600, down: true })),
+    current_both: cur(ropeReelStep({ length: 5, capacity: 40, up: true, down: true })),
+    current_reject_upper_boundary: cur(ropeReelStep({ length: 9.999, capacity: 10, down: true })),
+    current_relative_speed_ignores_digital_gate: cur(ropeReelStep({ length: 5, capacity: 40, relativeSpeed: 0.5, digitalEnabled: false })),
+    old_medium_one_second_up_full_supply: { length_m: state.length, draw: 1 - state.energyLeft },
+  };
+}
+
+test('winch step ports reproduce the worked examples of tools/model.py', () => {
+  assert.deepEqual(winchExamples(), WINCH_EXAMPLES);
+  // Geometric floor: D ÷ C capped at 1, minus 0.1, or 0.01 above component state 1, then the 0.25 to C clamp.
+  assert.equal(legacyReelStep({ length: 0.25, capacity: 20, distance: 18 }).length, 0.8);
+  assert.equal(legacyReelStep({ length: 0.25, capacity: 20, distance: 40, damageState: 2 }).length, 0.99);
+  assert.equal(legacyReelStep({ length: 0.25, capacity: 20, distance: 4 }).length, 0.25);
+  // Over the shared limit the rope shortens by one step without the acceptance test.
+  assert.deepEqual(ropeReelStep({ length: 41, capacity: 40 }), { length: 41 - 0.008, moving: false });
+});
+
+test('winch step ports match investigation/native/winches/model-examples.json when present', (t) => {
+  const file = new URL('../../../investigation/native/winches/model-examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const ours = winchExamples();
+  assert.deepEqual(Object.keys(data).sort(), Object.keys(ours).sort());
+  for (const [k, v] of Object.entries(data)) {
+    for (const [field, x] of Object.entries(ours[k])) assert.equal(x, v[field], `${k}.${field}`);
+  }
+  const winches = JSON.parse(readFileSync(new URL('../../../investigation/native/winches/winches.json', import.meta.url), 'utf8'));
+  for (const d of winches.definitions.filter((x) => x.type !== 7)) {
+    const w = winchFor(null, d.definition.split('/').pop().replace('.xml', ''));
+    assert.equal(w.capacity, d.capacity_m, w.id);
+    assert.ok(Math.abs(winchRate({ winch: w }).perUpdate - d.default_reel_m_per_update) < 1e-15, w.id);
+    assert.deepEqual([w.speedMin, w.speedMax], [d.speed_setting_min, d.speed_setting_max], w.id);
   }
 });

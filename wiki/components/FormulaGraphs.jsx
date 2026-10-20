@@ -9,6 +9,7 @@ import {
   GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON,
   FIREBOXES, STEAM, fireboxFor, pistonDrive, pistonValves, steamCycle, steamPistonFor,
   WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelShaftWeight,
+  WINCH, WINCH_GROUPS, WINCHES, reelTime, winchFor, winchRate,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -2435,10 +2436,137 @@ function WheelGraph({ family, variant }) {
   );
 }
 
+/* ---------- winch reel speed and reel time ---------- */
+
+const WINCH_MODES = { speed: 'Reel speed against the Speed property', time: 'Time to reel against length' };
+
+function WinchGraph({ family, variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => winchFor(family, variant).id);
+  const [mode, setMode] = useState('speed');
+  const [speed, setSpeed] = useState(WINCH.defaultSpeed);
+  const [supply, setSupply] = useState(1);
+  const w = WINCHES.find((x) => x.id === part);
+  const [length, setLength] = useState(() => Math.min(10, w.capacity));
+  const legacy = w.kind === 'legacy';
+  const v = clamp(speed, w.speedMin, w.speedMax);
+  const reach = Math.min(length, w.capacity);
+  const p = legacy ? supply : 1;
+  const here = winchRate({ winch: w, speed: v, supply: p });
+  const time = reelTime({ winch: w, speed: v, supply: p, length: reach });
+  const group = WINCHES.filter((x) => x.kind === w.kind);
+  const pick = (id) => {
+    const next = WINCHES.find((x) => x.id === id);
+    setPart(id);
+    setSpeed((s) => clamp(s, next.speedMin, next.speedMax));
+    setLength((l) => Math.min(l, next.capacity));
+  };
+  const speeds = steps(w.speedMin, w.speedMax, 0.1);
+  const lengths = steps(0, w.capacity, w.capacity / 100);
+  const lines = mode === 'speed'
+    ? [{ key: 'set', className: 'graph-line-a', dot: 'graph-dot-a', label: `Reel speed (m/s), ${w.label}${legacy && p < 1 ? `, supply ${fixed(p * 100, 0)} %` : ''}`,
+      points: speeds.map((s) => [s, winchRate({ winch: w, speed: s, supply: p }).perSecond]) }]
+    : [{ key: 'set', className: 'graph-line-a', dot: 'graph-dot-a', label: `Time to reel (s), ${w.label} at Speed ${fixed(v, 1)}`,
+      points: lengths.map((l) => [l, reelTime({ winch: w, speed: v, supply: p, length: l }).seconds]) }];
+  if (legacy && p < 1 && mode === 'speed') {
+    lines.push({ key: 'full', className: 'graph-line-b', dot: 'graph-dot-b', label: `Reel speed (m/s), ${w.label}, full supply`,
+      points: speeds.map((s) => [s, winchRate({ winch: w, speed: s }).perSecond]) });
+  }
+  const finiteMax = (pts) => Math.max(...pts.map(([, y]) => y).filter(Number.isFinite), 0);
+  const y = forceDomain(lines.map((l) => finiteMax(l.points)));
+  const x = mode === 'speed'
+    ? { min: w.speedMin, max: w.speedMax, ticks: [w.speedMin, ...steps(1, w.speedMax, 1)], format: (s) => fixed(s, s < 1 ? 1 : 0), label: 'Speed property' }
+    : { min: 0, max: w.capacity, ticks: steps(0, w.capacity, w.capacity / 5), format: (l) => fixed(l, 0), label: 'Length to reel (m)' };
+  const at = mode === 'speed' ? v : reach;
+  const selectedY = (l) => (mode === 'speed' ? winchRate({ winch: w, speed: v, supply: l.key === 'full' ? 1 : p }).perSecond : time.seconds);
+  const kind = legacy ? 'legacy' : 'rope-node';
+  const summary = `${w.label} (${kind}, cable_length ${w.capacity} m) at Speed ${fixed(v, 1)}${legacy ? `, supply ${fixed(p * 100, 0)} %` : ''}: `
+    + `${fixed(here.perUpdate, 4)} m per update, ${fixed(here.perSecond, 3)} m/s. Reeling ${fixed(reach, 1)} m takes ${Number.isFinite(time.seconds) ? `${fixed(time.seconds, 1)} s` : 'forever'}.`;
+  const status = useSettled(summary);
+  const desc = mode === 'speed'
+    ? `Rest-length change in m/s against the Speed property from ${w.speedMin} to ${w.speedMax}, a straight line through zero. ${summary}`
+    : `Simulated seconds to change the rest length by up to ${w.capacity} m at Speed ${fixed(v, 1)}, a straight line. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={lines.map((l) => ({ label: l.label, className: l.className }))}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Winch</label>
+            <select id={`${uid}-part`} value={part} onChange={(e) => pick(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {WINCH_GROUPS.map((g) => (
+                <optgroup key={g.kind} label={g.label}>
+                  {WINCHES.filter((x) => x.kind === g.kind).map((x) => <option key={x.id} value={x.id}>{`${x.label} (${x.capacity} m)`}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">
+              {legacy
+                ? `Legacy spool: 0.004 × Speed × supply m per update, clamped to ${WINCH.legacyMin} to ${w.capacity} m.`
+                : `Rope-node winch: 0.0002 × ${w.capacity} × Speed m per update; adds ${w.capacity} m to the rope's shared limit.`}
+            </span>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-mode`}>Plot</label>
+            <select id={`${uid}-mode`} value={mode} onChange={(e) => setMode(e.target.value)}>
+              {Object.entries(WINCH_MODES).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-v`} label="Speed property" value={v} min={w.speedMin} max={w.speedMax} step={0.1} onChange={(s) => setSpeed(+s.toFixed(1))} valueText={fixed(v, 1)}
+            hint={`Editor range ${w.speedMin} to ${w.speedMax}; new winches start at 1.`} />
+          {legacy ? (
+            <Range id={`${uid}-p`} label="Electricity supplied" value={supply} min={0} max={1} step={0.05} onChange={(s) => setSupply(+s.toFixed(2))} valueText={`${fixed(supply * 100, 0)} %`}
+              hint="The fraction p of each 0.01 charge request the network covers; it scales the step." />
+          ) : (
+            <p className="graph-field-hint">Rope-node winches reel at full rate whenever the electrical gate passes; partial supply does not slow them.</p>
+          )}
+          <Range id={`${uid}-l`} label="Length to reel" value={reach} min={0} max={w.capacity} step={w.capacity / 100} onChange={(l) => setLength(l)} valueText={`${fixed(reach, 1)} m`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={mode === 'speed' ? `Reel speed of the ${w.label} against the Speed property` : `Time for the ${w.label} to reel a length`}
+          desc={desc}
+          x={x}
+          y={{ ...y, format: tick }}
+          series={lines.map((l) => ({ key: l.key, className: l.className, points: l.points.filter(([, yy]) => Number.isFinite(yy)) }))}
+          selected={{ x: at, points: lines.map((l) => ({ key: l.key, y: selectedY(l), className: l.dot })).filter((pt) => Number.isFinite(pt.y)) }}
+          onSelect={(xx) => (mode === 'speed' ? setSpeed(snap(xx, w.speedMin, w.speedMax, 0.1)) : setLength(snap(xx, 0, w.capacity, w.capacity / 100)))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${w.label} at Speed ${fixed(v, 1)}`}
+          rows={[
+            ['Per update', `${fixed(here.perUpdate, 4)} m`],
+            ['Reel speed', `${fixed(here.perSecond, 3)} m/s`],
+            [`Time for ${fixed(reach, 1)} m`, Number.isFinite(time.seconds) ? `${fixed(time.seconds, 1)} s (${time.updates} updates)` : 'no movement'],
+            ['Charge requested', legacy ? `${fixed(here.chargePerSecond, 1)} per second per held control` : `${fixed(here.chargePerSecond, 1)} per second while reeling`],
+            ['Length range', legacy ? `${WINCH.legacyMin} to ${w.capacity} m, inclusive` : `above ${WINCH.ropeMin} m, below the rope's summed cable_length`],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${WINCH_GROUPS.find((g) => g.kind === w.kind).label} at Speed ${fixed(v, 1)}${legacy ? `, supply ${fixed(p * 100, 0)} %` : ''}`,
+        cols: ['Winch', 'cable_length (m)', 'm per update', 'm/s', 'Seconds for the full cable_length'],
+        rows: group.map((x2) => {
+          const r = winchRate({ winch: x2, speed: v, supply: p });
+          const t2 = reelTime({ winch: x2, speed: v, supply: p, length: x2.capacity });
+          return [`${x2.label} (${x2.id})`, String(x2.capacity), fixed(r.perUpdate, 4), fixed(r.perSecond, 3), Number.isFinite(t2.seconds) ? fixed(t2.seconds, 1) : 'n/a'];
+        }),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
-  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph,
+  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph, winch: WinchGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

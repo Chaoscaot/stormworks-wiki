@@ -3864,6 +3864,318 @@ def fluids(B, E):
              ["Startup from a saved inventory or after a rebuild was not traced.", TICK])
 
 
+# winches pass; files under investigation/native/winches/, report investigation/winches.md.
+WN_REPORT = "investigation/winches.md"
+WN_DATA = "investigation/native/winches/winches.json"
+F_ROPE_CTOR = 0x1403B3CA0     # rope-hook component constructor (type 48): Speed property defaults
+F_ROPE_SPEED = 0x1403B4FF0    # rope-hook speed initializer: base step 0.0002 × cable_length
+F_ROPE_SAVE = 0x1403B45E0     # rope-hook serializer: input_velocity
+F_ROPE_DRAW = 0x1403B62B0     # rope-hook component update, vtable 0x140b600f0 slot +0x358: charge request
+F_CABLE = 0x140524C80         # cable-system update: shared rope length, reeling, stretch impulse
+F_REEL_HEAD = 0x1403E3B3B     # chained chunk of the legacy reel callback 0x1403e3b30 (slot +0x360): controls and constants
+F_REEL = 0x1403E3C0B          # chained chunk of 0x1403e3b30: draws, steps, floor, clamp and submission
+F_WINCH_EDIT = 0x1403E4280    # legacy winch property editor, vtable 0x140b958e8 slot +0x218
+F_MULTI_SAVE = 0x1403590C0    # base multibody serializer, called from the winch save slot 0x1403e2cc0
+F_ROPE_MAKE = 0x1403E3090     # legacy rope builder: end piece transform, rope creation
+F_ROPE_LINKS = 0x1401489E0    # soft-body helper: rest length split over the rope's links
+WINCH_SLOTS = ((0x140B95C48, F_REEL_HEAD - 0xB), (0x140B95B00, F_WINCH_EDIT), (0x140B60448, F_ROPE_DRAW), (0x140B60450, F_ROPE_FLUID))
+WINCH_RTTI = ((0x140B600F0, "c_scene_vehicle_component_rope_hook"), (0x140B958E8, "c_scene_vehicle_component_winch"),
+              (0x140AE3690, "btSoftBody"), (0x140B610F8, "event_set_object_rope_rest_length@mm_physics_scene"))
+WINCH_ASM = {
+    F_ROPE_SPEED: ("winches/asm/1403b4ff0.asm", "1403b4ff0.c"), F_ROPE_SAVE: ("winches/asm/1403b45e0.asm", "1403b45e0.c"),
+    F_ROPE_DRAW: ("winches/asm/1403b62b0.asm", "1403b62b0.c"), F_ROPE_FLUID: ("winches/asm/1403b6840.asm", "1403b6840.c"),
+    F_CABLE: ("winches/asm/140524c80.asm", "140524c80.c"), F_REEL_HEAD: ("winches/asm/1403e3b30.asm", "1403e3b30.c"),
+    F_REEL: ("winches/asm/1403e3b30.asm", "1403e3b30.c"), F_JOINT_CTOR: ("winches/asm/140356480.asm", "140356480.c"),
+    F_MULTI_SAVE: ("winches/asm/1403590c0.asm", "1403590c0.c"), F_ROPE_MAKE: ("winches/asm/1403e3090.asm", "1403e3090.c"),
+    F_ROPE_LINKS: ("winches/asm/1401489e0.asm", "1401489e0.c"), F_DEFSER: ("winches/asm/definition-cable-binding.asm", None),
+}
+# Current rope-node winches and the legacy type-20 spools, smallest first, with their family IDs.
+ROPE_WINCHES = (("part-rope-hook-winch-small", "rope_hook_winch_small"), ("part-rope-hook-winch", "rope_hook_winch"),
+                ("part-rope-hook-winch-large", "rope_hook_winch_large"), ("part-rope-hook-winch-huge", "rope_hook_winch_huge"))
+LEGACY_WINCHES = (("part-winch-electric", "winch_electric"), ("part-winch-a", "winch_a"), ("part-winch-large-a", "winch_large_a"),
+                  ("part-winch-huge-a", "winch_huge_a"), ("part-water-hose", "water_hose"))
+WINCH_HEADS = (("part-winch-electric-b", "winch_electric_b"), ("part-winch-b", "winch_b"), ("part-winch-large-b", "winch_large_b"),
+               ("part-winch-huge-b", "winch_huge_b"), ("part-water-hose-b", "water_hose_b"))
+# End pieces no shipped definition names as child_name; the report pairs them with the Large and Huge Winches,
+# which name winch_b instead. The extractor checks both facts.
+UNNAMED_HEADS = ("winch_large_b", "winch_huge_b")
+WINCH_OPEN = "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article."
+WINCH_STATIC = "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game."
+
+
+def winches_native(E):
+    """Reel arithmetic, length limits, controls and charge requests of both winch implementations, verified once and shared."""
+    if hasattr(E, "winch"):
+        return E.winch
+    n = E.native
+    if not (E.root / WN_REPORT).is_file():
+        raise ValueError("Winch report missing: " + WN_REPORT)
+    for slot, target in WINCH_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Winch vtable slot %#x does not point to %#x" % (slot, target))
+    for vtable, name in WINCH_RTTI:
+        if _rtti(n, vtable) != name:
+            raise ValueError("RTTI at %#x is not %s" % (vtable, name))
+    rep = " Report: %s." % WN_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        if func in WINCH_ASM:
+            _wheel_cite(E, func, address, hexbytes, table=WINCH_ASM)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=WINCH_ASM)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    def name(func, lea, hexbytes, target, expected, label, detail):
+        if n.raw(lea, len(hexbytes) // 2).hex() != hexbytes or lea + len(hexbytes) // 2 + struct.unpack("<i", n.raw(lea + 3, 4))[0] != target:
+            raise ValueError("lea at %#x does not address %#x" % (lea, target))
+        _wheel_cite(E, func, lea, hexbytes, key=target, table=WINCH_ASM)
+        return E.string(func, target, expected, label, detail + rep)
+
+    f = {}
+    f["cl_name"] = name(F_DEFSER, 0x140317327, "4c8d05724b8400", 0x140B5BEA0, "cable_length", "cable_length binding",
+                        "The definition loader binds cable_length to definition+0x39c (lea r9 at 0x14031731a), the capacity C that both reel routines read. A definition without the attribute gets 0.")
+    # Rope-node winches (type 48).
+    f["base"] = op(F_ROPE_SPEED, 0x1403B5018, "f30f590584a87f00", 0x140BAF8A4, "Rope winch step per metre of cable_length",
+                   "The speed initializer loads cable_length C (definition+0x39c, 0x1403b5010), multiplies it by this and stores the base step b = 0.0002 × C metres at component+0xcbc (0x1403b5020).")
+    f["defaults"] = code(F_ROPE_CTOR, 0x1403B406A, "c783b00c00000000803f" "c783b40c0000cdcccc3d" "c783b80c000000002041", "Rope winch Speed defaults",
+                         "Speed 1, editor range 0.1 to 10",
+                         "The rope-hook constructor stores the Speed property V = 1 at component+0xcb0 and its editor bounds 0.1 (+0xcb4, bytes cdcccc3d) and 10 (+0xcb8, bytes 00002041). "
+                         "The property editor 0x1403b44b0 offers that range for subtype 3, the winch. The reel does not clamp a saved V to it.")
+    f["v_name"] = name(F_ROPE_SAVE, 0x1403B4635, "4c8d05e4ec7a00", 0x140B63320, "input_velocity", "Rope winch Speed save name",
+                       "The rope-hook serializer saves and loads V (component+0xcb0, lea r9 at 0x1403b462e) under this name.")
+    f["clamp_u"] = op(F_ROPE_FLUID, 0x1403B68B4, "f30f5f056ca37f00" "f30f5dc6" "f30f1181180a0000", 0x140BB0C28, "Speed input clamp",
+                      "The second component pass takes the Speed input (component+0xa10), clamps it to -1 with this maxss and to 1 with minss against xmm6 (1, loaded from 0x140bafecc at 0x1403b68a2) and stores u at +0xa18.")
+    f["copy"] = code(F_ROPE_FLUID, 0x1403B6880, "0fb681380a0000" "888140" "0a0000" "0fb681600a0000" "888168" "0a0000", "Rope winch button copy", "Down → +0xa40, Up → +0xa68",
+                     "The same pass copies the Down and Up inputs to the flags the cable update reads.")
+    f["gate"] = code(F_ROPE_FLUID, 0x1403B6C97, "c683400a000000" "c683680a000000", "Rope winch electrical gate", "Down and Up cleared",
+                     "Both flags are cleared when the component state exceeds 5 (0x1403b6c4f) or, unless infinite electricity is set (0x1403b6c5a), when max(0, (300 - EMP) ÷ 300) × the node's charge fraction is 0 (0x1403b6c60-0x1403b6c95). "
+                     "This is an on or off gate: a partial supply does not slow the reel. The Speed input u at +0xa18 is not cleared here.")
+    f["sum"] = code(F_CABLE, 0x14052660D, "f30f10b89c030000" "f30f58b99c030000", "Shared cable limit", "S = C_A + C_B",
+                    "The cable update adds the cable_length of the definitions at the rope's two ends. An anchor's definition has no cable_length and contributes 0. The rope length L is kept at cable+0x88 (0x14052661d).")
+    f["rel"] = op(F_CABLE, 0x14052663F, "f3440f1005889468 00".replace(" ", ""), 0x140BAFAD0, "Speed input threshold",
+                  "The update compares |u| (abs mask applied at 0x14052663b) with this: at 0.1 or more u replaces the buttons (jbe at 0x14052664c). The same register is the lower length bound in the acceptance test.")
+    f["buttons"] = code(F_CABLE, 0x14052664E, "4180bc24400a000000", "Rope winch button step", "candidate = L + b × V × (Down - Up)",
+                        "With Down (+0xa40) the candidate is L + b × V (0x140526659-0x14052666d); with Up (+0xa68, 0x140526671) b × V is subtracted (0x140526690). Holding both adds and subtracts the same product.")
+    f["numeric"] = code(F_CABLE, 0x1405266A0, "f3410f598424b00c0000" "f30f59c3", "Speed input step", "candidate = L + b × V × u",
+                        "When |u| ≥ 0.1 the step is b × V × u instead (0x140526696-0x1405266ae); the buttons are not read.")
+    f["accept"] = code(F_CABLE, 0x1405266FB, "0f2ef1" "7a02" "742a" "410f2ff0" "7624" "0f2ffe" "761f", "Rope length acceptance", "0.1 < candidate < S, candidate ≠ L",
+                       "For L ≤ S the candidate is accepted only when it differs from L, is above 0.1 and is below S. Otherwise L is kept: a step that would cross a bound is dropped, not clamped to it.")
+    f["flag"] = code(F_CABLE, 0x14052670D, "41c68424900a000001", "Rope winch movement flag", "component+0xa90 = 1",
+                     "An accepted step sets the flag (cleared at 0x1405266b2 before the test), stores the candidate at cable+0x88 and submits it as the rope's rest length (call 0x1401a8290 at 0x140526727).")
+    f["over"] = code(F_CABLE, 0x1405266C3, "0f2fcf7633", "Rope over-limit branch", "L - b × V",
+                     "When the stored L already exceeds S, the update subtracts b × V, or b × V × u while the Speed input is active (0x1405266d2-0x1405266ea), without the acceptance test.")
+    f["second"] = code(F_CABLE, 0x14052672C, "f30f109f180a0000", "Second rope end", "same steps on the running candidate",
+                       "The other end of the rope runs the same steps (0x14052672c-0x140526802) starting from the candidate the first end left, so two winches on one rope add their steps.")
+    f["draw"] = op(F_ROPE_DRAW, 0x1403B6525, "f30f100d2b947f00", 0x140BAF958, "Rope winch charge request",
+                   "When the movement flag (component+0xa90, tested at 0x1403b651c) is set, the component update requests this from its electric node (+0x1a8) through the draw helper 0x1402eeca0 (call at 0x1403b6534). The returned fraction is not used.")
+    # Legacy winches and the Hose (type 20).
+    f["o_min"] = op(F_REEL_HEAD, 0x1403E3BF0, "f3440f103dc3bf7c00", 0x140BAFBBC, "Legacy minimum rest length",
+                    "The reel callback keeps this in xmm15 for the final clamp at 0x1403e3f22.")
+    f["o_step"] = op(F_REEL_HEAD, 0x1403E3BFF, "f30f10351dbd7c00", 0x140BAF924, "Legacy reel step per Speed",
+                     "Kept in xmm6 and multiplied by the Speed property V (component+0x300) for each control. The reel runs only with a rope (component+0x498, tested at 0x1403e3bd3).")
+    f["o_gate"] = code(F_REEL_HEAD, 0x1403E3B97, "888bc0040000" "0fb683e0040000" "8883e8040000" "7617", "Legacy button copy", "Up → +0x4c0, Down → +0x4e8",
+                       "The callback copies Up (+0x4b8) and Down (+0x4e0) and clears both when the component state (+0x8, compared at 0x1403e3b54) is above 0.")
+    f["o_req"] = op(F_REEL, 0x1403E3C17, "f30f100d39bd7c00", 0x140BAF958, "Legacy reel charge request",
+                    "Each held control requests this from the electric node (+0x268); the Down branch loads the same constant at 0x1403e3c6c.")
+    f["o_up"] = code(F_REEL, 0x1403E3C26, "e875b0f0ff", "Legacy Up draw", "call 0x1402eeca0", "Up's request goes to the draw helper first, which returns the supplied fraction p.")
+    f["o_up_step"] = code(F_REEL, 0x1403E3C47, "f30f59ce" "f30f59c8" "f3440f5cd1", "Legacy Up step", "L - 0.004 × V × p",
+                          "Multiplies V by 0.004 and by Up's p and subtracts it from the length (component+0x528, stored at 0x1403e3c54).")
+    f["o_down"] = code(F_REEL, 0x1403E3C7B, "e820b0f0ff", "Legacy Down draw", "call 0x1402eeca0", "Down makes its own request after Up's, from what is left in the pool.")
+    f["o_down_step"] = code(F_REEL, 0x1403E3C8D, "f3440f59d6" "f3440f59d0" "f3440f589328050000", "Legacy Down step", "L + 0.004 × V × p",
+                            "Multiplies V by 0.004 and by Down's p and adds the length.")
+    f["o_floor"] = code(F_REEL, 0x1403E3E1A, "f3410f5e879c030000", "Legacy geometric floor", "max(L, clamp(D ÷ C, 0, 1) - 0.1)",
+                        "Divides the distance D between the two attachment points by C, clamps the ratio to 0..1 (0x1403e3e23-0x1403e3e34), subtracts 0.1, or 0.01 when the component state is above 1 (0x1403e3e38-0x1403e3e55), "
+                        "and raises L to that value (maxss at 0x1403e3e5b). The ratio is used as metres, so this floor stays below 1.")
+    f["o_clamp"] = code(F_REEL, 0x1403E3F22, "f3410f5fd7" "f3410f5d979c030000", "Legacy rest-length clamp", "min(C, max(0.25, L))",
+                        "Takes the larger of L and 0.25 and the smaller of that and C, both bounds inclusive.")
+    f["o_submit"] = code(F_REEL, 0x1403E3F62, "e82943dcff", "Legacy rest-length submission", "call 0x1401a8290",
+                         "Submits the clamped length as the rope's rest length. The Length output copies it (component+0x508, 0x1403e3f75).")
+    f["o_ctor"] = code(F_JOINT_CTOR, 0x140356666, "c786000300000000803f" "c78604030000cdcccc3d" "48c786080300000000a040", "Legacy Speed defaults", "Speed 1, editor range 0.1 to 5",
+                       "The base constructor that the winch constructor 0x1403e26f0 runs stores V = 1 at component+0x300 and the bounds 0.1 (+0x304) and 5 (+0x308).")
+    f["o_edit"] = code(F_WINCH_EDIT, 0x1403E42AF, "f30f10b308030000" "f30f10bb04030000", "Legacy Speed editor", "bounds +0x304 to +0x308",
+                       "The winch vtable's property-editor slot (0x140b95b00, +0x218) holds this routine. It offers the Speed slider (component+0x300) between the stored bounds without testing definition flags, so every legacy winch and the Hose show it.")
+    f["o_name"] = name(F_MULTI_SAVE, 0x140359227, "4c8d05f2a08000", 0x140B63320, "input_velocity", "Legacy Speed save name",
+                       "The base serializer, which the winch's save slot 0x1403e2cc0 calls (0x1403e2ce4), saves V (component+0x300, lea r9 at 0x140359220) under this name. The reel does not clamp a saved V to the editor range.")
+    # End pieces and the rope body.
+    f["e_link"] = code(F_ROPE_MAKE, 0x1403E32E4, "488b8f48010000", "Winch end piece link", "component+0x148",
+                       "The legacy rope builder reads the linked end piece (+0x148) for the far attachment point and creates the rope between the two points through 0x1401a5f00 (call at 0x1403e3893). "
+                       "The rope is a Bullet btSoftBody chain (vtable 0x140ae3690), not a joint with a motor force limit.")
+    f["links"] = code(F_ROPE_LINKS, 0x140148A35, "f30fe6c0" "f20f5ec8", "Rope link rest length", "L ÷ n",
+                      "The rest-length event (vtable 0x140b610f8, handler 0x1401a1f30) splits L evenly over the rope's n links (count at +0x684) and stores each link's length and its square.")
+    f["impulse"] = code(F_CABLE, 0x1405262DD, "f30f5df1" "f30f59f0", "Rope stretch impulse", "min(K_A, K_B) × (D - L)",
+                        "For a rope-node rope whose end distance D exceeds L (0x140526290), the update reads a float K at +8 of each end's physics body, uses 100000 for values below 0.0001 (0x1405262bd-0x1405262da), "
+                        "and queues equal and opposite impulses of min(K_A, K_B) × (D - L) along the rope (0x1401a7470, calls at 0x1405263ae and 0x140526423). The branch applies no cap and deletes nothing.")
+
+    # winches.json must agree with the bytes above and with the shipped definitions.
+    data = json.loads((E.root / WN_DATA).read_bytes())
+    if data["target_sha256"] != EXE_SHA256 or data["updates_per_second"] != update_rate(E)["ups"]:
+        raise ValueError("Winch figures were built for a different executable")
+    near = lambda a, b: math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-12)
+    base, step, req = float(f["base"]["value"]), float(f["o_step"]["value"]), float(f["draw"]["value"])
+    lo, floor, ups = float(f["rel"]["value"]), float(f["o_min"]["value"]), update_rate(E)["ups"]
+    if float(f["o_req"]["value"]) != req:
+        raise ValueError("Winch charge requests differ")
+    bounds = {48: (1, 0.1, 10), 20: (1, 0.1, 5)}
+    children = {}
+    for _, bid in LEGACY_WINCHES:
+        children.setdefault(E.block(bid)["attributes"]["child_name"], []).append(bid)
+    parts = {}
+    for d in data["definitions"]:
+        bid = d["definition"].rsplit("/", 1)[1][:-4]
+        a = E.block(bid)["attributes"]
+        C = float(a.get("cable_length", 0))
+        if int(a["type"]) != d["type"] or C != d["capacity_m"] or (d["type"] != 7 and d["electricity_request_engine_units_per_call"] != req):
+            raise ValueError("Winch definition %s differs from %s" % (bid, WN_DATA))
+        if d["type"] in bounds:
+            s = base * C if d["type"] == 48 else step
+            v0, v1, v2 = bounds[d["type"]]
+            if ((d["speed_setting_default"], d["speed_setting_min"], d["speed_setting_max"]) != (v0, v1, v2)
+                    or not near(d["default_reel_m_per_update"], s) or not near(d["default_reel_m_per_second"], ups * s)
+                    or not all(near(x, ups * s * v) for x, v in zip(d["configured_reel_m_per_second_range"], (v1, v2)))
+                    or d["length_min_m"] != (lo if d["type"] == 48 else floor) or d["length_min_inclusive"] != (d["type"] == 20)
+                    or d["length_max_inclusive"] != (d["type"] == 20) or d.get("child_definition", "") != a.get("child_name", "")):
+                raise ValueError("Reel figures for %s differ from the verified arithmetic" % bid)
+        elif d["type"] == 7:
+            parent = next((p for p in data["definitions"] if p["issue"] == d["parent_issue"]), None)
+            named = children.get(bid, [])
+            if (C != 0 or d["has_own_reel_controls"] or parent is None or not E.port(bid, "Fluid")
+                    or (bid in UNNAMED_HEADS) == bool(named) or sorted(p["definition"] for p in data["definitions"] if p.get("child_definition") == bid) != sorted(DEFS + x + ".xml" for x in named)):
+                raise ValueError("End piece %s differs from %s" % (bid, WN_DATA))
+            if bid in UNNAMED_HEADS and (E.root / (DEFS + bid + ".xml")).read_bytes() != (E.root / (DEFS + "winch_b.xml")).read_bytes():
+                raise ValueError("%s is no longer identical to winch_b" % bid)
+        else:
+            raise ValueError("Unexpected winch definition " + bid)
+        parts[bid] = dict(d, capacity=C)
+    if sorted(parts) != sorted(b for _, b in ROPE_WINCHES + LEGACY_WINCHES + WINCH_HEADS):
+        raise ValueError("Unexpected winch definitions in " + WN_DATA)
+
+    # Figures per definition.
+    R = update_rate(E)["findings"]
+    fig = {}
+    for _, bid in ROPE_WINCHES:
+        p, nm, C = parts[bid], E.block(bid)["name"], parts[bid]["capacity"]
+        s = base * C
+        fig[bid] = E.derived("%s (%s) reel speed" % (nm, bid), "%s m/s at Speed 1" % _g(ups * s),
+                             "b = 0.0002 × %s = %s m per update at Speed 1, × %d = %s m/s; the editor range 0.1 to 10 gives %s to %s m/s. "
+                             "The rope's limit gains %s m from this winch (investigation/native/winches/winches.json)." % (
+                                 _g(C), _g(s), ups, _g(ups * s), _g(ups * s * 0.1), _g(ups * s * 10), _g(C)),
+                             [E.attr(bid, "cable_length", "Capacity C read by the speed initializer and the cable update."), f["base"], f["defaults"], f["buttons"]] + R[:1])
+    for _, bid in LEGACY_WINCHES:
+        nm, C = E.block(bid)["name"], parts[bid]["capacity"]
+        fig[bid] = E.derived("%s (%s) reel speed and limits" % (nm, bid), "%s m/s at Speed 1; %s to %s m" % (_g(ups * step), _g(floor), _g(C)),
+                             "0.004 × 1 × p m per update, × %d = %s m/s at full supply (p = 1); the editor range 0.1 to 5 gives %s to %s m/s. "
+                             "The rest length is clamped to %s to %s m, its cable_length (investigation/native/winches/winches.json)." % (
+                                 ups, _g(ups * step), _g(ups * step * 0.1), _g(ups * step * 5), _g(floor), _g(C)),
+                             [E.attr(bid, "cable_length", "Capacity C, the inclusive upper clamp of the rest length."), f["o_step"], f["o_ctor"], f["o_clamp"]] + R[:1])
+    fig["charge"] = E.derived("Winch charge requests per simulated second", "0.6 per moving rope winch; 0.6 per held legacy control",
+                              "0.01 × %d = 0.6 charge units per simulated second at full effectiveness: a rope-node winch after each accepted step, a legacy winch or Hose for each held control, "
+                              "so 1.2 with both held. The amount does not depend on Speed." % ups,
+                              [f["draw"], f["o_req"], f["o_up"], f["o_down"]] + R[:1])
+    fig["shortage"] = E.derived("Legacy both-controls shortage example", "4.998 m from 5 m",
+                                "Both controls held, Speed 1, 0.015 charge units in the pool and full effectiveness: Up is served first with p = 1 and retracts 0.004 m; Down gets the remaining 0.005, p = 0.5, and extends 0.002 m. "
+                                "Net 5 - 0.004 + 0.002 = 4.998 m, a 0.002 m retraction (investigation/native/winches/model-examples.json). With ample charge both steps cancel and 0.02 units are used.",
+                                [f["o_up"], f["o_up_step"], f["o_down"], f["o_down_step"], f["o_req"]])
+    fig["boundary"] = E.derived("Rope winch limit example", "9.999 m stays 9.999 m",
+                                "Small Winch (cable_length 10) with an anchor at the other end, at 9.999 m with Down held: the candidate 9.999 + 0.002 = 10.001 m is not below 10, so it is dropped and the length stays 9.999 m "
+                                "(investigation/native/winches/model-examples.json).",
+                                [f["sum"], f["accept"], f["base"]])
+    E.winch = {"f": f, "fig": fig, "parts": parts, "data": data}
+    return E.winch
+
+
+def winches(B, E):
+    W = winches_native(E)
+    f, fig, parts = W["f"], W["fig"], W["parts"]
+    R = update_rate(E)["findings"]
+    draw = electricity_native(E)["draw"]
+    T, P, A = E.tooltip, E.port, E.attr
+    ups = update_rate(E)["ups"]
+    rope = [f[k] for k in ("cl_name", "base", "defaults", "v_name", "clamp_u", "copy", "gate", "sum", "rel", "buttons", "numeric", "accept", "flag", "over", "second", "draw", "links")] + [fig["charge"], fig["boundary"]] + draw
+    legacy = [f[k] for k in ("cl_name", "o_min", "o_step", "o_gate", "o_req", "o_up", "o_up_step", "o_down", "o_down_step", "o_floor", "o_clamp", "o_submit",
+                             "o_ctor", "o_edit", "o_name", "e_link", "links")] + [fig["charge"], fig["shortage"]] + draw
+    for fid, bid in ROPE_WINCHES:
+        nm, C = E.block(bid)["name"], parts[bid]["capacity"]
+        s = float(f["base"]["value"]) * C
+        r = ups * s
+        speed_in = any(port.get("attributes", {}).get("label") == "Speed" for port in E.block(bid)["logic"])
+        rate = ("Each update a held Down lengthens the rope by b × Speed metres and Up shortens it by the same, with b = 0.0002 × cable_length. "
+                "For this winch b = %s m, so it reels %s m/s at the default Speed 1. The Speed property runs from 0.1 to 10 in the editor, %s to %s m/s." % (_g(s), _g(r), _g(r * 0.1), _g(r * 10)))
+        if speed_in:
+            rate += (" The Speed input takes a value from -1 to 1. At a magnitude of 0.1 or more it replaces the buttons and moves the rope by b × Speed × that value per update, "
+                     "and negative values shorten the rope.")
+        rate += " These rates change the rope's rest length. A loaded hook can lag behind it (inference)."
+        limits = ("Both ends of a rope share one limit, the sum of their cable_length values: %s m with an anchor at the other end, which adds 0, and more with a second winch. "
+                  "A step is kept only if the new length stays above 0.1 m and below that sum. A step that would cross a bound is dropped, not clamped, so the rope stops up to one step short: "
+                  "a Small Winch at 9.999 m stays at 9.999 m because 10.001 m is not below 10. Two winches on one rope reel at the sum of their rates. "
+                  "If the rope is already longer than the limit, each update shortens it by one step." % _g(C))
+        power = ("Holding Up and Down together cancels: the two steps sum to 0, the length does not change and the winch is not flagged as moving. "
+                 "After each accepted step the winch requests 0.01 charge units, 0.6 per simulated second while it keeps reeling, whatever the Speed. "
+                 "The reply does not scale the step. With no usable electricity, from no charge or a full EMP countdown, the buttons are ignored.")
+        if speed_in:
+            power += " Static inference: the Speed input still moves the rope in that state, because it bypasses the button gate."
+        B.family(fid,
+                 "Reels %s m/s at Speed 1 (%s to %s m/s over the editor range 0.1 to 10) and adds %s m to the rope's shared length limit." % (_g(r), _g(r * 0.1), _g(r * 10), _g(C)),
+                 [section("Reel speed", rate), section("Length limits", limits), section("Both buttons and electricity", power)],
+                 rope + [fig[bid], A(bid, "cable_length", "Capacity C: the step b = 0.0002 × C and this end's share of the rope limit."), T(bid), P(bid, "Down"), P(bid, "Up")]
+                 + ([P(bid, "Speed")] if speed_in else []) + R,
+                 [WINCH_OPEN, WINCH_STATIC, TICK])
+    for fid, bid in LEGACY_WINCHES:
+        nm, C = E.block(bid)["name"], parts[bid]["capacity"]
+        hose = bid == "water_hose"
+        up, down, length = ("Hose Up", "Hose Down", "Hose Length") if hose else ("Up", "Down", "Length")
+        has_length = any(port.get("attributes", {}).get("label") == length for port in E.block(bid)["logic"])
+        what = "hose" if hose else "rope"
+        rate = ("Each update a held %s shortens the %s by 0.004 × Speed × p metres and %s lengthens it by the same, p being the fraction of a 0.01 charge request the electric network supplies. "
+                "At the default Speed 1 and full supply that is %s m/s, the same for every legacy winch and the Hose whatever its length. The Speed property runs from 0.1 to 5 in the editor, %s to %s m/s. "
+                "A charge shortage or EMP lowers p and slows the reel in proportion. These rates change the %s's rest length; a loaded end piece can lag behind it (inference)." % (
+                    up, what, down, _g(ups * 0.004), _g(ups * 0.004 * 0.1), _g(ups * 0.004 * 5), what))
+        limits = ("After each update the rest length is clamped to between 0.25 m and its cable_length, %s m, both inclusive. "
+                  "A geometric guard can raise the lower bound: the distance between the two attachment points divided by cable_length, capped at 1, minus 0.1 (0.01 in component states above 1), used directly as metres. "
+                  "The reel reads no other end, so its own cable_length is the whole limit." % _g(C))
+        if has_length:
+            limits += " %s outputs the clamped rest length." % length
+        power = ("Each held control makes its own 0.01 charge request every update, %s first, also while the %s sits at a limit. One control at full supply asks for 0.6 charge units per simulated second and both for 1.2. "
+                 "With full supply both steps cancel. Under shortage %s is served first: with 0.015 units in the pool %s gets the whole step and %s half of it, so the %s shortens by 0.002 m at Speed 1. "
+                 "Speed changes the distance per request, not the request." % (up, what, up, up, down, what))
+        B.family(fid,
+                 "Reels %s m/s at Speed 1 and full electricity (%s to %s m/s over the editor range 0.1 to 5), between 0.25 m and its %s m cable_length." % (
+                     _g(ups * 0.004), _g(ups * 0.004 * 0.1), _g(ups * 0.004 * 5), _g(C)),
+                 [section("Reel speed", rate), section("Length limits", limits), section("Both controls and electricity", power)],
+                 legacy + [fig[bid], A(bid, "cable_length", "Capacity C, the inclusive upper clamp of the rest length."), A(bid, "child_name", "End piece the winch builds its rope to."),
+                           T(bid), P(bid, up), P(bid, down)] + ([P(bid, length)] if has_length else []) + R,
+                 [WINCH_OPEN, WINCH_STATIC, TICK])
+    parents = {}
+    for _, bid in LEGACY_WINCHES:
+        parents.setdefault(A(bid, "child_name", "")["value"], []).append(bid)
+    N = fluid_network(E)
+    for fid, bid in WINCH_HEADS:
+        named = parents.get(bid, [])
+        role = ("Bullet soft-body rope from the winch's attachment point to this piece's, and links its Fluid port to this piece's Fluid port with factor 1. "
+                "The winch owns Up, Down, Speed, the length limits and the charge requests, so this piece moves at its winch's rate, 0.24 m/s at Speed 1 and full supply. "
+                "Its own cable_length 0 does not limit the winch's rope, and it has no reel or controls.")
+        if named:
+            who = ["%s (%s, %s m)" % (E.block(p)["name"], p, _g(parts[p]["capacity"])) for p in named]
+            who = who[0] if len(who) == 1 else ", ".join(who[:-1]) + " and " + who[-1]
+            sizes = [E.block(p)["name"].split()[0] for p in named]
+            sizes = sizes[0] + " Winch" if len(sizes) == 1 else ", ".join(sizes[:-1]) + " and " + sizes[-1] + " Winches"
+            summary = "End piece of the legacy %s: the rope's far attachment and fluid end, with no reel of its own." % sizes
+            body = "%s name%s this definition as child_name. The winch builds a %s" % (who, "s" if len(named) == 1 else "", role)
+            ev = [A(p, "child_name", "End piece the winch builds its rope to.") for p in named] + [fig[p] for p in named]
+        else:
+            spool = bid[:-2] + "_a"
+            used = A(spool, "child_name", "End piece the winch builds its rope to.")
+            summary = "A winch end piece identical to %s; no shipped winch places it, and the %s uses %s." % (used["value"], E.block(spool)["name"], used["value"])
+            body = ("No shipped definition names this one as child_name: the legacy %s (%s) names %s, and this file is byte-identical to %s. "
+                    "The role below is %s's: the winch builds a " % (E.block(spool)["name"], spool, used["value"], used["value"], used["value"]) + role)
+            ev = [used, fig[spool]]
+        B.family(fid, summary, [section("Role", body)],
+                 [f["e_link"], f["links"], f["o_ctor"], f["o_step"], f["o_clamp"], A(bid, "type", "Type 7, the base component: no reel callback."),
+                  A(bid, "cable_length", "0; the parent's cable_length is the rope's limit."), P(bid, "Fluid"), N["factory20"], N["h_factor"], N["h_call"]] + ev + R[:1],
+                 [WINCH_OPEN, WINCH_STATIC])
+
+
 def fluid_links(B, E):
     """Hose, winch, pulley, connector, filter, manual pump, pipe and spawner entries from the fluid-network pass."""
     N, T = fluid_network(E), fluid_transport(E)
@@ -4756,9 +5068,9 @@ WHEEL_LEGACY = ("wheel_coaster", "wheel_coaster_large", "wheel_medium", "wheel_s
 NO_SUSPENSION = 0x800000  # definition flag tested at 0x1403aaf09 and 0x1403acef0
 
 
-def _wheel_cite(E, func, address, hexbytes, key=None, listing=None):
+def _wheel_cite(E, func, address, hexbytes, key=None, listing=None, table=None):
     """Point WHERE at the retained listing lines of the cited bytes, after checking that the listing shows the same bytes."""
-    path, pseudo = (listing, None) if listing else WHEEL_ASM[func]
+    path, pseudo = (listing, None) if listing else (table or WHEEL_ASM)[func]
     cache = E.__dict__.setdefault("wheel_asm", {})
     if path not in cache:
         rows = []
@@ -4780,7 +5092,7 @@ def _wheel_cite(E, func, address, hexbytes, key=None, listing=None):
     lines = "L%d" % rows[i][2] if j - 1 == i else "L%d-L%d" % (rows[i][2], rows[j - 1][2])
     where = "../" + path + ":" + lines
     if pseudo:
-        where += "; ../wheels/pseudocode/" + pseudo
+        where += "; ../%s/pseudocode/%s" % (path.split("/", 1)[0], pseudo)
     WHERE[(func, address if key is None else key)] = where
 
 
@@ -7240,15 +7552,6 @@ def more_families(B, E):
              "Height, power and submersion change R as for every radio. Inference from the receive routine: the video level is full out to half of R and fades to 0 at R." % _num(vr))],
            [T("rx_video_r"), A("rx_video_r", "rx_range", "Receiver range field."), A("rx_video_x", "rx_range", "Transmitter range field."), P("rx_video_r", "Signal Strength")] + rcore + [vreach], [])
 
-    # Winches and ropes: cable_length matches stated lengths.
-    for fid, bid in (("part-winch-electric", "winch_electric"), ("part-winch-a", "winch_a"), ("part-winch-large-a", "winch_large_a"),
-                     ("part-winch-huge-a", "winch_huge_a"), ("part-rope-hook-winch-small", "rope_hook_winch_small"), ("part-rope-hook-winch", "rope_hook_winch"),
-                     ("part-rope-hook-winch-large", "rope_hook_winch_large"), ("part-rope-hook-winch-huge", "rope_hook_winch_huge"), ("part-water-hose", "water_hose")):
-        L = A(bid, "cable_length", "Configured cable length; equals the tooltip length.")
-        simple(fid, "Cable length %s m; raised and lowered with Up/Down." % L["value"],
-               [("Setup and interactions", "The definition's cable_length equals the length in its tooltip. Length outputs the current extension in metres." +
-                 (" Rope-hook winches also carry data, electricity and fluid through the cable and accept a Speed input clamped to −1 … 1." if bid.startswith("rope_hook_winch") and bid != "rope_hook_winch_small" else ""))],
-               [L, T(bid)] + ([P(bid, "Speed")] if bid.startswith("rope_hook_winch") and bid != "rope_hook_winch_small" else []), ["Reel speed and tension limits were not recovered."])
     simple("part-magall", "Sticks to most surfaces while on and breaks at a stress of 200.",
            [("Operating conditions", "Force reports the current stress; keep it below 200 or the connection breaks. Its magnet_force field is 0.1.")],
            [T("magall"), A("magall", "magnet_force", "Magnet configuration."), P("magall", "Force")], ["Stress unit unknown."])
@@ -8138,7 +8441,7 @@ def build(root):
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 fluid_links, air_scoop, displays, logic):
+                 winches, fluid_links, air_scoop, displays, logic):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.

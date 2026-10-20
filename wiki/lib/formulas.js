@@ -17,6 +17,7 @@
 // Guns and solid rockets: investigation/weapons.md (gun update 0x140427390, projectile update 0x140591d80, nozzle update 0x140437570).
 // Steam: investigation/steam.md (steam update 0x14040cbd0, phase helper 0x1402eb350).
 // Wheels: investigation/wheels.md (advanced wheel update 0x1403aa4a0, track pass 0x14049e060).
+// Winches and the Hose: investigation/winches.md (rope-node cable update 0x140524c80, legacy reel callback 0x1403e3b30).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -1240,6 +1241,80 @@ export function treadSpeed({ wheel, rps, size = WHEEL.defaultSize }) {
   return { radius: r, ms, kmh: ms * WHEEL.kmh, perRps: 2 * WHEEL.pi * r };
 }
 
+// Winches and the Hose, investigation/winches.md. Rope-node winches (type 48) step the shared rope by b × V metres per update,
+// b = 0.0002 × cable_length (speed initializer 0x1403b4ff0, cable update 0x140524c80). Legacy winches and the Hose (type 20) step by
+// 0.004 × V × p, p being the supplied fraction of a 0.01 charge request (reel callback 0x1403e3b30). These are rest-length changes,
+// not measured travel of a loaded hook. The step functions port investigation/native/winches/tools/model.py, in the same
+// double-precision operation order, so its worked examples reproduce exactly.
+export const WINCH = { ropeStep: 0.0002, legacyStep: 0.004, request: 0.01, ropeMin: 0.1, legacyMin: 0.25, speedGate: 0.1, defaultSpeed: 1 };
+export const WINCH_GROUPS = [
+  { kind: 'rope', label: 'Rope-node winches', speedMin: 0.1, speedMax: 10 },
+  { kind: 'legacy', label: 'Legacy winches and Hose', speedMin: 0.1, speedMax: 5 },
+];
+const winchPart = (id, label, family, kind, capacity) => {
+  const g = WINCH_GROUPS.find((x) => x.kind === kind);
+  return { id, label, family, kind, capacity, speedMin: g.speedMin, speedMax: g.speedMax };
+};
+export const WINCHES = [
+  winchPart('rope_hook_winch_small', 'Small Winch', 'part-rope-hook-winch-small', 'rope', 10),
+  winchPart('rope_hook_winch', 'Medium Winch', 'part-rope-hook-winch', 'rope', 40),
+  winchPart('rope_hook_winch_large', 'Large Winch', 'part-rope-hook-winch-large', 'rope', 150),
+  winchPart('rope_hook_winch_huge', 'Huge Winch', 'part-rope-hook-winch-huge', 'rope', 600),
+  winchPart('winch_electric', 'Small Winch', 'part-winch-electric', 'legacy', 10),
+  winchPart('winch_a', 'Medium Winch', 'part-winch-a', 'legacy', 20),
+  winchPart('winch_large_a', 'Large Winch', 'part-winch-large-a', 'legacy', 100),
+  winchPart('winch_huge_a', 'Huge Winch', 'part-winch-huge-a', 'legacy', 500),
+  winchPart('water_hose', 'Hose', 'part-water-hose', 'legacy', 16),
+];
+export const winchFor = (family, variant = null) =>
+  WINCHES.find((w) => w.id === variant) ?? WINCHES.find((w) => w.family === family) ?? WINCHES[0];
+
+// Rest-length change at Speed V: per update, per simulated second, and the charge requested per second while reeling.
+// Supply p (0 to 1) scales legacy spools only; a rope-node winch reels at full rate or, without usable electricity, not at all.
+export function winchRate({ winch, speed = WINCH.defaultSpeed, supply = 1 }) {
+  finite([speed, supply]);
+  const p = Math.min(1, Math.max(0, supply));
+  const perUpdate = winch.kind === 'rope' ? WINCH.ropeStep * winch.capacity * speed : WINCH.legacyStep * speed * p;
+  return { perUpdate, perSecond: perUpdate * UPDATES_PER_SECOND, chargePerSecond: WINCH.request * UPDATES_PER_SECOND };
+}
+
+// Whole updates, and simulated seconds, to change the rest length by `length` metres at a constant rate. Bounds are ignored:
+// a rope-node step that would cross a bound is dropped, a legacy one is clamped.
+export function reelTime({ winch, speed = WINCH.defaultSpeed, supply = 1, length }) {
+  finite([length]);
+  const { perUpdate } = winchRate({ winch, speed, supply });
+  if (!(perUpdate > 0)) return { updates: Infinity, seconds: Infinity };
+  const updates = Math.ceil(Math.abs(length) / perUpdate - 1e-9);
+  return { updates, seconds: updates / UPDATES_PER_SECOND };
+}
+
+// One update of a legacy reel: Up then Down, each with its own draw, then the optional geometric floor and the clamp.
+export function legacyReelStep({ length, capacity, speed = 1, up = false, down = false, energy = 1, effectiveness = 1, distance = null, damageState = 0 }) {
+  finite([length, capacity, speed, energy, effectiveness]);
+  const initial = energy;
+  for (const [active, sign] of [[up, -1], [down, 1]]) {
+    if (!active) continue;
+    const used = Math.min(energy, effectiveness * WINCH.request);
+    energy -= used;
+    length += sign * WINCH.legacyStep * speed * (used / WINCH.request);
+  }
+  if (distance !== null) length = Math.max(length, Math.min(1, Math.max(0, distance / capacity)) - (damageState > 1 ? 0.01 : 0.1));
+  length = Math.min(capacity, Math.max(WINCH.legacyMin, length));
+  return { length, draw: initial - energy, energyLeft: energy };
+}
+
+// One update of a rope-node winch with an anchor at the other end (capacity = the rope's shared limit).
+export function ropeReelStep({ length, capacity, speed = 1, up = false, down = false, relativeSpeed = 0, digitalEnabled = true }) {
+  finite([length, capacity, speed, relativeSpeed]);
+  const u = Math.min(1, Math.max(-1, relativeSpeed));
+  const step = WINCH.ropeStep * capacity * speed;
+  const numeric = Math.abs(u) >= WINCH.speedGate;
+  const candidate = numeric ? length + step * u : length + step * ((down && digitalEnabled ? 1 : 0) - (up && digitalEnabled ? 1 : 0));
+  if (length > capacity) return { length: length - step * (numeric ? u : 1), moving: false };
+  if (candidate !== length && candidate > WINCH.ropeMin && candidate < capacity) return { length: candidate, moving: true };
+  return { length, moving: false };
+}
+
 const FAMILY_GRAPHS = {
   'part-torque-clutch': ['clutch'],
   'modular-engine-clutch': ['clutch'],
@@ -1271,5 +1346,6 @@ const FAMILY_GRAPHS = {
   'part-steam-turbine': ['steam'],
   'steam-piston': ['piston'],
   ...Object.fromEntries(WHEEL_GROUPS.map((g) => [g.family, ['wheel']])),
+  ...Object.fromEntries(WINCHES.map((w) => [w.family, ['winch']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

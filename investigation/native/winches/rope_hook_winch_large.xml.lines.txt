@@ -1,0 +1,19 @@
+2: <definition name="Large Winch" category="4" type="48" mass="100" value="800" flags="524289" tags="basic" audio_filename_loop="audio/fx/servo_medium_loop.ogg" audio_gain="1" mesh_data_name="meshes/component_winch_large.mesh" cable_radius="0.05" cable_length="150" logic_gate_subtype="3">
+3: <tooltip_properties description="Draw a rope logic link between two Rope Nodes to form a cable. Can be extended and retracted." short_description="A mechanical winch that can transfer data/electric/fluid through an attached cable, with an extension length of 150m."/>
+173: <logic_nodes>
+174: <logic_node label="Down" mode="1" description="Lowers the winch cable down when receiving an on signal.">
+177: <logic_node label="Up" mode="1" description="Raises the winch cable up when receiving an on signal.">
+180: <logic_node label="Rope Node" mode="1" type="8">
+183: <logic_node label="Electric Node" mode="1" type="4">
+186: <logic_node label="Composite Input" mode="1" type="5" description="Composite data to send to the connected anchor.">
+189: <logic_node label="Composite Output" type="5" description="Composite data to receive from the connected anchor.">
+192: <logic_node label="On/Off Input" mode="1" description="On/Off data to send to the connected anchor.">
+195: <logic_node label="On/Off Output" description="On/Off data to receive from the connected anchor.">
+198: <logic_node label="Video Data Send" mode="1" type="6" description="Video data to send to the connected anchor.">
+201: <logic_node label="Video Data Receive" type="6" description="Video data to receive from the connected anchor.">
+204: <logic_node label="Audio Data Send" mode="1" type="7" description="Audio data to send to the connected anchor.">
+207: <logic_node label="Audio Data Receive" type="7" description="Audio data to receive from the connected anchor.">
+210: <logic_node label="Length" type="1" description="The current length of the winch cable in metres.">
+213: <logic_node orientation="3" label="Fluid" type="3" description="Fluid connection for the hose coil.">
+216: <logic_node label="Speed" mode="1" type="1" description="The speed of the winch clamped to a relative range of -1 to 1.">
+219: <logic_node label="Detach Rope" mode="1">
