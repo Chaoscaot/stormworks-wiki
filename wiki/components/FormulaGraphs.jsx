@@ -5,7 +5,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, jetChamber, jetExhaust, radiatorRate, scoopInflow, surfaceForce,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, jetChamber, jetExhaust, pidResponse, radiatorRate, scoopInflow, surfaceForce,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1063,9 +1063,113 @@ function ChamberGraph() {
   );
 }
 
+/* ---------- PID controller ---------- */
+
+const PID_UPDATES = 600;
+const PID_STEP_AT = 30;
+const PID_VARIANTS = {
+  physical: { label: 'PID Controller part', physical: true },
+  micro: { label: 'Microprocessor PID', physical: false },
+};
+
+function PidGraph() {
+  const uid = useUid();
+  const [variant, setVariant] = useState('physical');
+  const [kp, setKp] = useState(1);
+  const [ki, setKi] = useState(0.05);
+  const [kd, setKd] = useState(0);
+  const [bound, setBound] = useState(0);
+  const [setpoint, setSetpoint] = useState(0.8);
+  const [tau, setTau] = useState(1);
+  const [limited, setLimited] = useState(true);
+  const [n, setN] = useState(120);
+  const physical = PID_VARIANTS[variant].physical;
+  const samples = useMemo(
+    () => pidResponse({ kp, ki, kd, bound, physical, setpoint, tau, inputLimit: limited ? 1 : null, updates: PID_UPDATES, stepAt: PID_STEP_AT }),
+    [kp, ki, kd, bound, physical, setpoint, tau, limited],
+  );
+  const at = samples[n];
+  // The one-update derivative kick at the setpoint step would flatten the chart; it is left out of the scale and clipped.
+  const scaled = samples.filter((s) => s.n !== PID_STEP_AT || kd === 0);
+  const y = forceDomain(scaled.flatMap((s) => [s.process, s.output, s.setpoint]).filter(Number.isFinite).map((v) => clamp(v, -1e6, 1e6)));
+  const edge = (v) => (Number.isFinite(v) ? v : v < 0 ? y.min : y.max);
+  const kick = samples[PID_STEP_AT].output;
+  const end = samples.at(-1);
+  const t = (k) => `${fixed(k / UPDATES_PER_SECOND, 2)} s`;
+  const summary = `${PID_VARIANTS[variant].label}, Kp ${fixed(kp, 2)}, Ki ${fixed(ki, 3)}, Kd ${fixed(kd, 1)}${physical ? `, max_error ${bound ? fixed(bound, 2) : 'off'}` : ''}. At update ${n} (${t(n)}): process ${fixed(at.process, 3)}, Control Output ${fixed(at.output, 3)}.`;
+  const status = useSettled(summary);
+  const desc = `Example plant, not game physics. The setpoint steps from 0 to ${fixed(setpoint, 2)} at update ${PID_STEP_AT}. After ${PID_UPDATES} updates the process reads ${fixed(end.process, 3)} and Control Output ${fixed(end.output, 3)}. Highest process value ${fixed(Math.max(...samples.map((s) => s.process)), 3)}.${kd ? ` The derivative kick of ${fixed(kick, 2)} at the step is clipped.` : ''} ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Process Variable (example plant)', className: 'graph-line-a' },
+        { label: 'Control Output', className: 'graph-line-b' },
+        { label: 'Setpoint', className: 'graph-line-c' },
+      ]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-variant`}>Controller</label>
+            <select id={`${uid}-variant`} value={variant} onChange={(e) => setVariant(e.target.value)} aria-describedby={`${uid}-variant-hint`}>
+              {Object.entries(PID_VARIANTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <span id={`${uid}-variant-hint`} className="graph-field-hint">The microprocessor PID has no max_error clamp and no NaN or infinity check.</span>
+          </div>
+          <Range id={`${uid}-kp`} label="Kp" value={kp} min={0} max={5} step={0.05} onChange={(v) => setKp(+v.toFixed(2))} valueText={fixed(kp, 2)} />
+          <Range id={`${uid}-ki`} label="Ki (per update)" value={ki} min={0} max={0.2} step={0.001} onChange={(v) => setKi(+v.toFixed(3))} valueText={fixed(ki, 3)} hint="Per-second Ki ÷ 60." />
+          <Range id={`${uid}-kd`} label="Kd (per update)" value={kd} min={0} max={30} step={0.5} onChange={(v) => setKd(+v.toFixed(1))} valueText={fixed(kd, 1)} hint="60 × per-second Kd." />
+          <Range id={`${uid}-b`} label="max_error" value={bound} min={0} max={2} step={0.05} onChange={(v) => setBound(+v.toFixed(2))} valueText={bound ? fixed(bound, 2) : 'off'} hint={physical ? 'Caps Ki × S at ± max_error. 0 turns the clamp off.' : 'Ignored by the microprocessor PID.'} />
+          <Range id={`${uid}-sp`} label="Setpoint after the step" value={setpoint} min={-1.5} max={1.5} step={0.1} onChange={(v) => setSetpoint(+v.toFixed(1))} valueText={fixed(setpoint, 1)} />
+          <Range id={`${uid}-tau`} label="Example plant time constant" value={tau} min={0.25} max={5} step={0.25} onChange={setTau} valueText={`${fixed(tau, 2)} s`} />
+          <Check id={`${uid}-lim`} label="Example plant input limited to ±1" checked={limited} onChange={setLimited} hint="Like a throttle that saturates. The PID output itself is never limited." />
+          <Range id={`${uid}-x`} label="Selected update" value={n} min={0} max={PID_UPDATES} step={1} onChange={setN} valueText={`update ${n}, ${t(n)}`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="PID step response with an example first-order plant"
+          desc={desc}
+          x={{ min: 0, max: PID_UPDATES / UPDATES_PER_SECOND, ticks: steps(0, PID_UPDATES / UPDATES_PER_SECOND, 1), format: (v) => fixed(v, 0), label: 'Simulated time (s), 60 updates per second' }}
+          y={{ ...y, format: short }}
+          series={[
+            { key: 'sp', className: 'graph-line-c', points: samples.map((s) => [s.seconds, s.setpoint]) },
+            { key: 'out', className: 'graph-line-b', points: samples.map((s) => [s.seconds, edge(s.output)]) },
+            { key: 'pv', className: 'graph-line-a', points: samples.map((s) => [s.seconds, edge(s.process)]) },
+          ]}
+          selected={{ x: n / UPDATES_PER_SECOND, points: [{ key: 'pv', y: edge(at.process), className: 'graph-dot-a' }, { key: 'out', y: edge(at.output), className: 'graph-dot-b' }] }}
+          onSelect={(v) => setN(Math.round(snap(v, 0, PID_UPDATES / UPDATES_PER_SECOND, 1 / UPDATES_PER_SECOND) * UPDATES_PER_SECOND))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`Update ${n}, ${t(n)}`}
+          rows={[
+            ['Setpoint', fixed(at.setpoint, 3)],
+            ['Process Variable', fixed(at.process, 4)],
+            ['Error e', fixed(at.setpoint - at.process, 4)],
+            ['Error sum S', fixed(at.integral, 3)],
+            ['Integral term Ki × S', fixed(at.integralTerm, 4)],
+            ['Control Output', fixed(at.output, 4)],
+            ['Derivative kick at the step', kd ? fixed(kick - samples[PID_STEP_AT - 1].output, 3) : 'none (Kd = 0)'],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${PID_VARIANTS[variant].label} with the example plant, every 30 updates`,
+        cols: ['Update', 'Time (s)', 'Setpoint', 'Process Variable', 'Control Output'],
+        rows: samples.filter((s) => s.n % 30 === 0).map((s) => [String(s.n), fixed(s.seconds, 1), fixed(s.setpoint, 2), fixed(s.process, 4), fixed(s.output, 4)]),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
-  jet: JetGraph, chamber: ChamberGraph,
+  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

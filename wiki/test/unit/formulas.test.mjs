@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -438,4 +438,78 @@ test('jet graph constants remain tied to verified native findings', () => {
   assert.equal(value('Jet fuel buffer capacity').value, `${JET.bufferAmount} amount, ${JET.bufferAmount * JET.litresPerAmount} L`);
   for (const id of ['part-jet-engine-exhaust-basic', 'part-jet-engine-exhaust-afterburner', 'part-jet-engine-exhaust-rotating']) assert.deepEqual(graphKindsForFamily(id), ['jet']);
   assert.deepEqual(graphKindsForFamily('part-jet-engine-combustion-chamber'), ['chamber']);
+});
+
+// Worked examples from investigation/native/logic/pid-examples.txt (tools/pid_model.py).
+const pidRun = (calls, physical = true) => {
+  let state = pidState();
+  return calls.map((c) => {
+    const r = pidUpdate(state, { physical, ...c });
+    state = r.state;
+    return r;
+  });
+};
+
+test('PID reproduces the recovered recurrence and worked examples', () => {
+  const out = (rs) => rs.map((r) => r.output);
+  assert.deepEqual(out(pidRun([1, 1, 2].map((e) => ({ setpoint: e, process: 0, kp: 2, ki: 0.5, kd: 3 })))), [2.5, 3, 9]);
+  const bounded = pidRun([2, 2, 2].map((e) => ({ setpoint: e, process: 0, kp: 2, ki: 0.5, kd: 0, bound: 1 })));
+  assert.deepEqual(out(bounded), [5, 5, 5]);
+  assert.equal(bounded.at(-1).state.integral, 2);
+  const micro = pidRun([2, 2, 2].map((e) => ({ setpoint: e, process: 0, kp: 2, ki: 0.5, kd: 0, bound: 1 })), false);
+  assert.deepEqual(out(micro), [5, 6, 7], 'the microprocessor PID ignores max_error');
+  // Inactive resets everything; the first active update after it has no derivative.
+  const reset = pidRun([{ setpoint: 100, process: 0, kp: 2, ki: 0.5, kd: 3, active: false }, { setpoint: 2, process: 0, kp: 2, ki: 0.5, kd: 3 }], false);
+  assert.deepEqual(out(reset), [0, 5]);
+  // No time step: 60 updates of error 1 with Ki 1 give 60.
+  assert.equal(pidRun(Array.from({ length: 60 }, () => ({ setpoint: 1, process: 0, kp: 0, ki: 1, kd: 0 }))).at(-1).output, 60);
+  assert.equal(pidRun([{ setpoint: 1e30, process: 0, kp: 1e30, ki: 0, kd: 0 }])[0].output, 0);
+  assert.equal(pidRun([{ setpoint: 1e30, process: 0, kp: 1e30, ki: 0, kd: 0 }], false)[0].output, Infinity);
+  // Ki at or below the floor divides by 1e-8, not by |Ki|.
+  assert.equal(PID.boundFloor, Math.fround(1e-8));
+  assert.equal(pidRun([{ setpoint: 5, process: 0, kp: 0, ki: -1, kd: 0, bound: Math.fround(1e-8) }])[0].state.integral, 1);
+});
+
+test('PID model matches the retained example output when the investigation is present', (t) => {
+  const file = new URL('../../../investigation/native/logic/pid-examples.txt', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const lists = readFileSync(file, 'utf8').split('\n').map((l) => l.match(/\[([^\]]+)\]/)?.[1]).filter(Boolean)
+    .map((l) => l.split(',').map(Number));
+  const errs = (list, c) => list.map((e) => ({ setpoint: e, process: 0, ...c }));
+  assert.deepEqual(lists, [
+    pidRun(errs([1, 1, 2], { kp: 2, ki: 0.5, kd: 3 })).map((r) => r.output),
+    pidRun(errs([2, 2, 2], { kp: 2, ki: 0.5, kd: 0, bound: 1 })).map((r) => r.output),
+    pidRun(errs([2, 2, 2], { kp: 2, ki: 0.5, kd: 0 }), false).map((r) => r.output),
+  ]);
+  assert.match(readFileSync(file, 'utf8'), /Ki=1: 60\.0 \(no dt multiplier\)/);
+});
+
+test('PID step response uses the example plant and the variant switch', () => {
+  const physical = pidResponse({ kp: 1, ki: 0.05, kd: 0, bound: 0.5 });
+  const micro = pidResponse({ kp: 1, ki: 0.05, kd: 0, bound: 0.5, physical: false });
+  assert.equal(physical.length, 601);
+  assert.equal(physical[29].setpoint, 0);
+  assert.equal(physical[30].setpoint, 0.8);
+  // With max_error 0.5 the integral term stops at 0.5, so the physical loop settles short of the setpoint.
+  assert.ok(Math.abs(physical.at(-1).integralTerm - 0.5) < 1e-6);
+  assert.ok(physical.at(-1).process < 0.7);
+  assert.ok(Math.abs(micro.at(-1).process - 0.8) < 0.01);
+  // A setpoint step gives a one-update derivative kick of Kd × step.
+  const kick = pidResponse({ kp: 0, ki: 0, kd: 10 });
+  assert.ok(Math.abs(kick[30].output - 8) < 1e-5);
+  assert.equal(kick[0].output, 0);
+  assert.throws(() => pidResponse({ kp: 1, ki: 0, kd: 0, tau: 0 }), RangeError);
+});
+
+test('PID findings carry native addresses and the graph is attached', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const fam = data.families.find((f) => f.id === 'part-gate-pid-controller');
+  const value = (label) => fam.findings.find((x) => x.label === label);
+  for (const label of ['PID error', 'PID error sum', 'PID sum clamp', 'PID first-enable derivative guard', 'PID derivative difference',
+    'PID integral term', 'PID proportional term', 'PID derivative term', 'PID output finite check', 'Microprocessor PID tick']) {
+    assert.ok(value(label)?.source?.address, `${label}: native address is required`);
+  }
+  assert.equal(Number(value('PID bound denominator floor').value), Number(PID.boundFloor.toPrecision(1)));
+  assert.deepEqual(graphKindsForFamily('part-gate-pid-controller'), ['pid']);
+  assert.deepEqual(graphKindsForFamily('part-gate-jk-flipflop'), []);
 });

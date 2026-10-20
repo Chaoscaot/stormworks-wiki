@@ -3334,14 +3334,6 @@ def sensors_and_radio(B, E):
 
 def remaining(B, E):
     # Categories without recovered runtime code still get evidence-backed guidance.
-    B.category("Logic",
-               "Logic gates document their edge cases precisely: divide by zero outputs 0 with an error flag, thresholds are inclusive, trigonometry uses turns, SR latches favour Reset and JK flip-flops toggle.",
-               [section("Edge cases worth knowing",
-                        "Divide outputs 0 and raises Error on division by zero. Threshold is on when lower ≤ x ≤ upper. Greater Than is off when A equals B. Sin, cos and tan take turns; asin, acos and atan return turns; invalid input gives 0. An SR latch with both inputs on resets; a JK flip-flop toggles. Delay and Blinker timers restart when their input changes or switches off. The PID controller clears its stored values when Active is off.")],
-               [E.tooltip("gate_float_divide"), E.tooltip("gate_float_threshold"), E.tooltip("gate_float_sin"), E.tooltip("gate_sr_latch"),
-                E.tooltip("gate_float_greater_than"), E.tooltip("gate_bool_blink"),
-                E.tooltip("gate_jk_flipflop"), E.tooltip("gate_bool_delay"), E.port("gate_pid_controller", "Active")],
-               ["Tooltip semantics; the logic evaluator was not decompiled."])
     B.category("Controls",
                "Buttons accept an external on/off input so several buttons can drive one output; the large keypad also emits a pulse on confirm.",
                [section("Wiring", "Chain buttons through External Input to unify outputs. Toggle buttons and lock buttons can set their default state in the properties.")],
@@ -3478,35 +3470,6 @@ def more_families(B, E):
     simple("part-linear-matic-a", "Pneumatic piston with 1 m stroke (1.25 m to 2.25 m tall) and a motor field of 200000.",
            [("Operating conditions", "A standard value sets the rod target; Piston Rod Position reports −0.5 to 0.5 m. Speed is set with the select tool.")],
            [T("linear_matic_a"), P("linear_matic_a", "Piston Rod Position"), A("linear_matic_a", "max_motor_force", "Motor force configuration.")], [])
-
-    # Logic edge cases and documentation conflicts.
-    simple("part-gate-float-register", "Stores on Set; Clear is documented two ways: reset to 0 (port) or to the configured value (tooltip).",
-           [("Setup and interactions", "Test Clear in game before relying on it: the port description says the value resets to 0, while the tooltip says it resets to the value configured with the select tool.")],
-           [T("gate_float_register"), P("gate_float_register", "Clear")], ["The source documentation conflicts."])
-    simple("part-gate-train-junction", "Its tooltip and ports are word-for-word those of Push To Toggle; treat the train-junction role as undocumented.",
-           [("Setup and interactions", "Expect a toggled internal state on each new on signal; any track-switching side effect is not described.")],
-           [T("gate_train_junction"), T("gate_push_to_toggle")], ["Duplicate text may be a copy error in the definition."])
-    simple("part-gate-float-divide", "A ÷ B; division by zero outputs 0 and raises Error.",
-           [("Setup and interactions", "Gate downstream logic on Error, because a zero output is also a legitimate quotient.")],
-           [T("gate_float_divide"), P("gate_float_divide", "Error")], [])
-    simple("part-gate-float-threshold", "On when lower ≤ input ≤ upper (both bounds inclusive).",
-           [("Setup and interactions", "Use it for hysteresis-free window checks; pair with an SR latch for hysteresis.")], [T("gate_float_threshold")], [])
-    simple("part-gate-sr-latch", "Set and Reset both on: Reset wins.",
-           [("Setup and interactions", "Use the JK flip-flop instead if both-on should toggle.")], [T("gate_sr_latch"), T("gate_jk_flipflop")], [])
-    simple("part-gate-jk-flipflop", "Set and Reset both on: the state toggles.",
-           [("Setup and interactions", "Holding both on toggles every update; feed it pulses, not levels.")], [T("gate_jk_flipflop")],
-           ["Per-update toggling while both inputs stay on is a reading of the tooltip, not measured."])
-    simple("part-gate-float-sin", "Trigonometry in turns: sin/cos/tan take turns, the inverse functions return turns, invalid input outputs 0.",
-           [("Setup and interactions", "Sensors that report turns (compass, tilt, radar angles) feed it directly without degree or radian conversion.")], [T("gate_float_sin")], [])
-    simple("part-gate-pid-controller", "Setpoint/process-variable controller whose stored terms clear whenever Active is off.",
-           [("Setup and interactions", "Toggling Active off resets integral windup; tune P, I and D in the properties.")], [T("gate_pid_controller"), P("gate_pid_controller", "Active")],
-           ["The discrete PID equation was not recovered."])
-    simple("part-gate-bool-delay", "Outputs its input after the set delay; any input change restarts the timer.",
-           [("Setup and interactions", "A signal that flickers faster than the delay never passes through.")], [T("gate_bool_delay")], [])
-    simple("part-gate-torque-multimeter", "Measures power to one component; wire it in series to avoid losing power.",
-           [("Setup and interactions", "Place it between engine and consumer, not on a branch.")], [T("gate_torque_multimeter")], [])
-    simple("part-gate-up-down", "Two buttons move an internal value between −1 and 1, converting presses into a standard value.",
-           [("Setup and interactions", "Drive robotic joints, throttles or rudders directly from its output.")], [T("gate_up_down")], [])
 
     # Electricity helpers.
     N = electricity_native(E)
@@ -4004,12 +3967,416 @@ def displays(B, E):
              shared + ports("monitor_hud_1") + per_variant(huds), [static, open_items, slot_owner])
 
 
+# logic pass; files under investigation/native/logic/, report investigation/logic.md.
+LG = "../logic/"
+LG_REPORT = "investigation/logic.md"
+LOGIC_SLOT = 0x140B6A518     # slot +0x358 of the logic gate vtable 0x140b6a1c0, holds F_LOGIC
+LOGIC_TABLE = 0x1403C9554    # logic update jump table, image-relative dwords indexed by logic_gate_type
+F_SANITIZE = 0x1401E3C40     # finite-value helper: NaN and infinities become 0
+F_POWER_GUARD = 0x1401E3C00  # exponent guard (leaf): suppresses the power helper near zero
+F_PID_PROPS = 0x1403CDBB8    # chunk of the logic property serializer 0x1403cd9b0: PID property names
+F_MICRO = 0x140394500        # microprocessor component update, vtable 0x140b84dc8 slot +0x358
+MICRO_SLOT = 0x140B85120
+F_GRAPH_IN = 0x1403718E0     # microprocessor Boolean graph input node: copies the upstream output into its cache
+F_BRIDGE_IN = 0x140371900    # microprocessor Boolean external input bridge
+F_BRIDGE_OUT = 0x140371750   # microprocessor Boolean external output bridge
+F_MICRO_PID = 0x14037A210    # microprocessor pid_controller tick, component vtable 0x140b62d48 slot +0x50
+F_MICRO_APID = 0x140381360   # microprocessor advanced_pid tick, component vtable 0x140b07688 slot +0x50
+F_MICRO_JK = 0x14037AF70     # microprocessor jk_flip_flop tick, component vtable 0x140ae7928 slot +0x50
+F_MICRO_TON = 0x140387090    # microprocessor ton timer tick, component vtable 0x140b0cd70 slot +0x50
+F_MICRO_BLINK = 0x14037BD60  # microprocessor blinker tick, component vtable 0x140aff2d0 slot +0x50
+MICRO_SLOTS = ((0x140B62D98, F_MICRO_PID), (0x140B076D8, F_MICRO_APID), (0x140AE7978, F_MICRO_JK),
+               (0x140B0CDC0, F_MICRO_TON), (0x140AFF320, F_MICRO_BLINK))
+_PG = LG + "asm/physical-gate.asm"
+_LP = LG + "pseudocode/1403c4d20.c"
+# Lines of each logic_gate_type case in the retained physical-gate disassembly.
+GATE_LINES = {0: "L4151-L4169", 1: "L97-L111", 2: "L112-L121", 3: "L122-L128", 4: "L129-L174", 5: "L193-L219", 6: "L220-L232",
+              7: "L233-L245", 8: "L246-L254", 9: "L255-L265", 10: "L175-L192", 11: "L266-L299", 12: "L300-L322", 13: "L323-L336",
+              14: "L337-L342", 15: "L343-L355", 16: "L356-L369", 17: "L370-L372", 22: "L630-L641", 24: "L4170-L4176", 25: "L4170-L4176", 26: "L990-L1009",
+              27: "L1010-L1019", 28: "L1020-L1046", 29: "L1047-L1111", 32: "L1260-L1281", 33: "L1282-L1293", 34: "L1294-L1321",
+              35: "L1322-L1356", 36: "L1357-L1405", 37: "L1406-L1428", 38: "L1429-L1437", 43: "L1668-L1734", 44: "L1735-L1761",
+              45: "L1762-L1831", 46: "L1832-L1883"}
+# (definition, logic_gate_type, case entry, entry bytes); the extractor checks each jump-table entry.
+GATES = {
+    "and": ("gate_bool_and", 0, 0x1403C9493, "410fb6868001"), "or": ("gate_bool_or", 1, 0x1403C4EAB, "410fb6868001"),
+    "xor": ("gate_bool_xor", 2, 0x1403C4EEB, "410fb68e8001"), "not": ("gate_bool_not", 3, 0x1403C4F1A, "410fb6868001"),
+    "updown": ("gate_up_down", 4, 0x1403C4F3A, "f3410f109eb807"), "junction": ("gate_float_switch", 5, 0x1403C503C, "410fb6868001"),
+    "add": ("gate_float_add", 6, 0x1403C50B2, "f3410f1086c001"), "subtract": ("gate_float_subtract", 7, 0x1403C50ED, "f3410f1086c001"),
+    "invert": ("gate_float_invert", 8, 0x1403C5128, "f3410f1086c001"), "toggle": ("gate_push_to_toggle", 9, 0x1403C5154, "410fb6868001"),
+    "switchbox": ("gate_float_switch_input", 10, 0x1403C4FEF, "410fb6868001"), "blink": ("gate_bool_blink", 11, 0x1403C518E, "f3410f1086e006"),
+    "delay": ("gate_bool_delay", 12, 0x1403C521B, "f3410f1086dc06"), "threshold": ("gate_float_threshold", 13, 0x1403C5284, "f3410f108ec001"),
+    "fconst": ("gate_float_constant", 14, 0x1403C52C4, "f3410f1086d006"), "multiply": ("gate_float_multiply", 15, 0x1403C52E0, "f3410f1086c001"),
+    "clamp": ("gate_float_clamp", 16, 0x1403C531B, "f3410f1086c001"), "bconst": ("gate_bool_constant", 17, 0x1403C5355, "41c686a80300"),
+    "less": ("gate_float_less_than", 22, 0x1403C57BD, "f3410f108ec001"), "torque_add": ("gate_torque_add", 24, 0x1403C94F2, "488b8d000500"),
+    "torque_meter": ("gate_torque_multimeter", 25, 0x1403C94F2, "488b8d000500"), "modulo": ("gate_float_modulo", 26, 0x1403C5E27, "f3410f1086c001"),
+    "counter": ("gate_float_counter", 27, 0x1403C5E7F, "f3410f1086c001"), "pingpong": ("gate_float_counter_ping_pong", 28, 0x1403C5EAD, "f3410f1086c001"),
+    "pid": ("gate_pid_controller", 29, 0x1403C5F19, "f3410f1086c001"), "register": ("gate_float_register", 32, 0x1403C62B9, "410fb6868001"),
+    "greater": ("gate_float_greater_than", 33, 0x1403C6317, "f3410f108ec001"), "sr": ("gate_sr_latch", 34, 0x1403C634D, "410fb68e8001"),
+    "jk": ("gate_jk_flipflop", 35, 0x1403C63C4, "410fb6968001"), "capacitor": ("gate_bool_capacitor", 36, 0x1403C644F, "f3410f1086dc06"),
+    "divide": ("gate_float_divide", 37, 0x1403C651B, "f3410f108ec001"), "abs": ("gate_float_abs", 38, 0x1403C657C, "f3410f1086c001"),
+    "trig": ("gate_float_sin", 43, 0x1403C6978, "f3410f10b69406"), "exponent": ("gate_float_exponent", 44, 0x1403C6A93, "f3410f10b69406"),
+    "function": ("gate_function_small", 45, 0x1403C6B0D, "0f57f60f57d2f3"), "function_large": ("gate_function_large", 45, 0x1403C6B0D, "0f57f60f57d2f3"),
+    "train": ("gate_train_junction", 46, 0x1403C6C4E, "4138b6310800"),
+}
+WHERE.update({(F_LOGIC, entry): "%s:%s; %sdispatch.txt:L%d; %s" % (_PG, GATE_LINES[t], LG, t + 1, _LP) for _, t, entry, _ in GATES.values()})
+_PID, _JK, _CAP = _PG + ":L1047-L1111; " + _LP, _PG + ":L1322-L1356; " + _LP, _PG + ":L1357-L1405; " + _LP
+WHERE.update({
+    (F_LOGIC, 0x1403C4E9F): _PG + ":L90-L96; " + LG + "dispatch.txt; " + _LP,
+    (F_LOGIC, 0x1403C4F5C): _PG + ":L129-L174; " + _LP,
+    (F_LOGIC, 0x1403C5197): _PG + ":L266-L299; " + _LP,
+    (F_LOGIC, 0x1403C5224): _PG + ":L300-L322; " + _LP,
+    (F_LOGIC, 0x1403C6458): _CAP, (F_LOGIC, 0x1403C6460): _CAP,
+    (F_LOGIC, 0x1403C6549): _PG + ":L1406-L1428; " + _LP, (F_LOGIC, 0x1403C5E58): _PG + ":L990-L1009; " + _LP,
+    (F_LOGIC, 0x1403C6309): _PG + ":L1260-L1281; " + _LP, (F_LOGIC, 0x1403C6A42): _PG + ":L1668-L1734; " + _LP,
+    (F_LOGIC, 0x1403C6AD7): _PG + ":L1735-L1761; " + LG + "asm/power-guard.asm",
+    (F_LOGIC, 0x1403C63F2): _JK, (F_LOGIC, 0x1403C6407): _JK,
+    (F_LOGIC, 0x1403C5F50): _PID, (F_LOGIC, 0x1403C5F74): _PID, (F_LOGIC, 0x1403C5F7B): _PID, (F_LOGIC, 0x1403C5F99): _PID,
+    (F_LOGIC, 0x1403C5F9E): _PID, (F_LOGIC, 0x1403C5FA6): _PID, (F_LOGIC, 0x1403C5FAF): _PID, (F_LOGIC, 0x1403C5FBD): _PID,
+    (F_LOGIC, 0x1403C5FCE): _PID, (F_LOGIC, 0x1403C5FDA): _PID, (F_LOGIC, 0x1403C5FEC): _PID, (F_LOGIC, 0x1403C5FF3): _PID,
+    (F_LOGIC, 0x1403C6000): _PID, (F_LOGIC, 0x1403C600D): _PID,
+    (F_SANITIZE, None): LG + "asm/1401e3c40.asm:L8-L25; " + LG + "asm/numeric-sanitize.asm; " + LG + "pseudocode/1401e3c40.c",
+    (F_POWER_GUARD, None): LG + "asm/power-guard.asm:L7-L20",
+    (F_PID_PROPS, None): LG + "asm/pid-state-loader.asm:L14-L35; " + LG + "pseudocode/1403cd9b0.c",
+    (F_MICRO, None): LG + "asm/140394500.asm:L40-L80; " + LG + "pseudocode/140394500.c; " + LG + "pseudocode/14038d270.c",
+    (F_GRAPH_IN, None): LG + "asm/1403718e0.asm:L7-L14; " + LG + "pseudocode/1403718e0.c",
+    (F_BRIDGE_IN, None): LG + "asm/140371900.asm:L7-L12; " + LG + "pseudocode/140371900.c",
+    (F_BRIDGE_OUT, None): LG + "asm/140371750.asm:L7-L14; " + LG + "pseudocode/140371750.c",
+    (F_MICRO_PID, None): LG + "asm/14037a210.asm:L7-L44; " + LG + "pseudocode/14037a210.c",
+    (F_MICRO_APID, None): LG + "asm/140381360.asm; " + LG + "pseudocode/140381360.c",
+    (F_MICRO_JK, None): LG + "asm/14037af70.asm:L7-L35; " + LG + "pseudocode/14037af70.c",
+    (F_MICRO_TON, None): LG + "asm/140387090.asm; " + LG + "pseudocode/140387090.c",
+    (F_MICRO_BLINK, None): LG + "asm/14037bd60.asm; " + LG + "pseudocode/14037bd60.c",
+})
+
+
+def logic_gates(E):
+    """Physical logic update and microprocessor graph, verified once and shared by the Logic entries."""
+    if hasattr(E, "logic"):
+        return E.logic
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / LG_REPORT).is_file():
+        raise ValueError("Logic report missing: " + LG_REPORT)
+    for slot, target in ((LOGIC_SLOT, F_LOGIC), (MICRO_SLOT, F_MICRO)) + MICRO_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Vtable slot %#x does not point to %#x" % (slot, target))
+    rep = " Report: %s." % LG_REPORT
+    f = {}
+    f["dispatch"] = code(F_LOGIC, 0x1403C4E9F, "8b848254953c004803c2ffe0", "Logic gate dispatch", "jump table at 0x1403c9554",
+                         "The logic gate update (vtable 0x140b6a1c0, slot +0x358 at 0x140b6a518 holds 0x1403c4d20; the extractor re-reads it) reads the definition's logic_gate_type at +0xe70 and jumps through 63 image-relative entries at 0x1403c9554. "
+                         "The component dispatcher makes one call through slot +0x358 per component per update (0x1405498d6). Each case computes its outputs from the input values cached at that moment; no case adds an internal delay." + rep)
+    for key, (bid, gtype, entry, hexbytes) in GATES.items():
+        if n.base + struct.unpack("<I", n.raw(LOGIC_TABLE + 4 * gtype, 4))[0] != entry:
+            raise ValueError("Logic jump-table entry %d does not lead to %#x" % (gtype, entry))
+    f["sanitize"] = code(F_SANITIZE, 0x1401E3C51, "6683f8017417", "Finite-value check", "NaN or ±infinity → 0",
+                         "The helper classifies its binary32 argument (call 0x1409d2f30) and returns 0 for an infinity, then tests NaN with ucomiss at 0x1401e3c57 (bytes 0f2ef60f9ac0) and returns 0 for it too. Every other value passes unchanged; this is not a clamp to -1 … 1. "
+                         "Numeric gate cases call it before they store their output." + rep)
+    f["sixty"] = op(F_LOGIC, 0x1403C6458, "f30f590500a37e00", 0x140BB0760, "Seconds-to-updates factor",
+                    "Timed physical gates multiply their seconds setting by this and truncate toward zero (cvttss2si, for example at 0x1403c6460, bytes f3480f2cd0) to a whole number of updates N. The delay (0x1403c5224) and blinker (0x1403c5197) do the same. "
+                    "Example: 0.51 s × 60 = 30.6, truncated to 30 updates." + rep)
+    f["graph_in"] = code(F_GRAPH_IN, 0x1403718E9, "0fb64020", "Microprocessor input gathering", "upstream output +0x20 → input cache +0x38",
+                         "Inside a microprocessor graph, a Boolean input node copies its upstream component's output into its own input cache. The graph update gathers every component's inputs before it runs any component's tick (slot +0x50). "
+                         "Inference from those two phases: a new result reaches the next component one graph update later, whatever the iteration order." + rep)
+    E.logic = f
+    return f
+
+
+def logic(B, E):
+    T, P, A = E.tooltip, E.port, E.attr
+    f = logic_gates(E)
+    n, code, op = E.native, E.code, E.operand
+    R = update_rate(E)["findings"]
+    rep = " Report: %s." % LG_REPORT
+    base = [f["dispatch"]]
+
+    def case(key, value, detail):
+        bid, gtype, entry, hexbytes = GATES[key]
+        name = E.block(bid)["name"]
+        return code(F_LOGIC, entry, hexbytes, "%s case (logic_gate_type %d)" % (name, gtype), value,
+                    "Jump-table entry %d at %#x leads here. %s%s" % (gtype, LOGIC_TABLE + 4 * gtype, detail, rep))
+
+    def gate(fid, key, summary, how, value, detail, extra=(), setup=None, limits=(), ports=()):
+        bid = GATES[key][0]
+        findings = [case(key, value, detail), A(bid, "logic_gate_type", "Selects case %d of the logic update." % GATES[key][1])] + base + list(extra)
+        if E.block(bid).get("description"):
+            findings.append(T(bid))
+        findings += [P(bid, p) for p in ports]
+        sections = [section("How it updates", how)] + ([section("Setup and interactions", setup)] if setup else [])
+        B.family(fid, summary, sections, findings, list(limits))
+
+    C = " The result passes the finite-value check, so NaN and ±infinity become 0."
+    # Boolean gates.
+    gate("part-gate-bool-and", "and", "On when A and B are both on.", "Each update the output is A AND B.", "Q = A AND B",
+         "Type 0 also takes the default branch for out-of-range types.")
+    gate("part-gate-bool-or", "or", "On when A or B is on.", "Each update the output is A OR B.", "Q = A OR B", "Plain OR of the two cached inputs.")
+    gate("part-gate-bool-xor", "xor", "On when exactly one of A and B is on.", "Each update the output is on when A differs from B.", "Q = (A ≠ B)",
+         "Compares the two cached inputs for inequality.")
+    gate("part-gate-bool-not", "not", "Outputs the opposite of A.", "Each update the output is NOT A.", "Q = NOT A", "Inverts the cached input.")
+    gate("part-gate-bool-constant", "bconst", "Always outputs on.", "Each update it writes on to its output.", "Q = 1", "Stores 1 to the Boolean output every update.")
+    # Numeric gates.
+    for fid, key, summary, how, value in (
+            ("part-gate-float-add", "add", "Outputs A + B.", "Each update the output is A + B.", "A + B"),
+            ("part-gate-float-subtract", "subtract", "Outputs A − B.", "Each update the output is A − B.", "A − B"),
+            ("part-gate-float-multiply", "multiply", "Outputs A × B.", "Each update the output is A × B.", "A × B"),
+            ("part-gate-float-invert", "invert", "Outputs the negated input.", "Each update the output is −x.", "−x"),
+            ("part-gate-float-abs", "abs", "Outputs the absolute value of the input.", "Each update the output is |x|.", "|x|"),
+            ("part-gate-float-constant", "fconst", "Outputs its configured number.", "Each update the output is the number set with the select tool.", "configured constant")):
+        gate(fid, key, summary, how + " A result that overflows to infinity, or is NaN, outputs 0.", value,
+             "Single-precision arithmetic on the cached numeric inputs." + C)
+    div = op(F_LOGIC, 0x1403C6549, "0f2f0510937e00", 0x140BAF860, "Divide-by-zero threshold",
+             "Divide compares |B| with this. Above it the quotient A ÷ B is computed and Error is off; at or below it the output is 0 and Error is on, without dividing. Modulo uses the same constant (0x1403c5e58).")
+    gate("part-gate-float-divide", "divide", "A ÷ B; when |B| ≤ 1e-6 it outputs 0 and turns Error on.",
+         "Each update it tests |B|. Above 1e-6 it outputs A ÷ B with Error off. At or below 1e-6 it outputs 0 with Error on.", "A ÷ B, or 0 with Error when |B| ≤ 1e-6",
+         "Error is the Boolean output; the quotient is skipped, not clamped, on the error path." + C, [div],
+         "Gate downstream logic on Error, because 0 is also a legitimate quotient.", ports=["Error"])
+    mod = op(F_LOGIC, 0x1403C5E58, "0f2f15019a7e00", 0x140BAF860, "Modulo divisor threshold",
+             "Modulo calls the library remainder helper 0x1409d5b34 only when |B| is above this; otherwise it outputs 0.")
+    gate("part-gate-float-modulo", "modulo", "Remainder of A ÷ B; when |B| ≤ 1e-6 it outputs 0.",
+         "Each update, with |B| above 1e-6, it outputs the library remainder of A ÷ B. At or below 1e-6 it outputs 0. There is no error output.",
+         "remainder(A, B), or 0 when |B| ≤ 1e-6", "The remainder helper is a library routine; its sign and rounding rules follow that library." + C, [mod])
+    gate("part-gate-float-clamp", "clamp", "Limits the input to the configured lower and upper bounds.",
+         "Each update the output is min(max(x, lower), upper). The bounds are not swapped: if lower is above upper the output is always upper.",
+         "min(max(x, lower), upper)", "Reads lower at +0x708 and upper at +0x720 and applies max, then min, in that order." + C)
+    gate("part-gate-float-threshold", "threshold", "On when lower ≤ input ≤ upper (both bounds inclusive).",
+         "Each update the output is on when lower ≤ x ≤ upper. The bounds are not swapped: with lower above upper it is never on.",
+         "lower ≤ x ≤ upper", "Two comparisons against the configured bounds at +0x708 and +0x720; either failure turns the output off.",
+         setup="For hysteresis, pair it with an SR latch.")
+    gate("part-gate-float-greater-than", "greater", "On when A > B; off when they are equal.", "Each update the output is A > B, strictly.", "A > B",
+         "comiss and seta: equal inputs, or a NaN input, give off.")
+    gate("part-gate-float-less-than", "less", "On when A < B; off when they are equal.", "Each update the output is A < B, strictly.", "A < B",
+         "Strict comparison: equal inputs give off.")
+    gate("part-gate-float-switch", "junction", "Routes the value to On Path when Switch Signal is on, otherwise to Off Path; the unused path outputs 0.",
+         "Each update, Switch Signal on gives On Path = value and Off Path = 0; Switch Signal off gives On Path = 0 and Off Path = value.",
+         "on: (x, 0); off: (0, x)", "Writes both numeric outputs every update.")
+    gate("part-gate-float-switch-input", "switchbox", "Outputs First Value (On) when Switch Signal is on, otherwise Second Value (Off).",
+         "Each update the output is the first value when Switch Signal is on and the second value when it is off.", "A ? x : y",
+         "Selects between the two cached numeric inputs." + C)
+    clear = code(F_LOGIC, 0x1403C6309, "f3410f1086d0060000", "Memory register Clear value", "configured reset value",
+                 "On Clear the case loads the configured reset value from +0x6d0 and stores it as the held value, after any Set in the same update." + rep)
+    gate("part-gate-float-register", "register", "Set stores Value to Store; Clear loads the configured reset value and overrides Set.",
+         "Each update, Set copies Value to Store into the held value. Clear then replaces it with the reset value configured with the select tool, so Clear wins when both are on. Otherwise the value holds.",
+         "Set: S = x; Clear: S = reset value", "Set writes the cached numeric input to +0x6b8; Clear runs after it." + C, [clear],
+         "The tooltip is right: Clear restores the configured value. The Clear port's description of a reset to 0 holds only when that value is 0.",
+         ports=["Clear"])
+    trig = op(F_LOGIC, 0x1403C6A42, "f30f5e05069b7e00", 0x140BB0550, "Trigonometry turn factor",
+              "The forward modes multiply the input by this 2π constant before calling sin, cos or tan; the inverse modes divide the helper result by it. asin and acos first compare |x| with 1 and output 0 above it. "
+              "The mode order sin, cos, tan, asin, acos, atan is inferred from the six helper calls and their domains.")
+    gate("part-gate-float-sin", "trig", "Trigonometry in turns: forward functions take turns, inverse functions return turns, invalid input outputs 0.",
+         "When the input changes it evaluates the selected function: sin, cos and tan of x × 2π, or asin, acos and atan of x divided by 2π. asin and acos of |x| > 1 output 0. An unchanged input leaves the output as it was.",
+         "f(2π·x) or f⁻¹(x) ÷ 2π", "Mode at +0x148, six cases; the result is published through the finite-value path 0x1403c9d10." + C, [trig],
+         "Sensors that report turns (compass, tilt, radar angles) feed it directly without degree or radian conversion.")
+    eps = E.const(F_POWER_GUARD, 0x140BAF85C, "Exponent zero guard",
+                  "The guard returns 'suppress' when (x < this and k < 1) or (|x| < this and k < this), x being the input and k the exponent; the case then outputs 0.")
+    guard = code(F_LOGIC, 0x1403C6AD7, "e824d1e1ff", "Exponent guard call", "call 0x1401e3c00",
+                 "On a changed input the case calls the guard and outputs 0 when it returns true; otherwise it calls the library power helper 0x1409b9c10 with x and k." + rep)
+    gate("part-gate-float-exponent", "exponent", "Raises the input to the configured exponent; inputs below 1.1920929e-7 with an exponent below 1 output 0.",
+         "When the input changes it outputs x^k through a library power helper. A guard outputs 0 instead when x is below 1.1920929e-7 and k below 1, which includes every negative input with such an exponent, or when |x| and k are both below 1.1920929e-7. A NaN result, such as a negative base with a fractional exponent of 1 or more, outputs 0.",
+         "x^k with a near-zero guard", "Reads the exponent property through 0x1402dc0c0." + C, [eps, guard])
+    func = "%s%s" % ("On a changed x, y or z, and only when its expression parsed (flags +0x830 and +0x831), it calls the expression evaluator 0x1401e5360. ", C)
+    gate("function-gate", "function", "Re-evaluates its expression only when an input changes; NaN and infinity output 0.",
+         "The output updates on an update where x, y or z changed, and only if the expression parsed. Unchanged inputs keep the last result. Function (1 input) and Function (3 inputs) share this case.",
+         "f(x, y, z) on input change", func, [case("function_large", "f(x, y, z) on input change", func), A("gate_function_large", "logic_gate_type", "Selects case 45 of the logic update.")],
+         setup="Treat the operator set and rounding as the editor documents them; the Logic category lists what of the expression language remains open.")
+    # Stateful Boolean gates.
+    jk_guard = code(F_LOGIC, 0x1403C63F2, "3ac27509443ac10f84f3300000", "JK changed-input guard", "skip when Set and Reset are unchanged",
+                    "The case saves Set and Reset at +0x691 and +0x692 and compares them with the previous values; when neither changed it jumps to the common exit without touching the state." + rep)
+    jk_toggle = code(F_LOGIC, 0x1403C6407, "4138b6b40600000f94c0", "JK toggle", "Q = NOT Q",
+                     "With both inputs on after a change, the state at +0x6b4 is complemented. Set alone sets it, Reset alone clears it, neither holds it. Output and NOT Output follow the state." + rep)
+    micro_jk = code(F_MICRO_JK, 0x14037AF78, "44388120010000750f", "Microprocessor JK guard", "same changed-input guard",
+                    "The microprocessor JK flip-flop (vtable 0x140ae7928, slot +0x50) compares Set and Reset with the values saved at +0x120 and +0x121 and applies the same set, reset, toggle and hold table only when one changed." + rep)
+    gate("part-gate-jk-flipflop", "jk", "Acts only when Set or Reset changes: Set sets, Reset resets, both on toggles once. Holding both on does not keep toggling.",
+         "On an update where Set or Reset changed: Set on and Reset off sets the output, Reset on and Set off resets it, both on toggles it, both off holds it. On an update where neither input changed the output holds, whatever the inputs are. Inputs that change together count as one change.",
+         "on change: 10 set, 01 reset, 11 toggle, 00 hold", "Example from the report with Q starting off: inputs 00, 11, 11, 11, 01, 11 give Q 0, 1, 1, 1, 0, 1.", [jk_guard, jk_toggle, micro_jk],
+         "To toggle repeatedly with both inputs on, pulse one of them: each new change to both on toggles once. The microprocessor JK flip-flop follows the same rule.")
+    gate("part-gate-sr-latch", "sr", "Reset wins when Set and Reset are both on; it acts only when an input changes.",
+         "On an update where Set or Reset changed: Reset on clears the output, even with Set on; otherwise Set on sets it; both off hold it. Unchanged inputs hold.",
+         "on change: Reset clears, else Set sets", "Saves both inputs at +0x691 and +0x692 and skips the update when neither changed; Reset is tested first.",
+         setup="Use the JK flip-flop instead if both on should toggle.")
+    gate("part-gate-push-to-toggle", "toggle", "Toggles its state on each rising edge of Toggle Signal.",
+         "On an update where Toggle Signal turns on, Internal State flips. Holding the signal on, or turning it off, leaves the state unchanged.",
+         "on rising edge: Q = NOT Q", "Compares the input with the value saved at +0x691; only a change to on complements the state at +0x3a8.")
+    # Timers.
+    sixty, ex = f["sixty"], " For example 0.51 s × 60 = 30.6, truncated to 30 updates."
+    blink60 = op(F_LOGIC, 0x1403C5197, "f30f100dc1b57e00", 0x140BB0760, "Blinker seconds-to-updates factor",
+                 "The blinker multiplies both durations by this and truncates them to whole updates.")
+    gate("part-gate-bool-blink", "blink", "Blinks for whole numbers of updates: on for trunc(60 × on time), off for trunc(60 × off time), while Control Signal is on.",
+         "The two durations become N_on = trunc(60 × on time) and N_off = trunc(60 × off time) updates. When Control Signal changes the cycle counter restarts at 0. Otherwise the counter advances by 1 each update and wraps after N_on + N_off. The output is on while Control Signal is on and the counter is below N_on, so each cycle gives N_on updates on and N_off off." + ex,
+         "on while c < N_on, period N_on + N_off", "On duration from +0x6e0, off duration from +0x6dc, counter at +0x6e4; the counter test is unsigned.", [blink60, sixty] + R,
+         "The microprocessor Blinker is a different routine: it starts each call off and spends its wrap update off, so after the first cycle it gives one update fewer on.",
+         [TICK])
+    delay60 = op(F_LOGIC, 0x1403C5224, "f30f590534b57e00", 0x140BB0760, "Delay seconds-to-updates factor",
+                 "The delay multiplies its setting by this and truncates it to N updates.")
+    gate("part-gate-bool-delay", "delay", "Copies its input to the output once the input has stayed unchanged for trunc(60 × delay) updates; any change restarts the count.",
+         "With N = trunc(60 × delay), a change of Signal to Delay resets the counter to 0 and leaves the output as it was. Each following update with the input unchanged adds 1, and when the counter reaches N the output takes the input. The output therefore follows a change N updates later, and a signal that flips sooner never passes." + ex + " With N = 0 the output never changes, because the counter test c < N fails at once.",
+         "Q = input after N stable updates", "Counter at +0x6e4, saved input at +0x691; the c < N test precedes the increment.", [delay60, sixty] + R, limits=[TICK])
+    cap = code(F_LOGIC, 0x1403C6460, "f3480f2cd0", "Capacitor tick count", "N = trunc(60 × seconds)",
+               "The capacitor truncates 60 × charge time and 60 × discharge time to N_charge and N_discharge, then compares each counter with N before incrementing it." + rep)
+    gate("part-gate-bool-capacitor", "capacitor", "Turns on after Charge has been on for trunc(60 × charge time) updates and off after it has been off for trunc(60 × discharge time).",
+         "Any change of Charge clears both counters. While the output is off and Charge is on, the charge counter is compared with N_charge, the output turns on when they are equal, then the counter adds 1. While the output is on and Charge is off, the discharge counter works the same way against N_discharge. With N_charge = 60 a rising Charge at update 0 turns the output on at update 60, the 61st update including the edge. A charge time of 0 turns it on in the edge update." + ex,
+         "on after N_charge updates of Charge, off after N_discharge without", "Example: N_charge = 60 gives on at update 60 after the edge at update 0. The microprocessor Capacitor follows the same recurrence. This Boolean count is not an electrical battery model.",
+         [cap, sixty] + R, limits=[TICK])
+    # Counters and Up/Down.
+    gate("part-gate-float-counter", "counter", "Adds Speed to Count every update, 60 × Speed per simulated second.",
+         "Each update Count = Count + Speed. There is no division by 60, so a Speed of 1 counts 60 per simulated second.",
+         "S = S + Speed per update", "The running sum is the numeric output at +0x418; the sum passes the finite-value check each update." + C, R, limits=[TICK])
+    gate("part-gate-float-counter-ping-pong", "pingpong", "Adds ±Speed every update and reverses direction when Count passes 1 or −1.",
+         "Each update Count = Count + direction × Speed. Above 1 it is set to 1 and the direction becomes −1; below −1 it is set to −1 and the direction becomes +1. Reaching exactly ±1 does not reverse. With Speed 0.01 a sweep from −1 to 1 takes 200 updates.",
+         "S = S ± Speed, bounce at ±1", "Direction byte at +0x6a0; the bounds are the constants 1 and -1. Example: Speed 0.01 crosses 2 units in 200 updates." + C, R, limits=[TICK])
+    ud = op(F_LOGIC, 0x1403C4F5C, "f30f5e0dfcb77e00", 0x140BB0760, "Up/Down step divisor",
+            "The step is (upper − lower) × sensitivity ÷ this per update, so the full range takes 1 ÷ sensitivity simulated seconds.")
+    gate("part-gate-up-down", "updown", "Up and Down move the value by (upper − lower) × sensitivity ÷ 60 per update, clamped to the configured bounds.",
+         "Each update, Up adds the step h = (upper − lower) × sensitivity ÷ 60 and Down subtracts it; both on cancel. The value is then clamped to lower … upper. Holding Up moves across the whole range in 1 ÷ sensitivity simulated seconds.",
+         "S = clamp(S + h·(Up − Down), lower, upper)", "Bounds at +0x7a0 and +0x7b8, sensitivity at +0x6a4, value at +0x6b8." + C, [ud] + R,
+         "Drive robotic joints, throttles or rudders directly from its output.", [TICK])
+    # PID controller.
+    pid = pid_controller(E)
+    B.family("part-gate-pid-controller",
+             "Per-update PID: Control Output = Ki·S + Kp·e + Kd·(e − e_prev), with e = Setpoint − Process Variable and S the running sum of e. There is no dt, no derivative filter and no output limit.",
+             [section("How it updates",
+                      "Each update with Active on: e = Setpoint − Process Variable, S = S + e, d = e − e_prev, and Control Output = Ki × S + Kp × e + Kd × d. "
+                      "Arithmetic is single precision in that order. On the first update after Active turns on, d is 0. Turning Active off sets S, e_prev and the output to 0."),
+              section("Timebase",
+                      "Nothing is multiplied by a time step. S gains 60 errors per simulated second and d is the change over one update. "
+                      "Converting from per-second gains (an inference about tuning conventions, not engine code): Ki = Ki_per_second ÷ 60 and Kd = 60 × Kd_per_second. With Ki = 1 and a constant error of 1, the output reaches 60 after one simulated second."),
+              section("Limits and edge cases",
+                      "max_error (pid_controller_max_error) is the only limit. When it is above 0, S is clamped to ±max_error ÷ max(1e-8, Ki), so the integral term Ki × S stays within ±max_error for positive Ki. It does not limit P, D or Control Output. "
+                      "A NaN or infinite output becomes 0. The derivative acts on the error, so a Setpoint step gives a one-update kick of Kd × step."),
+              section("Microprocessor PIDs",
+                      "The microprocessor PID and advanced PID run the same recurrence without the max_error clamp and without the finite-value check, so their sum and output are unbounded. "
+                      "Example: Kp 2, Ki 0.5, Kd 0 and a steady error of 2 give 5, 6, 7 in a microprocessor; the physical PID with max_error 1 holds S at 2 and gives 5, 5, 5."),
+              section("Setup and interactions",
+                      "Set max_error to bound windup when the driven part saturates. Toggle Active off to clear the stored sum. Start with small Ki: a per-update sum grows 60 times faster than a per-second integral.")],
+             pid + [T("gate_pid_controller"), P("gate_pid_controller", "Active"), P("gate_pid_controller", "Setpoint"), P("gate_pid_controller", "Process Variable"),
+                    A("gate_pid_controller", "logic_gate_type", "Selects case 29 of the logic update."), f["dispatch"]] + R,
+             [TICK])
+    # Transmission and train parts that sit in the logic update.
+    for fid, key, name in (("part-gate-torque-add", "torque_add", "Power Add"), ("part-gate-torque-multimeter", "torque_meter", "Power Meter")):
+        bid = GATES[key][0]
+        B.family(fid, "%s does nothing in the logic update; it acts in the transmission network." % name,
+                 [section("How it updates",
+                          "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. Its effect belongs to the transmission network; the Logic category lists what remains open.")] +
+                 ([section("Setup and interactions", "Place it between engine and consumer, not on a branch.")] if key == "torque_meter" else []),
+                 [case(key, "no logic calculation", "Types 24 and 25 both lead to the common exit 0x1403c94f2."), A(bid, "logic_gate_type", "Selects a case with no calculation."), f["dispatch"]] + ([T(bid)] if E.block(bid).get("description") else []),
+                 [])
+    gate("part-gate-train-junction", "train", "Drives a train-junction helper object, not a Boolean toggle; its tooltip and ports copy Push To Toggle.",
+         "Its case creates or updates a junction helper through 0x140290d10 and the object stored at +0x840. Its tooltip and ports are word for word those of Push To Toggle.",
+         "junction helper", "Compares a flag at +0x831 first; the helper object is kept at +0x840.", [T("gate_push_to_toggle")],
+         "Expect it to switch a track junction rather than to feed other logic; the Logic category lists what of its routing remains open.")
+    # Microprocessor.
+    mp = microprocessor(E)
+    B.family("part-microprocessor",
+             "A microcontroller in a block: each update it copies its connected inputs into an embedded logic graph, runs the graph, then copies the graph outputs back out.",
+             [section("How it updates",
+                      "Component type 37 runs the microprocessor update. It calls every input bridge, then the graph update with the embedded graph at +0x1c0, then every output bridge. "
+                      "Each bridge copies one value: a Boolean input bridge reads the connected vehicle signal into a graph node, and a Boolean output bridge writes a graph output to the connected signal. Bridges with no connection do nothing."),
+              section("Ports",
+                      "The definition lists no logic nodes and no tooltip. The ports come from the bridges of the embedded graph, with number, on/off, composite, video and audio bridge types. Read the ports from the microcontroller you placed, not from the definition."),
+              section("Inside the graph",
+                      "The graph gathers every component's inputs before it runs any component, so a change moves one component per update (inference). Its components are separate routines from the physical gates: the PID has no max_error clamp, and the Blinker differs, as their part pages note.")],
+             mp + [A("microprocessor", "type", "Component type 37, the microprocessor class."), A("microprocessor", "category", "Definition category 5, the game's logic category."), f["graph_in"]],
+             ["The maximum port count, editor size limits and the payload handling of composite, video and audio bridges were not recovered."])
+    # Category.
+    B.category("Logic",
+               "All logic gates run in one native update, once per update. Boolean gates are plain; latches and flip-flops act only when an input changes; timers count whole updates; numeric outputs replace NaN and infinity with 0.",
+               [section("How logic updates",
+                        "Each gate is one case of the logic update, chosen by its logic_gate_type through a jump table. The component dispatcher calls it once per component per update, 60 times per simulated second. "
+                        "A case computes its outputs from the input values it holds at that moment and adds no delay of its own."),
+                section("Numeric outputs",
+                        "Arithmetic is single precision. Numeric gates pass their result through a finite-value check that turns NaN and ±infinity into 0. That check does not limit values to −1 … 1."),
+                section("Edge cases worth knowing",
+                        "Divide outputs 0 and turns Error on when |B| ≤ 1e-6; Modulo outputs 0 for the same divisor. Threshold is on when lower ≤ x ≤ upper. Greater Than is off when A equals B. "
+                        "Trigonometry works in turns, and asin or acos of |x| > 1 gives 0. The SR latch favours Reset. The JK flip-flop and SR latch act only on an update where an input changed, so holding both JK inputs on toggles once, not every update. "
+                        "Clear on the memory register restores the configured value."),
+                section("Timers count updates",
+                        "Delay, Blinker and Capacitor multiply their seconds by 60 and truncate to whole updates; 0.51 s becomes 30 updates. Counters and Up/Down step every update. The PID has no time step at all."),
+                section("Inside a microprocessor",
+                        "A microprocessor gathers every component's inputs before it runs any component, so a signal moves one component per update inside it (inference). Its PID, Blinker and timers are separate routines; see the PID Controller and Microprocessor pages.")],
+               [f["dispatch"], f["sanitize"], f["sixty"], f["graph_in"], div, trig, jk_guard, T("gate_float_threshold"), T("gate_float_greater_than"), T("gate_sr_latch")] + R,
+               ["Propagation latency between separate physical logic blocks was not traced: the step that copies one block's output into the next block's input, and its order across blocks and vehicles, was not located.",
+                "Sign, rounding and domain edge cases of the library helpers behind Modulo, Exponent and Trigonometry were not decoded.",
+                "The function block's expression language (operator set, parser, rounding and constant expressions) was not decoded.",
+                "Power Add and Power Meter do nothing in the logic update; their transmission-network formulas were not decoded.",
+                "Train Junction Controller routing, junction selection and the priority of conflicting requests were not traced.",
+                TICK])
+
+
+def pid_controller(E):
+    """PID recurrence of the physical gate and the two microprocessor PIDs; shared with the PID graph."""
+    if hasattr(E, "pid"):
+        return E.pid
+    f = logic_gates(E)
+    n, code, op = E.native, E.code, E.operand
+    rep = " Report: %s." % LG_REPORT
+    F = F_LOGIC
+    out = [
+        code(F, 0x1403C5F50, "4989b670070000", "PID inactive reset", "S = e_prev = 0, output 0",
+             "With Active off the case stores a zero qword over S (+0x770) and e_prev (+0x774), clears the derivative-valid flag at +0x692 and writes 0 through the finite-value check to Control Output (+0x418)." + rep),
+        code(F, 0x1403C5F74, "f30f5cf0", "PID error", "e = Setpoint − Process Variable",
+             "subss subtracts the first numeric input (Process Variable, +0x1c0) from the second (Setpoint, +0x1e0) in binary32." + rep),
+        code(F, 0x1403C5F7B, "f3410f588e70070000", "PID error sum", "S = S + e",
+             "Adds the error to the stored sum at +0x770 every update, with no time-step factor." + rep),
+        code(F, 0x1403C5F99, "0f2fda7630", "PID max_error test", "clamp only when max_error > 0",
+             "Compares max_error (+0x788) with 0 and skips the clamp when it is 0 or less." + rep),
+        op(F, 0x1403C5F9E, "f30f1005ae987e00", 0x140BAF854, "PID bound denominator floor",
+           "Loaded before maxss with Ki (+0x738 at 0x1403c5fa6): the denominator is max(1e-8, Ki), not |Ki|."),
+        code(F, 0x1403C5FAF, "f30f5ed8", "PID sum limit", "L = max_error ÷ max(1e-8, Ki)",
+             "divss forms the limit L from max_error and the floored Ki." + rep),
+        code(F, 0x1403C5FBD, "f30f5fc8f30f5dcb", "PID sum clamp", "S = min(max(S, −L), L)",
+             "maxss with −L, then minss with L, stored back to +0x770. Only the sum is clamped; P, D and the output are not." + rep),
+        code(F, 0x1403C5FCE, "4138b692060000740c", "PID first-enable derivative guard", "d = 0 on the first active update",
+             "The derivative-valid flag at +0x692 is 0 after a reset, so d stays 0; it is set to 1 after the output is written (0x1403c6024)." + rep),
+        code(F, 0x1403C5FDA, "f3410f5c9674070000", "PID derivative difference", "d = e − e_prev",
+             "Subtracts the previous error (+0x774) from the current one. The current error is saved to +0x774 after the output. There is no filter state." + rep),
+        code(F, 0x1403C5FEC, "f30f59c1", "PID integral term", "Ki × S", "Multiplies Ki (+0x738) by the clamped sum." + rep),
+        code(F, 0x1403C5FF3, "f3410f598e50070000", "PID proportional term", "Kp × e", "Multiplies the error by Kp (+0x750) and adds it to Ki × S." + rep),
+        code(F, 0x1403C6000, "f3410f599668070000", "PID derivative term", "Kd × d", "Multiplies d by Kd (+0x768) and adds it last: (Ki·S + Kp·e) + Kd·d." + rep),
+        code(F, 0x1403C600D, "e82edce1ff", "PID output finite check", "call 0x1401e3c40",
+             "Control Output is the sum after the finite-value check: NaN or ±infinity becomes 0, every finite value passes unchanged." + rep),
+    ]
+    names = [E.string(F_PID_PROPS, address, name, "PID property %s" % name,
+                      "The logic property serializer binds this name to the property object at %s, whose value is read at %s by the PID case." % (obj, val))
+             for address, name, obj, val in ((0x140B6B710, "pid_controller_ki", "+0x728", "+0x738"), (0x140B6B750, "pid_controller_kp", "+0x740", "+0x750"),
+                                             (0x140B6B738, "pid_controller_kd", "+0x758", "+0x768"), (0x140B6B7B8, "pid_controller_max_error", "+0x778", "+0x788"))]
+    micro = []
+    for func, label, addr, hexbytes, sum_at in ((F_MICRO_PID, "Microprocessor PID tick", 0x14037A236, "f30f589180010000", "+0x180"),
+                                                (F_MICRO_APID, "Microprocessor advanced PID tick", 0x140381386, "f30f5891f8010000", "+0x1f8")):
+        start, body = n.body(func)
+        if b"\xe8" in body or b"\x0f\x5d" in body or b"\x0f\x5f" in body:
+            raise ValueError("Microprocessor PID %#x now contains a call or min/max byte pattern" % func)
+        micro.append(code(func, addr, hexbytes, label, "S = S + e, no clamp, no finite check",
+                          "Adds the error to the sum at %s, then forms Ki·S + Kp·e + Kd·d with the same first-enable guard and inactive reset. The whole function, %#x-%#x, contains no call byte (e8) and no minss or maxss opcode, so neither the max_error clamp nor the finite-value check runs. "
+                          "Example: Kp 2, Ki 0.5, Kd 0 and a steady error of 2 give 5, 6, 7 here and 5, 5, 5 in the physical PID with max_error 1, where S holds at 2. Kp 2, Ki 0.5, Kd 3 with errors 1, 1, 2 give 2.5, 3, 9 in both." % (sum_at, start, start + len(body)) + rep))
+    E.pid = out + names + micro + [f["sanitize"]]
+    return E.pid
+
+
+def microprocessor(E):
+    """Microprocessor update: bridges around the embedded graph."""
+    f = logic_gates(E)
+    code = E.code
+    rep = " Report: %s." % LG_REPORT
+    path = DEFS + "microprocessor.xml"
+    _, line, _ = E.at(path, r"<logic_nodes/>")
+    empty = E.located(path, line, line, "Microprocessor · logic nodes", "<logic_nodes/>",
+                      "microprocessor: the definition's logic node list is empty, so it fixes no ports. The ports come from the embedded graph's bridges.")
+    return [empty,
+            code(F_MICRO, 0x1403945B0, "ff5058", "Microprocessor input bridges", "slot +0x58 per bridge",
+                 "Microprocessor vtable 0x140b84dc8, slot +0x358 at 0x140b85120, holds 0x140394500; the extractor re-reads it. The update walks the bridge list at +0x270 (count +0x280) and calls each bridge's input method through slot +0x58." + rep),
+            code(F_MICRO, 0x1403945C7, "e8a48cffff", "Microprocessor graph update", "call 0x14038d270",
+                 "After the input bridges it passes the embedded graph at +0x1c0 to the graph update, which gathers component inputs and then runs each component's tick through slot +0x50, recursing into nested groups." + rep),
+            code(F_MICRO, 0x140394610, "ff5048", "Microprocessor output bridges", "slot +0x48 per bridge",
+                 "After the graph update the same bridge list is walked again and each bridge's output method is called through slot +0x48." + rep),
+            code(F_BRIDGE_IN, 0x140371909, "0fb64018", "Boolean input bridge", "vehicle signal +0x18 → graph cache +0x38",
+                 "Reads the connected vehicle signal value and stores it in the graph node's cache at +0x38; with no connection it returns at once. RTTI also names number, composite, video and audio bridge classes." + rep),
+            code(F_BRIDGE_OUT, 0x14037175D, "884218", "Boolean output bridge", "graph output +0x20 → vehicle signal +0x18",
+                 "Writes the graph node's output value into the connected vehicle signal; with no connection it returns at once." + rep)]
+
+
 def build(root):
     E = Evidence(root)
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 fluid_links, air_scoop, displays):
+                 fluid_links, air_scoop, displays, logic):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.

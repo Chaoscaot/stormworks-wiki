@@ -1572,7 +1572,7 @@
       "title": "PID controller state and signals",
       "category": "Control",
       "summary": "The controller definition says disabling Active resets stored values.",
-      "body": "The PID takes a measured Process Variable and desired Setpoint, then exposes Control Output. Its Active description explicitly says stored values reset when inactive. The tooltip allows setting proportional, integral and derivative terms with the select tool. The Boolean capacitor is a separate logic component whose signal charges and discharges stored state.",
+      "body": "The PID takes a measured Process Variable and desired Setpoint, then exposes Control Output. Its Active description explicitly says stored values reset when inactive. The tooltip allows setting proportional, integral and derivative terms with the select tool. The Boolean capacitor is a separate logic component whose signal charges and discharges stored state. A separate native decode of the logic update (investigation/logic.md, shown on the PID Controller parts page) found a per-update recurrence: e = Setpoint - Process Variable, S = S + e, and Control Output = Ki × S + Kp × e + Kd × (e - e_prev) in single precision. There is no time step: at 60 updates per simulated second S gains 60 errors per second, and the derivative is the change over one update. The derivative is 0 on the first active update and has no filter. Turning Active off sets S, the previous error and the output to 0. The physical PID clamps S to ± max_error ÷ max(1e-8, Ki) when max_error is above 0 and turns a NaN or infinite output into 0; it does not limit the output itself. The microprocessor PIDs skip both steps. The capacitor counts whole updates, trunc(60 × charge or discharge time), and its stored charge is a Boolean, so it says nothing about electrical batteries.",
       "findings": [
         {
           "label": "PID Controller: Active",
@@ -1690,7 +1690,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Discrete PID equation, timebase, integral clamping, output saturation and derivative filtering have not been recovered. A Boolean capacitor is not evidence of electrical battery behavior."
+        "The PID and capacitor equations come from that native decode and describe one evaluator call each; signal delay between separate logic blocks is a Logic category question. A Boolean capacitor is not evidence of electrical battery behavior."
       ]
     },
     {

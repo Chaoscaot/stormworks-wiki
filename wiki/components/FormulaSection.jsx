@@ -40,6 +40,11 @@ const FINDINGS = {
     'Chamber fuel demand per RPS', 'Chamber ignition speed', 'Chamber pressure gain per throttle × RPS', 'Chamber heating per throttle × RPS',
     'Chamber infinite_fuel test', 'Jet fuel buffer capacity', 'Liquid flow per amount moved each update', 'Component updates per simulated second',
   ],
+  pid: [
+    'PID error', 'PID error sum', 'PID max_error test', 'PID bound denominator floor', 'PID sum limit', 'PID sum clamp',
+    'PID first-enable derivative guard', 'PID derivative difference', 'PID integral term', 'PID proportional term', 'PID derivative term',
+    'PID output finite check', 'PID inactive reset', 'Microprocessor PID tick', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -51,6 +56,7 @@ const TITLES = {
   classic: 'Diesel use and speed step against engine RPS',
   jet: 'Exhaust force against incoming pressure',
   chamber: 'Chamber fuel use, pressure and heat against RPS',
+  pid: 'PID step response with an example plant',
 };
 
 /*
@@ -381,8 +387,47 @@ const JET_CHAMBER = {
   ],
 };
 
+const PID_CONTROLLER = {
+  intro: (
+    <p>
+      The PID controller runs once per update with no time step. It adds the error to a running sum every update and takes the
+      derivative as the change in error since the previous update, so Ki acts 60 times per simulated second and Kd sees one-update
+      differences. The plant in this graph is an example to show the controller; it is not game physics.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="e">{mi('e')}{mo('=')}{mi('SP')}{mo('−')}{mi('PV')}<mspace width="1em" />{mi('S')}{mo('←')}{mi('S')}{mo('+')}{mi('e')}</mrow>,
+        <mrow key="c"><mtext>part, when</mtext><mspace width="0.4em" />{mi('B')}{mo('>')}{mn('0')}{mo(':')}<mspace width="0.5em" />{mi('S')}{mo('←')}{mi('clamp')}<mrow>{mo('(')}{mi('S')}{mo(',')}{mo('±')}<mfrac>{mi('B')}<mrow>{mi('max')}{mo('(')}<msup>{mn('10')}<mrow>{mo('−')}{mn('8')}</mrow></msup>{mo(',')}{sub('K', 'i')}{mo(')')}</mrow></mfrac>{mo(')')}</mrow></mrow>,
+        <mrow key="d">{mi('d')}{mo('=')}{mi('e')}{mo('−')}{sub('e', 'prev')}<mspace width="1em" /><mtext>(0 on the first active update)</mtext></mrow>,
+        <mrow key="y">{mi('y')}{mo('=')}{sub('K', 'i')}{mi('S')}{mo('+')}{sub('K', 'p')}{mi('e')}{mo('+')}{sub('K', 'd')}{mi('d')}<mspace width="1em" /><mtext>part: NaN or ∞ → 0</mtext></mrow>,
+        <mrow key="p"><mtext>example plant:</mtext><mspace width="0.5em" />{mi('PV')}{mo('←')}{mi('PV')}{mo('+')}<mfrac><mrow>{mi('clamp')}{mo('(')}{mi('y')}{mo(',')}{mo('−')}{mn('1')}{mo(',')}{mn('1')}{mo(')')}{mo('−')}{mi('PV')}</mrow><mrow>{mn('60')}{mi('τ')}</mrow></mfrac></mrow>,
+      ]}
+      text={[
+        'Each update with Active on, in single precision and this order:',
+        'e = Setpoint - Process Variable',
+        'S = S + e',
+        'PID Controller part only, when max_error B > 0: S = clamp(S, -B / max(1e-8, Ki), B / max(1e-8, Ki))',
+        'd = e - e_prev, or 0 on the first update after Active turns on',
+        'Control Output y = (Ki * S + Kp * e) + Kd * d; the part turns NaN or infinity into 0, the microprocessor PID does not',
+        'Active off: S = 0, e_prev = 0, y = 0',
+        'Example plant, not game physics: PV = PV + (clamp(y, -1, 1) - PV) / (60 * tau) after each update',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'The plant is an example first-order lag, not game physics: each update it moves 1/(60·τ) of the way to its input. A vehicle part responds with its own dynamics.',
+    'The controller reads the plant value from the previous update. Signal delay between separate logic blocks was not traced, so a real circuit can add updates of delay.',
+    'Active is on from update 0 and the setpoint steps from 0 at update 30 (0.5 s). The derivative acts on the error, so Kd gives a one-update kick of Kd × step there; the chart clips it and the readout shows it.',
+    'Gains are per update. Converting from per-second gains is an inference about tuning conventions: Ki = Ki per second ÷ 60, Kd = 60 × Kd per second.',
+    'max_error caps the integral term Ki × S at ± max_error for positive Ki. Set too low, it stops the loop short of the setpoint, as the graph shows.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
+  pid: PID_CONTROLLER,
 };
 
 function Evidence({ items }) {

@@ -84684,8 +84684,8 @@
       "id": "part-microprocessor",
       "title": "Microprocessor",
       "category": "Other components",
-      "summary": "A component definition with no descriptive tooltip.",
-      "body": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
+      "summary": "Runs an embedded microcontroller logic graph. Its ports come from that graph, not from the definition.",
+      "body": "A microprocessor holds a microcontroller graph inside one block. The definition has no tooltip and an empty logic node list, so it fixes no ports; the inputs and outputs are the ones built into the placed microcontroller. Native code copies the connected signals into the graph, runs the graph and copies its outputs back each update; the practical behaviour research covers that update.",
       "sections": [],
       "variants": [
         {
@@ -84833,7 +84833,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Singleton fallback. No equivalence with similarly named definitions is asserted."
+        "The definition lists no ports. Port count and types belong to each placed microcontroller."
       ]
     },
     {
@@ -153771,8 +153771,8 @@
     "familyCount": 536,
     "blockCount": 759,
     "mappedBlockCount": 759,
-    "curatedFamilyCount": 93,
-    "singletonFallbackCount": 443,
+    "curatedFamilyCount": 94,
+    "singletonFallbackCount": 442,
     "multiVariantFamilyCount": 89,
     "findingCount": 8641,
     "sourceCount": 759,

@@ -1,0 +1,64 @@
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_1403c4b70(longlong param_1,undefined8 param_2,longlong param_3,float *param_4,
+                  undefined8 param_5,longlong param_6)
+
+{
+  undefined8 *puVar1;
+  double dVar2;
+  double dVar3;
+  double dVar4;
+  double dVar5;
+  double dVar6;
+  double dVar7;
+  double dVar8;
+  double dVar9;
+  uint uVar10;
+  double dVar11;
+  double *pdVar12;
+  uint uVar13;
+  double dVar14;
+  double dVar15;
+  
+  if ((*(int *)(*(longlong *)(param_1 + 0x58) + 0xe70) == 0x3c) &&
+     (*(char *)(param_1 + 0x6d9) != '\0')) {
+    pdVar12 = (double *)FUN_140958c28(0x20);
+    *pdVar12 = 0.0;
+    pdVar12[1] = 0.0;
+    pdVar12[2] = 0.0;
+    *(undefined4 *)(pdVar12 + 3) = 0;
+    dVar14 = (double)((float)*(int *)(param_1 + 0x18) * _DAT_140bafbbc - *param_4);
+    dVar11 = (double)((float)*(int *)(param_1 + 0x1c) * _DAT_140bafbbc - param_4[1]);
+    dVar15 = (double)((float)*(int *)(param_1 + 0x20) * _DAT_140bafbbc - param_4[2]);
+    dVar2 = *(double *)(param_3 + 0x40);
+    dVar3 = *(double *)(param_3 + 0x20);
+    dVar4 = *(double *)(param_3 + 0x60);
+    dVar5 = *(double *)(param_3 + 0x80);
+    dVar6 = *(double *)(param_3 + 0x48);
+    dVar7 = *(double *)(param_3 + 0x28);
+    dVar8 = *(double *)(param_3 + 0x68);
+    dVar9 = *(double *)(param_3 + 0x88);
+    *pdVar12 = dVar14 * *(double *)(param_3 + 0x18) + dVar11 * *(double *)(param_3 + 0x38) +
+               dVar15 * *(double *)(param_3 + 0x58) + *(double *)(param_3 + 0x78);
+    pdVar12[1] = dVar11 * dVar2 + dVar14 * dVar3 + dVar15 * dVar4 + dVar5;
+    pdVar12[2] = dVar11 * dVar6 + dVar14 * dVar7 + dVar15 * dVar8 + dVar9;
+    *(undefined4 *)(pdVar12 + 3) = 0x432a0000;
+    uVar13 = *(uint *)(param_6 + 0x310);
+    uVar10 = *(uint *)(param_6 + 0x308);
+    if (uVar13 == uVar10) {
+      FUN_1408de0b0((longlong *)(param_6 + 0x300));
+      uVar13 = *(uint *)(param_6 + 0x310);
+      uVar10 = *(uint *)(param_6 + 0x308);
+    }
+    *(uint *)(param_6 + 0x310) = uVar13 + 1;
+    puVar1 = (undefined8 *)
+             (*(longlong *)(param_6 + 0x300) +
+             ((ulonglong)(*(int *)(param_6 + 0x30c) + -1 + uVar13 + 1) % (ulonglong)uVar10) * 8);
+    *puVar1 = 0;
+    FUN_1408c2ec0(puVar1,pdVar12);
+  }
+  return;
+}
+
+

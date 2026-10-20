@@ -216,6 +216,10 @@ def curated_specs(blocks):
         shapes = ["straight", "corner", "corner_flat", "corner_flat_reverse", "junction", "flex"]
         members = ["gun_belt_" + shape + suffix for shape in shapes if "gun_belt_" + shape + suffix in {b["id"] for b in blocks}]
         add("ammo-belt" + (suffix.replace("_", "-") or "-autocannon"), label + " Belt Routing", "Weapons", members)
+    add("part-microprocessor", "Microprocessor", "Other components", "microprocessor",
+        "Runs an embedded microcontroller logic graph. Its ports come from that graph, not from the definition.",
+        "A microprocessor holds a microcontroller graph inside one block. The definition has no tooltip and an empty logic node list, so it fixes no ports; the inputs and outputs are the ones built into the placed microcontroller. Native code copies the connected signals into the graph, runs the graph and copies its outputs back each update; the practical behaviour research covers that update.",
+        limits=["The definition lists no ports. Port count and types belong to each placed microcontroller."])
     return specs
 
 

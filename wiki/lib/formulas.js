@@ -7,6 +7,7 @@
 // Control surfaces: investigation/control-surfaces.md (rudder update 0x1403dfd20).
 // Classic engines: investigation/classic-engines.md (classic engine update 0x14034ba00).
 // Jet engines: investigation/jet-engines.md (jet engine update 0x140350f40).
+// PID controller: investigation/logic.md (logic update case 29 at 0x1403c5f19, microprocessor PID 0x14037a210).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -521,6 +522,56 @@ export function jetExhaust({ pressure, altitude = 0, spoiler = 0, afterburner = 
   return { raw, applied, capped: cap !== null && raw > cap, cap, altitudeFactor, boost, spoilerFactor, impulsePerUpdate: applied / UPDATES_PER_SECOND };
 }
 
+// PID controller, investigation/logic.md, ported from investigation/native/logic/tools/pid_model.py.
+// One evaluator call per update in binary32, in the game's operation order. physical selects the PID Controller part
+// (max_error clamp on the sum, NaN and infinity output 0); false selects the microprocessor PID, which has neither.
+// There is no time step, derivative filter or output limit in either.
+export const PID = { boundFloor: Math.fround(1e-8) };
+// SSE maxss/minss: the second operand wins on NaN or equality.
+const maxss = (a, b) => (Number.isNaN(a) || Number.isNaN(b) || a <= b ? b : a);
+const minss = (a, b) => (Number.isNaN(a) || Number.isNaN(b) || a >= b ? b : a);
+
+export const pidState = () => ({ integral: 0, previousError: 0, previousEnabled: false });
+
+// Returns the next state and Control Output; the state argument is not changed.
+export function pidUpdate(state, { setpoint, process, kp, ki, kd, active = true, bound = 0, physical = true }) {
+  if (!active) return { state: pidState(), output: 0, error: 0 };
+  const e = f32(f32(setpoint) - f32(process));
+  const [p, i, d, b] = [kp, ki, kd, bound].map(f32);
+  let integral = f32(state.integral + e);
+  if (physical && b > 0) {
+    const limit = f32(b / maxss(PID.boundFloor, i));
+    integral = minss(maxss(integral, -limit), limit);
+  }
+  const difference = state.previousEnabled ? f32(e - state.previousError) : 0;
+  const y = f32(f32(f32(i * integral) + f32(p * e)) + f32(d * difference));
+  return {
+    state: { integral, previousError: e, previousEnabled: true },
+    output: physical && !Number.isFinite(y) ? 0 : y,
+    error: e,
+  };
+}
+
+// Step response against an example plant that is not game physics: a first-order lag that moves 1/(60·tau) of the way
+// to its input each update. Active is on from update 0; the setpoint steps from 0 to `setpoint` at update stepAt.
+// The controller reads the plant value of the previous update. inputLimit clamps what the plant receives (null: none).
+export function pidResponse({ kp, ki, kd, bound = 0, physical = true, setpoint = 0.8, tau = 1, inputLimit = 1, updates = 600, stepAt = 30 }) {
+  finite([kp, ki, kd, bound, setpoint, tau, updates, stepAt]);
+  if (tau <= 0) throw new RangeError('The plant time constant must be positive.');
+  let state = pidState();
+  let process = 0;
+  const samples = [];
+  for (let n = 0; n <= updates; n += 1) {
+    const sp = n >= stepAt ? setpoint : 0;
+    const r = pidUpdate(state, { setpoint: sp, process, kp, ki, kd, bound, physical });
+    state = r.state;
+    samples.push({ n, seconds: n / UPDATES_PER_SECOND, setpoint: sp, process, output: r.output, integral: state.integral, integralTerm: f32(ki) * state.integral });
+    const u = inputLimit === null ? r.output : clamp(r.output, -inputLimit, inputLimit);
+    process += (u - process) / (tau * UPDATES_PER_SECOND);
+  }
+  return samples;
+}
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -537,5 +588,6 @@ const FAMILY_GRAPHS = {
   'part-jet-engine-exhaust-afterburner': ['jet'],
   'part-jet-engine-exhaust-rotating': ['jet'],
   'part-jet-engine-combustion-chamber': ['chamber'],
+  'part-gate-pid-controller': ['pid'],
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];
