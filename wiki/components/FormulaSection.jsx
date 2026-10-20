@@ -58,7 +58,14 @@ const FINDINGS = {
   radar: [
     'Type-56 component factory case', 'Radar FOV default', 'radar_range binding', 'Radar range factor', 'Radar working range',
     'Radar scan interval divisor', 'Radar scan counter', 'Radar range cap', 'Radar score divisor', 'Radar candidate score',
-    'Radar score threshold', 'Radar target limit', 'Component updates per simulated second',
+    'Radar score threshold', 'Radar target limit', 'Radar FOV control', 'Radar FOV slider minimum and step', 'Radar FOV slider maximum',
+    'Radar FOV slider rounding', 'Physics object mass', 'Component updates per simulated second',
+  ],
+  legacy: [
+    'Legacy sensor candidate call', 'Legacy sensor signature', 'Legacy sensor score threshold', 'Legacy sensor score',
+    'Legacy far-plane distance', 'Legacy far-plane base factor', 'Legacy saved radar_fov default', 'radar_fov serializer',
+    'Legacy FOV minimum', 'Legacy FOV maximum', 'Legacy FOV maximum, subtype 2', 'Legacy height gate', 'Legacy line-of-sight query',
+    'Legacy Huge target limit', 'Physics object mass', 'Physics-body mass sum', 'Component mass getter', 'mass binding',
   ],
   radio: [
     'rx_range binding', 'rx_range copy', 'Radio receive call', 'Frequency match', 'Mode compatibility test', 'Ordinary antenna gain',
@@ -79,7 +86,8 @@ const TITLES = {
   chamber: 'Chamber fuel use, pressure and heat against RPS',
   pid: 'PID step response with an example plant',
   gear: 'Joint speed and holding cap against Gear Ratio',
-  radar: 'Radar detection distance against target signature and FOV',
+  radar: 'Radar detection distance against target body mass and FOV',
+  legacy: 'Legacy radar and sonar detection distance against target body mass',
   radio: 'Radio signal strength against distance, height and power',
 };
 
@@ -500,8 +508,8 @@ const RADAR_DETECTION = {
   intro: (
     <p>
       Advanced radars turn radar_range into a working range that grows as the FOV narrows. A target passes the score test when its
-      signature over distance is high enough, and never beyond the working range. The chart plots the farthest passing distance
-      against signature: it rises in proportion to signature, then levels off at the working range once the signature reaches 250.
+      physics-body mass over distance is high enough, and never beyond the working range. The chart plots the farthest passing
+      distance against that mass: it rises in proportion to the mass, then levels off at the working range once the mass reaches 250.
     </p>
   ),
   formula: (
@@ -512,18 +520,47 @@ const RADAR_DETECTION = {
         <mrow key="d">{sub('d', 'max')}{mo('=')}{fn('min')}<mrow>{mo('(')}{mi('R')}{mo(',')}<mfrac><mrow>{mi('R')}{mi('S')}</mrow>{mn('250')}</mfrac>{mo(')')}</mrow></mrow>,
       ]}
       text={[
-        'R = P * 0.02 * 0.02 / (Fx * Fy); P = radar_range, Fx and Fy the native FOV fields (0.02 by default)',
+        'R = P * 0.02 * 0.02 / (Fx * Fy); P = radar_range, Fx and Fy the FOV fields in turns (0.02 by default, 0.01 to 0.25 in the editor)',
         'N = max(1, floor(R / 2000 + 0.5)) updates between scans, 60 updates per second',
-        'A target with signature S at distance d passes if d <= R and (R / 10000) * S / d > 0.025',
+        'A target of physics-body mass S at distance d passes if d <= R and (R / 10000) * S / d > 0.025',
         'Farthest passing distance d_max = min(R, R * S / 250); the range cap applies from S = 250',
       ].join('\n')}
     />
   ),
   assumptions: [
-    'Signature S is the target record value in internal units. How a vehicle\'s size, shape or material sets it is not known, so the chart gives no distance for a named vehicle.',
-    'FOV values are the native fields. The editor\'s minimum and maximum are not known, so the slider range only explores the formula.',
+    'Signature S is the mass of the target\'s physics body in game mass units: the sum of its components\' definition mass, after adjustments in the body code that were not fully traced. A vehicle with several physics bodies is several targets.',
+    'The FOV sliders match the editor: each axis from 0.01 to 0.25 turn in steps of 0.01, 3.6 to 90 degrees. Mixed settings use the product of the two.',
     'The score test is strict and the range cap inclusive. There is no random roll.',
     'Not modelled: line-of-sight blocking, the eight-target limit per scan, power, damage and the output noise. The laser missile radar uses a separate update and is not listed.',
+  ],
+};
+
+const LEGACY_DETECTION = {
+  intro: (
+    <p>
+      The legacy radars and sonars score a target by its physics-body mass over distance alone. radar_range does not enter the score;
+      it sets a far plane ahead of the sensor. The chart plots the farthest on-axis passing distance against the target&apos;s mass: it
+      rises as four times the mass, then stops at the far plane.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="s"><mtext>pass if</mtext><mspace width="0.5em" /><mfrac>{mi('S')}{mi('d')}</mfrac>{mo('>')}{mn('0.25')}<mspace width="1em" />{mi('C')}{mo('=')}{mi('P')}<mrow>{mo('(')}{mn('0.75')}{mo('+')}<mfrac><mrow>{mn('0.25')}{mo('×')}{mn('0.01')}</mrow>{sub('F', 'saved')}</mfrac>{mo(')')}</mrow></mrow>,
+        <mrow key="d">{sub('d', 'max')}{mo('=')}{fn('min')}<mrow>{mo('(')}{mi('C')}{mo(',')}{mn('4')}{mi('S')}{mo(')')}</mrow><mspace width="1em" /><mtext>on the sensor&apos;s axis</mtext></mrow>,
+      ]}
+      text={[
+        'A target of physics-body mass S at distance d passes if S / d > 0.25, that is d < 4 * S',
+        'Far plane C = P * (0.75 + 0.25 * 0.01 / F_saved); P = radar_range, F_saved = saved radar_fov field (default 0.1, so C = 0.775 * P)',
+        'On the sensor axis d_max = min(C, 4 * S); both bounds are strict',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Signature S is the mass of the target\'s physics body in game mass units, read per body, as for the advanced radars.',
+    'C uses the saved radar_fov field at its constructor default 0.1. The FOV input (0.01 to 0.125 turn, 0.25 on the Large) moves only the four side planes, which the chart does not draw.',
+    'C is a plane distance. A target off the sensor\'s axis can pass at a larger straight-line distance.',
+    'Not modelled: the side planes, the height gates (sonars at least 0.25 m below a sampled height, radars above it), line-of-sight blocking, power and the Huge\'s eight-target limit.',
   ],
 };
 
@@ -563,7 +600,7 @@ const RADIO_STRENGTH = {
 
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
-  pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, radio: RADIO_STRENGTH,
+  pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH,
 };
 
 function Evidence({ items }) {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -708,8 +708,115 @@ test('radar graph constants remain tied to verified native and definition findin
     assert.deepEqual(graphKindsForFamily(v.families[0]), ['radar']);
   }
   assert.equal(radarVariantFor('part-radar-advanced-awacs').id, 'radar_advanced_awacs');
-  assert.deepEqual(graphKindsForFamily('part-radar'), [], 'legacy radar has no graph');
+  assert.deepEqual(graphKindsForFamily('part-radar'), ['legacy'], 'legacy radar has the legacy graph');
   assert.deepEqual(graphKindsForFamily('part-radar-advanced-missile-laser'), []);
+});
+
+// Worked examples from investigation/native/sensors-legacy/tools/model.py (worked-examples.json): far plane C at the saved
+// default radar_fov 0.1, then the on-axis bound min(C, 4 S) for S = 10, 100 and 1000.
+const LEGACY_EXAMPLES = {
+  radar: [3875, 40, 400, 3875],
+  radar_dish: [15500, 40, 400, 4000],
+  radar_large: [15500, 40, 400, 4000],
+  radar_huge: [38750, 40, 400, 4000],
+  radar_sonar: [2325, 40, 400, 2325],
+  radar_sonar_small: [775, 40, 400, 775],
+};
+// Same file, advanced radars at both FOV slider ends (0.01 and 0.25 per axis): R, scan interval, then the bound min(R, R S / 250)
+// for S = 10, 100 and 1000.
+const RADAR_ENDPOINT_EXAMPLES = {
+  radar_advanced_awacs: [[2000000, 1000, 80000, 800000, 2000000], [3200, 2, 128, 1280, 3200]],
+  radar_advanced_dish: [[800000, 400, 32000, 320000, 800000], [1280, 1, 51.2, 512, 1280]],
+  radar_advanced_phalanx: [[400000, 200, 16000, 160000, 400000], [640, 1, 25.6, 256, 640]],
+  radar_advanced_missile: [[80000, 40, 3200, 32000, 80000], [128, 1, 5.12, 51.2, 128]],
+};
+const close = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected)), `${actual} != ${expected}`);
+
+test('legacy radar and sonar model reproduces the investigation worked examples', () => {
+  for (const v of LEGACY_VARIANTS) {
+    const [plane, ...limits] = LEGACY_EXAMPLES[v.id];
+    close(legacyPlane({ partRange: v.range }), plane);
+    [10, 100, 1000].forEach((S, i) => close(legacyDetection({ partRange: v.range, signature: S }).limit, limits[i]));
+  }
+  // Strict score boundary d < 4 S and strict on-axis far plane; radar_range does not enter the score.
+  assert.equal(legacyCandidate({ partRange: 5000, signature: 100, distance: 399.9 }), true);
+  assert.equal(legacyCandidate({ partRange: 5000, signature: 100, distance: 400 }), false);
+  assert.equal(legacyCandidate({ partRange: 50000, signature: 100, distance: 399.9 }), true);
+  assert.equal(legacyCandidate({ partRange: 5000, signature: 1000, distance: 3874.9 }), true);
+  assert.equal(legacyCandidate({ partRange: 5000, signature: 1000, distance: 3875.1 }), false);
+  const capped = legacyDetection({ partRange: 1000, signature: 1000 });
+  assert.equal(capped.capBinds, true);
+  close(capped.capSignature, 193.75);
+  // A different saved radar_fov moves the far plane: 0.05 gives P × 0.8.
+  close(legacyPlane({ partRange: 5000, savedFov: 0.05 }), 4000);
+  assert.throws(() => legacyPlane({ partRange: 5000, savedFov: 0 }), RangeError);
+});
+
+test('advanced radar model reproduces the worked examples at both FOV slider ends', () => {
+  for (const [id, ends] of Object.entries(RADAR_ENDPOINT_EXAMPLES)) {
+    const v = RADAR_VARIANTS.find((x) => x.id === id);
+    [RADAR.fovMin, RADAR.fovMax].forEach((fov, e) => {
+      const [range, interval, ...limits] = ends[e];
+      [10, 100, 1000].forEach((S, i) => {
+        const r = radarDetection({ partRange: v.range, signature: S, fovX: fov, fovY: fov });
+        close(r.range, range);
+        assert.equal(r.interval, interval, `${id} at ${fov}`);
+        close(r.limit, limits[i]);
+      });
+    });
+  }
+});
+
+test('legacy and advanced radar models match worked-examples.json when the investigation is present', (t) => {
+  const file = new URL('../../../investigation/native/sensors-legacy/tools/worked-examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const rows = JSON.parse(readFileSync(file, 'utf8'));
+  let checked = 0;
+  for (const ex of rows) {
+    const legacy = LEGACY_VARIANTS.find((x) => x.id === ex.id);
+    const radar = RADAR_VARIANTS.find((x) => x.id === ex.id);
+    if (legacy) {
+      const r = legacyDetection({ partRange: legacy.range, signature: ex.physics_mass_S });
+      close(r.plane, ex.axial_plane);
+      close(r.limit, ex.on_axis_ceiling);
+      checked += 1;
+    } else if (radar) {
+      for (const [key, fov] of [['min_FOV', RADAR.fovMin], ['max_FOV', RADAR.fovMax]]) {
+        const r = radarDetection({ partRange: radar.range, signature: ex.physics_mass_S, fovX: fov, fovY: fov });
+        close(r.range, ex[key].R);
+        close(r.limit, ex[key].ceiling);
+        assert.equal(r.interval, ex[key].interval_updates);
+      }
+      checked += 1;
+    }
+  }
+  assert.equal(checked, 30, 'six legacy and four advanced radars at three masses each');
+});
+
+test('legacy graph constants remain tied to verified native and definition findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const fams = new Map(data.families.map((f) => [f.id, f]));
+  const any = (label) => data.families.flatMap((f) => f.findings).find((x) => x.label === label);
+  assert.equal(Number(any('Legacy sensor score threshold').value), LEGACY_RADAR.threshold);
+  assert.equal(Number(any('Legacy far-plane base factor').value), LEGACY_RADAR.planeBase);
+  assert.equal(Number(any('Legacy saved radar_fov default').value), LEGACY_RADAR.savedFovDefault);
+  assert.equal(Number(any('Legacy FOV minimum').value), LEGACY_RADAR.fovMin);
+  assert.equal(Number(any('Legacy FOV maximum').value), LEGACY_RADAR.fovMax);
+  assert.equal(Number(any('Legacy FOV maximum, subtype 2').value), LEGACY_RADAR.fovMaxLarge);
+  assert.equal(Number(any('Radar FOV slider minimum and step').value), RADAR.fovMin);
+  assert.equal(Number(any('Radar FOV slider minimum and step').value), RADAR.fovStep);
+  assert.equal(Number(any('Radar FOV slider maximum').value), RADAR.fovMax);
+  for (const label of ['Legacy sensor score', 'Legacy far-plane distance', 'Physics object mass', 'Component mass getter']) {
+    assert.ok(any(label)?.source?.address, `${label}: native address is required`);
+  }
+  for (const v of LEGACY_VARIANTS) {
+    const fam = fams.get(v.families[0]);
+    assert.ok(fam, v.id);
+    assert.equal(Number(fam.findings.find((x) => x.label === `${v.label} · radar_range`)?.value), v.range, v.id);
+    assert.equal(fam.findings.find((x) => x.label === `${v.label} · logic_gate_subtype`)?.value, String(v.subtype), v.id);
+    assert.deepEqual(graphKindsForFamily(v.families[0]), ['legacy']);
+  }
+  assert.equal(legacyVariantFor('part-radar-sonar-small').id, 'radar_sonar_small');
 });
 
 // Worked examples from investigation/native/radio/tools/model.py (worked-examples.json): receiver and transmitter range,

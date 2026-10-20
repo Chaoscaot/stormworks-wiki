@@ -4311,8 +4311,9 @@ def sensor_native(E):
 
 
 def radar_figures(E, bid):
-    """Derived default-FOV and half-FOV figures for one advanced radar."""
+    """Derived default-FOV and editor-endpoint figures for one advanced radar."""
     f = sensor_native(E)
+    u = legacy_sensor_native(E)
     R = update_rate(E)
     P = float(E.block(bid)["attributes"]["radar_range"])
     def at(fov):
@@ -4321,13 +4322,18 @@ def radar_figures(E, bid):
         return r, nn, nn / R["ups"]
     r, nn, s = at(0.02)
     r2, n2, s2 = at(0.01)
+    r3, n3, s3 = at(0.25)
     g = _num
     return E.derived("%s detection figures" % E.block(bid)["name"],
-                     "R = %s m; scan every %d updates (%s s); score passes for distance < %s × S" % (g(r), nn, g(round(s, 6)), g(r / 250)),
+                     "R = %s m; scan every %d updates (%s s); score passes for distance < %s × S; R from %s m at FOV 0.01 to %s m at 0.25" % (
+                         g(r), nn, g(round(s, 6)), g(r / 250), g(r2), g(r3)),
                      "P = %s. At FOV 0.02 × 0.02: R = %s × 0.0004 ÷ 0.0004 = %s m, N = floor(%s ÷ 2000 + 0.5) = %d updates = %s s, score bound R × S ÷ 250 = %s × S m, capped at R. "
-                     "At FOV 0.01 × 0.01: R = %s m, N = %d updates = %s s, bound %s × S m. Signature S is the target record value, not a hull size." % (
-                         g(P), g(P), g(r), g(r), nn, g(round(s, 6)), g(r / 250), g(r2), n2, g(round(s2, 6)), g(r2 / 250)),
-                     [f["r_k"], f["r_range"], f["r_interval"], f["r_thr"], R["findings"][0]])
+                     "The editor sliders run from 0.01 to 0.25 per axis. At FOV 0.01 × 0.01: R = %s m, N = %d updates = %s s, bound %s × S m. "
+                     "At FOV 0.25 × 0.25: R = %s m, N = %d update%s = %s s, bound %s × S m. Mixed settings use the product FOV x × FOV y. "
+                     "S is the target's physics-body mass." % (
+                         g(P), g(P), g(r), g(r), nn, g(round(s, 6)), g(r / 250), g(r2), n2, g(round(s2, 6)), g(r2 / 250),
+                         g(r3), n3, "" if n3 == 1 else "s", g(round(s3, 6)), g(r3 / 250)),
+                     [f["r_k"], f["r_range"], f["r_interval"], f["r_thr"], u["u_min"], u["u_max"], u["u_round"], R["findings"][0]])
 
 
 def sonar_figures(E, bid):
@@ -4340,6 +4346,193 @@ def sonar_figures(E, bid):
                      "P = %s. Active score P ÷ 10000 × S ÷ d > 0.01 gives d < P × S ÷ 100 = %s × S, capped at P. "
                      "Passive score 235 × P × 0.00002 ÷ d > 0.01 gives d < 235 × 0.00002 ÷ 0.01 × P = 0.47 × P = %s m for one amplitude-235 ping." % (g(P), g(P / 100), g(P * 0.47)),
                      [f["s_div"], f["s_thr"], f["s_amp"], f["s_pfac"]])
+
+
+# legacy radar/sonar, signature and FOV-limit pass; files under investigation/native/sensors-legacy/, report investigation/sensors-legacy.md.
+SL = "../sensors-legacy/"
+SL_REPORT = "investigation/sensors-legacy.md"
+SL_EXAMPLES = "investigation/native/sensors-legacy/tools/worked-examples.json"
+F_LEGACY_SCAN = 0x14090A2B2  # chained unwind chunk of the legacy candidate helper 0x14090a290
+F_LOGIC_CTOR = 0x1403C25A0   # logic component constructor: saved radar_fov default
+F_LOGIC_SER = 0x1403CD9B0    # logic component serializer: radar_fov
+F_MASS_GET = 0x140328EA0     # base component mass getter, vtable slot +0x298 (leaf, no unwind entry)
+F_MASS_SUM = 0x1404BE190     # physics-body mass producer
+F_MASS_PUSH = 0x1405481E2    # chained unwind chunk of the vehicle update 0x140548050
+F_MASS_SET = 0x1401A8070     # physics scene object mass setter
+F_FOV_UI = 0x1402DD610       # two-axis FOV slider initializer
+F_FOV_CB = 0x1402DDD60       # two-axis FOV slider callback
+F_RADAR_UI = 0x1403B87D0     # advanced radar property UI
+# Slot +0x298 of the logic, advanced radar and advanced sonar vtables, and the two FOV control vtable entries.
+MASS_SLOTS = ((0x140B6A458, F_MASS_GET), (0x140B93500, F_MASS_GET), (0x140B84188, F_MASS_GET),
+              (0x140BA58C0, F_FOV_UI), (0x140BA59E0, F_FOV_CB))
+# (family, definition, logic_gate_subtype)
+LEGACY_SENSORS = (("part-radar", "radar", 0), ("part-radar-dish", "radar_dish", 0), ("part-radar-large", "radar_large", 2),
+                  ("part-radar-huge", "radar_huge", 3), ("part-radar-sonar", "radar_sonar", 1), ("part-radar-sonar-small", "radar_sonar_small", 1))
+LEGACY_SAVED_FOV = 0.1
+_LA, _LP = SL + "asm/", SL + "pseudocode/"
+_LG, _LH = _LA + "1403c4d20.asm", _LA + "14090a290.asm"
+WHERE.update({
+    (F_LOGIC, 0x1403C76AB): _LG + ":L2413-L2478; " + _LP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C6FF6): _LG + ":L2039-L2051",
+    (F_LOGIC, 0x1403C7017): _LG + ":L2045-L2051",
+    (F_LOGIC, 0x1403C6FFB): _LG + ":L2045,L2053-L2063",
+    (F_LOGIC, 0x1403C702F): _LG + ":L2053-L2063",
+    (F_LOGIC, 0x1403C7037): _LG + ":L2059-L2063",
+    (F_LOGIC, 0x1403C709E): _LG + ":L2064-L2084",
+    (F_LOGIC, 0x1403C71E0): _LG + ":L2129-L2159; " + _LP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C7215): _LG + ":L2159-L2168; " + _LP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C7228): _LG + ":L2159-L2168",
+    (F_LOGIC, 0x1403C72BB): _LG + ":L2188-L2193; " + _LP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C7A40): _LG + ":L2630-L2636",
+    (F_LOGIC, 0x1403C7AA5): _LG + ":L2652",
+    (F_LOGIC, 0x1403C7BBB): _LG + ":L2720-L2722",
+    (F_LEGACY_SCAN, None): _LH + ":L35,L47-L49,L136-L139; " + _LP + "14090a290.c",
+    (F_LOGIC_CTOR, None): _LA + "1403c25a0.asm:L225; " + _LP + "1403c25a0.c",
+    (F_LOGIC_SER, None): _LA + "1403cd9b0.asm:L492-L509; " + _LP + "1403cd9b0.c",
+    (F_MASS_GET, None): _LA + "140328ea0.asm:L9; " + _LP + "140328ea0.c",
+    (F_DEFSER, 0x140BAEAF4): _LA + "1403168d0.asm:L132-L135",
+    (F_MASS_SUM, None): _LA + "1404be190.asm:L192-L195; " + _LP + "1404be190.c",
+    (F_MASS_PUSH, None): _LA + "140548050.asm:L106-L110,L149; " + _LP + "140548050.c",
+    (F_MASS_SET, None): _LA + "1401a8070.asm:L13-L20; " + _LP + "1401a8070.c",
+    (F_FOV_UI, None): _LA + "1402dd610.asm:L110-L122; " + _LP + "1402dd610.c; " + _LP + "14024c3f0.c",
+    (F_FOV_CB, None): _LA + "1402ddd60.asm:L23-L31; " + _LP + "1402ddd60.c",
+    (F_RADAR_UI, None): _LA + "1403b87d0.asm:L374; " + _LP + "1403b87d0.c",
+})
+
+
+def legacy_onaxis(P, S, saved=LEGACY_SAVED_FOV):
+    """Legacy far-plane distance C and the on-axis bound min(C, 4 S); real arithmetic, as in the report's model."""
+    C = P * (0.75 + 0.25 * 0.01 / saved)
+    return C, min(C, 4 * S)
+
+
+def legacy_sensor_native(E):
+    """Legacy radar and sonar (logic case 50), the physics-body mass behind S and the advanced radar FOV sliders, verified once."""
+    if hasattr(E, "legacy"):
+        return E.legacy
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / SL_REPORT).is_file():
+        raise ValueError("Legacy sensor report missing: " + SL_REPORT)
+    for slot, target in MASS_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Vtable slot %#x does not point to %#x" % (slot, target))
+    if n.base + struct.unpack("<I", n.raw(LOGIC_TABLE + 4 * 50, 4))[0] != 0x1403C6F4D:
+        raise ValueError("Logic jump-table entry 50 moved")
+    for _, bid, sub in LEGACY_SENSORS:
+        a = E.block(bid)["attributes"]
+        if (a["type"], a["logic_gate_type"], a["logic_gate_subtype"]) != ("16", "50", str(sub)):
+            raise ValueError("%s is not logic case 50, subtype %d" % (bid, sub))
+    # The figures here must reproduce the investigation's worked examples.
+    examples = json.loads((E.root / SL_EXAMPLES).read_bytes())
+    for ex in examples:
+        a = E.block(ex["id"])["attributes"]
+        P = float(a["radar_range"])
+        if a["type"] == "16":
+            C, bound = legacy_onaxis(P, ex["physics_mass_S"])
+            if abs(C - ex["axial_plane"]) > 1e-6 or abs(bound - ex["on_axis_ceiling"]) > 1e-6:
+                raise ValueError("Legacy figures differ from %s: %s" % (SL_EXAMPLES, ex["id"]))
+        elif a["type"] == "56":
+            for key, fov in (("min_FOV", 0.01), ("max_FOV", 0.25)):
+                r = P * 0.02 * 0.02 / (fov * fov)
+                if abs(r - ex[key]["R"]) > 1e-6 * r or max(1, math.floor(r / 2000 + 0.5)) != ex[key]["interval_updates"]:
+                    raise ValueError("Radar endpoint figures differ from %s: %s" % (SL_EXAMPLES, ex["id"]))
+    rep = " Report: %s." % SL_REPORT
+    f = {}
+    # Signature: physics-body mass.
+    f["m_get"] = code(F_MASS_GET, 0x140328EA4, "f30f1080b0020000", "Component mass getter", "definition +0x2b0",
+                      "The base getter loads the component definition's float at +0x2b0. Slot +0x298 of the logic (0x140b6a1c0), advanced radar (0x140b93268) and advanced sonar (0x140b83ef0) vtables "
+                      "points here; the extractor re-reads all three slots." + rep)
+    f["m_bind"] = E.string(F_DEFSER, 0x140BAEAF4, "mass", "mass binding",
+                           "The definition loader binds the mass attribute to definition +0x2b0 (lea r9 at 0x140316ae6) with fallback 0." + rep)
+    f["m_sum"] = code(F_MASS_SUM, 0x1404BE439, "ff9098020000f30f58872c070000f30f11872c070000", "Physics-body mass sum", "body +0x72c = sum of component mass",
+                      "The producer clears body +0x72c, calls each component's getter at slot +0x298 and adds the result. It also redistributes and clamps body values and handles linked bodies, "
+                      "and some component classes override the getter, so a body's total is not always the sum of definition masses." + rep)
+    f["m_push"] = code(F_MASS_PUSH, 0x1405481FE, "e86dfec5ff", "Body mass to physics object", "call 0x1401a8070",
+                       "The vehicle update loads body +0x72c (0x1405481eb) and passes it with the body's physics object +0x718 to the setter; it repeats the call at 0x140548299." + rep)
+    f["m_set"] = code(F_MASS_SET, 0x1401A8082, "f30f115208", "Physics object mass", "record +0x8 = mass",
+                      "The setter stores the value at +0x8 and, for a positive value, 1 ÷ value at +0xc (divss at 0x1401a8097, store at 0x1401a809b). The constructor 0x14019adc0 of "
+                      "mm_physics_scene_object does the same. This +0x8 is the field the radar, sonar and legacy sensor candidate tests read as S." + rep)
+    # Advanced radar FOV sliders.
+    f["u_ctrl"] = code(F_RADAR_UI, 0x1403B8DA4, "e887d25000", "Radar FOV control", "call 0x1408c6030",
+                       "The advanced radar property UI builds the two-axis FOV control over fields +0x41c and +0x418 when radar_type is not 2, so the Basic, AWACS, Dish, Phalanx and Missile radars get it "
+                       "and the laser missile radar does not." + rep)
+    f["u_min"] = op(F_FOV_UI, 0x1402DD7B4, "f30f103d9c218d00", 0x140BAF958, "Radar FOV slider minimum and step",
+                    "The slider initializer passes this value as both minimum and step (stores at 0x1402dd7bc and 0x1402dd7d0) to the slider helper 0x14024c3f0 (call at 0x1402dd7ea)." + rep)
+    f["u_max"] = op(F_FOV_UI, 0x1402DD7C2, "f30f1035f2238d00", 0x140BAFBBC, "Radar FOV slider maximum",
+                    "Passed as the slider maximum; both FOV axes span 0.01 to 0.25 in steps of 0.01. A full FOV of F turns is F × 360 degrees, 3.6 to 90 degrees "
+                    "(the field rendering at 0x1403b95d3 uses the half-angle π × F). With R = P × 0.0004 ÷ (FOV x × FOV y), R is 4 × P at 0.01 per axis and 0.0064 × P at 0.25." + rep)
+    f["u_round"] = op(F_FOV_CB, 0x1402DDD95, "f30f5905f3298d00", 0x140BB0790, "Radar FOV slider rounding",
+                      "The callback writes floor(slider × 100 + 0.5) × 0.01 back to the field (+ 0.5 at 0x1402ddd9d, floor at 0x1402ddda5, × 0.01 at 0x1402dddaa, store at 0x1402dddb6)." + rep)
+    # Legacy case 50.
+    f["g_call"] = code(F_LOGIC, 0x1403C76AB, "e8e02b5400", "Legacy sensor candidate call", "call 0x14090a290",
+                       "Logic case 50 (jump-table entry 50 leads to 0x1403c6f4d) runs the legacy radars and sonars. It calls the candidate helper six times (0x1403c76ab to 0x1403c77e5), once per scene-object list, "
+                       "with five bounding planes. The helper requires a positive S, skips the sensor's own and several special records and requires the target strictly inside all five planes. "
+                       "No scan counter precedes these calls in the case-50 block (inference: candidates are collected on every update that passes the gates)." + rep)
+    f["g_mass"] = code(F_LEGACY_SCAN, 0x14090A323, "f30f107308", "Legacy sensor signature", "S = record +0x8",
+                       "Loads S from the record's +0x8, the physics-body mass; comiss with 0 at 0x14090a328 and jbe at 0x14090a32c skip S ≤ 0." + rep)
+    f["g_thr"] = op(F_LEGACY_SCAN, 0x14090A2F5, "f3440f1005be582a00", 0x140BAFBBC, "Legacy sensor score threshold",
+                    "xmm8 holds this threshold for the legacy score S ÷ distance." + rep)
+    f["g_score"] = code(F_LEGACY_SCAN, 0x14090A470, "f20f5ef0f20f5af6410f2ff0", "Legacy sensor score", "S ÷ distance > 0.25",
+                        "divsd divides S by the Euclidean distance, cvtsd2ss narrows it at 0x14090a474 and comiss compares it with 0.25 at 0x14090a478; jbe at 0x14090a47c rejects equality. "
+                        "There is no radar_range factor and no 0.025 threshold here. Equivalent: distance < 4 × S." + rep)
+    f["g_yaw"] = code(F_LOGIC, 0x1403C6FF6, "e815765200", "Legacy yaw clamp", "-0.5 to 0.5 turn",
+                      "Clamp helper 0x1408ee610 limits the Facing Yaw input at +0x698 to -0.5 (0x140bb0ba0) to 0.5 (0x140bafcbc) turn." + rep)
+    f["g_pitch"] = code(F_LOGIC, 0x1403C7017, "e8f4755200", "Legacy pitch clamp", "-0.25 to 0.25 turn",
+                        "The pitch input at +0x69c is clamped to -0.25 (0x140bb0b38) to 0.25 turn." + rep)
+    f["g_fov_large"] = op(F_LOGIC, 0x1403C6FFB, "f3440f1005b88b7e00", 0x140BAFBBC, "Legacy FOV maximum, subtype 2",
+                          "Subtype 2 (cmp at 0x1403c7020) passes this value as the FOV upper bound (movaps at 0x1403c7029)." + rep)
+    f["g_fov_max"] = op(F_LOGIC, 0x1403C702F, "f30f1015c98a7e00", 0x140BAFB00, "Legacy FOV maximum",
+                        "Every other subtype gets this FOV upper bound." + rep)
+    f["g_fov_min"] = op(F_LOGIC, 0x1403C7037, "f3440f102d18897e00", 0x140BAF958, "Legacy FOV minimum",
+                        "The FOV input at +0x694 is clamped from this minimum to the subtype's maximum (call 0x1408ee610 at 0x1403c704b). So the FOV is 0.01 to 0.125 turn, 3.6 to 45 degrees, "
+                        "and 0.01 to 0.25 turn, 3.6 to 90 degrees, on subtype 2." + rep)
+    f["g_vfov"] = code(F_LOGIC, 0x1403C709E, "83b8740e000002", "Legacy vertical FOV", "0.25 turn, or the FOV input on subtype 2",
+                       "The vertical full angle is π ÷ 2 (0x140bb0078), 0.25 turn or 90 degrees; subtype 2 replaces it with the clamped FOV input × 2π (0x1403c70a7)." + rep)
+    f["g_height"] = code(F_LOGIC, 0x1403C71E0, "83b8740e000001", "Legacy height gate", "subtype 1 below, others above",
+                         "The sensor samples a height h at its position (helper 0x1402bc7d0, call at 0x1403c7185) and forms clamp(2 × (0.25 - (y - h)), 0, 1) (0x1403c71ad-0x1403c71d2). "
+                         "Subtype 1, the sonars, continues only when it is 1, that is y at least 0.25 below h; the other subtypes only when it is 0, y at least 0.25 above h. "
+                         "Reading h as the water surface is an inference; the sampler is an open question listed under Other components." + rep)
+    f["g_plane"] = code(F_LOGIC, 0x1403C7215, "f3450f59c8f3450f59cdf3450f5e8eb0060000", "Legacy far-plane distance", "C = P × (0.75 + 0.25 × 0.01 ÷ saved radar_fov)",
+                        "Loads P from definition +0x2ca4 (radar_range, 0x1403c7209), multiplies a copy by 0.25 and 0.01 and divides it by the saved radar_fov at +0x6b0, not by the current FOV input at +0x694. "
+                        "The far plane sits this distance ahead of the sensor; four side planes come from the FOV angles." + rep)
+    f["g_plane_k"] = op(F_LOGIC, 0x1403C7228, "f30f5905808b7e00", 0x140BAFDB0, "Legacy far-plane base factor",
+                        "0.75 × P is added to the FOV term at 0x1403c7230. At the saved default 0.1 that gives C = 0.775 × P." + rep)
+    f["g_offset"] = op(F_LOGIC, 0x1403C72BB, "f20f5805258f7e00", 0x140BB01E8, "Legacy subtype 2 Y offset",
+                       "Subtype 2 (cmp at 0x1403c72a1) adds this binary64 value to the Y component of the sensor transform (0x1403c72b6-0x1403c72c3) before it builds the planes. "
+                       "The report states 1 metre; the constant is 1.5." + rep, kind="f64")
+    f["g_saved"] = code(F_LOGIC_CTOR, 0x1403C29F8, "c787b0060000cdcccc3d", "Legacy saved radar_fov default", "0.1",
+                        "The logic constructor stores binary32 0x3dcccccd, 0.1, at +0x6b0." + rep)
+    f["g_ser"] = E.string(F_LOGIC_SER, 0x140B6B888, "radar_fov", "radar_fov serializer",
+                          "For logic type 50 (cmp at 0x1403ce105) the serializer reads and writes +0x6b0 under this name (lea r9 at 0x1403ce134). Case 50 itself only reads it." + rep)
+    f["g_extent"] = code(F_LOGIC, 0x1403C7A40, "83b8740e000001", "Legacy target extent test", "sonar: lowest point below y = -1; radar: highest above y = 1",
+                         "For subtype 1 the candidate's minimum Y must be below -1 (comiss at 0x1403c7a49); the other subtypes need its maximum Y above 1 (comiss at 0x1403c7a54)." + rep)
+    f["g_ray"] = code(F_LOGIC, 0x1403C7AA5, "e856c8ddff", "Legacy line-of-sight query", "call 0x1401a4300",
+                      "Candidates are sorted best score first; each runs the same segment query as the advanced radar. Subtypes 0, 1 and 2 output the first candidate that passes." + rep)
+    f["g_huge"] = code(F_LOGIC, 0x1403C7BBB, "4183ff08", "Legacy Huge target limit", "8",
+                       "Subtype 3 (cmp at 0x1403c7bae), the Huge radar, fills composite target slots until 8 (jae at 0x1403c7bbf)." + rep)
+    E.legacy = f
+    return f
+
+
+LEGACY_CORE = ("g_call", "g_mass", "g_thr", "g_score", "g_yaw", "g_pitch", "g_fov_large", "g_fov_max", "g_fov_min", "g_vfov", "g_height",
+               "g_plane", "g_plane_k", "g_offset", "g_saved", "g_ser", "g_extent", "g_ray", "g_huge", "m_get", "m_bind", "m_sum", "m_push", "m_set")
+MASS_CORE = ("m_get", "m_bind", "m_sum", "m_push", "m_set")
+FOV_CORE = ("u_ctrl", "u_min", "u_max", "u_round")
+
+
+def legacy_figures(E, bid):
+    """Derived far-plane distance and on-axis bounds for one legacy radar or sonar."""
+    f = legacy_sensor_native(E)
+    P = float(E.block(bid)["attributes"]["radar_range"])
+    g = _num
+    C = legacy_onaxis(P, 0)[0]
+    rows = ["S = %d: %s m" % (S, g(round(legacy_onaxis(P, S)[1], 6))) for S in (10, 100, 1000)]
+    return E.derived("%s detection figures" % E.block(bid)["name"],
+                     "far plane C = %s m at saved radar_fov 0.1; on axis distance < min(%s, 4 × S)" % (g(round(C, 6)), g(round(C, 6))),
+                     "P = %s. C = %s × (0.75 + 0.25 × 0.01 ÷ 0.1) = %s × 0.775 = %s m. The score S ÷ d > 0.25 gives d < 4 × S. On the sensor's axis: %s. "
+                     "C is a plane distance, so a target off the axis can pass at a larger straight-line distance. The current FOV input does not change C." % (
+                         g(P), g(P), g(P), g(round(C, 6)), "; ".join(rows)),
+                     [f["g_plane"], f["g_plane_k"], f["g_saved"], f["g_thr"], f["g_score"]])
 
 
 # radio pass; files under investigation/native/radio/, report investigation/radio.md.
@@ -4570,11 +4763,14 @@ def sensors_and_radio(B, E):
                                  "s_pfac", "s_passive", "s_ray", "s_noise")]
     locator = [f[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_clamp", "l_acc", "l_rate")]
     noise = [f[k] for k in ("sdk_sonar", "sdk_radar", "sdk_dist", "sdk_default", "noise")] + f["sdk"]
+    lf = legacy_sensor_native(E)
+    legacy_core = [lf[k] for k in LEGACY_CORE] + [legacy_figures(E, bid) for _, bid, _ in LEGACY_SENSORS]
+    fov_core = [lf[k] for k in FOV_CORE] + [radar_figures(E, bid) for _, bid in ADV_RADARS]
     rf = radio_native(E)
     radio = [rf[k] for k in RADIO_CORE] + [rf["pairs"], rf["height"], rf["water_fig"]]
     B.category("Other components",
                "This catch-all holds sensors, radios, lights, fluid fittings, connectors, winches, doors and tools. Definitions give the ranges: v2 radios 100 m to 20 km with legacy radios configured identically, and radar ranges from 5000 to 500000 m. "
-               "Advanced radars and sonars pass a target when signature over distance beats a fixed threshold, and the transponder locator pulses faster near a beacon. "
+               "Radars and sonars pass a target when its physics-body mass over distance beats a fixed threshold, and the transponder locator pulses faster near a beacon. "
                "Radio signal strength falls linearly with distance over a reach set by both antennas' rx_range.",
                [section("Radio ranges",
                         "rx_range equals the tooltip's ground-level range on every v2 radio (100, 1000, 4000, 20000) and on the directional antennas (8000000, 10000000). The legacy radios carry the same rx_range values as their v2 counterparts and run the same receive code. "
@@ -4589,10 +4785,24 @@ def sensors_and_radio(B, E):
                         "Composite data is copied unscaled, and the strength value itself is not scaled."),
                 section("Radar and sonar ranges",
                         "radar_range matches the stated range for the basic radars (5000, 20000, 50000), sonars (3000, 1000), advanced sonars (60000, 100000, 200000) and the fish finder (100). The advanced radars without a stated range carry 60000 (radar), 500000 (AWACS), 200000 (dish), 100000 (phalanx) and 20000 (missile)."),
+                section("Target signature",
+                        "Every radar and sonar candidate test reads its signature S from the target's physics record, and that value is the mass of the target's physics body. "
+                        "Each component contributes its definition mass attribute through a shared getter, the vehicle code sums them per body and hands the sum to the physics object, and the sensors read it back. "
+                        "So S is mass in the game's definition mass units, not block count, area or hull length. More blocks raise S only through their mass.",
+                        "A vehicle with several physics bodies presents one record per body, so the figures on this page apply to each body, not to the vehicle's total. "
+                        "The body sum also redistributes and clamps values and some components override the getter, so S is not always the plain sum of the definition masses."),
                 section("Advanced radar detection",
-                        "The Basic, AWACS, Dish, Phalanx and Missile radars turn radar_range P into a working range R = P × 0.02 × 0.02 ÷ (FOV x × FOV y). The FOV values are the part's native FOV fields, 0.02 each by default, so R equals radar_range at the default FOV and halving both FOV fields makes R four times larger. "
+                        "The Basic, AWACS, Dish, Phalanx and Missile radars turn radar_range P into a working range R = P × 0.02 × 0.02 ÷ (FOV x × FOV y). FOV x and FOV y are 0.02 by default, and the editor sliders set each from 0.01 to 0.25 in steps of 0.01 (3.6 to 90 degrees). "
+                        "R is 4 × P at 0.01 per axis, equals radar_range at 0.02 and is 0.0064 × P at 0.25: the AWACS spans 2000000 m to 3200 m, the Missile 80000 m to 128 m. "
                         "A new scan runs every N = max(1, floor(R ÷ 2000 + 0.5)) updates, at 60 updates per second.",
-                        "A target with signature S at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250. There is no random roll in this test. Each scan keeps at most 8 targets, best score first, and runs a line-of-sight query to each."),
+                        "A target of body mass S at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250. There is no random roll in this test. Each scan keeps at most 8 targets, best score first, and runs a line-of-sight query to each."),
+                section("Legacy radar and sonar detection",
+                        "The six legacy parts (Radar, Radar (Dish), Radar (Large), Radar (Huge), Sonar (Large) and Sonar (Small); definition type 16, logic case 50) use a different test: a target passes when S ÷ d > 0.25, that is d < 4 × S. radar_range does not enter the score. "
+                        "It sets a far plane C = P × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead of the sensor, 0.775 × P at the saved default 0.1: 3875 m for the Radar, 15500 m for the Dish and Large, 38750 m for the Huge, 2325 m and 775 m for the sonars. "
+                        "On the sensor's axis a target passes within min(C, 4 × S); off the axis the straight-line distance can exceed C.",
+                        "The FOV input is clamped to 0.01 to 0.125 turn (0.01 to 0.25 on the Large, which also uses it vertically; the others see 0.25 turn vertically). It moves the side planes only, because C reads the separately saved radar_fov field. "
+                        "Sonars run only at least 0.25 m below a sampled height and see targets reaching below y = -1; radars run only at least 0.25 m above it and see targets reaching above y = 1 (inference: the sampled height is the water surface). "
+                        "Candidates go best score first through a line-of-sight query; the Huge fills up to 8 targets and the others output one. The legacy sonars do not use the advanced sonar's ping or passive listening."),
                 section("Advanced sonar detection",
                         "Advanced sonars use radar_range as P. An active return passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < P × S ÷ 100. After a ping, targets show up as an echo window moves out by 12.333333 m per update, 740 m per second.",
                         "While not pinging, a sonar hears other sonars' pings of amplitude 235 when 235 × P × 0.00002 ÷ d > 0.01, so one ping is heard within 0.47 × P. Targets whose directions differ by less than 0.01 in squared length merge, and at most 16 targets are output."),
@@ -4602,14 +4812,15 @@ def sensors_and_radio(B, E):
                         "The game reads radar_noise, radar_distance_noise and sonar_noise from the SDK game_constants file. Radar distances are multiplied by 1 − D + 2D U, and radar and sonar angles get −A + 2A U, with a fresh random U from 0 to 1 per value. "
                         "At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise."),
                 section("Open questions",
-                        "Not decoded: how a vehicle's size, shape or material sets the signature S, so no detection distance follows for a given vehicle; the editor's minimum and maximum FOV, so no figures at those limits; which objects block the line-of-sight query; "
-                        "the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar. "
+                        "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which objects and materials block the line-of-sight query; "
+                        "the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; "
+                        "the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. "
                         "For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); "
                         "how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; "
                         "payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.")],
                list(rx.values()) + list(rx_t.values()) + list(radar.values()) + [E.tooltip("radar"), E.tooltip("sonar_advanced")] +
-               radar_core + sonar_core + locator + noise + [rate] + radio,
-               ["Signature S is a value on the target record whose producer was not recovered, so these formulas give no detection distance in metres for a given vehicle size.",
+               radar_core + sonar_core + locator + noise + [rate] + radio + legacy_core + fov_core,
+               ["Signature S is the target's physics-body mass in game mass units, read per physics body. The open items about it are listed under Open questions.",
                 "Radio figures come from a static decode of the receive routine 0x14054a780; the radio items under Open questions are what it leaves open.",
                 "Unrelated definitions carry serialized default ranges; only sensor and radio definitions are interpreted here."])
     legacy = (("part-rx-small", "rx_small", "rx_small_v2", "100 m"), ("part-rx-med", "rx_med", "rx_med_v2", "1 km"),
@@ -4651,27 +4862,31 @@ def sensors_and_radio(B, E):
                   E.attr(bid, "flags", "Definition flags; the radio initializer turns them into record mode flags.")] + rcore,
                  ["Runtime behaviour and the exact rounding of the height term are open questions listed under Other components."])
     g = _num
+    lf = legacy_sensor_native(E)
     for fid, bid in ADV_RADARS:
         rng = E.block(bid)["attributes"]["radar_range"]
         P = float(rng)
-        r2, n1, n2 = P * 4, max(1, math.floor(P / 2000 + 0.5)), max(1, math.floor(P * 4 / 2000 + 0.5))
+        r2, r3 = P * 4, P * 0.0004 / 0.0625
+        n1, n2, n3 = (max(1, math.floor(r / 2000 + 0.5)) for r in (P, r2, r3))
         fig = radar_figures(E, bid)
         missile = bid == "radar_advanced_missile"
-        B.family(fid, "Range %s m at the default FOV; a new scan every %d updates (%s s); targets of signature S pass out to %s × S m." % (rng, n1, g(round(n1 / 60, 6)), g(P / 250)),
+        B.family(fid, "Range %s m at the default FOV, %s m to %s m across the FOV sliders; a new scan every %d updates (%s s); targets of body mass S pass out to %s × S m at the default FOV." % (
+                     rng, g(r2), g(r3), n1, g(round(n1 / 60, 6)), g(P / 250)),
                  [section("Detection",
-                          "R = %s × 0.02 × 0.02 ÷ (FOV x × FOV y) m: %s m at the default FOV of 0.02 per axis, %s m at 0.01. A target at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250, %s × S m at the default FOV. "
-                          "Narrowing the FOV reaches farther but scans less often." % (rng, rng, g(r2), g(P / 250)),
-                          "A new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates: %d (%s s) at the default FOV, %d (%s s) at 0.01. Each scan keeps at most 8 targets, best score first, and checks line of sight to each." % (
-                              n1, g(round(n1 / 60, 6)), n2, g(round(n2 / 60, 6)))),
+                          "R = %s × 0.02 × 0.02 ÷ (FOV x × FOV y) m. The editor sliders set each axis from 0.01 to 0.25 in steps of 0.01: R is %s m at 0.01 per axis, %s m at the default 0.02 and %s m at 0.25. "
+                          "A target of physics-body mass S at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250: %s × S m at 0.01, %s × S m at the default and %s × S m at 0.25. "
+                          "Narrowing the FOV reaches farther but scans less often." % (rng, g(r2), rng, g(r3), g(r2 / 250), g(P / 250), g(r3 / 250)),
+                          "A new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates: %d (%s s) at 0.01, %d (%s s) at the default FOV and %d (%s s) at 0.25. Each scan keeps at most 8 targets, best score first, and checks line of sight to each." % (
+                              n2, g(round(n2 / 60, 6)), n1, g(round(n1 / 60, 6)), n3, g(round(n3 / 60, 6)))),
                   section("Outputs",
                           "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."),
                   section("Variant tradeoffs",
                           "The tooltip gives no range, but radar_range is %s. On the basic radars and sonars this field equals the stated range." % rng)],
                  [radar[bid], radar["radar"], E.tooltip("radar"), E.tooltip(bid), E.attr(bid, "type", "Definition type 56, the advanced radar class."),
-                  E.attr(bid, "radar_speed", "Sweep step per update."), fig] + radar_core + [f["noise"], rate] +
+                  E.attr(bid, "radar_speed", "Sweep step per update."), fig] + radar_core + [lf[k] for k in FOV_CORE + MASS_CORE] + [f["noise"], rate] +
                  ([E.attr(bid, "radar_type", "radar_type 1 selects the missile orientation branches in the radar update.")] if missile else []),
-                 ["Signature S and the editor's FOV limits are open questions listed under Other components; the formulas above take S and the native FOV values as inputs."] +
-                 (["The Missile radar (radar_type 1) takes separate orientation branches in the update; their effect on the sweep and look direction was not decoded."] if missile else []) +
+                 ["S is the target's physics-body mass, read per physics body; how vehicle mass accounting and the environment shape it are open questions listed under Other components."] +
+                 (["Range, score, scan interval and FOV slider limits match the other advanced radars. The Missile radar (radar_type 1) also takes separate orientation branches in the update; how they set the look direction and sweep was not decoded."] if missile else []) +
                  (["20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."] if rng == "20000" else []))
 
 
@@ -4767,15 +4982,50 @@ def more_families(B, E):
                   "While it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within %s m, the %s advanced sonar's figure. "
                   "Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default." % (_num(pr * 0.47), size)])],
                [T(bid), A(bid, "radar_range", "Equals the tooltip range in metres."), P(bid, "Sonar Data"), T("sonar_jammer"),
-                A(bid, "type", "Definition type 57, the advanced sonar class."), sonar_figures(E, bid)] + sonar_core,
-               ["Signature S, submersion gating and the noisemaker's effect are open questions listed under Other components; the formulas above take S as an input."])
-    for fid, bid in (("part-radar", "radar"), ("part-radar-dish", "radar_dish"), ("part-radar-large", "radar_large"), ("part-radar-huge", "radar_huge"),
-                     ("part-radar-sonar", "radar_sonar"), ("part-radar-sonar-small", "radar_sonar_small")):
-        simple(fid, "Range %s (tooltip and radar_range agree); FOV input 0.01–0.125 turns." % A(bid, "radar_range", "")["value"],
-               [("Setup and interactions", "Set the search width with the FOV input (0.01–0.125 turns); outputs give distance in metres and angles in turns.")],
-               [T(bid), A(bid, "radar_range", "Equals the tooltip range."), P(bid, "FOV"), A(bid, "type", "Definition type 16, the logic component class."),
-                A(bid, "logic_gate_type", "Logic case 50; not the type-56 advanced radar or type-57 advanced sonar.")],
-               ["Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it."])
+                A(bid, "type", "Definition type 57, the advanced sonar class."), sonar_figures(E, bid)] + sonar_core + [legacy_sensor_native(E)[k] for k in MASS_CORE],
+               ["S is the target's physics-body mass; submersion gating and the noisemaker's effect are open questions listed under Other components."])
+    lf = legacy_sensor_native(E)
+    legacy_core = [lf[k] for k in LEGACY_CORE]
+    for fid, bid, sub in LEGACY_SENSORS:
+        pr = float(A(bid, "radar_range", "")["value"])
+        C = legacy_onaxis(pr, 0)[0]
+        sonar, large, huge = sub == 1, sub == 2, sub == 3
+        kind = "sonar" if sonar else "radar"
+        ports = [x.get("label") for x in E.block(bid)["logic"]]
+        ex = ", ".join("%s m for S = %d" % (_num(round(legacy_onaxis(pr, S)[1], 6)), S) for S in (10, 100, 1000))
+        if large:
+            fov = ("The FOV input is clamped to 0.01 to 0.25 turn and sets both the horizontal and the vertical field, 3.6 to 90 degrees. "
+                   "The tooltip's Max FOV 0.250 matches the code; the FOV port text says 0.125. Facing Yaw is clamped to -0.5 to 0.5 turn and Facing Pitch to -0.25 to 0.25 turn.")
+        else:
+            fov = ("The FOV input is clamped to 0.01 to 0.125 turn, 3.6 to 45 degrees horizontally; the vertical field is fixed at 0.25 turn, 90 degrees. " +
+                   ("Facing Yaw is clamped to -0.5 to 0.5 turn." if "Facing Yaw" in ports else "This part has no Facing Yaw input."))
+        fov += " Changing the FOV moves the side planes only: the far plane follows the saved radar_fov field, default 0.1."
+        if sonar:
+            gate = ("Water and height gates",
+                    "The sonar runs only while its position is at least 0.25 m below a sampled height, and it sees only targets whose lowest point is below y = -1. "
+                    "Reading that height as the water surface is an inference. It does not use the advanced sonar's ping, passive listening or echo timing.")
+        else:
+            gate = ("Height gates",
+                    "The radar runs only while its position is at least 0.25 m above a sampled height, and it sees only targets whose highest point is above y = 1. "
+                    "Reading that height as the water surface is an inference.")
+        out = ("Up to 8 candidates that pass the line-of-sight query fill the Radar Data composite, best score first." if huge else
+               "Candidates go best score first through a line-of-sight query, and the first that passes is output.")
+        simple(fid, "Legacy %s: a target passes when its physics-body mass S over distance exceeds 0.25 (d < 4 × S), up to a far plane about %s m ahead at the default saved FOV. FOV input %s turns." % (
+                   kind, _num(round(C, 6)), "0.01 to 0.25" if large else "0.01 to 0.125"),
+               [("Detection",
+                 ["Logic case 50 scores each candidate as S ÷ d, with S the target's physics-body mass and d the straight-line distance, and requires more than 0.25, so d < 4 × S. radar_range does not enter the score. "
+                  "It sets the far plane C = P × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) instead: with P = %s and the saved default 0.1, C is about %s m." % (_num(pr), _num(round(C, 6))),
+                  "On the sensor's axis a target passes within min(%s, 4 × S) m: %s. Off the axis the straight-line distance can exceed C. The target must also lie inside four side planes set by the FOV. %s" % (
+                      _num(round(C, 6)), ex, out)]),
+                ("Field of view and aim", fov),
+                gate,
+                ("Setup and interactions", "Outputs give distance in metres and angles in turns." + (" The Radar Data composite carries target 1 to 8 found flags and distance, azimuth, elevation and time since detection per target." if huge else ""))],
+               [T(bid), A(bid, "radar_range", "Equals the tooltip range; sets the far plane, not the score."), P(bid, "FOV"), A(bid, "type", "Definition type 16, the logic component class."),
+                A(bid, "logic_gate_type", "Logic case 50; not the type-56 advanced radar or type-57 advanced sonar."),
+                A(bid, "logic_gate_subtype", "Subtype %d selects the %s branches of logic case 50." % (sub, {0: "plain radar", 1: "sonar", 2: "two-axis FOV and pitch", 3: "eight-target"}[sub])),
+                legacy_figures(E, bid)] + [P(bid, x) for x in ("Facing Yaw", "Facing Pitch", "Radar Data") if x in ports] + legacy_core,
+               ["Far-plane figures assume the saved radar_fov default 0.1 and a target on the sensor's axis. S is read per physics body. "
+                "Mass accounting, the height sampler, blocking materials and other saved radar_fov values are open questions listed under Other components."])
     simple("part-transponder-locator", "Pulses up to 6 times a second, slower as the nearest transponder gets farther: 2.4 Hz at 1000 m, 0.2927 Hz at 10000 m.",
            [("Operating conditions", "Needs power and Active. Signal strength decreases with distance; the pulse frequency encodes distance to the nearest transponder."),
             ("Pulse rate",

@@ -11,6 +11,7 @@
 // PID controller: investigation/logic.md (logic update case 29 at 0x1403c5f19, microprocessor PID 0x14037a210).
 // Mechanical joints: investigation/mechanical-joints.md (joint motor update 0x140357ca0).
 // Advanced radar: investigation/sensors-radio.md (initializer 0x1403b7fc0, candidate test in 0x140909e40).
+// Legacy radar and sonar, signature and FOV sliders: investigation/sensors-legacy.md (logic case 50, helper 0x14090a290).
 // Radio: investigation/radio.md (receive routine 0x14054a780).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
@@ -706,10 +707,10 @@ export function jointMotor({ kind, force, speed, ratio, power = 1, availability 
 }
 
 // Advanced radar, investigation/sensors-radio.md, ported from investigation/native/sensors-radio/tools/models.py.
-// partRange is radar_range P, fovX and fovY the native FOV fields (0.02 by default; the editor's limits are not decoded) and
-// signature S the target record value, in internal units with no known hull-size conversion. Real arithmetic; the game mixes
-// binary32 and binary64. No occlusion, power, eight-target limit or other target types.
-export const RADAR = { fovDefault: 0.02, rangeFactor: 0.02, scoreDivisor: 10000, threshold: 0.025, intervalDivisor: 2000, targetLimit: 8 };
+// partRange is radar_range P, fovX and fovY the native FOV fields (0.02 by default; editor sliders 0.01 to 0.25 in steps of
+// 0.01, investigation/sensors-legacy.md) and signature S the target's physics-body mass in game mass units. Real arithmetic;
+// the game mixes binary32 and binary64. No occlusion, power, eight-target limit or other target types.
+export const RADAR = { fovDefault: 0.02, fovMin: 0.01, fovMax: 0.25, fovStep: 0.01, rangeFactor: 0.02, scoreDivisor: 10000, threshold: 0.025, intervalDivisor: 2000, targetLimit: 8 };
 const radar = (id, label, range) => ({ id, label, range, families: [`part-${id.replaceAll('_', '-')}`] });
 export const RADAR_VARIANTS = [
   radar('radar_advanced', 'Radar (Basic)', 60000),
@@ -748,6 +749,43 @@ export function radarDetection({ partRange, signature, fovX = RADAR.fovDefault, 
     capBinds: scoreLimit >= range,
     capSignature: RADAR.scoreDivisor * RADAR.threshold,
   };
+}
+
+// Legacy radars and sonars (definition type 16, logic case 50), investigation/sensors-legacy.md, ported from
+// investigation/native/sensors-legacy/tools/model.py. The score S / d must exceed 0.25 with no radar_range factor; radar_range
+// P sets an axial far plane C = P * (0.75 + 0.25 * 0.01 / savedFov), where savedFov is the saved radar_fov field (default
+// 0.1), not the FOV input. On-axis bound only: off the axis the straight-line distance can exceed C. Real arithmetic; no side
+// planes, height gates, occlusion or power.
+export const LEGACY_RADAR = { threshold: 0.25, planeBase: 0.75, planeFovScale: 0.25 * 0.01, savedFovDefault: 0.1, fovMin: 0.01, fovMax: 0.125, fovMaxLarge: 0.25 };
+const legacy = (id, label, range, subtype) => ({ id, label, range, subtype, families: [`part-${id.replaceAll('_', '-')}`] });
+export const LEGACY_VARIANTS = [
+  legacy('radar', 'Radar', 5000, 0),
+  legacy('radar_dish', 'Radar (Dish)', 20000, 0),
+  legacy('radar_large', 'Radar (Large)', 20000, 2),
+  legacy('radar_huge', 'Radar (Huge)', 50000, 3),
+  legacy('radar_sonar', 'Sonar (Large)', 3000, 1),
+  legacy('radar_sonar_small', 'Sonar (Small)', 1000, 1),
+];
+export const legacyVariantFor = (family, variant = null) =>
+  LEGACY_VARIANTS.find((v) => v.id === variant) ?? LEGACY_VARIANTS.find((v) => v.families.includes(family)) ?? LEGACY_VARIANTS[0];
+
+export function legacyPlane({ partRange, savedFov = LEGACY_RADAR.savedFovDefault }) {
+  finite([partRange, savedFov]);
+  if (partRange <= 0 || savedFov <= 0) throw new RangeError('Range and saved FOV must be positive.');
+  return partRange * (LEGACY_RADAR.planeBase + LEGACY_RADAR.planeFovScale / savedFov);
+}
+
+// Strict score test and, on the axis, the strict far plane.
+export function legacyCandidate({ partRange, signature, distance, savedFov }) {
+  finite([signature, distance]);
+  return distance > 0 && distance < legacyPlane({ partRange, savedFov }) && signature / distance > LEGACY_RADAR.threshold;
+}
+
+export function legacyDetection({ partRange, signature, savedFov = LEGACY_RADAR.savedFovDefault }) {
+  finite([signature]);
+  const plane = legacyPlane({ partRange, savedFov });
+  const scoreLimit = Math.max(0, signature / LEGACY_RADAR.threshold);
+  return { plane, scoreLimit, limit: Math.min(plane, scoreLimit), capBinds: scoreLimit >= plane, capSignature: plane * LEGACY_RADAR.threshold };
 }
 
 // Radio signal strength, investigation/radio.md, ported from investigation/native/radio/tools/model.py.
@@ -802,6 +840,7 @@ const FAMILY_GRAPHS = {
   'part-gate-pid-controller': ['pid'],
   ...Object.fromEntries(JOINT_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['gear']])),
   ...Object.fromEntries(RADAR_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['radar']])),
+  ...Object.fromEntries(LEGACY_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['legacy']])),
   ...Object.fromEntries(RADIO_ANTENNAS.flatMap((a) => a.families).map((id) => [id, ['radio']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

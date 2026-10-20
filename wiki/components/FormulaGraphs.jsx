@@ -5,7 +5,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1415,7 +1415,7 @@ function GearGraph({ family, variant }) {
 
 const RADAR_SIGNATURES = steps(-1, 4, 0.05);
 const RADAR_TABLE = [0.1, 1, 10, 100, 250, 1000, 10000];
-const sigLabel = (s) => (s >= 1000 ? `${s / 1000}k` : String(+s.toPrecision(3)));
+const sigLabel = (s) => (s >= 1000 ? `${+(s / 1000).toPrecision(3)}k` : String(+s.toPrecision(3)));
 const dist = (m) => (m >= 10000 ? `${fixed(m / 1000, 1)} km` : `${fixed(m, m < 10 ? 2 : 0)} m`);
 
 function RadarGraph({ family, variant }) {
@@ -1433,9 +1433,9 @@ function RadarGraph({ family, variant }) {
   const top = km * 1.2;
   const step = top / 4;
   const bound = at.capBinds ? `range cap R (S ≥ ${at.capSignature})` : 'score threshold';
-  const summary = `${v.label}, FOV ${fixed(fovX, 3)} × ${fixed(fovY, 3)}: R ${dist(at.range)}, scan every ${at.interval} updates (${fixed(at.seconds, 3)} s). At signature ${sigLabel(S)} targets pass out to ${dist(at.limit)}, set by the ${bound}.`;
+  const summary = `${v.label}, FOV ${fixed(fovX, 2)} × ${fixed(fovY, 2)}: R ${dist(at.range)}, scan every ${at.interval} updates (${fixed(at.seconds, 3)} s). At body mass ${sigLabel(S)} targets pass out to ${dist(at.limit)}, set by the ${bound}.`;
   const status = useSettled(summary);
-  const desc = `Maximum candidate distance against signature on a log scale. It rises in proportion to signature, R × S ÷ 250, until S reaches 250, then stays at the working range R of ${dist(at.range)}. ${summary}`;
+  const desc = `Maximum candidate distance against target body mass on a log scale. It rises in proportion to signature, R × S ÷ 250, until S reaches 250, then stays at the working range R of ${dist(at.range)}. ${summary}`;
   return (
     <Frame
       uid={uid}
@@ -1453,18 +1453,18 @@ function RadarGraph({ family, variant }) {
             </select>
             <span id={`${uid}-part-hint`} className="graph-field-hint">{`radar_range ${v.range}.`}</span>
           </div>
-          <Range id={`${uid}-fx`} label="FOV x (native field)" value={fovX} min={0.005} max={0.1} step={0.001} onChange={(x) => setFovX(+x.toFixed(3))} valueText={fixed(fovX, 3)} hint="Default 0.02. The editor's minimum and maximum are not known, so this range only explores the formula." />
-          <Range id={`${uid}-fy`} label="FOV y (native field)" value={fovY} min={0.005} max={0.1} step={0.001} onChange={(x) => setFovY(+x.toFixed(3))} valueText={fixed(fovY, 3)} hint="R scales with 1 ÷ (FOV x × FOV y)." />
-          <Range id={`${uid}-x`} label="Selected signature S" value={logS} min={-1} max={4} step={0.05} onChange={(x) => setLogS(+x.toFixed(2))} valueText={sigLabel(S)} hint="Internal units from the target record. How vehicle size maps to S is not known." />
+          <Range id={`${uid}-fx`} label="FOV x (turns)" value={fovX} min={RADAR.fovMin} max={RADAR.fovMax} step={RADAR.fovStep} onChange={(x) => setFovX(+x.toFixed(2))} valueText={fixed(fovX, 2)} hint="Default 0.02. The editor slider runs from 0.01 to 0.25 in steps of 0.01." />
+          <Range id={`${uid}-fy`} label="FOV y (turns)" value={fovY} min={RADAR.fovMin} max={RADAR.fovMax} step={RADAR.fovStep} onChange={(x) => setFovY(+x.toFixed(2))} valueText={fixed(fovY, 2)} hint="R scales with 1 ÷ (FOV x × FOV y)." />
+          <Range id={`${uid}-x`} label="Selected target body mass S" value={logS} min={-1} max={4} step={0.05} onChange={(x) => setLogS(+x.toFixed(2))} valueText={sigLabel(S)} hint="Mass of the target's physics body in game mass units, read per body." />
         </>
       )}
       chart={(width) => (
         <Chart
           uid={uid}
           width={width}
-          title="Maximum radar candidate distance against target signature"
+          title="Maximum radar candidate distance against target body mass"
           desc={desc}
-          x={{ min: -1, max: 4, ticks: [-1, 0, 1, 2, 3, 4], format: (u) => sigLabel(10 ** u), label: 'Signature S (internal units, log scale)' }}
+          x={{ min: -1, max: 4, ticks: [-1, 0, 1, 2, 3, 4], format: (u) => sigLabel(10 ** u), label: 'Target body mass S (game mass units, log scale)' }}
           y={{ min: 0, max: top, ticks: [0, 1, 2, 3, 4].map((i) => i * step), format: (k) => `${+k.toPrecision(3)} km` }}
           series={[
             // Cut the score-only line at the chart top instead of letting it flatten there.
@@ -1488,11 +1488,88 @@ function RadarGraph({ family, variant }) {
         />
       )}
       table={{
-        caption: `${v.label}, FOV ${fixed(fovX, 3)} × ${fixed(fovY, 3)}, R ${dist(at.range)}`,
-        cols: ['Signature S', 'Maximum candidate distance', 'Set by'],
+        caption: `${v.label}, FOV ${fixed(fovX, 2)} × ${fixed(fovY, 2)}, R ${dist(at.range)}`,
+        cols: ['Target body mass S', 'Maximum candidate distance', 'Set by'],
         rows: RADAR_TABLE.map((sig) => {
           const r = run(sig);
           return [sigLabel(sig), dist(r.limit), r.capBinds ? 'range cap' : 'score'];
+        }),
+      }}
+    />
+  );
+}
+
+/* ---------- legacy radar and sonar ---------- */
+
+function LegacyGraph({ family, variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => legacyVariantFor(family, variant).id);
+  const [logS, setLogS] = useState(2);
+  const v = LEGACY_VARIANTS.find((x) => x.id === part);
+  const run = (signature) => legacyDetection({ partRange: v.range, signature });
+  const samples = RADAR_SIGNATURES.map((u) => ({ u, ...run(10 ** u) }));
+  const S = 10 ** logS;
+  const at = run(S);
+  const top = (at.plane / 1000) * 1.2;
+  const step = top / 4;
+  const bound = at.capBinds ? `far plane C (S ≥ ${sigLabel(at.capSignature)})` : 'score threshold';
+  const fov = v.subtype === 2 ? LEGACY_RADAR.fovMaxLarge : LEGACY_RADAR.fovMax;
+  const summary = `${v.label}, radar_range ${v.range}: far plane ${dist(at.plane)} at saved radar_fov ${LEGACY_RADAR.savedFovDefault}. At body mass ${sigLabel(S)} an on-axis target passes out to ${dist(at.limit)}, set by the ${bound}.`;
+  const status = useSettled(summary);
+  const desc = `Maximum on-axis candidate distance against target body mass on a log scale. It rises as 4 × S until it reaches the far plane C of ${dist(at.plane)}. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Maximum on-axis distance, min(C, 4 × S)', className: 'graph-line-a' },
+        { label: 'Score threshold alone, 4 × S', className: 'graph-line-b' },
+      ]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Sensor</label>
+            <select id={`${uid}-part`} value={part} onChange={(ev) => setPart(ev.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {LEGACY_VARIANTS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`radar_range ${v.range}; FOV input ${LEGACY_RADAR.fovMin} to ${fov} turn, which moves only the side planes.`}</span>
+          </div>
+          <Range id={`${uid}-x`} label="Selected target body mass S" value={logS} min={-1} max={4} step={0.05} onChange={(x) => setLogS(+x.toFixed(2))} valueText={sigLabel(S)} hint="Mass of the target's physics body in game mass units, read per body." />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Maximum legacy sensor candidate distance against target body mass"
+          desc={desc}
+          x={{ min: -1, max: 4, ticks: [-1, 0, 1, 2, 3, 4], format: (u) => sigLabel(10 ** u), label: 'Target body mass S (game mass units, log scale)' }}
+          y={{ min: 0, max: top, ticks: [0, 1, 2, 3, 4].map((i) => i * step), format: (k) => `${+k.toPrecision(3)} km` }}
+          series={[
+            { key: 'score', className: 'graph-line-b', points: samples.filter((x) => x.scoreLimit / 1000 <= top).map((x) => [x.u, x.scoreLimit / 1000]) },
+            { key: 'limit', className: 'graph-line-a', points: samples.map((x) => [x.u, x.limit / 1000]) },
+          ]}
+          selected={{ x: logS, points: [{ key: 'limit', y: at.limit / 1000, className: 'graph-dot-a' }] }}
+          onSelect={(u) => setLogS(snap(u, -1, 4, 0.05))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${v.label} at S = ${sigLabel(S)}`}
+          rows={[
+            ['Far plane C', dist(at.plane)],
+            ['Score limit 4 × S', dist(at.scoreLimit)],
+            ['Maximum on-axis distance', dist(at.limit)],
+            ['Set by', bound],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${v.label}, far plane ${dist(at.plane)}`,
+        cols: ['Target body mass S', 'Maximum on-axis distance', 'Set by'],
+        rows: RADAR_TABLE.map((sig) => {
+          const r = run(sig);
+          return [sigLabel(sig), dist(r.limit), r.capBinds ? 'far plane' : 'score'];
         }),
       }}
     />
@@ -1610,7 +1687,7 @@ function RadioGraph({ family, variant }) {
 
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
-  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, radio: RadioGraph,
+  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

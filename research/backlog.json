@@ -237,14 +237,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/12/limitations/0",
-        "text": "Signature S is a value on the target record whose producer was not recovered, so these formulas give no detection distance in metres for a given vehicle size.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/12/sections/7/body",
-        "text": "Not decoded: how a vehicle's size, shape or material sets the signature S, so no detection distance follows for a given vehicle; the editor's minimum and maximum FOV, so no figures at those limits; which objects block the line-of-sight query; the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
+        "pointer": "/categories/12/sections/9/body",
+        "text": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which objects and materials block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: what the two global flags in the directional gate 0x1402645f0 mean and when they are set (while either is clear a directional antenna's gain is 0); how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1179,19 +1173,6 @@
     ]
   },
   {
-    "key": "family:part-radar",
-    "title": "Radar: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/162/limitations/0",
-        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:part-radar-advanced-missile",
     "title": "Radar (Missile): decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-advanced-missile",
@@ -1199,72 +1180,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/166/limitations/1",
-        "text": "The Missile radar (radar_type 1) takes separate orientation branches in the update; their effect on the sweep and look direction was not decoded.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-dish",
-    "title": "Radar (Dish): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-dish",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/168/limitations/0",
-        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-huge",
-    "title": "Radar (Huge): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-huge",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/169/limitations/0",
-        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-large",
-    "title": "Radar (Large): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-large",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/170/limitations/0",
-        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-sonar",
-    "title": "Sonar (Large): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-sonar",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/171/limitations/0",
-        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-sonar-small",
-    "title": "Sonar (Small): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-sonar-small",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/172/limitations/0",
-        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
+        "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. The Missile radar (radar_type 1) also takes separate orientation branches in the update; how they set the look direction and sweep was not decoded.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -2108,7 +2024,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/8/limitations/2",
-        "text": "The advanced-radar formulas come from that native decode. How a target's size sets its signature, which objects block the radar line-of-sight query, the legacy radars' detection and scan timing, and the speed and altitude sensors' update timing, filtering and altitude datum were not recovered.",
+        "text": "The radar formulas come from those native decodes. How the body-mass producer's adjustments and a vehicle's contents change the signature, which objects block the radar line-of-sight query, and the speed and altitude sensors' update timing, filtering and altitude datum were not recovered.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
