@@ -1604,6 +1604,267 @@ def surface_air(E):
     return E.surface
 
 
+# jet-engine pass; files under investigation/native/jet-engines/, report investigation/jet-engines.md.
+JE = "../jet-engines/"
+JE_REPORT = "investigation/jet-engines.md"
+F_JET_CTOR = 0x14034FC10    # jet engine constructor: vtable 0x140b887c0
+F_JET_INIT = 0x140350A50    # jet engine initializer: numbered outputs, fuel buffer capacity
+F_JET_SAVE = 0x1403500F4    # chained unwind chunk of serializer 0x140350020: air_in, air_out, temp_in, temp_out
+F_JET_EXCHANGE = 0x1403555A0  # pressure and temperature averaging with the neighbour lists (leaf)
+F_JET_SPEED = 0x140355110   # post-update speed averaging, vtable slot +0x360
+F_JET_FORCE = 0x1401A7C70   # force application helper: limit, then queue event_set_impulse_threshold@mm_physics_scene
+JET_SLOT = 0x140B88B18      # slot +0x358 of the jet engine vtable 0x140b887c0
+JET_FACTORY_CASE = (0x14045E92C, 0x14045E31C)  # factory jump-table entry 34 and its target
+_JU, _JP = JE + "asm/update.asm", JE + "pseudocode/0x140350f40.c"
+WHERE.update({
+    (0x14045DD20, 0x14045E32D): JE + "asm/factory.asm:L348-L352; " + JE + "tools/tables.txt",
+    (0x14034FC10, 0x14034FC29): JE + "asm/constructor.asm:L17; " + JE + "tools/tables.txt; " + JE + "asm/dispatch.asm",
+    (0x140350A50, 0x140350BA3): JE + "asm/init.asm:L87-L88; " + JE + "pseudocode/0x140350a50.c",
+    (0x1403500F4, None): JE + "asm/serialize.asm; " + JE + "pseudocode/0x140350020.c",
+    (0x140350F40, 0x140353785): _JU + ":L2164-L2177; " + JE + "asm/electric-draw.asm; " + _JP,
+    (0x140350F40, 0x14035379E): _JU + ":L2164-L2177; " + JE + "asm/electric-draw.asm; " + JE + "pseudocode/0x1402eeca0.c",
+    (0x140350F40, 0x1403537A6): _JU + ":L2164-L2177; " + JE + "asm/electric-draw.asm; " + JE + "pseudocode/0x1402eeca0.c",
+    (0x140350F40, 0x1403537C9): _JU + ":L2176-L2177; " + _JP,
+    (0x140350F40, 0x1403537DC): _JU + ":L2179; " + JE + "asm/pressure-exchange.asm; " + JE + "pseudocode/0x1403555a0.c",
+    (0x140350F40, 0x1403537FC): _JU + ":L2180-L2190; " + _JP,
+    (0x140350F40, 0x14035380F): _JU + ":L2180-L2194; " + _JP,
+    (0x140350F40, 0x14035383B): _JU + ":L2195-L2197; " + _JP,
+    (0x140350F40, 0x14035330A): _JU + ":L1957-L1958; " + _JP,
+    (0x140350F40, 0x140353399): _JU + ":L1970-L1980; " + JE + "asm/fluid-transfer.asm; " + JE + "pseudocode/0x1402ec710.c",
+    (0x140350F40, 0x1403533A6): _JU + ":L1981-L1983; " + _JP,
+    (0x140350F40, 0x1403533C9): _JU + ":L1987-L1989; " + _JP,
+    (0x140350F40, 0x1403533F8): _JU + ":L1990-L1999; " + _JP,
+    (0x140350F40, 0x140353424): _JU + ":L2000-L2016; " + _JP,
+    (0x140350F40, 0x140353434): _JU + ":L2000-L2016; " + _JP,
+    (0x140350F40, 0x140353532): _JU + ":L2038-L2051; " + _JP,
+    (0x140350F40, 0x140352F9B): _JU + ":L1777-L1781; " + JE + "asm/pressure-exchange.asm; " + _JP,
+    (0x140350F40, 0x140352FA7): _JU + ":L1782-L1789; " + _JP,
+    (0x140350F40, 0x140352FB0): _JU + ":L1782-L1789; " + _JP,
+    (0x140350F40, 0x140352FD5): _JU + ":L1790-L1802; " + _JP,
+    (0x140350F40, 0x140352FDD): _JU + ":L1790-L1802; " + _JP,
+    (0x140350F40, 0x140352FF7): _JU + ":L1790-L1802; " + _JP,
+    (0x140350F40, 0x14035316D): _JU + ":L1874-L1880; " + _JP,
+    (0x140350F40, 0x140353182): _JU + ":L1874-L1880; " + _JP,
+    (0x140350F40, 0x14035318C): _JU + ":L1874-L1880; " + _JP,
+    (0x140350F40, 0x140353194): _JU + ":L1874-L1880; " + _JP,
+    (0x140350F40, 0x140351D90): _JU + ":L790-L798; " + JE + "asm/fluid-transfer.asm; " + JE + "pseudocode/0x1402ec710.c",
+    (0x140350F40, 0x140351DDB): _JU + ":L808-L812,L842-L850; " + _JP,
+    (0x140350F40, 0x140351DE8): _JU + ":L808-L812; " + JE + "asm/fluid-purge.asm; " + JE + "pseudocode/0x1402ebdc0.c",
+    (0x140350F40, 0x140351E09): _JU + ":L813-L816; " + _JP,
+    (0x140350F40, 0x140351E22): _JU + ":L817-L824; " + _JP,
+    (0x140350F40, 0x140351E2A): _JU + ":L817-L824; " + _JP,
+    (0x140350F40, 0x140351E5F): _JU + ":L825-L840; " + _JP,
+    (0x140350F40, 0x140351E85): _JU + ":L841; " + _JP,
+    (0x140350F40, 0x140351E8F): _JU + ":L842-L847; " + _JP,
+    (0x140350F40, 0x140351EAB): _JU + ":L848-L859; " + _JP,
+    (0x140350F40, 0x140351EB3): _JU + ":L848-L859; " + _JP,
+    (0x140350F40, 0x140351EB8): _JU + ":L848-L859; " + _JP,
+    (0x140350F40, 0x140351EE4): _JU + ":L860-L868; " + _JP,
+    (0x140350F40, 0x140351F11): _JU + ":L870-L871; " + _JP,
+    (0x140350F40, 0x140351F59): _JU + ":L880-L891; " + JE + "asm/force-queue.asm",
+    (0x140350F40, 0x140351F7A): _JU + ":L880-L891; " + JE + "asm/force-queue.asm; " + JE + "pseudocode/0x1401a7c70.c",
+    (0x1401A7C70, 0x1401A7D07): JE + "asm/force-queue.asm:L20-L53; " + JE + "pseudocode/0x1401a7c70.c",
+    (0x1401A7C70, 0x1401A7DA8): JE + "asm/force-queue.asm:L76-L84; " + JE + "asm/force-event.asm; " + JE + "pseudocode/0x1401a17b0.c; " + JE + "asm/force-accumulator.asm",
+    (0x1403555A0, 0x14035562B): JE + "asm/pressure-exchange.asm:L8-L65; " + JE + "pseudocode/0x1403555a0.c",
+    (0x140355110, 0x140355205): JE + "asm/speed-average.asm:L20-L68; " + JE + "asm/speed-walk.asm; " + JE + "pseudocode/0x140355110.c; " + JE + "pseudocode/0x1403552e0.c",
+})
+
+
+def jet_engine(E):
+    """Modular jet update: compressor, combustion chamber, turbine and exhaust, verified once and shared."""
+    if hasattr(E, "jet"):
+        return E.jet
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / JE_REPORT).is_file():
+        raise ValueError("Jet-engine report missing: " + JE_REPORT)
+    if struct.unpack("<Q", n.raw(JET_SLOT, 8))[0] != F_JET:
+        raise ValueError("Jet vtable slot %#x does not point to %#x" % (JET_SLOT, F_JET))
+    table, target = JET_FACTORY_CASE
+    if n.base + struct.unpack("<I", n.raw(table, 4))[0] != target:
+        raise ValueError("Factory case 34 at %#x does not lead to %#x" % (table, target))
+    rep = " Report: %s." % JE_REPORT
+    F = F_JET
+    f = {}
+    # Identity and state names.
+    f["factory"] = code(F_FACTORY, 0x14045E32D, "e8de18efff", "Type-34 component factory case", "call 0x14034fc10",
+                        "The component factory switches on definition type; jump-table entry 34 at 0x14045e92c leads to this call of the jet engine constructor. All 14 jet_engine*.xml definitions have type 34, so intakes, compressor, chamber, turbines, exhausts and ducts share one implementation." + rep)
+    f["vtable"] = code(F_JET_CTOR, 0x14034FC29, "488d05908b8300", "Jet engine vtable", "0x140b887c0",
+                       "The constructor installs vtable 0x140b887c0, RTTI c_scene_vehicle_component_jet_engine. Its slot +0x358 at 0x140b88b18 holds 0x140350f40, the update the component dispatcher calls once per component per update at 0x1405498d6; the extractor re-reads that pointer. Slot +0x360 holds the speed averaging 0x140355110." + rep)
+    f["air_in"] = E.string(F_JET_SAVE, 0x140B62F70, "air_in", "Incoming pressure save name",
+                           "The serializer saves component+0x1cc, the incoming pressure p_in, under this name; air_out (0x140b62f68) holds the outgoing pressure p_out at +0x1d0, temp_in and temp_out the two temperatures at +0x1d4 and +0x1d8. The update copies p_out and t_out to the Air Pressure and Temperature outputs." + rep)
+    f["buffer"] = code(F_JET_INIT, 0x140350BA3, "c787c0030000cdcccc3e", "Jet fuel buffer capacity", "0.4 amount, 4 L",
+                       "The initializer stores 0.4 to the fluid buffer capacity (component+0x3c0) before its subtype test, so every jet part gets it; at 10 L per amount that is 4 L. The chamber and the afterburner exchange jet fuel with their Fuel port through this buffer." + rep)
+    # Network exchange and speed sharing.
+    f["exchange"] = code(F_JET_EXCHANGE, 0x14035562B, "f30f5ec8", "Jet pressure averaging", "(own + Σ neighbours) ÷ (count + 1)",
+                         "Before its own arithmetic each compressor, chamber, turbine and exhaust averages its outgoing pressure and temperature with the incoming values of the parts in one neighbour list (+0x420), and its incoming values with the outgoing values of the other list (+0x408): p_out = (p_out + Σ next p_in) ÷ (n + 1), p_in = (p_in + Σ previous p_out) ÷ (m + 1). These are averages of stored states, not a conserved mass flow; the category limitations cover how the lists are built." + rep)
+    f["exchange_call"] = code(F, 0x1403537DC, "e8bf1d0000", "Compressor pressure averaging call", "call 0x1403555a0",
+                              "The compressor calls the averaging after its speed step; the turbine calls it at 0x140352f8b before its pressure capture." + rep)
+    f["speed_avg"] = code(F_JET_SPEED, 0x140355205, "f30f5e442450", "Jet speed averaging", "Σ cached RPS ÷ count",
+                          "After all updates, each intake, compressor, chamber and turbine walks both neighbour lists recursively (0x1403552e0, with a visited set), skipping exhausts, adds every visited part's cached RPS (+0x1c0) to its own and divides by the count. Parts joined through the lists therefore share one RPS. Ducts have no compressor, combustion, turbine or exhaust arithmetic in the update." + rep)
+    # Compressor (subtype 1).
+    f["c_req"] = op(F, 0x14035379E, "f30f100d2ac38500", 0x140BAFAD0, "Compressor starter charge request",
+                    "With the Compressor input on (component+0x240), the compressor asks the draw helper 0x1402eeca0 for this much charge every update; the definition's electric_magnitude of 0 is not used. The helper returns the supplied fraction e: 1 with unlimited electricity, 0 without a connection (investigation/electricity.md)." + rep)
+    f["c_add"] = op(F, 0x140353785, "f3440f100dcac18500", 0x140BAF958, "Compressor starter speed per supplied fraction",
+                    "Enabled: r0 = 0.99 × (r + this × e). Disabled: r0 = 0.99 × r. Full supply adds 0.01 RPS per update before drag and pressure load." + rep)
+    f["c_drag"] = op(F, 0x1403537C9, "f30f590ddbc68500", 0x140BAFEAC, "Compressor speed retention",
+                     "The compressor's speed is multiplied by this every update, enabled or not." + rep)
+    f["c_target"] = op(F, 0x1403537FC, "f30f59158ccf8500", 0x140BB0790, "Compressor pressure target per RPS",
+                       "After the averaging the compressor aims for a pressure rise of this × r0 across itself." + rep)
+    f["c_k"] = op(F, 0x14035380F, "f30f591559c38500", 0x140BAFB70, "Compressor pressure transfer fraction",
+                  "q = this × (100 × r0 - (p_out - p_in)); p_in -= q, p_out += q and t_out = t_in. The difference is signed, so back pressure above 100 × r0 makes q negative and pushes pressure backwards. q is a pressure-state transfer, not a volume flow in L/s." + rep)
+    f["c_load"] = op(F, 0x14035383B, "f30f591555c08500", 0x140BAF898, "Compressor speed load",
+                     "r_local = r0 - this × q: transferring pressure slows the compressor, and back flow (negative q) speeds it up." + rep)
+    # Combustion chamber (subtype 2).
+    f["b_demand"] = op(F, 0x14035330A, "f3440f590d91c58500", 0x140BAF8A4, "Chamber fuel demand per RPS",
+                       "Jet fuel requested per update f = this × r, in amounts of 10 L." + rep)
+    f["b_port"] = code(F, 0x140353399, "e87293f9ff", "Chamber fuel port exchange", "call 0x1402ec710",
+                       "Before burning, the chamber exchanges fluid between its Fuel port and the buffer with pressure bias -10 (loaded at 0x140353391) and port factor 1. The exhaust calls the same helper at 0x140351d90. This transport is separate from the combustion debit." + rep)
+    f["b_gate"] = op(F, 0x1403533A6, "0f2f050fc98500", 0x140BAFCBC, "Chamber ignition speed",
+                     "Combustion runs only while the local RPS is strictly above this. It is a speed gate; no pressure, temperature or spark test sits in this branch." + rep)
+    f["b_inf"] = code(F, 0x1403533C9, "44387834", "Chamber infinite_fuel test", "settings+0x34",
+                      "u = clamp(Throttle, 0, 1) (Throttle at component+0x260). Without infinite_fuel, u = min(u, clamp(jet fuel ÷ f, 0, 1)) and the buffer loses u × f; with infinite_fuel both steps are skipped and the pressure and heat arithmetic still runs." + rep)
+    f["b_debit"] = code(F, 0x1403533F8, "f30f118fcc030000", "Chamber jet fuel debit", "jet fuel - u × f",
+                        "Stores the reduced jet fuel amount (liquid index 2, +0x3cc). Afterwards the chamber clears every other liquid from the buffer (0x14035346d-0x140353490) and recomputes its total." + rep)
+    f["b_heat"] = op(F, 0x140353424, "f30f590da4c68500", 0x140BAFAD0, "Chamber heating per throttle × RPS",
+                     "Above the ignition speed: t_out = t_in + this × u × r. At or below it t_out = t_in. Internal temperature units." + rep)
+    f["b_press"] = op(F, 0x140353434, "f30f59352cd48500", 0x140BB0868, "Chamber pressure gain per throttle × RPS",
+                      "Above the ignition speed: p_out = p_in + this × u × r, then p_in = 0 (store at 0x140353455). At or below it p_out = p_in. Internal pressure units." + rep)
+    f["b_over"] = op(F, 0x140353532, "f30f10359ed28500", 0x140BB07D8, "Chamber overspeed check",
+                     "With the engine_overheating setting (settings+0x35) and a second settings byte (+0x4a) on, a chamber whose local RPS exceeds this sets a one-time flag (+0x4d9) and calls 0x140355450 with damage + 1." + rep)
+    # Turbine (subtype 3).
+    f["t_half"] = op(F, 0x140352F9B, "f30f103519cd8500", 0x140BAFCBC, "Turbine pressure capture share",
+                     "After the averaging the turbine takes q = this × p_in: p_out = p_in - q, then p_in is halved. t_out = t_in." + rep)
+    f["t_dmg"] = code(F, 0x140352FA7, "44397f08", "Turbine damage test", "damage == 0",
+                      "Only an undamaged turbine (component+8 equal to 0) gains speed from the captured pressure." + rep)
+    f["t_gain"] = op(F, 0x140352FB0, "f30f591ddcc88500", 0x140BAF894, "Turbine speed gain per captured pressure",
+                     "r0 = r + this × q = r + 0.0000375 × p_in." + rep)
+    f["t_div"] = op(F, 0x140352FD5, "f30f5e05dfd88500", 0x140BB08BC, "Turbine generator speed divisor",
+                    "Generator fraction k = min(r0 ÷ this, 0.02)." + rep)
+    f["t_cap"] = op(F, 0x140352FDD, "f30f100dcbc98500", 0x140BAF9B0, "Turbine generator fraction cap",
+                    "k stops growing at this, reached at 200 RPS." + rep)
+    f["t_mag"] = code(F, 0x140352FF7, "f30f599020140000", "Turbine electric_magnitude read", "|r0| × electric_magnitude × k",
+                      "Charge added to the Electric connection per update when positive; the turbine keeps r_local = (1 - k) × r0. Both turbines carry electric_magnitude 0.025. Internal charge units, not watts." + rep)
+    f["t_shaft"] = code(F, 0x14035316D, "4c39bf88030000", "Turbine shaft connection test", "shaft group present",
+                        "Only a turbine with a mechanical shaft group submits to it. The medium turbine has the RPS power connection; the small turbine has none and keeps its local speed." + rep)
+    f["t_w"] = code(F, 0x140353182, "c787900300000000 2043".replace(" ", ""), "Medium turbine shaft weight", "160",
+                    "Writes binary32 160 as the turbine's weight in the shaft group's weighted average. An internal solver weight, not a torque in N m." + rep)
+    f["t_sub"] = code(F, 0x14035318C, "f30f118794030000", "Medium turbine shaft speed submission", "r_local",
+                      "Writes the turbine's local RPS next to the weight." + rep)
+    f["t_recv"] = code(F, 0x140353194, "f3440f5f8798030000", "Medium turbine shaft speed read", "max(group RPS, 0)",
+                       "Reads the group's published speed, clamps it at 0 and stores it as the next local speed (0x14035319d). A simple group mixes (R + Σ W_i × r_i) ÷ (1 + Σ W_i), with R its previous speed (investigation/electricity.md)." + rep)
+    # Exhaust and afterburner (subtype 4).
+    f["x_port"] = code(F, 0x140351D90, "e87ba9f9ff", "Exhaust fuel port exchange", "call 0x1402ec710",
+                       "Each exhaust exchanges fluid between its buffer and the Fuel port, if it has one, with pressure bias -10, like the chamber. Only the afterburner ships a Fuel port." + rep)
+    f["x_purge"] = code(F, 0x140351DE8, "41b802000000", "Exhaust purge keeps jet fuel", "liquid index 2 kept",
+                        "The purge helper 0x1402ebdc0 (call at 0x140351dfc) removes up to 0.001 per update of every liquid except index 2, jet fuel. No other subtraction of jet fuel occurs in the exhaust branch." + rep)
+    f["x_thr"] = op(F, 0x140351E09, "f30f100d4bea8500", 0x140BB085C, "Exhaust pressure threshold",
+                    "Thrust is computed only while p_in is above this; the force uses p_in - this. At or below it there is no force." + rep)
+    f["x_alt1"] = op(F, 0x140351E22, "f20f5905bee38500", 0x140BB01E8, "Exhaust altitude factor slope",
+                     "a = clamp(1 - height × this ÷ 40000, 0, 1), height read as a double from the vehicle at +0x80." + rep, kind="f64")
+    f["x_alt2"] = op(F, 0x140351E2A, "f20f5e054ee78500", 0x140BB0580, "Exhaust altitude factor divisor",
+                     "The 40000 in a = clamp(1 - height × 1.5 ÷ 40000, 0, 1)." + rep, kind="f64")
+    f["x_coef"] = op(F, 0x140351E5F, "f30f1005ade88500", 0x140BB0714, "Exhaust force coefficient",
+                     "F_raw = this × (p_in - 1000) × a × b × s along the exhaust's thrust axis, rotated by the part and vehicle orientation. The three exhausts share it; no exhaust size, engine_max_force or RPS term enters the force." + rep)
+    f["x_clear"] = code(F, 0x140351E85, "c787cc01000000000000", "Exhaust incoming pressure cleared", "p_in = 0",
+                        "Above the threshold the exhaust clears its incoming pressure once it has used it, after copying pressure and temperature to its outgoing state." + rep)
+    f["x_ab"] = code(F, 0x140351E8F, "80bf4002000000", "Afterburner enable test", "Afterburner input",
+                     "The multiplier b applies only with the Afterburner input on (component+0x240) and min(total liquid, 0.001) > 0, i.e. any liquid in the buffer." + rep)
+    f["x_ab_ref"] = op(F, 0x140351DDB, "f3440f101d14db8500", 0x140BAF8F8, "Afterburner fuel reference amount",
+                       "Used as the purge limit, the liquid presence test and the divisor of the afterburner ratio." + rep)
+    f["x_ab_fuel"] = code(F, 0x140351EAB, "f30f1097cc030000", "Afterburner stored jet fuel read", "jet fuel in the buffer",
+                          "Reads the jet fuel amount (+0x3cc) held in the exhaust's buffer." + rep)
+    f["x_ab_div"] = code(F, 0x140351EB3, "f3410f5ed3", "Afterburner fuel ratio", "jet fuel ÷ 0.001",
+                         "Divides the stored amount by the 0.001 reference. The ratio has no upper clamp." + rep)
+    f["x_ab_half"] = op(F, 0x140351EB8, "f30f5915fcdd8500", 0x140BAFCBC, "Afterburner multiplier slope",
+                        "b = 1 + this × jet fuel ÷ 0.001 = 1 + 500 × stored jet fuel amount." + rep)
+    f["x_spoil"] = code(F, 0x140351EE4, "f30f5c8760020000", "Thrust spoiler factor", "s = clamp(1 - Thrust Spoiler, 0, 1)",
+                        "Multiplies all three force components. Spoiler 1 removes the whole force; values outside 0 to 1 are clamped." + rep)
+    f["x_gate"] = code(F, 0x140351F11, "803de797990000", "Exhaust force application gate", "global byte 0x140ceb6ff",
+                       "The force is submitted only while this global flag is set; the same flag gates the intake's force at 0x140353e2f." + rep)
+    f["x_limit"] = op(F, 0x140351F59, "f30f100d2fe88500", 0x140BB0790, "Exhaust force application limit",
+                      "Passed as the limit argument to the application helper 0x1401a7c70, together with a per-vehicle scale S from the dispatcher (stack argument stored at 0x140351f53)." + rep)
+    f["x_submit"] = code(F, 0x140351F7A, "e8f15ce5ff", "Exhaust force submission", "call 0x1401a7c70",
+                         "Submits the exhaust force vector once per update." + rep)
+    f["x_cap"] = code(F_JET_FORCE, 0x1401A7D07, "f30f59c60f2fd0", "Jet force application cap", "|F| ≤ 100 × S",
+                      "The helper divides the vector by S, compares its squared length with limit², normalises and multiplies by the limit when it is larger, then multiplies by S again: F_applied = min(F_raw, 100 × S) along the thrust axis. NaN coordinates become 0." + rep)
+    f["x_event"] = code(F_JET_FORCE, 0x1401A7DA8, "488d05d1a49b00", "Jet force event", "event_set_impulse_threshold@mm_physics_scene",
+                        "Installs vtable 0x140b62280 on the queued event; its handler 0x1401a17b0 calls 0x14019a370, which adds the vector to the rigid body's total force. Despite the name it is a force, not a per-update impulse." + rep)
+    S = surface_air(E)["f"]
+    R = update_rate(E)
+    ups = R["ups"]
+    lp = next(x for x in fluid_transport(E)["solver"] if x["label"] == "Liquid flow per amount moved each update")
+    litres = 10  # L per amount, from lp
+    if lp["value"] != "%d L/s" % (litres * ups):
+        raise ValueError("Liquid readout factor changed: " + lp["value"])
+
+    # Worked numbers from the verified constants (report section "Worked examples and graph model"), using each binary32
+    # constant's shortest decimal, as tools/model.py and lib/formulas.js do.
+    k = lambda a: float(fmt(n.f32(a)))
+    KEEP, START, TGT, QK, LOAD = k(0x140BAFEAC), k(0x140BAF958), k(0x140BB0790), k(0x140BAFB70), k(0x140BAF898)
+    DEM, IGN, HEAT, PRESS = k(0x140BAF8A4), k(0x140BAFCBC), k(0x140BAFAD0), k(0x140BB0868)
+    HALF, GAIN, TDIV, TCAP = k(0x140BAFCBC), k(0x140BAF894), k(0x140BB08BC), k(0x140BAF9B0)
+    THR, COEF, REF = k(0x140BB085C), k(0x140BB0714), k(0x140BAF8F8)
+    ALT1, ALT2 = struct.unpack("<d", n.raw(0x140BB01E8, 8))[0], struct.unpack("<d", n.raw(0x140BB0580, 8))[0]
+    LIMIT = k(0x140BB0790)
+    mag = E.attr("jet_engine_turbine_medium", "electric_magnitude", "Turbine charge factor read at 0x140352ff7.")
+    MAG = float(mag["value"])
+
+    def num(x, d=7):
+        return ("%.*f" % (d, x)).rstrip("0").rstrip(".")
+
+    r0 = KEEP * (0 + START * 1)
+    q0 = QK * (TGT * r0 - 0)
+    f["start"] = E.derived("Compressor first update from rest", "r0 %s, q %s, r_local %s" % (num(r0), num(q0), num(r0 - LOAD * q0, 8)),
+                           "Full starter supply, r = 0, p_in = p_out = 0: r0 = 0.99 × 0.01 = %s RPS, q = 0.2 × 100 × r0 = %s, r_local = r0 - 0.0001 × q = %s; p_in becomes -%s and p_out %s. Full supply draws 0.1 × %d = 6 internal charge per simulated second. The averaging with neighbours changes the next state, so this is not a startup time." % (
+                               num(r0), num(q0), num(r0 - LOAD * q0, 8), num(q0), num(q0), ups) + rep,
+                           [f["c_req"], f["c_add"], f["c_drag"], f["c_target"], f["c_k"], f["c_load"]] + R["findings"][:1])
+    fuel_s = DEM * litres * ups
+    f["fuel"] = E.derived("Chamber jet fuel use", "%s × u × RPS L/s" % num(fuel_s),
+                          "%s × r amount per update × u × %d L per amount × %d updates per simulated second = %s × u × r L/s, with u the effective throttle. Zero at or below 0.5 RPS. At 20 RPS and full throttle: %s amount per update, %s L per update, %s L/s." % (
+                              num(DEM), litres, ups, num(fuel_s), num(DEM * 20), num(DEM * 20 * litres), num(fuel_s * 20)) + rep,
+                          [f["b_demand"], f["b_gate"], f["b_debit"], lp] + R["findings"][:1])
+    f["chamber20"] = E.derived("Chamber at 20 RPS, full throttle", "p_out %s, t_out %s" % (num(PRESS * 20), num(HEAT * 20)),
+                               "With incoming pressure and temperature 0: p_out = 1600 × 1 × 20 = %s and t_out = 0.1 × 1 × 20 = %s, internal units, in one update. Per simulated second the heating input is 0.1 × %d = %s × u × r before transport. With only 0.001 amount of jet fuel in the buffer, u = min(1, 0.001 ÷ %s) = %s and the update burns the last %s L." % (
+                                   num(PRESS * 20), num(HEAT * 20), ups, num(HEAT * ups), num(DEM * 20), num(0.001 / (DEM * 20)), num(0.001 * litres)) + rep,
+                               [f["b_press"], f["b_heat"], f["b_demand"], f["b_inf"]] + R["findings"][:1])
+    tr0 = 20 + GAIN * HALF * 32000
+    tk = min(tr0 / TDIV, TCAP)
+    tq = abs(tr0) * MAG * tk
+    f["turbine20"] = E.derived("Turbine at 20 RPS and incoming pressure 32000",
+                               "r0 %s, submitted %s RPS, charge %s per update" % (num(tr0), num((1 - tk) * tr0), num(tq)),
+                               "Undamaged: r0 = 20 + 0.000075 × 0.5 × 32000 = %s; k = min(%s ÷ 10000, 0.02) = %s; charge = %s × 0.025 × k = %s per update, %s per simulated second; submitted speed (1 - k) × r0 = %s. Outgoing pressure 16000. One update of one turbine, not a solved engine." % (
+                                   num(tr0), num(tr0), num(tk), num(tr0), num(tq), num(tq * ups), num((1 - tk) * tr0)) + rep,
+                               [f["t_half"], f["t_gain"], f["t_div"], f["t_cap"], f["t_mag"], mag] + R["findings"][:1])
+
+    def thrust(p, height=0.0, spoiler=0.0, fuel=None):
+        a = min(max(1 - height * ALT1 / ALT2, 0), 1)
+        b = 1 + HALF * fuel / REF if fuel else 1
+        return COEF * max(p - THR, 0) * a * b * min(max(1 - spoiler, 0), 1)
+    f["thrust"] = E.derived("Exhaust force examples at incoming pressure 16000",
+                            "%s; half spoiler %s; afterburner with 0.001 stored %s; with 0.4 stored %s" % (
+                                num(thrust(16000)), num(thrust(16000, spoiler=0.5)), num(thrust(16000, fuel=0.001)), num(thrust(16000, fuel=0.4))),
+                            "Sea level, spoiler 0: F_raw = 32 × (16000 - 1000) = %s internal force units. Spoiler 0.5 halves it. An enabled afterburner holding 0.001 amount (0.01 L) of jet fuel has b = 1.5; holding a full 0.4 amount buffer, b = 201. With S = 1000 the application cap limits every one of these to 100 × S = %s. Calculations from the recovered constants, not game measurements." % (
+                                num(thrust(16000)), num(LIMIT * 1000)) + rep,
+                            [f["x_coef"], f["x_thr"], f["x_spoil"], f["x_ab_half"], f["x_ab_div"], f["x_ab_ref"], f["x_cap"], f["buffer"]])
+    f["ceiling"] = E.derived("Exhaust force ceiling height", "%s m" % num(ALT2 / ALT1, 2),
+                             "a = 1 - height × 1.5 ÷ 40000 falls linearly from 1 at height 0 to 0 at 40000 ÷ 1.5 = %s; at 10000 it is %s. The unit of the height field is taken as metres, as for other vehicle heights; that is an inference." % (
+                                 num(ALT2 / ALT1, 2), num(1 - 10000 * ALT1 / ALT2, 4)) + rep,
+                             [f["x_alt1"], f["x_alt2"]])
+    f["units"] = E.derived("Jet force unit", "internal force units",
+                           "The exhaust produces a force that Bullet accumulates and integrates with inverse mass × substep, once per component update (%d per simulated second). Do not multiply it by %d; the impulse of one update is force ÷ %d. Mass is not calibrated to kilograms, so the force is not labelled in newtons." % (ups, ups, ups) + rep,
+                           [f["x_submit"], f["x_cap"], f["x_event"], S["accum"], S["solver"]] + R["findings"][:1])
+    identity = [f[x] for x in ("factory", "vtable", "air_in", "buffer", "exchange", "exchange_call", "speed_avg")] + R["findings"][:1]
+    compressor = [f[x] for x in ("c_req", "c_add", "c_drag", "c_target", "c_k", "c_load", "start")]
+    chamber = [f[x] for x in ("b_demand", "b_port", "b_gate", "b_inf", "b_debit", "b_heat", "b_press", "b_over", "fuel", "chamber20", "buffer")] + [lp]
+    turbine = [f[x] for x in ("t_half", "t_dmg", "t_gain", "t_div", "t_cap", "t_mag", "t_shaft", "t_w", "t_sub", "t_recv", "turbine20")] + [mag]
+    exhaust = [f[x] for x in ("x_port", "x_purge", "x_thr", "x_alt1", "x_alt2", "x_coef", "x_clear", "x_spoil", "x_gate", "x_limit", "x_submit",
+                              "x_cap", "x_event", "thrust", "ceiling", "units")] + [S["accum"], S["solver"]]
+    afterburner = [f[x] for x in ("x_ab", "x_ab_ref", "x_ab_fuel", "x_ab_div", "x_ab_half", "buffer")]
+    E.jet = {"f": f, "identity": identity, "compressor": compressor, "chamber": chamber, "turbine": turbine,
+             "exhaust": exhaust, "afterburner": afterburner, "mag": mag}
+    return E.jet
+
+
 def alloc_finding(E):
     return E.code(F_NET_ALLOC, 0x1404CA050, "f30f114a2cf30f114a3044897a28", "Network allocation", "port+0x2c = f·|f| ÷ Σ × room",
                   "Per network, inflow demands are summed and scaled by min(1, free volume ÷ sum), outflows by min(1, amount ÷ sum); each port gets f·|f| ÷ sum × scale at +0x2c and +0x30 and its +0x28 is cleared. The exchange uses it on the next update.")
@@ -2314,7 +2575,7 @@ def electricity(B, E):
     o_classic = E.code(F_ENGINE_CLASSIC, 0x14034D39D, "f30f598020140000", "Classic engine starter electric_magnitude read", "mulss xmm0,[rax+0x1420]",
                        "While the starter flag (offset 0x40d) is set the request is max(5 − speed, 0) × engine_max_force × Max Power (component offset 0x3f8) ÷ 2000 × electric_magnitude × 0.1, and the supplied fraction scales the speed added. The routine is slot +0x358 of the classic engine vtable 0x140b6f4b0 (investigation/classic-engines.md); the three diesel engines carry 1.2 and the legacy turbine 0.")
     o_jet = E.code(F_JET, 0x140352FF7, "f30f599020140000", "Jet turbine electric_magnitude read", "mulss xmm2,[rax+0x1420]",
-                   "Branch for definition+0xed4 = 3: charge = |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) is added to the network when positive, and ω keeps (1 − that min()) of itself. The min() uses signed ω, so only positive ω charges. The only non-zero values among jet parts are the two turbines (0.025, jet_engine_component_type 3); tying +0xed4 to that attribute is an inference.")
+                   "Branch for definition+0xed4 = 3: charge = |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) is added to the network when positive, and ω keeps (1 − that min()) of itself. The min() uses signed ω, so only positive ω charges. The only non-zero values among jet parts are the two turbines (0.025, jet_engine_component_type 3); investigation/jet-engines.md traces +0xed4 to that attribute.")
     o_alt = E.code(F_ENGINE, 0x14044A388, "f30f109020140000", "Alternator electric_magnitude read", "movss xmm2,[rax+0x1420]",
                    "engine_module_type 5: electric_magnitude × force_emitter_max_force × 0.1 × 0.1 × |ω| × k with the same k = min(|ω| ÷ 560, 0.25) as the classic generator.")
     o_start = E.code(F_ENGINE, 0x14044A5A2, "f3410f108020140000", "Modular starter electric_magnitude read", "movss xmm0,[r8+0x1420]",
@@ -2404,7 +2665,7 @@ def electricity(B, E):
                         "Example: from rest, a part of weight 2 at 20 RPS and a part of weight 1 at 0 give (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. "
                         "A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."),
                 section("Other components that reuse the field",
-                        "The field is not a global efficiency. The classic diesel engines (field value 1.2) use it as a starter cost factor: max(5 − speed, 0) × engine_max_force × Max Power ÷ 2000 × electric_magnitude × 0.1. The modular starter (0.2) requests max(5 − crank speed, 0) × electric_magnitude × engine_max_force × 0.1. The modular alternator (0.05) uses the generator formula with an extra 0.1. A branch inferred to handle jet turbines (field value 0.025) deposits |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) when that is positive, with no force term. The modular clutch, drive belt and temperature sensor carry values (1, 1, 0.05) that none of the six reads uses; the scan covers only direct +0x1420 operands."),
+                        "The field is not a global efficiency. The classic diesel engines (field value 1.2) use it as a starter cost factor: max(5 − speed, 0) × engine_max_force × Max Power ÷ 2000 × electric_magnitude × 0.1. The modular starter (0.2) requests max(5 − crank speed, 0) × electric_magnitude × engine_max_force × 0.1. The modular alternator (0.05) uses the generator formula with an extra 0.1. The jet turbine branch (field value 0.025, investigation/jet-engines.md) deposits |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) when that is positive, with no force term. The modular clutch, drive belt and temperature sensor carry values (1, 1, 0.05) that none of the six reads uses; the scan covers only direct +0x1420 operands."),
                 section("Supply and settings",
                         "Motors and both starters draw through the same helper. With infinite_batteries on it returns 1 and removes nothing. A part with no electric network gets 0. Otherwise, for a request R it removes T = min(a × R, E) from the pool and returns T ÷ R, where a = max(0, (300 − n) ÷ 300) × q. "
                         "Here n is the part's EMP countdown and q the pool charge fraction. A motor's step is scaled by the returned fraction, so starving it slows acceleration without changing the cost per unit of step. Generators deposit regardless of infinite_batteries.",
@@ -2834,6 +3095,130 @@ def control_surfaces(B, E):
              gyro + [E.tooltip("gyroscopic_stabilizer_small")], ["Configuration values only."])
 
 
+def jet_engines(B, E):
+    J = jet_engine(E)
+    f, rate = J["f"], update_rate(E)["findings"][:1]
+    kind = lambda b: E.attr(b, "jet_engine_component_type",
+                            "Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).")
+    T, P = E.tooltip, E.port
+    every = J["identity"] + J["compressor"] + J["chamber"] + J["turbine"] + J["exhaust"] + J["afterburner"]
+    open_net = ("How ducts, splitters and merged assemblies build the neighbour lists was not traced, so the equilibrium pressure, RPS and thrust "
+                "of an assembled engine and its startup time are not predicted from a parts list.")
+    open_units = "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units."
+    open_scale = "How the game builds the cap scale S for craft joined by locked joints was not decoded, so forces near the cap are not predicted."
+    open_ab = ("The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws "
+               "depends on the external fluid network, which was not modelled.")
+    static = "Static decompilation of one build; the game was not run."
+    local = ("Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its "
+             "duct network; the Jet engines category lists that and the unit questions as open.")
+    units = "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons."
+    chain = ("Every jet part keeps an incoming and an outgoing pressure and temperature. Each update a compressor, chamber, turbine or exhaust first averages them with its neighbours, then: "
+             "the compressor moves q = 0.2 × (100 × r0 - (p_out - p_in)) from its incoming to its outgoing side; "
+             "the chamber, above 0.5 RPS, sets p_out = p_in + 1600 × u × r and t_out = t_in + 0.1 × u × r; "
+             "a turbine passes on half of its incoming pressure and gains 0.0000375 × p_in RPS; "
+             "an exhaust above 1000 pushes with 32 × (p_in - 1000). r is RPS and u the effective throttle.")
+    share = ("After all updates the intakes, compressors, chambers and turbines joined through those neighbour lists average their RPS, "
+             "so the compressor's spin and the turbines' gain feed the chamber's RPS. Exhausts take no part in this.")
+    B.category("Jet engines",
+               "Modular jets run on internal pressure: the powered compressor builds it, the chamber above 0.5 RPS adds 1600 × throttle × RPS and burns 0.12 × throttle × RPS L/s of jet fuel, turbines turn half of it into RPS, and exhausts push with 32 × (pressure - 1000).",
+               [section("How a jet runs", chain, share),
+                section("Starting",
+                        "Turn on the compressor's Compressor input and connect electricity. Each update it requests 0.1 charge, 6 per simulated second, and with full supply gains 0.01 RPS before its 0.99 retention and pressure load. "
+                        "The chamber ignites once its RPS is above 0.5; the tooltip's internal pressure threshold does not exist in the decoded branch. Throttle 0 to 1 sets u."),
+                section("Thrust",
+                        "Exhaust force = 32 × (incoming pressure - 1000) × altitude factor × afterburner multiplier × (1 - Thrust Spoiler), before a cap of 100 × S, with S a per-vehicle scale. "
+                        "RPS enters only through the pressure the chamber adds, so the tooltip's proportionality to internal RPS describes the chain, not the exhaust formula. "
+                        "The altitude factor 1 - height × 1.5 ÷ 40000 reaches 0 at a height of 26666.67, metres if the height field is in metres, which is an inference. The three exhausts use the same coefficient; the rotating one only changes direction."),
+                section("Fuel",
+                        "The chamber burns 0.12 × u × RPS L/s, 2.4 L/s at 20 RPS and full throttle, from a 4 L buffer fed by its Fuel port; a short buffer lowers u. "
+                        "An enabled afterburner multiplies thrust by 1 + 500 × the jet fuel amount in its own buffer, 1.5 at 0.01 L. Its branch never subtracts that fuel."),
+                section("Units",
+                        "Pressure, temperature, charge and force are the game's internal units. The force is applied once per update and integrated by the physics solver; do not multiply it by 60. "
+                        "The medium turbine's shaft weight of 160 is a solver weight, not a torque in N m.")],
+               every + [kind("jet_engine_compressor"), T("jet_engine_compressor"), T("jet_engine_combustion_chamber"), P("jet_engine_exhaust_basic", "Thrust Spoiler"),
+                        T("jet_engine_exhaust_rotating")],
+               [static + " " + open_net, open_units + " " + open_scale,
+                "SI torque, power and efficiency were not recovered. Intake behaviour was not decoded.", TICK])
+    B.family("part-jet-engine-compressor",
+             "Spins up from electricity and pushes pressure forward: q = 0.2 × (100 × RPS - pressure rise) per update, losing 0.0001 × q RPS for it.",
+             [section("Starting",
+                      "With the Compressor input on and electricity connected the compressor requests 0.1 charge every update (6 per simulated second) and adds 0.01 × the supplied fraction to its RPS. "
+                      "Its electric_magnitude of 0 is not used. Speed is then multiplied by 0.99, enabled or not."),
+              section("Pressure and load",
+                      "After averaging with its neighbours the compressor aims for a pressure rise of 100 × RPS across itself and moves 0.2 of the shortfall from its incoming to its outgoing side. "
+                      "Back pressure above that target makes q negative, so pressure flows backwards and the compressor speeds up. q is a pressure transfer, not a volume flow in L/s."),
+              section("Example",
+                      "From rest with full supply the first update gives r0 = 0.0099 RPS, q = 0.198 and r_local = 0.0098802. The averaging with neighbours then changes the next state, so this is not a startup time.")],
+             J["compressor"] + J["identity"] + [kind("jet_engine_compressor"), E.attr("jet_engine_compressor", "electric_magnitude", "Not read by the compressor branch."),
+                                                 T("jet_engine_compressor"), P("jet_engine_compressor", "Compressor"), P("jet_engine_compressor", "Electric")],
+             [local, units, TICK])
+    B.family("part-jet-engine-combustion-chamber",
+             "Ignites above 0.5 RPS, then burns 0.12 × throttle × RPS L/s of jet fuel and adds 1600 × throttle × RPS pressure and 0.1 × throttle × RPS temperature per update.",
+             [section("Ignition",
+                      "Combustion runs only while the chamber's RPS is strictly above 0.5. There is no pressure, temperature or spark test, so the tooltip's internal pressure threshold is in effect the compressor's job of spinning the shared RPS past 0.5."),
+              section("Fuel use",
+                      "Fuel per update is 0.0002 × RPS amount × u, with u = clamp(Throttle, 0, 1) further limited by the jet fuel in the 4 L buffer: 0.12 × u × RPS L/s, 2.4 L/s at 20 RPS and full throttle. "
+                      "With only 0.01 L left at 20 RPS, u drops to 0.25 and the update burns it. infinite_fuel skips the limit and the debit. Other liquids in the buffer are cleared."),
+              section("Pressure and heat",
+                      "Above 0.5 RPS: outgoing pressure = incoming + 1600 × u × RPS and outgoing temperature = incoming + 0.1 × u × RPS, in internal units; the incoming pressure is then cleared. "
+                      "At 20 RPS and full throttle from zero that is 32000 and 2 in one update."),
+              section("Overspeed",
+                      "With the engine_overheating setting and a second settings flag on, a chamber above 200 RPS sets a one-time flag and passes its damage + 1 to a damage routine.")],
+             J["chamber"] + J["identity"] + rate + [kind("jet_engine_combustion_chamber"), T("jet_engine_combustion_chamber"),
+                                                     P("jet_engine_combustion_chamber", "Fuel"), P("jet_engine_combustion_chamber", "Throttle")],
+             [local, units, "The effect of the overspeed damage on the engine was not traced.", TICK])
+    B.family("jet-turbine",
+             "Takes half of the incoming pressure, gains 0.0000375 × pressure RPS when undamaged and charges its Electric connection; the medium turbine also joins a shaft with weight 160.",
+             [section("Pressure to RPS",
+                      "After averaging, a turbine passes on half of its incoming pressure and keeps the other half's effect as speed: r0 = r + 0.0000375 × p_in. A damaged turbine gains nothing."),
+              section("Electricity",
+                      "Generator fraction k = min(r0 ÷ 10000, 0.02), reaching 0.02 at 200 RPS. Each update the Electric connection receives |r0| × 0.025 × k charge and the turbine keeps (1 - k) × r0. "
+                      "At 20 RPS and incoming pressure 32000 that is 0.0011236 charge per update and a submitted speed of 21.155056 RPS. Both sizes use electric_magnitude 0.025."),
+              section("Shaft",
+                      "Only the medium turbine has the RPS power connection. It submits its speed with weight 160 to the shaft's weighted average and takes back max(shaft RPS, 0). "
+                      "An electric motor can therefore spin it up, and props or generators can load it. 160 is a solver weight, not a torque in N m.")],
+             J["turbine"] + J["identity"] + rate + [kind("jet_engine_turbine_small"), kind("jet_engine_turbine_medium"),
+                                                     E.attr("jet_engine_turbine_small", "electric_magnitude", "Turbine charge factor read at 0x140352ff7."),
+                                                     T("jet_engine_turbine_medium"), P("jet_engine_turbine_medium", "RPS"), P("jet_engine_turbine_small", "Electric")],
+             [local, units + " The shaft weight 160 is a solver weight, not a torque in N m.", TICK])
+    thrust_body = ("Force = 32 × (incoming pressure - 1000) × a × b × (1 - Thrust Spoiler) along the exhaust's thrust axis, with altitude factor a = clamp(1 - height × 1.5 ÷ 40000, 0, 1) and afterburner multiplier b = 1 when off. "
+                   "At or below 1000 there is no force. No exhaust size, engine_max_force or RPS term enters; RPS matters only through the pressure the chamber adds upstream.")
+    cap_body = ("The force is in internal units. Before it is applied its size is limited to 100 × S, where S is a per-vehicle scale passed in by the component dispatcher, the same mechanism the control surfaces use with a limit of 5. "
+                "It is applied once per update and integrated by the physics solver; do not multiply it by 60.")
+    example = "At incoming pressure 16000, sea level and spoiler 0 the force is 480000; spoiler 0.5 gives 240000. With S = 1000 the cap limits both to 100000."
+    ex_common = J["exhaust"] + J["identity"] + rate
+    ex_limits = [local, units + " The cap scale S is open, as the Jet engines category records.", TICK]
+    B.family("part-jet-engine-exhaust-basic",
+             "Pushes with 32 × (incoming pressure - 1000), scaled by altitude and the Thrust Spoiler, capped at 100 × S.",
+             [section("Thrust", thrust_body), section("Altitude and spoiler",
+                                                     "The altitude factor falls linearly to 0 at a height of 26666.67 and is 0.625 at 10000. Reading that height as metres is an inference. Thrust Spoiler 0 keeps the whole force and 1 removes it, without changing engine speed. "
+                                                     "Above 1000 the exhaust clears its incoming pressure each update after using it."),
+              section("Force units and limit", cap_body), section("Example", example)],
+             ex_common + [kind("jet_engine_exhaust_basic"), T("jet_engine_exhaust_basic"), P("jet_engine_exhaust_basic", "Thrust Spoiler")], ex_limits)
+    B.family("part-jet-engine-exhaust-afterburner",
+             "The basic exhaust's force times 1 + 500 × the jet fuel stored in its buffer while Afterburner is on; its branch never subtracts that fuel.",
+             [section("Thrust", thrust_body),
+              section("Afterburner multiplier",
+                      "With the Afterburner input on and any liquid in its buffer, b = 1 + 0.5 × stored jet fuel ÷ 0.001 = 1 + 500 × stored amount. "
+                      "0.001 amount (0.01 L) gives 1.5; a full 0.4 amount (4 L) buffer gives 201. The ratio has no upper clamp, so a full buffer multiplies thrust far beyond the tooltip's description, until the 100 × S cap."),
+              section("Fuel",
+                      "Jet fuel reaches the buffer through the Fuel port, which exchanges with the pipe network each update. The exhaust branch reads the stored amount but never subtracts it; only other liquids are purged. "
+                      "How much the port then draws from the tank depends on the network, which was not modelled."),
+              section("Force units and limit", cap_body),
+              section("Example", example + " An enabled afterburner holding 0.01 L gives 720000 before the cap.")],
+             ex_common + J["afterburner"] + [kind("jet_engine_exhaust_afterburner"), T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel"),
+                                             P("jet_engine_exhaust_afterburner", "Afterburner")],
+             ex_limits[:2] + [open_ab, TICK])
+    B.family("part-jet-engine-exhaust-rotating",
+             "The basic exhaust's force along a direction set by a powered pivot within −0.5 … 0.5 turns.",
+             [section("Thrust", thrust_body + " The pivot turns the thrust axis and the lever arm; the coefficient is the same as the basic exhaust's."),
+              section("Setup and interactions", "Rotation Target is a standard value; supply Electric for the pivot."),
+              section("Force units and limit", cap_body)],
+             ex_common + [kind("jet_engine_exhaust_rotating"), T("jet_engine_exhaust_rotating"), P("jet_engine_exhaust_rotating", "Rotation Target"),
+                          P("jet_engine_exhaust_rotating", "Electric")],
+             ex_limits)
+
+
 def wheels(B, E):
     r = [E.attr(b, "wheel_radius", "Wheel radius configuration (wheel_radius, definition+0x894).") for b in
          ("wheel_advanced_3", "wheel_advanced_5", "wheel_advanced_7", "wheel_advanced_9")]
@@ -2971,12 +3356,6 @@ def remaining(B, E):
                [E.tooltip("inventory_outfit_diving"), E.tooltip("inventory_outfit_scuba"), E.tooltip("inventory_equipment_radio"),
                 E.tooltip("inventory_outfit_firefighter"), E.tooltip("inventory_small")],
                ["Tooltip statements only."])
-    B.category("Jet engines",
-               "Modular jets need electric power to start the compressor, combust once internal pressure is high enough, and make thrust proportional to internal RPS; the thrust spoiler takes 0 (none) to 1 (full reduction).",
-               [section("Start-up and control", "Power and enable the compressor, feed jet fuel to the combustion chamber with throttle 0 to 1, and use the spoiler for reverse-free thrust control. The rotating exhaust vectors within −0.5 to 0.5 turns; the afterburner adds thrust for more fuel.")],
-               [E.tooltip("jet_engine_compressor"), E.tooltip("jet_engine_combustion_chamber"), E.port("jet_engine_exhaust_basic", "Thrust Spoiler"),
-                E.tooltip("jet_engine_exhaust_rotating")],
-               ["Jet simulation code was not decoded."])
     B.category("Structure",
                "Weight blocks shift the centre of mass; keels resist roll and lateral slip while submerged, letting sails drive a boat across or into the wind.",
                [section("Keels and skis", "Keels are the counterpart to sails; skis slide lengthwise and grip laterally.")],
@@ -3182,16 +3561,7 @@ def more_families(B, E):
            [("Setup and interactions", "Place rods next to fuel assemblies and drive Insertion Target from fuel rod temperature.")], [T("steam_nuclear_control_rod"), P("steam_nuclear_fuel_assembly", "Fuel Rod Temperature")],
            ["Reaction kinetics not recovered."])
 
-    # Jet engine parts.
-    simple("part-jet-engine-compressor", "Needs electricity to begin compressing; enable it before fuelling the chamber.",
-           [("Operating conditions", "Combustion in the chamber starts only once internal pressure is high enough, which the powered compressor provides.")],
-           [T("jet_engine_compressor"), T("jet_engine_combustion_chamber")], [])
-    simple("part-jet-engine-exhaust-basic", "Thrust proportional to internal RPS; the spoiler removes 0 (none) to 1 (all) of it.",
-           [("Setup and interactions", "Use Thrust Spoiler to modulate thrust without changing engine speed.")], [T("jet_engine_exhaust_basic"), P("jet_engine_exhaust_basic", "Thrust Spoiler")], [])
-    simple("part-jet-engine-exhaust-afterburner", "Adds thrust for extra fuel when enabled.",
-           [("Setup and interactions", "Supply jet fuel to its own Fuel port.")], [T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel")], [])
-    simple("part-jet-engine-exhaust-rotating", "Vectors thrust within −0.5 … 0.5 turns via a powered pivot.",
-           [("Setup and interactions", "Rotation Target is a standard value; supply Electric for the pivot.")], [T("jet_engine_exhaust_rotating")], [])
+    # Jet engine parts; the decoded parts are in jet_engines().
     simple("jet-intake", "More airflow when moving through the air; the large intake's turbofans add thrust.",
            [("Variant tradeoffs", "Only the large intake's tooltip mentions additional thrust from turbo fans.")], [T("jet_engine_intake_small"), T("jet_engine_intake_large")], [])
 
@@ -3638,7 +4008,7 @@ def build(root):
     E = Evidence(root)
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
-                 propulsion, control_surfaces, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
+                 propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
                  fluid_links, air_scoop, displays):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,

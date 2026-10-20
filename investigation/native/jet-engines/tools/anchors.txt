@@ -1,0 +1,58 @@
+type-34 constructor call
+14045e32d:	e8 de 18 ef ff                                  	call   0x14034fc10
+jet vtable installation
+14034fc29:	48 8d 05 90 8b 83 00                            	lea    rax,[rip+0x838b90]        # 0x140b887c0
+update slot dispatch
+1405498d6:	41 ff 92 58 03 00 00                            	call   QWORD PTR [r10+0x358]
+compressor electrical request 0.1
+14035379e:	f3 0f 10 0d 2a c3 85 00                         	movss  xmm1,DWORD PTR [rip+0x85c32a]        # 0x140bafad0
+compressor electric draw
+1403537a6:	e8 f5 b4 f9 ff                                  	call   0x1402eeca0
+compressor drag 0.99
+1403537c9:	f3 0f 59 0d db c6 85 00                         	mulss  xmm1,DWORD PTR [rip+0x85c6db]        # 0x140bafeac
+compressor pressure target 100*r
+1403537fc:	f3 0f 59 15 8c cf 85 00                         	mulss  xmm2,DWORD PTR [rip+0x85cf8c]        # 0x140bb0790
+compressor pressure transfer 0.2
+14035380f:	f3 0f 59 15 59 c3 85 00                         	mulss  xmm2,DWORD PTR [rip+0x85c359]        # 0x140bafb70
+compressor RPS load 0.0001*q
+14035383b:	f3 0f 59 15 55 c0 85 00                         	mulss  xmm2,DWORD PTR [rip+0x85c055]        # 0x140baf898
+combustion demand 0.0002*r
+14035330a:	f3 44 0f 59 0d 91 c5 85 00                      	mulss  xmm9,DWORD PTR [rip+0x85c591]        # 0x140baf8a4
+ignition compare r to 0.5
+1403533a6:	0f 2f 05 0f c9 85 00                            	comiss xmm0,DWORD PTR [rip+0x85c90f]        # 0x140bafcbc
+combustion jet-fuel debit
+1403533f8:	f3 0f 11 8f cc 03 00 00                         	movss  DWORD PTR [rdi+0x3cc],xmm1
+combustion heat factor 0.1
+140353424:	f3 0f 59 0d a4 c6 85 00                         	mulss  xmm1,DWORD PTR [rip+0x85c6a4]        # 0x140bafad0
+combustion pressure factor 1600
+140353434:	f3 0f 59 35 2c d4 85 00                         	mulss  xmm6,DWORD PTR [rip+0x85d42c]        # 0x140bb0868
+turbine gain factor 0.000075
+140352fb0:	f3 0f 59 1d dc c8 85 00                         	mulss  xmm3,DWORD PTR [rip+0x85c8dc]        # 0x140baf894
+turbine electrical fraction r/10000
+140352fd5:	f3 0f 5e 05 df d8 85 00                         	divss  xmm0,DWORD PTR [rip+0x85d8df]        # 0x140bb08bc
+turbine electric_magnitude
+140352ff7:	f3 0f 59 90 20 14 00 00                         	mulss  xmm2,DWORD PTR [rax+0x1420]
+medium turbine weight 160
+140353182:	c7 87 90 03 00 00 00 00 20 43                   	mov    DWORD PTR [rdi+0x390],0x43200000
+medium turbine RPS submission
+14035318c:	f3 0f 11 87 94 03 00 00                         	movss  DWORD PTR [rdi+0x394],xmm0
+published shaft speed clamp
+140353194:	f3 44 0f 5f 87 98 03 00 00                      	maxss  xmm8,DWORD PTR [rdi+0x398]
+exhaust pressure threshold 1000
+140351e09:	f3 0f 10 0d 4b ea 85 00                         	movss  xmm1,DWORD PTR [rip+0x85ea4b]        # 0x140bb085c
+exhaust altitude numerator 1.5
+140351e22:	f2 0f 59 05 be e3 85 00                         	mulsd  xmm0,QWORD PTR [rip+0x85e3be]        # 0x140bb01e8
+exhaust altitude denominator 40000
+140351e2a:	f2 0f 5e 05 4e e7 85 00                         	divsd  xmm0,QWORD PTR [rip+0x85e74e]        # 0x140bb0580
+exhaust force coefficient 32
+140351e5f:	f3 0f 10 05 ad e8 85 00                         	movss  xmm0,DWORD PTR [rip+0x85e8ad]        # 0x140bb0714
+purge skips fluid index 2
+140351de8:	41 b8 02 00 00 00                               	mov    r8d,0x2
+afterburner jet-fuel load
+140351eab:	f3 0f 10 97 cc 03 00 00                         	movss  xmm2,DWORD PTR [rdi+0x3cc]
+afterburner divide by 0.001
+140351eb3:	f3 41 0f 5e d3                                  	divss  xmm2,xmm11
+afterburner half factor
+140351eb8:	f3 0f 59 15 fc dd 85 00                         	mulss  xmm2,DWORD PTR [rip+0x85ddfc]        # 0x140bafcbc
+spoiler subtraction
+140351ee4:	f3 0f 5c 87 60 02 00 00                         	subss  xmm0,DWORD PTR [rdi+0x260]

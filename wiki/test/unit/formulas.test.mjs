@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CLASSIC, CLASSIC_VARIANTS, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -331,4 +331,111 @@ test('exchanger graph constants and volumes remain tied to verified native findi
     assert.equal(f.value, `V = ${exchangerVolume(v.id)}, ${exchangerVolume(v.id) * EXCHANGER.litresPerUnit} L`);
   }
   for (const id of ['air-air-heat-exchanger', 'air-liquid-heat-exchanger', 'liquid-liquid-heat-exchanger']) assert.deepEqual(graphKindsForFamily(id), ['exchanger']);
+});
+
+// Worked examples from investigation/native/jet-engines/tools/examples.json (model.py --examples).
+test('jet compressor, chamber, turbine and exhaust match the research model examples', () => {
+  const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9 * Math.max(1, Math.abs(expected)), `${actual} != ${expected}`);
+  const start = jetCompressor({ rps: 0 });
+  close(start.r0, 0.0099);
+  close(start.transfer, 0.198);
+  close(start.rps, 0.0098802);
+  close(start.pIn, -0.198);
+  close(start.pOut, 0.198);
+  const c = jetCompressor({ rps: 20, pIn: 1000, pOut: 2000, enabled: false });
+  close(c.rps, 19.7804);
+  close(c.pIn, 804);
+  close(c.pOut, 2196);
+  close(c.transfer, 196);
+  // Back pressure above 100 × r0 reverses the transfer and speeds the compressor up.
+  const back = jetCompressor({ rps: 10, pIn: 0, pOut: 5000, enabled: false });
+  assert.ok(back.transfer < 0 && back.rps > back.r0);
+
+  const b = jetChamber({ rps: 20, throttle: 1 });
+  close(b.fuelPerUpdate, 0.004);
+  close(b.litresPerSecond, 2.4);
+  close(b.pOut, 32000);
+  close(b.tOut, 2);
+  close(b.fuelRemaining, 0.396);
+  assert.equal(b.pIn, 0);
+  // 0.12 × u × RPS L/s.
+  close(jetChamber({ rps: 30, throttle: 0.5 }).litresPerSecond, 0.12 * 0.5 * 30);
+  // Ignition is strictly above 0.5 RPS.
+  const idle = jetChamber({ rps: 0.5, throttle: 1, pIn: 7, tIn: 3 });
+  assert.equal(idle.ignited, false);
+  assert.equal(idle.litresPerSecond, 0);
+  assert.equal(idle.pOut, 7);
+  assert.equal(idle.tOut, 3);
+  assert.equal(jetChamber({ rps: 0.51 }).ignited, true);
+  // A short buffer limits the throttle: 0.001 amount at 20 RPS gives u = 0.25 and burns the last 0.01 L.
+  const short = jetChamber({ rps: 20, throttle: 1, fuelAmount: 0.001 });
+  close(short.throttle, 0.25);
+  close(short.fuelPerUpdate * JET.litresPerAmount, 0.01);
+  close(short.pOut, 8000);
+  // infinite_fuel skips the limit and the debit but keeps the pressure and heat.
+  const inf = jetChamber({ rps: 20, throttle: 1, fuelAmount: 0, infinite: true });
+  assert.equal(inf.fuelPerUpdate, 0);
+  close(inf.requestedLitresPerSecond, 2.4);
+  close(inf.pOut, 32000);
+
+  const t = jetTurbine({ rps: 20, pIn: 32000, shaftRps: 20 });
+  close(t.r0, 21.2);
+  close(t.k, 0.00212);
+  close(t.submitted, 21.155056);
+  close(t.chargePerUpdate, 0.0011236);
+  close(t.chargePerSecond, 0.067416);
+  assert.equal(t.rps, 20);
+  assert.equal(t.shaftWeight, 160);
+  close(t.pOut, 16000);
+  close(t.pIn, 16000);
+  assert.equal(jetTurbine({ rps: 20, pIn: 32000, damaged: true }).r0, 20);
+  assert.equal(jetTurbine({ rps: 20, pIn: 32000, shaftRps: -3 }).rps, 0);
+  close(jetTurbine({ rps: 300, pIn: 0 }).k, 0.02);
+
+  const x = jetExhaust({ pressure: 16000, scale: 1000 });
+  close(x.raw, 480000);
+  close(x.applied, 100000);
+  assert.equal(x.capped, true);
+  close(x.impulsePerUpdate, 100000 / 60);
+  close(jetExhaust({ pressure: 16000, spoiler: 0.5 }).raw, 240000);
+  const ab = jetExhaust({ pressure: 16000, afterburner: true, fuelAmount: 0.001 });
+  close(ab.boost, 1.5);
+  close(ab.raw, 720000);
+  const full = jetExhaust({ pressure: 16000, afterburner: true, fuelAmount: 0.4 });
+  close(full.boost, 201);
+  close(full.raw, 96480000);
+  // No liquid in the buffer, or the input off, means no multiplier.
+  assert.equal(jetExhaust({ pressure: 16000, afterburner: true, fuelAmount: 0 }).boost, 1);
+  assert.equal(jetExhaust({ pressure: 16000, afterburner: false, fuelAmount: 0.4 }).boost, 1);
+  assert.equal(jetExhaust({ pressure: 1000 }).raw, 0);
+  assert.equal(jetExhaust({ pressure: 16000, spoiler: 1.5 }).raw, 0);
+  close(jetAltitudeFactor(10000), 0.625);
+  assert.equal(jetAltitudeFactor(40000 / 1.5), 0);
+  assert.equal(jetAltitudeFactor(-100), 1);
+  assert.throws(() => jetExhaust({ pressure: 16000, scale: 0 }), RangeError);
+  assert.throws(() => jetChamber({ rps: Number.NaN }), RangeError);
+});
+test('jet graph constants remain tied to verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const findings = data.families.flatMap((f) => f.findings);
+  const value = (label) => findings.find((x) => x.label === label);
+  for (const [label, v] of [
+    ['Compressor speed retention', JET.retention], ['Compressor starter speed per supplied fraction', JET.starterGain],
+    ['Compressor starter charge request', JET.starterRequest], ['Compressor pressure target per RPS', JET.pressurePerRps],
+    ['Compressor pressure transfer fraction', JET.transfer], ['Compressor speed load', JET.load],
+    ['Chamber fuel demand per RPS', JET.fuelPerRps], ['Chamber ignition speed', JET.ignition],
+    ['Chamber heating per throttle × RPS', JET.heat], ['Chamber pressure gain per throttle × RPS', JET.pressureGain],
+    ['Turbine pressure capture share', JET.turbineShare], ['Turbine speed gain per captured pressure', JET.turbineGain],
+    ['Turbine generator speed divisor', JET.generatorDivisor], ['Turbine generator fraction cap', JET.generatorCap],
+    ['Medium turbine shaft weight', JET.shaftWeight], ['Exhaust pressure threshold', JET.threshold], ['Exhaust force coefficient', JET.coefficient],
+    ['Exhaust altitude factor slope', JET.altitudeSlope], ['Exhaust altitude factor divisor', JET.altitudeSpan],
+    ['Afterburner multiplier slope', JET.afterburnerSlope], ['Afterburner fuel reference amount', JET.afterburnerReference],
+    ['Exhaust force application limit', JET.limit],
+  ]) {
+    assert.ok(value(label)?.source?.address, `${label}: native address is required`);
+    assert.equal(Number(value(label).value), v, label);
+  }
+  assert.equal(value('Jet fuel buffer capacity').value, `${JET.bufferAmount} amount, ${JET.bufferAmount * JET.litresPerAmount} L`);
+  for (const id of ['part-jet-engine-exhaust-basic', 'part-jet-engine-exhaust-afterburner', 'part-jet-engine-exhaust-rotating']) assert.deepEqual(graphKindsForFamily(id), ['jet']);
+  assert.deepEqual(graphKindsForFamily('part-jet-engine-combustion-chamber'), ['chamber']);
 });

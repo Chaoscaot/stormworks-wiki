@@ -4,8 +4,8 @@
 // can also be clicked or dragged, but nothing depends on pointer input.
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  CLASSIC, CLASSIC_VARIANTS, EXCHANGER, EXCHANGER_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, radiatorRate, scoopInflow, surfaceForce,
+  CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, jetChamber, jetExhaust, radiatorRate, scoopInflow, surfaceForce,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -898,7 +898,175 @@ function ClassicGraph({ variant }) {
   );
 }
 
-const GRAPHS = { engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph };
+/* ---------- jet engines ---------- */
+
+const JET_PRESSURE_MAX = 40000;
+
+function JetGraph({ family }) {
+  const uid = useUid();
+  const [altitude, setAltitude] = useState(0);
+  const [spoiler, setSpoiler] = useState(0);
+  const [afterburner, setAfterburner] = useState(family === 'part-jet-engine-exhaust-afterburner');
+  const [litres, setLitres] = useState(0.01);
+  const [capped, setCapped] = useState(false);
+  const [scale, setScale] = useState(1000);
+  const [pressure, setPressure] = useState(16000);
+  const input = { altitude, spoiler, afterburner, fuelAmount: litres / JET.litresPerAmount, scale: capped ? scale : null };
+  const samples = useMemo(
+    () => steps(0, JET_PRESSURE_MAX, 250).map((p) => ({ p, ...jetExhaust({ pressure: p, altitude, spoiler, afterburner, fuelAmount: litres / JET.litresPerAmount, scale: capped ? scale : null }) })),
+    [altitude, spoiler, afterburner, litres, capped, scale],
+  );
+  const at = jetExhaust({ pressure, ...input });
+  const y = forceDomain(samples.flatMap((s) => [s.raw, s.applied]));
+  const summary = `At incoming pressure ${fixed(pressure, 0)}: force ${grouped(at.raw)} before the cap${capped ? `, ${grouped(at.applied)} after it` : ''}, internal force units.`;
+  const status = useSettled(summary);
+  const end = samples.at(-1);
+  const desc = `Altitude ${altitude}, Thrust Spoiler ${fixed(spoiler, 2)}, afterburner ${afterburner ? `on with ${fixed(litres, 2)} L stored, multiplier ${fixed(at.boost, 2)}` : 'off'}. No force at incoming pressure 1000 or less; at ${JET_PRESSURE_MAX} the force is ${grouped(end.raw)}${capped ? ` and the cap of ${grouped(end.cap)} applies` : ''}. ${summary}`;
+  const series = [{ key: 'raw', className: 'graph-line-a', points: samples.map((s) => [s.p, s.raw]) }];
+  if (capped) series.push({ key: 'applied', className: 'graph-line-b', points: samples.map((s) => [s.p, s.applied]) });
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Force before the cap', className: 'graph-line-a' },
+        ...(capped ? [{ label: `Applied force, capped at 100 × S = ${grouped(JET.limit * scale)}`, className: 'graph-line-b' }] : []),
+        { label: 'No force at incoming pressure 1000 or less', band: true },
+      ]}
+      controls={(
+        <>
+          <Range id={`${uid}-y`} label="Altitude" value={altitude} min={0} max={30000} step={500} onChange={setAltitude} valueText={`${fixed(altitude, 0)}`} hint="Height read from the vehicle, metres by inference. No force from 26666.67." />
+          <Range id={`${uid}-s`} label="Thrust Spoiler" value={spoiler} min={0} max={1} step={0.05} onChange={(v) => setSpoiler(+v.toFixed(2))} valueText={fixed(spoiler, 2)} hint="0 keeps the whole force, 1 removes it." />
+          <Check id={`${uid}-ab`} label="Afterburner on" checked={afterburner} onChange={setAfterburner} hint="Only the afterburner exhaust has this input." />
+          <Range id={`${uid}-f`} label="Jet fuel stored in the exhaust" value={litres} min={0} max={4} step={0.01} onChange={(v) => setLitres(+v.toFixed(2))} valueText={`${fixed(litres, 2)} L`} hint="Multiplier 1 + 500 × amount = 1 + 50 × litres. 0.01 L gives 1.5; the full 4 L buffer gives 201." />
+          <Check id={`${uid}-cap`} label="Apply the 100 × S cap" checked={capped} onChange={setCapped} hint="S is a per-vehicle scale; how the game sets it for a given craft was not decoded." />
+          <Range id={`${uid}-k`} label="Example scale S" value={scale} min={100} max={10000} step={100} onChange={setScale} valueText={fixed(scale, 0)} hint={capped ? `Cap ${grouped(JET.limit * scale)}.` : 'Used only with the cap on.'} />
+          <Range id={`${uid}-x`} label="Selected incoming pressure" value={pressure} min={0} max={JET_PRESSURE_MAX} step={250} onChange={setPressure} valueText={fixed(pressure, 0)} hint="Internal pressure units, not RPS." />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Exhaust force against incoming pressure"
+          desc={desc}
+          x={{ min: 0, max: JET_PRESSURE_MAX, ticks: steps(0, JET_PRESSURE_MAX, 5000), format: short, label: 'Incoming pressure (internal units)' }}
+          y={{ ...y, format: short }}
+          bands={[{ from: 0, to: JET.threshold }]}
+          series={series}
+          selected={{
+            x: pressure,
+            points: [
+              { key: 'raw', y: at.raw, className: 'graph-dot-a' },
+              ...(capped ? [{ key: 'applied', y: at.applied, className: 'graph-dot-b' }] : []),
+            ],
+          }}
+          onSelect={(v) => setPressure(snap(v, 0, JET_PRESSURE_MAX, 250))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At incoming pressure ${fixed(pressure, 0)}, internal force units`}
+          rows={[
+            ['Pressure above 1000', fixed(Math.max(pressure - JET.threshold, 0), 0)],
+            ['Altitude factor a', fixed(at.altitudeFactor, 4)],
+            ['Spoiler factor s', fixed(at.spoilerFactor, 2)],
+            ['Afterburner multiplier b', fixed(at.boost, 2)],
+            ['Force before the cap', grouped(at.raw)],
+            ['Cap 100 × S', capped ? grouped(at.cap) : 'Not applied'],
+            ['Applied force', grouped(at.applied), at.capped ? 'graph-no' : undefined],
+            ['Impulse of one update (force ÷ 60)', grouped(at.impulsePerUpdate)],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Exhaust force in internal units, altitude ${altitude}, Thrust Spoiler ${fixed(spoiler, 2)}, afterburner ${afterburner ? `on, ${fixed(litres, 2)} L stored` : 'off'}${capped ? `, cap 100 × ${scale}` : ''}`,
+        cols: ['Incoming pressure', 'Force before the cap', ...(capped ? ['Applied force'] : [])],
+        rows: samples.filter((s) => s.p % 2000 === 0).map((s) => [fixed(s.p, 0), grouped(s.raw), ...(capped ? [grouped(s.applied)] : [])]),
+      }}
+    />
+  );
+}
+
+const CHAMBER_PLOTS = {
+  fuel: { label: 'Jet fuel use (L/s)', key: 'litresPerSecond', digits: 3 },
+  pressure: { label: 'Pressure added per update (internal units)', key: 'pressureAdded', digits: 0 },
+  temperature: { label: 'Temperature added per update (internal units)', key: 'temperatureAdded', digits: 2 },
+};
+const CHAMBER_RPS_MAX = 50;
+
+function ChamberGraph() {
+  const uid = useUid();
+  const [plot, setPlot] = useState('fuel');
+  const [throttle, setThrottle] = useState(1);
+  const [rps, setRps] = useState(20);
+  const p = CHAMBER_PLOTS[plot];
+  const samples = useMemo(() => steps(0, CHAMBER_RPS_MAX, 0.25).map((r) => ({ r, ...jetChamber({ rps: r, throttle }) })), [throttle]);
+  const at = jetChamber({ rps, throttle });
+  const y = forceDomain(samples.map((s) => s[p.key]));
+  const summary = `At ${fixed(rps, 2)} RPS and throttle ${fixed(throttle, 2)}: ${fixed(at.litresPerSecond, 3)} L/s of jet fuel, pressure +${fixed(at.pressureAdded, 0)} and temperature +${fixed(at.temperatureAdded, 2)} per update.`;
+  const status = useSettled(summary);
+  const desc = `${p.label} against chamber RPS from 0 to ${CHAMBER_RPS_MAX} at throttle ${fixed(throttle, 2)}. Nothing burns at 0.5 RPS or less; above it the value rises in proportion to RPS. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: `${p.label}, throttle ${fixed(throttle, 2)}`, className: 'graph-line-a' },
+        { label: 'No combustion at 0.5 RPS or less', band: true },
+      ]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-plot`}>Plot</label>
+            <select id={`${uid}-plot`} value={plot} onChange={(e) => setPlot(e.target.value)} aria-describedby={`${uid}-plot-hint`}>
+              {Object.entries(CHAMBER_PLOTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <span id={`${uid}-plot-hint`} className="graph-field-hint">Pressure and temperature are additions to the air passing through, in internal units.</span>
+          </div>
+          <Range id={`${uid}-u`} label="Throttle" value={throttle} min={0} max={1} step={0.05} onChange={(v) => setThrottle(+v.toFixed(2))} valueText={fixed(throttle, 2)} hint="Effective throttle u, assuming the 4 L buffer holds enough jet fuel." />
+          <Range id={`${uid}-x`} label="Selected chamber RPS" value={rps} min={0} max={CHAMBER_RPS_MAX} step={0.25} onChange={setRps} valueText={`${fixed(rps, 2)} RPS`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`${p.label} against chamber RPS`}
+          desc={desc}
+          x={{ min: 0, max: CHAMBER_RPS_MAX, ticks: steps(0, CHAMBER_RPS_MAX, 10), format: (v) => fixed(v, v % 1 ? 2 : 0), label: 'Chamber speed (RPS)' }}
+          y={{ ...y, format: short }}
+          bands={[{ from: 0, to: JET.ignition }]}
+          series={[{ key: 'value', className: 'graph-line-a', points: samples.map((s) => [s.r, s[p.key]]) }]}
+          selected={{ x: rps, points: [{ key: 'value', y: at[p.key], className: 'graph-dot-a' }] }}
+          onSelect={(v) => setRps(snap(v, 0, CHAMBER_RPS_MAX, 0.25))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`At ${fixed(rps, 2)} RPS`}
+          rows={[
+            ['Combustion', at.ignited && at.throttle > 0 ? 'Yes' : 'No', at.ignited && at.throttle > 0 ? 'graph-ok' : 'graph-no'],
+            ['Effective throttle u', fixed(at.throttle, 2)],
+            ['Jet fuel', `${fixed(at.litresPerSecond, 3)} L/s, ${fixed(at.fuelPerUpdate * JET.litresPerAmount, 4)} L per update`],
+            ['Pressure added', `${fixed(at.pressureAdded, 0)} per update`],
+            ['Temperature added', `${fixed(at.temperatureAdded, 2)} per update, ${fixed(at.temperatureAdded * UPDATES_PER_SECOND, 1)} per second`],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Chamber at throttle ${fixed(throttle, 2)}, per update unless marked`,
+        cols: ['Chamber RPS', 'Jet fuel (L/s)', 'Pressure added', 'Temperature added'],
+        rows: samples.filter((s) => s.r % 5 === 0).map((s) => [fixed(s.r, 0), fixed(s.litresPerSecond, 3), fixed(s.pressureAdded, 0), fixed(s.temperatureAdded, 2)]),
+      }}
+    />
+  );
+}
+
+const GRAPHS = {
+  engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
+  jet: JetGraph, chamber: ChamberGraph,
+};
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {
   const G = GRAPHS[kind];

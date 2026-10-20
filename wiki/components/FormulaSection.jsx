@@ -31,6 +31,15 @@ const FINDINGS = {
     'Hot coolant bias cap and combustion threshold', 'Effective throttle', 'Engine heating per RPS',
     'Liquid flow per amount moved each update', 'Component updates per simulated second',
   ],
+  jet: [
+    'Exhaust force coefficient', 'Exhaust pressure threshold', 'Exhaust altitude factor slope', 'Exhaust altitude factor divisor',
+    'Thrust spoiler factor', 'Afterburner enable test', 'Afterburner multiplier slope', 'Afterburner fuel reference amount',
+    'Jet fuel buffer capacity', 'Exhaust force application limit', 'Jet force application cap', 'Component updates per simulated second',
+  ],
+  chamber: [
+    'Chamber fuel demand per RPS', 'Chamber ignition speed', 'Chamber pressure gain per throttle × RPS', 'Chamber heating per throttle × RPS',
+    'Chamber infinite_fuel test', 'Jet fuel buffer capacity', 'Liquid flow per amount moved each update', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -40,6 +49,8 @@ const TITLES = {
   scoop: 'Air scoop inflow against airspeed',
   surface: 'Surface force, lift and drag against airspeed',
   classic: 'Diesel use and speed step against engine RPS',
+  jet: 'Exhaust force against incoming pressure',
+  chamber: 'Chamber fuel use, pressure and heat against RPS',
 };
 
 /*
@@ -305,7 +316,74 @@ const CLASSIC_ENGINE = {
   ],
 };
 
-const CONTENT = { engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE };
+const JET_EXHAUST = {
+  intro: (
+    <p>
+      An exhaust turns the incoming pressure above 1000 into force along its thrust axis. Altitude, the Thrust Spoiler and, on the
+      afterburner, the jet fuel stored in the exhaust scale it. RPS does not appear: it matters only through the pressure the combustion
+      chamber adds upstream, which depends on the whole engine.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="f">{sub('F', 'raw')}{mo('=')}{mn('32')}{mo('·')}{mi('max')}<mrow>{mo('(')}{mi('p')}{mo('−')}{mn('1000')}{mo(',')}{mn('0')}{mo(')')}</mrow>{mo('·')}{mi('a')}{mo('·')}{mi('b')}{mo('·')}{mi('s')}</mrow>,
+        <mrow key="a">{mi('a')}{mo('=')}{mi('clamp')}<mrow>{mo('(')}{mn('1')}{mo('−')}<mfrac><mrow>{mn('1.5')}{mi('y')}</mrow>{mn('40000')}</mfrac>{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}</mrow><mspace width="1em" />{mi('s')}{mo('=')}{mi('clamp')}<mrow>{mo('(')}{mn('1')}{mo('−')}{mi('spoiler')}{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}</mrow></mrow>,
+        <mrow key="b">{mi('b')}{mo('=')}{mn('1')}{mo('+')}{mn('500')}{mi('m')}<mspace width="0.5em" /><mtext>with Afterburner on and liquid in the buffer, else </mtext>{mn('1')}</mrow>,
+        <mrow key="c">{sub('F', 'applied')}{mo('=')}{mi('min')}<mrow>{mo('(')}{sub('F', 'raw')}{mo(',')}{mn('100')}{mi('S')}{mo(')')}</mrow></mrow>,
+      ]}
+      text={[
+        'F_raw = 32 * max(p - 1000, 0) * a * b * s, p = incoming pressure in internal units',
+        'a = clamp(1 - 1.5 * y / 40000, 0, 1), y = height; 0 from y = 26666.67',
+        's = clamp(1 - Thrust Spoiler, 0, 1)',
+        'b = 1 + 0.5 * m / 0.001 = 1 + 500 * m, m = jet fuel amount stored in the exhaust (10 L per amount); b = 1 when Afterburner is off or the buffer is empty',
+        'F_applied = min(F_raw, 100 * S), S = per-vehicle application scale from the component dispatcher',
+        'Force in internal units, applied once per update; impulse per update = F_applied / 60',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'The x axis is the exhaust\'s incoming pressure, not RPS. What pressure a given engine reaches depends on the compressor, chambers, turbines and the ducts between them, which the model does not solve.',
+    'Output is in the game\'s internal force units. Body mass is not calibrated to kilograms, so these are not newtons. The game applies the force once per update and the physics solver integrates it; do not multiply it by 60.',
+    'The cap is off by default because how the game builds S for a given craft was not decoded. Tick it to see the effect of an example S.',
+    'The stored jet fuel is what sits in the exhaust\'s own 4 L buffer. The exhaust never subtracts it; how fast the Fuel port refills it from the tank depends on the pipe network and is not modelled.',
+    'Height is read from the vehicle; treating it as metres is an inference. The basic, rotating and afterburner exhausts share the coefficient; the rotating exhaust only turns the direction.',
+  ],
+};
+
+const JET_CHAMBER = {
+  intro: (
+    <p>
+      Above 0.5 RPS the combustion chamber burns jet fuel in proportion to throttle × RPS and adds pressure and heat to the air passing
+      through it, in the same proportion. At or below 0.5 RPS it passes the air on unchanged and burns nothing. The RPS is the chamber&apos;s
+      own, which it shares with the compressors and turbines joined to it.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="u">{mi('u')}{mo('=')}{mi('min')}<mrow>{mo('(')}{mi('clamp')}{mo('(')}{mi('throttle')}{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}{mo(',')}<mfrac>{mi('fuel')}<mrow>{mn('0.0002')}{mi('r')}</mrow></mfrac>{mo(')')}</mrow><mspace width="1em" /><mtext>only when </mtext>{mi('r')}{mo('>')}{mn('0.5')}</mrow>,
+        <mrow key="q">{sub('Q', 'fuel')}{mo('=')}{mn('0.0002')}{mi('u')}{mi('r')}{mo('×')}{mn('10')}<mtext> L </mtext>{mo('×')}{mn('60')}{mo('=')}{mn('0.12')}{mi('u')}{mi('r')}<mspace width="0.5em" /><mtext>L/s</mtext></mrow>,
+        <mrow key="p">{sub('p', 'out')}{mo('=')}{sub('p', 'in')}{mo('+')}{mn('1600')}{mi('u')}{mi('r')}<mspace width="1em" />{sub('t', 'out')}{mo('=')}{sub('t', 'in')}{mo('+')}{mn('0.1')}{mi('u')}{mi('r')}</mrow>,
+      ]}
+      text={[
+        'r = chamber RPS; combustion only when r > 0.5, otherwise u = 0',
+        'u = min(clamp(Throttle, 0, 1), clamp(jet fuel in buffer / (0.0002 r), 0, 1)); infinite_fuel skips the fuel limit',
+        'Fuel per update = 0.0002 * u * r amount = 0.12 * u * r L/s at 60 updates/s and 10 L per amount',
+        'p_out = p_in + 1600 * u * r, t_out = t_in + 0.1 * u * r per update, internal units; then p_in = 0',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'The chamber\'s 4 L buffer is assumed to hold enough jet fuel. A buffer the Fuel port cannot keep filled lowers u for that update.',
+    'Pressure and temperature are added per update in the game\'s internal units, which were not calibrated to pascals or degrees. Neighbour averaging, the turbines and the exhausts change them before the next update, so these are additions, not the engine\'s pressure.',
+    'RPS is an input here. How fast an assembled engine reaches a given RPS, and where it settles, depends on the whole engine and was not traced.',
+  ],
+};
+
+const CONTENT = {
+  engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
+};
 
 function Evidence({ items }) {
   return (

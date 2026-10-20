@@ -6,6 +6,7 @@
 // Air scoop: investigation/air-scoop.md (flow law) and investigation/air-scoop-followup.md (m/s, L/s display).
 // Control surfaces: investigation/control-surfaces.md (rudder update 0x1403dfd20).
 // Classic engines: investigation/classic-engines.md (classic engine update 0x14034ba00).
+// Jet engines: investigation/jet-engines.md (jet engine update 0x140350f40).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -446,6 +447,80 @@ export function classicThermal({ rps, engine, coolant, liquidFraction = 1, ambie
   };
 }
 
+// Modular jet update 0x140350f40, investigation/jet-engines.md, ported from investigation/native/jet-engines/tools/model.py.
+// One part for one update, before the neighbour averaging of the next update and the shared-RPS pass; not an assembled engine.
+// r is the part's local RPS. Pressure, temperature, charge and force stay in internal units. Jet fuel is 10 L per amount.
+export const JET = {
+  retention: 0.99, starterGain: 0.01, starterRequest: 0.1, pressurePerRps: 100, transfer: 0.2, load: 0.0001,
+  fuelPerRps: 0.0002, ignition: 0.5, heat: 0.1, pressureGain: 1600, bufferAmount: 0.4, litresPerAmount: 10,
+  turbineShare: 0.5, turbineGain: 0.000075, generatorDivisor: 10000, generatorCap: 0.02, turbineMagnitude: 0.025, shaftWeight: 160,
+  threshold: 1000, coefficient: 32, altitudeSlope: 1.5, altitudeSpan: 40000, afterburnerSlope: 0.5, afterburnerReference: 0.001, limit: 100,
+};
+
+// Compressor (subtype 1). supplied is the fraction of the 0.1 charge request the draw helper returns.
+export function jetCompressor({ rps, pIn = 0, pOut = 0, tIn = 0, enabled = true, supplied = 1 }) {
+  finite([rps, pIn, pOut, tIn, supplied]);
+  const r0 = JET.retention * (rps + (enabled ? JET.starterGain * clamp(supplied, 0, 1) : 0));
+  const q = JET.transfer * (JET.pressurePerRps * r0 - (pOut - pIn));
+  return { r0, transfer: q, rps: r0 - JET.load * q, pIn: pIn - q, pOut: pOut + q, tOut: tIn, chargeRequest: enabled ? JET.starterRequest : 0 };
+}
+
+// Combustion chamber (subtype 2). fuelAmount is the jet fuel in the buffer, in amounts (10 L each).
+export function jetChamber({ rps, throttle = 1, pIn = 0, tIn = 0, fuelAmount = JET.bufferAmount, infinite = false }) {
+  finite([rps, throttle, pIn, tIn, fuelAmount]);
+  const ignited = rps > JET.ignition;
+  const demand = ignited ? JET.fuelPerRps * rps : 0;
+  let u = ignited ? clamp(throttle, 0, 1) : 0;
+  if (demand && !infinite) u = Math.min(u, clamp(fuelAmount / demand, 0, 1));
+  const requested = u * demand;
+  const used = infinite ? 0 : requested;
+  const toSeconds = UPDATES_PER_SECOND * JET.litresPerAmount;
+  return {
+    ignited, throttle: u, demand,
+    fuelPerUpdate: used, litresPerSecond: used * toSeconds, requestedLitresPerSecond: requested * toSeconds,
+    fuelRemaining: fuelAmount - used,
+    pressureAdded: JET.pressureGain * u * rps, temperatureAdded: JET.heat * u * rps,
+    pOut: pIn + JET.pressureGain * u * rps, tOut: tIn + JET.heat * u * rps, pIn: 0,
+  };
+}
+
+// Turbine (subtype 3). shaftRps is the group speed the medium turbine reads back; null for the small turbine.
+export function jetTurbine({ rps, pIn, tIn = 0, damaged = false, shaftRps = null }) {
+  finite([rps, pIn, tIn]);
+  const captured = JET.turbineShare * pIn;
+  const r0 = rps + (damaged ? 0 : JET.turbineGain * captured);
+  const k = Math.min(r0 / JET.generatorDivisor, JET.generatorCap);
+  const charge = Math.max(0, Math.abs(r0) * JET.turbineMagnitude * k);
+  const submitted = (1 - k) * r0;
+  return {
+    r0, k, submitted, rps: shaftRps === null ? submitted : Math.max(shaftRps, 0),
+    shaftWeight: shaftRps === null ? null : JET.shaftWeight,
+    pOut: pIn - captured, pIn: pIn * 0.5, tOut: tIn,
+    chargePerUpdate: charge, chargePerSecond: charge * UPDATES_PER_SECOND,
+  };
+}
+
+export function jetAltitudeFactor(altitude) {
+  finite([altitude]);
+  return clamp(1 - (altitude * JET.altitudeSlope) / JET.altitudeSpan, 0, 1);
+}
+
+// Exhaust (subtype 4). fuelAmount is the jet fuel stored in the exhaust's buffer and totalAmount all liquid in it.
+// scale is the per-vehicle application scale S; null leaves the force uncapped.
+export function jetExhaust({ pressure, altitude = 0, spoiler = 0, afterburner = false, fuelAmount = 0, totalAmount = null, scale = null }) {
+  finite([pressure, altitude, spoiler, fuelAmount]);
+  const total = totalAmount ?? fuelAmount;
+  finite([total]);
+  if (scale !== null && (!Number.isFinite(scale) || scale <= 0)) throw new RangeError('The application scale must be a positive number.');
+  const altitudeFactor = jetAltitudeFactor(altitude);
+  const boost = afterburner && Math.min(total, JET.afterburnerReference) > 0 ? 1 + (JET.afterburnerSlope * fuelAmount) / JET.afterburnerReference : 1;
+  const spoilerFactor = clamp(1 - spoiler, 0, 1);
+  const raw = JET.coefficient * Math.max(pressure - JET.threshold, 0) * altitudeFactor * boost * spoilerFactor;
+  const cap = scale === null ? null : JET.limit * scale;
+  const applied = cap === null ? raw : Math.min(raw, cap);
+  return { raw, applied, capped: cap !== null && raw > cap, cap, altitudeFactor, boost, spoilerFactor, impulsePerUpdate: applied / UPDATES_PER_SECOND };
+}
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -458,5 +533,9 @@ const FAMILY_GRAPHS = {
   'control-surface': ['surface'],
   'control-fin': ['surface'],
   'diesel-engine': ['classic'],
+  'part-jet-engine-exhaust-basic': ['jet'],
+  'part-jet-engine-exhaust-afterburner': ['jet'],
+  'part-jet-engine-exhaust-rotating': ['jet'],
+  'part-jet-engine-combustion-chamber': ['chamber'],
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

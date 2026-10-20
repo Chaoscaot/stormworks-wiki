@@ -81,10 +81,8 @@ def inventory():
                     if not text or text.startswith(SKIP): continue
                     add(key,title,url,file,root_pointer+'/'+pointer,text,scope)
     # UI-only gaps are not all represented in the generated research JSON.
-    extras = [
-      ('family:part-jet-engine-exhaust-basic','Jet exhaust: recover the complete thrust formula','/parts/part-jet-engine-exhaust-basic',
-       'wiki/README.md','There is no jet thrust graph because the full thrust formula is not verified.'),
-    ]
+    # Entries are (key, title, wiki path, file, exact needle); the jet thrust graph gap was closed by the jet exhaust graph.
+    extras = []
     for key,title,url,file,needle in extras:
         lines=(ROOT/file).read_text().splitlines()
         matches=[(i+1,line.strip()) for i,line in enumerate(lines) if needle in line]
