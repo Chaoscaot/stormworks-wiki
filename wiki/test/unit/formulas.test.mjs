@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1161,4 +1161,115 @@ test('gun heat stops at 1, resumes below 0.25 and respects a released trigger', 
   const half = solidRocket({ width: 3, length: 3, sections: 1, burnRate: 0.5 });
   assert.deepEqual([half.use, half.thrust, half.updates], [1801, 108060, 600]);
   assert.throws(() => projectileFlight({ gun: rotary, angle: 5, height: 0 }), RangeError);
+});
+
+test('steam constants and part sizes remain tied to the verified native findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const all = data.families.flatMap((f) => f.findings);
+  const value = (label) => {
+    const x = all.find((f) => f.label === label);
+    assert.ok(x?.source?.address, label);
+    return Math.fround(Number(x.value));
+  };
+  const same = (label, v) => assert.equal(value(label), Math.fround(v), label);
+  same('Coal burn rate per voxel', STEAM.burnPerVoxel);
+  same('Firebox target temperature', STEAM.targetTemperature);
+  same('Firebox burn span', STEAM.burnSpan);
+  same('Fire temperature per coal burned', STEAM.heatPerCoal);
+  same('Firebox gas request divisor', STEAM.gasDivisor);
+  same('Firebox oxygen reference', STEAM.oxygenReference);
+  same('Firebox ambient loss', STEAM.fireAmbient);
+  same('Firebox coolant exchange per voxel', STEAM.coolantPerVoxel);
+  same('Boiling threshold', STEAM.boiling);
+  same('Evaporation per degree', STEAM.evaporation);
+  same('Condensation cap', STEAM.condensationCap);
+  same('Phase temperature feedback', STEAM.phaseFeedback);
+  same('Boiler heat exchange coefficient', STEAM.exchange);
+  same('Boiler exchange threshold', STEAM.exchangeFloor);
+  same('Boiler ambient loss', STEAM.boilerAmbient);
+  same('Turbine flow factor', STEAM.turbineFactor);
+  same('Turbine speed retention', STEAM.turbineRetention);
+  same('Turbine shaft weight', STEAM.turbineWeight);
+  same('Turbine damaged gain', STEAM.turbineDamaged);
+  assert.equal(value('Turbine steam read scale') * value('Turbine speed gain'), STEAM.turbineGain);
+  assert.equal(Math.fround(value('Piston drive scale') * value('Piston drive factor')), Math.fround(STEAM.pistonDrive));
+  same('Piston damaged drive', STEAM.pistonDamaged);
+  same('Piston shaft weight per voxel', STEAM.pistonWeightPerVoxel);
+  same('Piston valve switch phase', STEAM.valvePhase);
+  const voxels = (name) => Number(all.find((f) => f.label === `${name} · listed voxels`).value);
+  const blocks = new Map(JSON.parse(readFileSync(new URL('../../data/blocks.json', import.meta.url), 'utf8')).blocks.map((b) => [b.id, b]));
+  for (const b of [...FIREBOXES, ...STEAM_PISTONS]) assert.equal(voxels(blocks.get(b.id).name), b.voxels, b.id);
+  assert.equal(fireboxFor('steam_coal_firebox').voxels, 45);
+  assert.equal(steamPistonFor('steam_piston_5x5').voxels, 285);
+  for (const id of ['steam-firebox', 'part-steam-boiler', 'part-steam-turbine']) assert.deepEqual(graphKindsForFamily(id), ['steam']);
+  assert.deepEqual(graphKindsForFamily('steam-piston'), ['piston']);
+  assert.deepEqual(graphKindsForFamily('coal-duct'), []);
+});
+
+test('steam model passes the checks of investigation/native/steam/tools/verify.py', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) <= 1e-10 * Math.max(1, Math.abs(b)), `${a} != ${b}`);
+  for (const t of [20, 99.9, 100, 100.1, 150, 600]) {
+    const p = steamPhase({ water: 3, salt: 5, steam: 2, temperature: t });
+    close(p.water + p.salt + p.steam, 10);
+    assert.ok(Math.min(p.water, p.salt, p.steam) >= 0);
+    close(p.temperature, t - (0.01 * p.converted) / 10);
+    if (t > 100) close(p.water / p.salt, 3 / 5);
+  }
+  assert.equal(steamPhase({ water: 0, steam: 1, temperature: 0 }).steam, 0.9);
+  assert.equal(steamPhase({ water: 8, temperature: 100 }).converted, 0);
+  const hot = steamPhase({ water: 8, temperature: 150 });
+  assert.deepEqual([hot.water, hot.steam, hot.temperature, hot.converted], [7.95, 0.05, 149.9999375, 0.05]);
+  for (const n of [45, 175]) {
+    const b = fireboxBurn({ temperature: 20, voxels: n });
+    close(b.burn, 0.00002 * n);
+    close(b.temperature - 20, 200 * b.burn);
+    assert.equal(fireboxBurn({ temperature: 20, voxels: n, oxygen: 0 }).burn, 0);
+    assert.equal(fireboxBurn({ temperature: 20, voxels: n, airPressure: 1, exhaustPressure: 0 }).burn, 0);
+    assert.equal(fireboxBurn({ temperature: 600, voxels: n }).burn, 0);
+  }
+  assert.equal(turbineFlowCap(2, 1), 1 / 24000);
+  assert.equal(turbineFlowCap(1, 2), 0);
+  assert.equal(turbineFlowCap(2, 2), 0);
+  assert.ok(turbineFlowCap(60, 0) <= 1 / 600 + 1e-12);
+  const q = 1 / 24000;
+  const steady = (0.985 * 1000 * q) / 0.015;
+  close(turbineStep(steady, q), steady);
+  close(turbineStep(0, q, 1), 0.6 * turbineStep(0, q));
+  assert.equal(turbineStep(0, q, 20), 0);
+  close(pistonDrive({ pa: 1, pb: 2, phase: 0.25 }), 0.002);
+  close(pistonDrive({ pa: 1, pb: 2, phase: 0.75 }), -0.002);
+  close(pistonDrive({ pa: 1, pb: 2, phase: 0 }), 0);
+  assert.equal(pistonDrive({ pa: 1, pb: 2, phase: 0.25, damage: 10 }), 0);
+  close(pistonDrive({ pa: 1, pb: 2, phase: 0.25, damage: 1 }), 0.0012);
+  const [a, b] = steamExchange(300, 20, 400, 4, 0.14);
+  close(400 * a + 4 * b, 400 * 300 + 4 * 20);
+  // The half-turn valves: the open chamber matches the sign of the sine, so the drive keeps one direction.
+  assert.deepEqual(pistonValves(0.25), { firstIn: false, firstOut: true, secondIn: true, secondOut: false });
+  assert.deepEqual(pistonValves(0.5), { firstIn: true, firstOut: false, secondIn: false, secondOut: true });
+  for (const z of [0.1, 0.25, 0.4, 0.6, 0.75, 0.9]) {
+    const v = pistonValves(z);
+    assert.ok(pistonDrive({ pa: v.firstIn ? 10 : 1, pb: v.secondIn ? 10 : 1, phase: z }) > 0, `z ${z}`);
+  }
+  for (const n of [45, 175]) {
+    const end = steamCycle({ voxels: n, seconds: 3600, every: 216000 }).rows;
+    const r = steamCycle({ voxels: n, seconds: 3600 + 1 / 60, every: 1 }).rows.at(-1);
+    assert.ok(['fire', 'coolant', 'boiler', 'speed'].every((k) => Math.abs(r[k] - end.at(-1)[k]) < 1e-9), 'cycle steady state');
+  }
+});
+
+test('steam cycle reproduces investigation/native/steam/tools/examples.json when present', (t) => {
+  const file = new URL('../../../investigation/native/steam/tools/examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const ex = JSON.parse(readFileSync(file, 'utf8'));
+  // model.py applies 0.001 boiler ambient loss; the bytes at 0x140baf898 give 0.0001, which the wiki graph uses.
+  for (const want of ex.cycle) {
+    const r = steamCycle({ voxels: want.voxels, seconds: want.seconds, boilerAmbient: 0.001, every: want.seconds * 60 }).rows.at(-1);
+    assert.deepEqual([r.fire, r.coolant, r.boiler, r.coal, r.steam, r.admitted, r.speed],
+      [want.firebox_T, want.coolant_T, want.boiler_T, want.coal_per_s, want.steam_internal_per_s, want.turbine_admitted_internal_per_s, want.turbine_target_RPS], `${want.voxels} voxels`);
+  }
+  const p = steamPhase({ water: 8, temperature: 150 });
+  assert.deepEqual([p.water, p.salt, p.steam, p.temperature, p.converted], ex.phase_at_150);
+  assert.equal(turbineFlowCap(2, 1), ex.turbine_PA2_PB1.q_cap);
+  assert.ok(Math.abs((0.985 * 1000 * turbineFlowCap(2, 1)) / 0.015 - ex.turbine_PA2_PB1.steady_target_RPS) < 1e-12);
+  assert.equal(pistonDrive({ pa: 1, pb: 2, phase: 0.25 }), ex.piston_PA1_PB2_phase_quarter);
 });

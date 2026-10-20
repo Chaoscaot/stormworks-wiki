@@ -15,6 +15,7 @@
 // Radio: investigation/radio.md (receive routine 0x14054a780).
 // Propellers, rotors and ducted fans: investigation/propulsion.md (force-emitter force and load phase 0x14033efb0).
 // Guns and solid rockets: investigation/weapons.md (gun update 0x140427390, projectile update 0x140591d80, nozzle update 0x140437570).
+// Steam: investigation/steam.md (steam update 0x14040cbd0, phase helper 0x1402eb350).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -1059,6 +1060,137 @@ export function solidRocket({ width, length, sections = 1, burnRate = 1, fuelFac
   };
 }
 
+// Steam cycle, investigation/steam.md (steam update 0x14040cbd0, phase helper 0x1402eb350), ported from
+// investigation/native/steam/tools/model.py in double precision. The boiler's phase and coolant chambers lose 0.0001 of their
+// gap to the surroundings per update (0x140baf898); model.py uses 0.001, so its examples are reproduced with boilerAmbient 0.001.
+export const STEAM = {
+  burnPerVoxel: 0.00002, targetTemperature: 600, burnSpan: 400, heatPerCoal: 200, gasDivisor: 60, oxygenReference: 0.21,
+  fireAmbient: 0.001, coolantPerVoxel: 0.0008, fireWeight: 400, boiling: 100, evaporation: 0.001, condensationCap: 0.1, phaseFeedback: 0.01,
+  exchange: 0.1, exchangeFloor: 0.001, boilerAmbient: 0.0001, turbineFactor: 0.0025, turbineGain: 1000, turbineDamaged: 0.6, turbineDamageLimit: 20,
+  turbineRetention: 0.985, turbineWeight: 65, pistonDrive: 0.002, pistonDamaged: 0.6, pistonDamageLimit: 10, pistonWeightPerVoxel: 20, valvePhase: 0.5,
+};
+export const FIREBOXES = [
+  { id: 'steam_coal_firebox', label: 'Firebox', voxels: 45 },
+  { id: 'steam_coal_firebox_l', label: 'Firebox Large', voxels: 175 },
+];
+export const STEAM_PISTONS = [
+  { id: 'steam_piston', label: 'Small', voxels: 6 },
+  { id: 'steam_piston_3x3', label: 'Medium', voxels: 81 },
+  { id: 'steam_piston_5x5', label: 'Large', voxels: 285 },
+];
+export const fireboxFor = (variant = null) => FIREBOXES.find((b) => b.id === variant) ?? FIREBOXES[1];
+export const steamPistonFor = (variant = null) => STEAM_PISTONS.find((p) => p.id === variant) ?? STEAM_PISTONS[0];
+const unitClamp = (x) => clamp(x, 0, 1);
+
+// Phase helper: at or above 100 boil min(0.001 × (T − 100), water + salt), below 100 condense min(0.001 × (100 − T), 0.1 × steam).
+export function steamPhase({ water, salt = 0, steam = 0, temperature }) {
+  finite([water, salt, steam, temperature]);
+  const total = water + salt + steam;
+  const t = temperature;
+  if (t < STEAM.boiling && steam > 0) {
+    const q = Math.min((STEAM.boiling - t) * STEAM.evaporation, STEAM.condensationCap * steam);
+    return { water: water + q, salt, steam: steam - q, temperature: t + (STEAM.phaseFeedback * q) / total, converted: -q };
+  }
+  if (t >= STEAM.boiling && water + salt > 0) {
+    const liquid = water + salt;
+    const q = Math.min((t - STEAM.boiling) * STEAM.evaporation, liquid);
+    return { water: water - (q * water) / liquid, salt: salt - (q * salt) / liquid, steam: steam + q, temperature: t - (STEAM.phaseFeedback * q) / total, converted: q };
+  }
+  return { water, salt, steam, temperature: t, converted: 0 };
+}
+
+// Weighted exchange used by the firebox (weights 400 and coolant amount) and the boiler (liquid amounts), from the old temperatures.
+export function steamExchange(ta, tb, qa, qb, k) {
+  if (qa + qb <= STEAM.exchangeFloor) return [ta, tb];
+  return [ta + ((tb - ta) * k * qb) / (qa + qb), tb + ((ta - tb) * k * qa) / (qa + qb)];
+}
+
+// One update of an ignited firebox with coal in its reserve. Air chamber of total amount airAmount holding `oxygen` of species 10.
+export function fireboxBurn({ temperature, voxels, airAmount = 4, oxygen = 0.84, airPressure = 2, exhaustPressure = 0, unlimited = false }) {
+  finite([temperature, voxels, airAmount, oxygen, airPressure, exhaustPressure]);
+  let b = unitClamp((STEAM.targetTemperature - temperature) / STEAM.burnSpan) * STEAM.burnPerVoxel * voxels;
+  if (b <= 0) return { burn: 0, temperature };
+  if (!unlimited) {
+    const request = (b * STEAM.heatPerCoal) / STEAM.gasDivisor;
+    const fraction = unitClamp(request / airAmount) * unitClamp(airPressure - 1 - exhaustPressure);
+    b *= unitClamp((fraction * oxygen) / (request * STEAM.oxygenReference));
+  }
+  return { burn: b, temperature: temperature + STEAM.heatPerCoal * b };
+}
+
+// Largest one-way steam step through the turbine for pure gas in networks of volume va and vb, satisfied prior allocation.
+export function turbineFlowCap(pa, pb, va = 4, vb = 4) {
+  finite([pa, pb, va, vb]);
+  if (pa <= pb) return 0;
+  const wa = Math.min(va, 8);
+  const wb = Math.min(vb, 8);
+  const fa = (wa * pa) / 60;
+  const fb = (wb * pb) / 60;
+  const m = (pa * wa + pb * wb) / (wa + wb);
+  const target = clamp(clamp(m, pa - 20, pa + 20), 0, 60);
+  const d = Math.min((1 - target / pa) * fa, wb - fb);
+  return Math.max(0, Math.min(0.5 * STEAM.turbineFactor * Math.abs(d), fa));
+}
+
+// v = 0.985 × (v + gain); gain 1000 × steam, × 0.6 when damaged, 0 from damage 20.
+export function turbineStep(speed, steam, damage = 0) {
+  let gain = damage < STEAM.turbineDamageLimit ? STEAM.turbineGain * Math.max(0, steam) : 0;
+  if (damage) gain *= STEAM.turbineDamaged;
+  return STEAM.turbineRetention * (speed + gain);
+}
+
+// Ports open by half turn: from z = 0.5 the first Steam In and second Steam Out, below it the first Steam Out and second Steam In.
+export const pistonValves = (phase) => {
+  const late = phase >= STEAM.valvePhase;
+  return { firstIn: late, firstOut: !late, secondIn: !late, secondOut: late };
+};
+
+// Contribution added to the crank group accumulator per update, not a torque: 0.002 × (pb − pa) × sin(2πz).
+export function pistonDrive({ pa, pb, phase, damage = 0 }) {
+  finite([pa, pb, phase, damage]);
+  if (damage >= STEAM.pistonDamageLimit) return 0;
+  return STEAM.pistonDrive * (pb - pa) * Math.sin(2 * Math.PI * phase) * (damage ? STEAM.pistonDamaged : 1);
+}
+
+// Reduced cycle of model.py: water held at `water` by feed, steam drained, a perfectly circulated shared coolant amount,
+// fully supplied air at 21% oxygen (Air pressure 2, Exhaust 0) and turbine reservoirs at inlet and exhaust pressure.
+export function steamCycle({ voxels = 175, seconds = 600, water = 8, coolant = 4, ambient = 20, inlet = 2, exhaust = 1, boilerAmbient = STEAM.boilerAmbient, every = 60 }) {
+  finite([voxels, seconds, water, coolant, ambient, inlet, exhaust, boilerAmbient, every]);
+  if (voxels <= 0 || water <= 0 || coolant <= 0 || seconds <= 0 || every < 1) throw new RangeError('Voxels, water, coolant, duration and sampling must be positive.');
+  let tf = ambient;
+  let tc = ambient;
+  let tb = ambient;
+  let speed = 0;
+  let coal = 0;
+  let steamTotal = 0;
+  const cap = turbineFlowCap(inlet, exhaust);
+  const updates = Math.round(seconds * UPDATES_PER_SECOND);
+  const rows = [{ t: 0, fire: tf, coolant: tc, boiler: tb, coal: 0, steam: 0, admitted: 0, speed: 0, coalTotal: 0, steamTotal: 0 }];
+  for (let tick = 1; tick <= updates; tick += 1) {
+    const fire = fireboxBurn({ temperature: tf, voxels });
+    tf = fire.temperature;
+    coal += fire.burn;
+    tf += (ambient - tf) * STEAM.fireAmbient;
+    [tf, tc] = steamExchange(tf, tc, STEAM.fireWeight, coolant, voxels * STEAM.coolantPerVoxel);
+    const ph = steamPhase({ water, temperature: tb });
+    tb = ph.temperature;
+    [tb, tc] = steamExchange(tb, tc, water, coolant, STEAM.exchange);
+    tb += (ambient - tb) * boilerAmbient;
+    tc += (ambient - tc) * boilerAmbient;
+    const q = Math.max(0, ph.converted);
+    steamTotal += q;
+    const admitted = Math.min(q, cap);
+    speed = turbineStep(speed, admitted);
+    if (tick % every === 0 || tick === updates) {
+      rows.push({
+        t: tick / UPDATES_PER_SECOND, fire: tf, coolant: tc, boiler: tb, coal: fire.burn * UPDATES_PER_SECOND, steam: q * UPDATES_PER_SECOND,
+        admitted: admitted * UPDATES_PER_SECOND, speed, coalTotal: coal, steamTotal,
+      });
+    }
+  }
+  return { rows, cap };
+}
+
 const FAMILY_GRAPHS = {
   'part-torque-clutch': ['clutch'],
   'modular-engine-clutch': ['clutch'],
@@ -1085,5 +1217,9 @@ const FAMILY_GRAPHS = {
   ...Object.fromEntries(PROPELLER_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['propeller']])),
   ...Object.fromEntries(GUN_CLASSES.flatMap((g) => g.families).map((id) => [id, id === 'part-gun-v' ? ['ballistics', 'heat'] : ['ballistics']])),
   ...Object.fromEntries(SOLID_ROCKET_FAMILIES.map((id) => [id, ['booster']])),
+  'steam-firebox': ['steam'],
+  'part-steam-boiler': ['steam'],
+  'part-steam-turbine': ['steam'],
+  'steam-piston': ['piston'],
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

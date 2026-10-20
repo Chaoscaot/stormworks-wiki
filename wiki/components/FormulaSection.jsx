@@ -97,6 +97,16 @@ const FINDINGS = {
     'Thrust per fuel unit', 'Burn Rate slider scale', 'Thrust altitude factor slope', 'Thrust altitude factor exponent', 'Thrust altitude ceiling',
     'Solid rocket thrust application limit', 'Component updates per simulated second',
   ],
+  steam: [
+    'Coal burn rate per voxel', 'Firebox target temperature', 'Firebox burn span', 'Fire temperature per coal burned', 'Firebox gas request divisor',
+    'Firebox oxygen reference', 'Firebox ambient loss', 'Firebox coolant exchange per voxel', 'Firebox coolant exchange weights', 'Boiling threshold',
+    'Evaporation per degree', 'Phase temperature feedback', 'Boiler heat exchange coefficient', 'Boiler exchange threshold', 'Boiler ambient loss',
+    'Turbine flow factor', 'Turbine speed gain', 'Turbine speed retention', 'Turbine shaft weight', 'Component updates per simulated second',
+  ],
+  piston: [
+    'Piston phase wrap', 'Piston angle factor', 'Piston valve switch phase', 'Piston drive scale', 'Piston drive factor', 'Piston damaged drive',
+    'Piston damage bypass', 'Piston shaft weight per voxel', 'Piston chamber volume per voxel',
+  ],
 };
 
 const TITLES = {
@@ -118,6 +128,8 @@ const TITLES = {
   ballistics: 'Projectile height and drop against distance',
   heat: 'Rotary autocannon heat over a burst',
   booster: 'Solid rocket thrust and burn time against Burn Rate',
+  steam: 'Firebox, boiler and turbine warm-up over time',
+  piston: 'Steam piston drive against crank phase',
 };
 
 /*
@@ -789,10 +801,76 @@ const BOOSTER = {
   ],
 };
 
+const STEAM_CYCLE = {
+  intro: (
+    <p>
+      An ignited firebox burns up to 0.00002 × voxels coal per update and adds 200 to its fire temperature per unit burned. It heats a
+      coolant loop that runs through a boiler, and the boiler boils its water at a fixed 100 at 0.001 × (T − 100) per update. The steam
+      that the turbine can pass raises its target speed. The chart runs these rules from a cold start and plots temperatures, coal use,
+      steam production or turbine speed over simulated time.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="b">{mi('b')}{mo('=')}{mn('0.00002')}{mi('N')}{fn('clamp')}<mrow>{mo('(')}<mfrac><mrow>{mn('600')}{mo('−')}{sub('T', 'f')}</mrow>{mn('400')}</mfrac>{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}</mrow><mspace width="1em" />{sub('T', 'f')}{mo('←')}{sub('T', 'f')}{mo('+')}{mn('200')}{mi('b')}</mrow>,
+        <mrow key="e">{mi('x')}{mo('=')}{fn('min')}<mrow>{mo('(')}{mn('0.001')}<mrow>{mo('(')}{sub('T', 'b')}{mo('−')}{mn('100')}{mo(')')}</mrow>{mo(',')}{mi('W')}{mo(')')}</mrow><mspace width="1em" /><mtext>steam made per update</mtext></mrow>,
+        <mrow key="v">{mi('v')}{mo('←')}{mn('0.985')}<mrow>{mo('(')}{mi('v')}{mo('+')}{mn('1000')}{mi('q')}{mo(')')}</mrow><mspace width="1em" />{mi('q')}{mo('≤')}<mfrac><mrow>{sub('P', 'in')}{mo('−')}{sub('P', 'out')}</mrow>{mn('24000')}</mfrac></mrow>,
+      ]}
+      text={[
+        'Each update, in this order:',
+        '  firebox: b = 0.00002 * N * clamp((600 - Tf) / 400, 0, 1); Tf = Tf + 200 * b (air fully supplied, so oxygen does not cut b)',
+        '  Tf = Tf + 0.001 * (Ta - Tf)',
+        '  fire and coolant: k = 0.0008 * N, weights 400 and coolant amount Ac, both from the old temperatures',
+        '  boiler: at Tb >= 100, x = min(0.001 * (Tb - 100), W) becomes steam; Tb = Tb - 0.01 * x / W',
+        '  boiler and coolant: k = 0.1, weights W and Ac; then Tb and Tc each move 0.0001 of the way to Ta',
+        '  turbine: q = min(x, cap), cap = (Pin - Pout) / 24000 for pure steam in volume-4 networks; v = 0.985 * (v + 1000 * q)',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'The fire is already ignited and its reserve never runs out. The ignition coal and whole-item accounting are left out.',
+    'Air arrives at 21% oxygen, Air pressure 2 and Exhaust pressure 0, so the burn is never cut by air. Real ducts and pipes can starve it.',
+    'The boiler holds 8 units of water, refilled as it boils, and all its steam leaves at once. The coolant is one perfectly mixed amount of 4 shared by the firebox and the boiler, and the surroundings stay at 20.',
+    'The turbine sits between steam reservoirs at the chosen inlet pressure and 1, alone on an unloaded shaft. Steam it cannot pass leaves elsewhere. A load or other shaft members slow it.',
+    'No damage, condenser, pipe allocation or pressure inside the boiler is modelled. The figures are model output, not measurements, and temperatures are the game\'s internal values.',
+  ],
+};
+
+const STEAM_PISTON = {
+  intro: (
+    <p>
+      A steam piston opens one port of each chamber by half turn of its crank phase z: from z = 0.5 the first Steam In and the second
+      Steam Out, below 0.5 the first Steam Out and the second Steam In. Each update it adds 0.002 × (p_B − p_A) × sin(2πz) to its crank
+      group, p being chamber pressure times its steam fraction. The chart plots that contribution over one turn.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="a">{mi('a')}{mo('=')}{mn('0.002')}<mrow>{mo('(')}{sub('p', 'B')}{mo('−')}{sub('p', 'A')}{mo(')')}</mrow>{fn('sin')}<mrow>{mo('(')}{mn('2')}{mi('π')}{mi('z')}{mo(')')}</mrow><mspace width="1em" /><mtext>0.0012 at damage 1 to 9, 0 from damage 10</mtext></mrow>,
+        <mrow key="v"><mtext>open when</mtext><mspace width="0.5em" />{mi('z')}{mo('≥')}{mn('0.5')}<mtext>:</mtext><mspace width="0.5em" /><mtext>A from the first Steam In, B to the second Steam Out; otherwise A to the first Steam Out, B from the second Steam In</mtext></mrow>,
+      ]}
+      text={[
+        'z = group phase + offset, wrapped once into 0..1 (Piston Position)',
+        'pA, pB = chamber pressure * steam / total amount, read before this update\'s port exchanges',
+        'a = 0.002 * (pB - pA) * sin(2 * pi * z); * 0.6 at damage 1 to 9; 0 at damage 10 or more',
+        'group accumulator += a; both RPS ports submit the group speed with weight 20 * voxels',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'The admitting chamber is at the supply pressure and the venting chamber at the exhaust pressure the moment its port opens. Real chambers fill and empty over several updates, so the pressure difference lags each switch.',
+    'The chambers hold pure steam, so the steam fraction is 1.',
+    'a is the amount added to the crank group accumulator per update. How the group turns it into phase and shaft speed was not traced, so it is not a torque and is not plotted against speed.',
+    'The first and second Steam In and Steam Out ports are matched to the chambers by their order in the definition, an inference.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
-  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER,
+  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON,
 };
 
 function Evidence({ items }) {

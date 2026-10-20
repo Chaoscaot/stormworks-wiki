@@ -1,0 +1,334 @@
+{
+  "executable": "stormworks64.exe",
+  "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+  "updates_per_second": 60,
+  "steam_species_index": 7,
+  "water_species_index": 0,
+  "salt_water_species_index": 6,
+  "amount_unit": "internal fluid amount, 10 unexpanded litres per unit; displayed gas litres use additional 60 factor",
+  "phase": {
+    "threshold_temperature": 100,
+    "pressure_dependent": false,
+    "water_to_steam_internal_ratio": 1,
+    "evaporation_per_tick": "min(.001*(T-100),fresh+salt)",
+    "condensation_per_tick": "min(.001*(100-T),.1*steam)",
+    "temperature_feedback": ".01*converted/total",
+    "evidence": "asm/phase.asm: 0x1402eb350..0x1402eb451"
+  },
+  "open": [
+    "steam_component_capacity metadata unit and any indirect/legacy consumer",
+    "complete global rupture and damage paths outside traced component routines",
+    "ignition-state countdown or clearing lifecycle",
+    "piston crank-group accumulator integration into final loaded shaft speed",
+    "physical energy units, N m calibration and thermodynamic efficiency"
+  ],
+  "parts": [
+    {
+      "file": "rom/data/definitions/steam_boiler.xml",
+      "definition_line": 2,
+      "subtype": 0,
+      "voxels": 175,
+      "resource_attributes": {
+        "name": "Steam Boiler",
+        "type": "53",
+        "mass": "500",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "0",
+        "steam_component_capacity": "0"
+      },
+      "phase_volume_internal": 17.5,
+      "coolant_volume_internal": 175,
+      "heat_exchange_coefficient_undamaged": 0.1,
+      "ambient_coefficient_per_tick": 0.001,
+      "water_intake_bias": -60,
+      "evidence": "asm/init.asm and asm/update.asm: subtype 0/1"
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_duct.xml",
+      "definition_line": 2,
+      "subtype": 7,
+      "voxels": 27,
+      "resource_attributes": {
+        "name": "Duct",
+        "type": "53",
+        "mass": "12",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "7",
+        "steam_component_capacity": "42.1875"
+      },
+      "coal_group_item_slots": 27,
+      "capacity_evidence": "asm/coal-network.asm: 0x1404b49e0..0x1404b49e6"
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_duct_l.xml",
+      "definition_line": 2,
+      "subtype": 7,
+      "voxels": 225,
+      "resource_attributes": {
+        "name": "Duct Large",
+        "type": "53",
+        "mass": "112",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "7",
+        "steam_component_capacity": "351.5625"
+      },
+      "coal_group_item_slots": 225,
+      "capacity_evidence": "asm/coal-network.asm: 0x1404b49e0..0x1404b49e6"
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_duct_m.xml",
+      "definition_line": 2,
+      "subtype": 7,
+      "voxels": 125,
+      "resource_attributes": {
+        "name": "Duct Medium",
+        "type": "53",
+        "mass": "62",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "7",
+        "steam_component_capacity": "195.3125"
+      },
+      "coal_group_item_slots": 125,
+      "capacity_evidence": "asm/coal-network.asm: 0x1404b49e0..0x1404b49e6"
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_firebox.xml",
+      "definition_line": 2,
+      "subtype": 4,
+      "voxels": 45,
+      "resource_attributes": {
+        "name": "Firebox",
+        "type": "53",
+        "mass": "100",
+        "steam_component_type": "4"
+      },
+      "coal_group_item_slots": 10,
+      "coolant_volume_internal": 4,
+      "air_volume_internal": 4,
+      "exhaust_volume_internal": 4,
+      "max_preliminary_coal_per_tick": 0.0009000000000000001,
+      "max_preliminary_coal_per_second": 0.05399999999999999,
+      "temperature_increment_per_actual_fractional_coal": 200,
+      "thermal_weight": 400,
+      "coolant_exchange_coefficient": 0.036000000000000004,
+      "target_temperature": 600,
+      "self_ignition_threshold_exclusive": 150,
+      "ignition_state_value": 3600,
+      "ignition_state_duration": "not recovered",
+      "evidence": [
+        "asm/update.asm: 0x14040e05e..0x14040e5ff",
+        "asm/coal-network.asm: 0x1404b49f6"
+      ]
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_firebox_l.xml",
+      "definition_line": 2,
+      "subtype": 4,
+      "voxels": 175,
+      "resource_attributes": {
+        "name": "Firebox Large",
+        "type": "53",
+        "mass": "400",
+        "steam_component_type": "4"
+      },
+      "coal_group_item_slots": 10,
+      "coolant_volume_internal": 4,
+      "air_volume_internal": 4,
+      "exhaust_volume_internal": 4,
+      "max_preliminary_coal_per_tick": 0.0035,
+      "max_preliminary_coal_per_second": 0.21,
+      "temperature_increment_per_actual_fractional_coal": 200,
+      "thermal_weight": 400,
+      "coolant_exchange_coefficient": 0.14,
+      "target_temperature": 600,
+      "self_ignition_threshold_exclusive": 150,
+      "ignition_state_value": 3600,
+      "ignition_state_duration": "not recovered",
+      "evidence": [
+        "asm/update.asm: 0x14040e05e..0x14040e5ff",
+        "asm/coal-network.asm: 0x1404b49f6"
+      ]
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_hopper.xml",
+      "definition_line": 2,
+      "subtype": 5,
+      "voxels": 27,
+      "resource_attributes": {
+        "name": "Hopper",
+        "type": "53",
+        "mass": "12",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "5"
+      },
+      "coal_group_item_slots": 27,
+      "capacity_evidence": "asm/coal-network.asm: 0x1404b49e0..0x1404b49e6"
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_hopper_l.xml",
+      "definition_line": 2,
+      "subtype": 5,
+      "voxels": 225,
+      "resource_attributes": {
+        "name": "Hopper Large",
+        "type": "53",
+        "mass": "112",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "5"
+      },
+      "coal_group_item_slots": 225,
+      "capacity_evidence": "asm/coal-network.asm: 0x1404b49e0..0x1404b49e6"
+    },
+    {
+      "file": "rom/data/definitions/steam_coal_hopper_m.xml",
+      "definition_line": 2,
+      "subtype": 5,
+      "voxels": 125,
+      "resource_attributes": {
+        "name": "Hopper Medium",
+        "type": "53",
+        "mass": "62",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "5"
+      },
+      "coal_group_item_slots": 125,
+      "capacity_evidence": "asm/coal-network.asm: 0x1404b49e0..0x1404b49e6"
+    },
+    {
+      "file": "rom/data/definitions/steam_condenser.xml",
+      "definition_line": 2,
+      "subtype": 1,
+      "voxels": 75,
+      "resource_attributes": {
+        "name": "Steam Condenser",
+        "type": "53",
+        "mass": "250",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "1"
+      },
+      "phase_volume_internal": 7.5,
+      "coolant_volume_internal": 75,
+      "heat_exchange_coefficient_undamaged": 0.1,
+      "ambient_coefficient_per_tick": 0.001,
+      "water_intake_bias": 0,
+      "evidence": "asm/init.asm and asm/update.asm: subtype 0/1"
+    },
+    {
+      "file": "rom/data/definitions/steam_piston.xml",
+      "definition_line": 2,
+      "subtype": 3,
+      "voxels": 6,
+      "resource_attributes": {
+        "name": "Steam Piston (Small)",
+        "type": "53",
+        "mass": "12",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "3"
+      },
+      "chamber_volume_each_internal": 0.009000000000000001,
+      "shaft_weight_each_port": 120,
+      "rod_length_render_units": 0.44,
+      "crank_radius_render_units": 0.075,
+      "inferred_render_stroke": 0.15,
+      "render_unit": "world distance, metres inferred",
+      "phase_output_range": [
+        0,
+        1
+      ],
+      "phase_output_unit": "turns, one-step wrapped",
+      "group_accumulator_gain_per_steam_partial_pressure_sine": 0.002,
+      "evidence": [
+        "asm/init.asm",
+        "asm/update.asm: 0x14040da00..0x14040dddc",
+        "asm/definition-steam.asm",
+        "asm/piston-render.asm"
+      ]
+    },
+    {
+      "file": "rom/data/definitions/steam_piston_3x3.xml",
+      "definition_line": 2,
+      "subtype": 3,
+      "voxels": 81,
+      "resource_attributes": {
+        "name": "Steam Piston (Medium)",
+        "type": "53",
+        "mass": "120",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "3",
+        "piston_len": "0.686",
+        "piston_cam": "0.146"
+      },
+      "chamber_volume_each_internal": 0.1215,
+      "shaft_weight_each_port": 1620,
+      "rod_length_render_units": 0.686,
+      "crank_radius_render_units": 0.146,
+      "inferred_render_stroke": 0.292,
+      "render_unit": "world distance, metres inferred",
+      "phase_output_range": [
+        0,
+        1
+      ],
+      "phase_output_unit": "turns, one-step wrapped",
+      "group_accumulator_gain_per_steam_partial_pressure_sine": 0.002,
+      "evidence": [
+        "asm/init.asm",
+        "asm/update.asm: 0x14040da00..0x14040dddc",
+        "asm/definition-steam.asm",
+        "asm/piston-render.asm"
+      ]
+    },
+    {
+      "file": "rom/data/definitions/steam_piston_5x5.xml",
+      "definition_line": 2,
+      "subtype": 3,
+      "voxels": 285,
+      "resource_attributes": {
+        "name": "Steam Piston (Large)",
+        "type": "53",
+        "mass": "300",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "3",
+        "piston_len": "1.2",
+        "piston_cam": "0.216"
+      },
+      "chamber_volume_each_internal": 0.4275,
+      "shaft_weight_each_port": 5700,
+      "rod_length_render_units": 1.2,
+      "crank_radius_render_units": 0.216,
+      "inferred_render_stroke": 0.432,
+      "render_unit": "world distance, metres inferred",
+      "phase_output_range": [
+        0,
+        1
+      ],
+      "phase_output_unit": "turns, one-step wrapped",
+      "group_accumulator_gain_per_steam_partial_pressure_sine": 0.002,
+      "evidence": [
+        "asm/init.asm",
+        "asm/update.asm: 0x14040da00..0x14040dddc",
+        "asm/definition-steam.asm",
+        "asm/piston-render.asm"
+      ]
+    },
+    {
+      "file": "rom/data/definitions/steam_turbine.xml",
+      "definition_line": 2,
+      "subtype": 2,
+      "voxels": 225,
+      "resource_attributes": {
+        "name": "Steam Turbine",
+        "type": "53",
+        "mass": "500",
+        "force_emitter_max_force": "1000",
+        "steam_component_type": "2"
+      },
+      "shaft_weight_each_port": 65,
+      "shaft_target_decay_per_tick": 0.985,
+      "shaft_target_gain_per_internal_steam_transferred_after_decay": 985,
+      "shaft_target_gain_before_decay": 1000,
+      "flow_factor": 0.0025,
+      "one_way": true,
+      "evidence": "asm/update.asm: 0x14040d860..0x14040d909"
+    }
+  ]
+}

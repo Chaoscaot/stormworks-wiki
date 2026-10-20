@@ -7,6 +7,7 @@ import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
   exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce, standaloneClutch, standaloneClutchOnset, TRANSMISSION,
   GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON,
+  FIREBOXES, STEAM, fireboxFor, pistonDrive, pistonValves, steamCycle, steamPistonFor,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -2148,10 +2149,200 @@ function BoosterGraph({ variant }) {
   );
 }
 
+/* ---------- steam cycle ---------- */
+
+const STEAM_PLOTS = {
+  temperature: { label: 'Temperatures', axis: 'Temperature (internal)' },
+  coal: { label: 'Coal burned per second', axis: 'Coal per simulated second' },
+  steam: { label: 'Steam made per second', axis: 'Internal steam amount per simulated second' },
+  speed: { label: 'Turbine target speed', axis: 'Target RPS' },
+};
+const STEAM_TEMPS = [
+  { key: 'fire', label: 'Fire', className: 'graph-line-a', dot: 'graph-dot-a' },
+  { key: 'coolant', label: 'Coolant', className: 'graph-line-b', dot: 'graph-dot-b' },
+  { key: 'boiler', label: 'Boiler water', className: 'graph-line-c', dot: 'graph-dot-c' },
+];
+const STEAM_DURATIONS = [60, 300, 1200, 3600];
+
+function SteamGraph({ variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => fireboxFor(variant).id);
+  const [plot, setPlot] = useState('temperature');
+  const [duration, setDuration] = useState(60);
+  const [inlet, setInlet] = useState(2);
+  const [time, setTime] = useState(15);
+  const box = FIREBOXES.find((b) => b.id === part);
+  const run = useMemo(
+    () => steamCycle({ voxels: box.voxels, seconds: duration, inlet, exhaust: 1, every: Math.max(1, Math.round((duration * UPDATES_PER_SECOND) / 600)) }),
+    [box, duration, inlet],
+  );
+  const rows = run.rows;
+  const pickT = Math.min(time, duration);
+  const at = rows.reduce((a, r) => (Math.abs(r.t - pickT) < Math.abs(a.t - pickT) ? r : a), rows[0]);
+  const last = rows.at(-1);
+  const lines = plot === 'temperature' ? STEAM_TEMPS : [{ key: plot, label: STEAM_PLOTS[plot].label, className: 'graph-line-a', dot: 'graph-dot-a' }];
+  const y = forceDomain(rows.flatMap((r) => lines.map((l) => r[l.key])));
+  const boil = rows.find((r) => r.steam > 0);
+  const summary = `${box.label}, turbine inlet ${fixed(inlet, 1)} and exhaust 1. At ${fixed(at.t, 1)} s: fire ${fixed(at.fire, 1)}, coolant ${fixed(at.coolant, 1)}, boiler ${fixed(at.boiler, 1)}, coal ${fixed(at.coal, 4)}/s, steam ${fixed(at.steam, 3)}/s, turbine ${fixed(at.speed, 3)} RPS. ${boil ? `Boiling starts at ${fixed(boil.t, 1)} s.` : 'The boiler stays below 100 in this window.'}`;
+  const status = useSettled(summary);
+  const desc = `${STEAM_PLOTS[plot].label} over ${duration} simulated seconds from a cold start at 20, for the ${box.label.toLowerCase()} feeding one boiler and a turbine. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={lines.map((l) => ({ label: l.label, className: l.className }))}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Firebox</label>
+            <select id={`${uid}-part`} value={part} onChange={(e) => setPart(e.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {FIREBOXES.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`${box.voxels} voxels: at most ${fixed(STEAM.burnPerVoxel * box.voxels * UPDATES_PER_SECOND, 3)} coal per second, coolant exchange k ${fixed(STEAM.coolantPerVoxel * box.voxels, 3)}.`}</span>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-plot`}>Plot</label>
+            <select id={`${uid}-plot`} value={plot} onChange={(e) => setPlot(e.target.value)}>
+              {Object.entries(STEAM_PLOTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-d`}>Simulated time</label>
+            <select id={`${uid}-d`} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+              {STEAM_DURATIONS.map((d) => <option key={d} value={d}>{d >= 60 ? `${d / 60} min` : `${d} s`}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-p`} label="Turbine inlet pressure" value={inlet} min={1} max={41} step={0.5} onChange={setInlet} valueText={`${fixed(inlet, 1)}, exhaust 1`} hint="Steam reservoir pressures on the two turbine ports. Up to 40 above the exhaust the turbine passes at most (inlet − exhaust) ÷ 24000 per update." />
+          <Range id={`${uid}-x`} label="Selected time" value={pickT} min={0} max={duration} step={duration / 300} onChange={(v) => setTime(+v.toFixed(3))} valueText={`${fixed(pickT, 1)} s`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title={`${STEAM_PLOTS[plot].label} over time, ${box.label}`}
+          desc={desc}
+          x={{ min: 0, max: duration, ticks: steps(0, duration, duration / 4), format: (v) => `${fixed(v, 0)} s`, label: 'Simulated time (s)' }}
+          y={{ ...y, format: tick }}
+          series={lines.map((l) => ({ key: l.key, className: l.className, points: rows.map((r) => [r.t, r[l.key]]) }))}
+          selected={{ x: at.t, points: lines.map((l) => ({ key: l.key, y: at[l.key], className: l.dot })) }}
+          onSelect={(v) => setTime(snap(v, 0, duration, duration / 300))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${box.label} at ${fixed(at.t, 1)} s`}
+          rows={[
+            ['Fire, coolant, boiler', `${fixed(at.fire, 1)}, ${fixed(at.coolant, 1)}, ${fixed(at.boiler, 1)}`],
+            ['Coal burned', `${fixed(at.coal, 4)} per s, ${fixed(at.coalTotal, 2)} so far`],
+            ['Steam made', `${fixed(at.steam, 3)} per s`, at.steam > 0 ? 'graph-ok' : 'graph-no'],
+            ['Steam through the turbine', `${fixed(at.admitted, 5)} per s, at most ${fixed(run.cap * UPDATES_PER_SECOND, 5)}`],
+            ['Turbine target speed', `${fixed(at.speed, 3)} RPS, weight ${STEAM.turbineWeight} per port`],
+            ['End of the window', `fire ${fixed(last.fire, 1)}, boiler ${fixed(last.boiler, 1)}, ${fixed(last.speed, 3)} RPS`],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${box.label}, turbine inlet ${fixed(inlet, 1)}, exhaust 1`,
+        cols: ['Time (s)', 'Fire', 'Coolant', 'Boiler', 'Coal per s', 'Steam per s', 'Turbine RPS'],
+        rows: steps(0, duration, duration / 10).map((t) => {
+          const r = rows.reduce((a, x) => (Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a), rows[0]);
+          return [fixed(t, 0), fixed(r.fire, 1), fixed(r.coolant, 1), fixed(r.boiler, 1), fixed(r.coal, 4), fixed(r.steam, 3), fixed(r.speed, 3)];
+        }),
+      }}
+    />
+  );
+}
+
+/* ---------- steam piston ---------- */
+
+const PISTON_PHASES = steps(0, 1, 0.005);
+const PISTON_DAMAGE = { 0: 'Undamaged', 5: 'Damage 1 to 9', 10: 'Damage 10 or more' };
+const openPorts = (v) => [v.firstIn && 'first Steam In', v.firstOut && 'first Steam Out', v.secondIn && 'second Steam In', v.secondOut && 'second Steam Out'].filter(Boolean).join(' and ');
+
+function PistonGraph({ variant }) {
+  const uid = useUid();
+  const piston = steamPistonFor(variant);
+  const [supply, setSupply] = useState(10);
+  const [vent, setVent] = useState(1);
+  const [damage, setDamage] = useState(0);
+  const [phase, setPhase] = useState(0.25);
+  const low = Math.min(vent, supply);
+  // Built-in valves: the admitting chamber is at the supply, the other at the vent pressure.
+  const valved = (z) => (z >= STEAM.valvePhase
+    ? pistonDrive({ pa: supply, pb: low, phase: z, damage })
+    : pistonDrive({ pa: low, pb: supply, phase: z, damage }));
+  const fixedB = (z) => pistonDrive({ pa: low, pb: supply, phase: z, damage });
+  const a = valved(phase);
+  const v = pistonValves(phase);
+  const mean = PISTON_PHASES.slice(0, -1).reduce((s, z) => s + valved(z), 0) / (PISTON_PHASES.length - 1);
+  const y = forceDomain(PISTON_PHASES.flatMap((z) => [valved(z), fixedB(z)]));
+  const summary = `Supply ${fixed(supply, 1)}, vent ${fixed(low, 1)}, ${PISTON_DAMAGE[damage].toLowerCase()}. At z = ${fixed(phase, 3)} the ${openPorts(v)} are open and the drive is ${fixed(a, 5)} per update; mean over a turn ${fixed(mean, 5)}.`;
+  const status = useSettled(summary);
+  const desc = `Drive added to the crank group per update against crank phase z over one turn. The solid line uses the piston's own half-turn valves; the dashed line holds chamber B at the supply all turn. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Built-in valves, supply to both Steam In', className: 'graph-line-a' },
+        { label: 'Chamber B held at supply, no switching', className: 'graph-line-b' },
+        { label: 'z from 0.5: first Steam In and second Steam Out open', band: true },
+      ]}
+      controls={(
+        <>
+          <Range id={`${uid}-s`} label="Supply steam pressure" value={supply} min={0} max={60} step={0.5} onChange={setSupply} valueText={fixed(supply, 1)} hint="Steam partial pressure in the admitting chamber." />
+          <Range id={`${uid}-v`} label="Vent pressure" value={vent} min={0} max={60} step={0.5} onChange={setVent} valueText={fixed(low, 1)} hint="Steam partial pressure in the venting chamber, at most the supply." />
+          <div className="graph-field">
+            <label htmlFor={`${uid}-d`}>Damage</label>
+            <select id={`${uid}-d`} value={damage} onChange={(e) => setDamage(Number(e.target.value))}>
+              {Object.entries(PISTON_DAMAGE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+          <Range id={`${uid}-x`} label="Selected crank phase" value={phase} min={0} max={1} step={0.005} onChange={(x) => setPhase(+x.toFixed(3))} valueText={`${fixed(phase, 3)} turn`} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Steam piston drive against crank phase"
+          desc={desc}
+          x={{ min: 0, max: 1, ticks: steps(0, 1, 0.25), format: (x) => fixed(x, 2), label: 'Crank phase z (turns, Piston Position)' }}
+          y={{ ...y, format: tick }}
+          bands={[{ from: STEAM.valvePhase, to: 1 }]}
+          series={[
+            { key: 'valved', className: 'graph-line-a', points: PISTON_PHASES.map((z) => [z, valved(z)]) },
+            { key: 'fixed', className: 'graph-line-b', points: PISTON_PHASES.map((z) => [z, fixedB(z)]) },
+          ]}
+          selected={{ x: phase, points: [{ key: 'valved', y: a, className: 'graph-dot-a' }, { key: 'fixed', y: fixedB(phase), className: 'graph-dot-b' }] }}
+          onSelect={(x) => setPhase(snap(x, 0, 1, 0.005))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`z = ${fixed(phase, 3)} turn`}
+          rows={[
+            ['Open ports', openPorts(v)],
+            ['Drive per update', fixed(a, 5), a > 0 ? 'graph-ok' : 'graph-no'],
+            ['Mean over a turn', fixed(mean, 5)],
+            ['Shaft weight per port', `${STEAM.pistonWeightPerVoxel * piston.voxels} (${piston.label.toLowerCase()} piston)`],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Drive per update, supply ${fixed(supply, 1)}, vent ${fixed(low, 1)}, ${PISTON_DAMAGE[damage].toLowerCase()}`,
+        cols: ['Phase z', 'Built-in valves', 'Chamber B held at supply'],
+        rows: steps(0, 1, 0.125).map((z) => [fixed(z, 3), fixed(valved(z), 5), fixed(fixedB(z), 5)]),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
-  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph,
+  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

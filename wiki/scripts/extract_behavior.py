@@ -4740,23 +4740,434 @@ def wheels(B, E):
              tr + [E.tooltip("wheel_tank_1")], ["Track physics was not decoded."])
 
 
+# steam pass; files under investigation/native/steam/, report investigation/steam.md.
+ST = "../steam/"
+ST_REPORT = "investigation/steam.md"
+ST_DATA = "investigation/native/steam/steam.json"
+F_STEAM = 0x14040CBD0        # steam component update (definition type 53), vtable 0x140af6dc8 slot +0x358, switch on steam_component_type
+F_STEAM_INIT = 0x14040C160   # steam component initializer: compartment volumes by steam_component_type
+F_BOIL = 0x1402EB350        # water/steam phase helper: 100 degree test (entry chunk)
+F_BOIL_HOT = 0x1402EB36A    # chained chunk of 0x1402eb350: evaporation at or above 100
+F_BOIL_COLD = 0x1402EB3FE   # chained chunk of 0x1402eb350: condensation below 100
+F_COAL_CAP = 0x1404B49C8     # chained chunk of the coal inventory walk 0x1404b4990: capacity per member
+F_SHAFT_SUBMIT = 0x1402EE720  # shaft port submission (leaf): weight +0x28, target +0x2c, returns group speed +0x30
+STEAM_SLOT = (0x140AF7120, F_STEAM)  # vtable 0x140af6dc8 + 0x358
+STEAM_SUBTYPES = {0: "boiler", 1: "condenser", 2: "turbine", 3: "piston", 4: "firebox", 5: "hopper", 7: "duct"}
+_SA, _SC = ST + "asm/", "; " + ST + "pseudocode/0x14040cbd0.c"
+_SU = _SA + "update.asm"
+WHERE.update({
+    (F_STEAM, 0x14040E08A): _SU + ":L1068-L1081" + _SC, (F_STEAM, 0x14040E0F6): _SU + ":L1086-L1109" + _SC,
+    (F_STEAM, 0x14040DFD1): _SU + ":L1039,L1086-L1091" + _SC, (F_STEAM, 0x14040DFDA): _SU + ":L1040,L1115-L1122" + _SC,
+    (F_STEAM, 0x14040E12D): _SU + ":L1115-L1122" + _SC, (F_STEAM, 0x14040E178): _SU + ":L1122-L1131" + _SC,
+    (F_STEAM, 0x14040E18B): _SU + ":L1133-L1138,L1307-L1311" + _SC, (F_STEAM, 0x14040E1A7): _SU + ":L1138-L1147" + _SC,
+    (F_STEAM, 0x14040E221): _SU + ":L1147-L1168" + _SC, (F_STEAM, 0x14040E441): _SU + ":L1169-L1262" + _SC,
+    (F_STEAM, 0x14040E543): _SU + ":L1275-L1305" + _SC, (F_STEAM, 0x14040DED1): _SU + ":L989,L1265-L1272,L1290-L1305" + _SC,
+    (F_STEAM, 0x14040E5B1): _SU + ":L1265,L1306-L1311" + _SC, (F_STEAM, 0x14040E5BF): _SU + ":L1306-L1311" + _SC,
+    (F_STEAM, 0x14040DF0B): _SU + ":L989-L1035" + _SC, (F_STEAM, 0x14040E035): _SU + ":L1042-L1061" + _SC,
+    (F_STEAM, 0x14040E5DE): _SU + ":L956-L964,L1312-L1314" + _SC, (F_STEAM, 0x14040EF08): _SU + ":L1738-L1748; " + _SA + "lerp.asm" + _SC,
+    (F_STEAM, 0x14040EF0F): _SU + ":L1738-L1748; " + _SA + "lerp.asm" + _SC, (F_STEAM, 0x14040EF56): _SU + ":L1749-L1774" + _SC,
+    (F_STEAM, 0x14040EF75): _SU + ":L1749-L1774; " + _SA + "lerp.asm" + _SC,
+    (F_STEAM, 0x14040CE51): _SU + ":L130-L132; " + _SA + "phase.asm" + _SC, (F_STEAM, 0x14040D5C7): _SU + ":L520-L524; " + _SA + "phase.asm" + _SC,
+    (F_STEAM, 0x14040CD57): _SU + ":L80-L96,L170-L188" + _SC, (F_STEAM, 0x14040CD87): _SU + ":L80-L130" + _SC,
+    (F_STEAM, 0x14040CF19): _SU + ":L165-L188" + _SC, (F_STEAM, 0x14040D42F): _SU + ":L440-L455" + _SC,
+    (F_STEAM, 0x14040D7A2): _SU + ":L600-L630" + _SC, (F_STEAM, 0x14040CEC2): _SU + ":L137-L155" + _SC,
+    (F_STEAM, 0x14040CE5F): _SU + ":L133-L135,L403-L418" + _SC, (F_STEAM, 0x14040D359): _SU + ":L403-L418" + _SC,
+    (F_STEAM, 0x14040D5E8): _SU + ":L526-L544" + _SC, (F_STEAM, 0x14040D6E4): _SU + ":L575-L593" + _SC,
+    (F_STEAM, 0x14040CF90): _SU + ":L189-L198" + _SC,
+    (F_STEAM, 0x14040D860): _SU + ":L645-L660; " + _SA + "through-flow.asm" + _SC, (F_STEAM, 0x14040D87B): _SU + ":L661-L666" + _SC,
+    (F_STEAM, 0x14040D89D): _SU + ":L667-L677" + _SC, (F_STEAM, 0x14040D8B2): _SU + ":L667-L677" + _SC,
+    (F_STEAM, 0x14040D8D2): _SU + ":L678-L681" + _SC, (F_STEAM, 0x14040D8E8): _SU + ":L682-L691; " + _SA + "shaft-submit.asm" + _SC,
+    (F_STEAM, 0x14040DA20): _SU + ":L739-L750" + _SC, (F_STEAM, 0x14040DA3A): _SU + ":L751-L753; " + _SA + "sine.asm" + _SC,
+    (F_STEAM, 0x14040DB6E): _SU + ":L809-L883" + _SC, (F_STEAM, 0x14040DAF2): _SU + ":L784-L808" + _SC,
+    (F_STEAM, 0x14040DCE6): _SU + ":L764-L784,L884-L888" + _SC, (F_STEAM, 0x14040DD03): _SU + ":L889-L904" + _SC,
+    (F_STEAM, 0x14040DD1B): _SU + ":L889-L904" + _SC, (F_STEAM, 0x14040DD5D): _SU + ":L905-L929; " + _SA + "shaft-submit.asm" + _SC,
+    (F_STEAM, 0x14040DDD8): _SU + ":L930-L936" + _SC,
+    (F_STEAM_INIT, None): _SA + "init.asm:L119-L209; " + ST + "pseudocode/0x14040c160.c",
+    (F_BOIL, None): _SA + "phase.asm:L6-L12", (F_BOIL_HOT, None): _SA + "phase.asm:L13-L49", (F_BOIL_COLD, None): _SA + "phase.asm:L46-L73",
+    (F_COAL_CAP, None): _SA + "coal-network.asm:L260-L275; " + ST + "pseudocode/0x1404b4990.c",
+    (F_SHAFT_SUBMIT, None): _SA + "shaft-submit.asm:L6-L14",
+    (F_DEFSER, 0x140B5D768): _SA + "definition-steam.asm:L38-L49", (F_DEFSER, 0x1403181B8): _SA + "definition-steam.asm:L38-L49", (F_DEFSER, 0x1403181DF): _SA + "definition-steam.asm:L38-L49",
+})
+
+
+def steam_native(E):
+    """Firebox, phase, boiler, condenser, turbine, piston and coal storage, verified once and shared."""
+    if hasattr(E, "steam"):
+        return E.steam
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / ST_REPORT).is_file():
+        raise ValueError("Steam report missing: " + ST_REPORT)
+    if struct.unpack("<Q", n.raw(STEAM_SLOT[0], 8))[0] != STEAM_SLOT[1]:
+        raise ValueError("Steam vtable slot %#x does not point to %#x" % STEAM_SLOT)
+    data = json.loads((E.root / ST_DATA).read_bytes())
+    if (data["sha256"] != EXE_SHA256 or data["updates_per_second"] != update_rate(E)["ups"] or data["steam_species_index"] != 7
+            or (data["water_species_index"], data["salt_water_species_index"]) != (0, 6) or data["phase"]["threshold_temperature"] != 100):
+        raise ValueError("Steam figures were built for a different executable, update rate or species layout")
+    rep = " Report: %s." % ST_REPORT
+    f = {}
+    # Coal storage.
+    f["c_slots"] = code(F_COAL_CAP, 0x1404B49E0, "8b80b8000000410101", "Coal storage slots per voxel", "definition voxel count",
+                        "The coal inventory walk adds the definition's voxel count (definition+0xb8) to the shared inventory capacity for steam_component_type 5 (hopper) and 7 (duct), tested at 0x1404b49d4 and 0x1404b49da. "
+                        "The burner takes whole items from that inventory, so capacity counts items. steam_component_capacity is not read on this path." + rep)
+    f["c_firebox"] = code(F_COAL_CAP, 0x1404B49F6, "4183010a", "Firebox coal slots", "10",
+                          "steam_component_type 4 (firebox) adds a fixed 10 item slots instead (cmp at 0x1404b49ed)." + rep)
+    # Firebox ignition, reserve and burn.
+    f["f_ignite"] = code(F_STEAM, 0x14040E08A, "41c78654070000100e0000", "Firebox ignition state", "3600",
+                         "With the ignition state +0x754 at 0 and Ignition on, the firebox takes one item from the coal inventory (inventory+4 decremented at 0x14040e085, skipped with unlimited fuel) and writes 3600 here. "
+                         "No countdown of +0x754 appears in this update." + rep)
+    f["f_hot"] = op(F_STEAM, 0x14040DFD1, "f3440f1025ea277a00", 0x140BB07C4, "Firebox self-sustain temperature",
+                    "The fire may burn while the ignition state is nonzero or the fire temperature +0x758 is strictly above this (comiss at 0x14040e0bd)." + rep)
+    f["f_reserve"] = code(F_STEAM, 0x14040E0F6, "ffc8894104", "Firebox reserve refill", "one item → reserve + 1",
+                          "When the fractional coal reserve +0x744 is 0 or less and the fire may burn, one more item leaves the inventory and 1 is added to the reserve (addss at 0x14040e104). Burning then draws on the reserve." + rep)
+    f["f_target"] = op(F_STEAM, 0x14040E12D, "f30f10050b277a00", 0x140BB0840, "Firebox target temperature",
+                       "Burn request b0 = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) per update, T the fire temperature; the clamp is 0x1408ee610 at 0x14040e153." + rep)
+    f["f_span"] = op(F_STEAM, 0x14040DFDA, "f3440f101d31287a00", 0x140BB0814, "Firebox burn span",
+                     "Divisor of 600 - T in the burn request (divss at 0x14040e13e); it is also the fire's thermal weight in the coolant exchange." + rep)
+    f["f_rate"] = op(F_STEAM, 0x14040E178, "f3440f5915fb167a00", 0x140BAF87C, "Coal burn rate per voxel",
+                     "Multiplies the clamped temperature term, then by the voxel count from 0x14019dee0 (0x14040e181): b0 = 0.00002 × voxels × clamp(...) fractional coal per update." + rep)
+    f["f_heat"] = op(F_STEAM, 0x14040E18B, "f3440f103544267a00", 0x140BB07D8, "Fire temperature per coal burned",
+                     "After the oxygen and exhaust limit, the burn b actually taken leaves the reserve (subss at 0x14040e5b1) and b × this is added to the fire temperature (0x14040e5bf..0x14040e5cd). "
+                     "It also scales the gas request r = b0 × 200 ÷ 60." + rep)
+    f["f_gas"] = op(F_STEAM, 0x14040E1A7, "f30f5e3db1257a00", 0x140BB0760, "Firebox gas request divisor",
+                    "r = b0 × 200 ÷ 60 internal gas amount per update. The fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of every Air chamber species moves to the Exhaust chamber (0x14040e1b2..0x14040e4a5)." + rep)
+    f["f_o2"] = op(F_STEAM, 0x14040E221, "f30f593d5b197a00", 0x140BAFB84, "Firebox oxygen reference",
+                   "Oxygen factor e = clamp(u × oxygen ÷ (0.21 × r), 0, 1), oxygen being the Air chamber's species 10 (+0x694); b = b0 × e. With air of 21% oxygen e is 1 whenever the full gas request can move." + rep)
+    f["f_co2"] = code(F_STEAM, 0x14040E441, "f3410f5896c8060000", "Burnt oxygen to carbon dioxide", "Exhaust species 4",
+                      "The moved oxygen (Air species 10) is added to the Exhaust chamber's species 4, carbon dioxide (+0x6c8); the other species keep their index." + rep)
+    f["f_burn"] = code(F_STEAM, 0x14040E5B1, "f3410f5cc2", "Coal reserve subtraction", "reserve - b",
+                       "Subtracts the burn b = b0 × e from the fractional reserve +0x744. The unlimited-fuel setting jumps past this and the air and exhaust block (0x14040e198)." + rep)
+    f["f_heat_add"] = code(F_STEAM, 0x14040E5BF, "f3450f59d6", "Fire heating", "T + 200 × b",
+                           "Multiplies the burn by 200 and adds it to the fire temperature +0x758." + rep)
+    f["f_air"] = op(F_STEAM, 0x14040E543, "f30f1015492a7a00", 0x140BB0F94, "Firebox Air port bias",
+                    "While burning, the Air port (component+0x238) exchanges with the Air chamber through 0x1402ec710 with this bias, all species and both direction flags clear. "
+                    "The port solver's difference is P_network - P_chamber - bias (investigation/fluid-transport.md), so -10 pulls air in as if the pipe pressure were 10 higher." + rep)
+    f["f_exhaust"] = op(F_STEAM, 0x14040DED1, "f3440f102d72277a00", 0x140BB064C, "Firebox Exhaust port bias",
+                        "xmm13 holds 10 through the firebox branch. The Exhaust port (component+0x270) exchanges with bias +10 (movaps at 0x14040e598), pushing exhaust out. "
+                        "The exhaust gas temperature moves toward 10 × the fire temperature by 0.1 × e per update (0x14040e4da..0x14040e4f9)." + rep)
+    f["f_cool_bias"] = op(F_STEAM, 0x14040DF0B, "f30f5c052d287a00", 0x140BB0740, "Firebox Coolant In bias offset",
+                          "With both coolant ports connected, Coolant In (component+0x1c8) exchanges with the coolant chamber with bias -clamp(T - 50, 0, 10), T the fire temperature (clamp at 0x14040df23, sign flip at 0x14040df3d); Coolant Out (+0x200) uses bias 0 (0x14040dfaf). "
+                          "Both use factor 1 and leave both direction flags clear." + rep)
+    f["f_temp_out"] = code(F_STEAM, 0x14040E035, "f3410f108e58070000", "Firebox Temperature output", "fire temperature +0x758",
+                           "The Temperature output (publish call at 0x14040e03e) receives the fire temperature, sampled before this update's burn. Coal Level receives the integer item count of the inventory (0x14040dff8..0x14040e029)." + rep)
+    f["f_damage"] = op(F_STEAM, 0x14040E5DE, "f30f590596177a00", 0x140BAFD7C, "Firebox damage loss factor",
+                       "D = clamp(0.1 × damage, 0, 1) (0x14040de2c..0x14040de5d) is multiplied by this before the ambient loss." + rep)
+    f["f_amb_hi"] = code(F_STEAM, 0x14040EF08, "c745980ad7233c", "Firebox ambient loss, fully damaged", "0.01",
+                         "Upper end of the ambient loss coefficient k = lerp(0.001, 0.01, 0.7 × D) through 0x1408f04b0 (0x14040ef28)." + rep)
+    f["f_amb"] = code(F_STEAM, 0x14040EF0F, "c74424646f12833a", "Firebox ambient loss", "0.001",
+                      "Undamaged ambient loss coefficient: the fire temperature moves toward the surrounding temperature +0x794 by k = lerp(0.001, 0.01, 0.7 × D) of the gap per update (0x14040ef3a)." + rep)
+    f["f_weight"] = code(F_STEAM, 0x14040EF56, "f3450f58c3", "Firebox coolant exchange weights", "coolant amount + 400",
+                         "Runs only with more than 0.1 stored coolant (comiss at 0x14040ef4c). Fire T_f and coolant T_c then exchange: T_f += k × A_c ÷ (A_c + 400) × (T_c - T_f), T_c += k × 400 ÷ (A_c + 400) × (T_f - T_c), both from the pre-exchange temperatures." + rep)
+    f["f_cool"] = op(F_STEAM, 0x14040EF75, "f30f593d6f097a00", 0x140BAF8EC, "Firebox coolant exchange per voxel",
+                     "k = this × voxel count: 0.036 for the 45-voxel firebox and 0.14 for the 175-voxel one." + rep)
+    # Phase conversion.
+    f["p_100"] = op(F_BOIL, 0x1402EB359, "f30f10152f548c00", 0x140BB0790, "Boiling threshold",
+                    "The phase helper evaporates when the chamber temperature +0x44 is at or above this and condenses below it (jb at 0x1402eb364). It reads no pressure or volume." + rep)
+    f["p_rate"] = op(F_BOIL_HOT, 0x1402EB39B, "f30f590555458c00", 0x140BAF8F8, "Evaporation per degree",
+                     "x = min(0.001 × (T - 100), W + S) of fresh water W (+0xc) and salt water S (+0x24) becomes steam (+0x28, species 7), split W ÷ (W + S) and S ÷ (W + S) from the amounts before the step. "
+                     "At 150 with 8 water that is 0.05 per update." + rep)
+    f["p_min"] = code(F_BOIL_HOT, 0x1402EB3B2, "f30f5dd8", "Evaporation limit", "min(0.001 × (T - 100), W + S)",
+                      "minss of the temperature term and the liquid sum; the result is added to steam at 0x1402eb3bd. Amounts convert 1:1, so the chamber total stays the same." + rep)
+    f["p_feedback"] = op(F_BOIL_HOT, 0x1402EB3E4, "f30f591d6c458c00", 0x140BAF958, "Phase temperature feedback",
+                         "T -= 0.01 × x ÷ total amount when evaporating; condensation adds the same term (0x1402eb43c). There is no larger latent-heat term." + rep)
+    f["p_cond"] = op(F_BOIL_COLD, 0x1402EB417, "f30f590db1468c00", 0x140BAFAD0, "Condensation cap",
+                     "Below 100: x = min(0.1 × steam, 0.001 × (100 - T)) becomes fresh water (minss at 0x1402eb427)." + rep)
+    f["p_boiler"] = code(F_STEAM, 0x14040CE51, "e8fae4edff", "Boiler phase call", "call 0x1402eb350",
+                         "steam_component_type 0 runs the phase helper on its phase chamber (+0x530) once per update, after its coolant ports and before Water In." + rep)
+    f["p_condenser"] = code(F_STEAM, 0x14040D5C7, "e884ddedff", "Condenser phase call", "call 0x1402eb350",
+                            "steam_component_type 1 runs the same helper on its phase chamber once per update, after its coolant ports and before Steam In. The condensing point is the same fixed 100." + rep)
+    # Boiler and condenser volumes, heat transfer and ports.
+    f["b_vol"] = op(F_STEAM_INIT, 0x14040C3A2, "f30f590526377a00", 0x140BAFAD0, "Phase chamber volume per voxel",
+                    "Types 0 and 1 set the phase chamber volume (+0x538) to this × voxel count and the coolant chamber volume (+0x584) to the voxel count (0x14040c3c0)." + rep)
+    f["b_k"] = op(F_STEAM, 0x14040CD57, "f3440f101d702d7a00", 0x140BAFAD0, "Boiler heat exchange coefficient",
+                  "xmm11 = 0.1. D = clamp(0.1 × damage, 0, 1) and k = 0.1 × (1 - D) (0x14040cf34). With liquid sums Q_p (phase) and Q_c (coolant): T_p += k × Q_c ÷ (Q_p + Q_c) × (T_c - T_p), T_c += k × Q_p ÷ (Q_p + Q_c) × (T_p - T_c). "
+                  "The condenser uses its phase chamber's total amount for Q_p (0x14040d656), so steam takes part." + rep)
+    f["b_cool_ports"] = code(F_STEAM, 0x14040CD87, "410f28f0f30f5cf7", "Boiler coolant port factor", "1 - D",
+                             "Coolant A (component+0x1c8) and Coolant B (+0x200) exchange with the coolant chamber only when both are connected (0x14040cd8f, 0x14040cd9c), with bias 0, all species, both direction flags clear and flow factor 1 - D. The condenser does the same (0x14040d4fd)." + rep)
+    f["b_min"] = op(F_STEAM, 0x14040CF19, "0f2f25d8297a00", 0x140BAF8F8, "Boiler exchange threshold",
+                    "The phase-coolant exchange runs only when Q_p + Q_c is above this." + rep)
+    f["b_amb"] = op(F_STEAM, 0x14040D42F, "f30f590d61247a00", 0x140BAF898, "Boiler ambient loss",
+                    "After the exchange both boiler chambers move toward the surrounding temperature (+0x794, refreshed every 16 updates through 0x14030fd60) by this fraction of the gap per update (0x14040d416..0x14040d45d)." + rep)
+    f["c_amb"] = op(F_STEAM, 0x14040D7A2, "f30f1035ee207a00", 0x140BAF898, "Condenser ambient loss",
+                    "The condenser applies the same fraction to its phase and coolant chambers (lerp calls at 0x14040d7bb and 0x14040d7da)." + rep)
+    f["b_water"] = op(F_STEAM, 0x14040CEC2, "f30f1015da407a00", 0x140BB0FA4, "Boiler Water In bias",
+                      "Water In (component+0x238) admits only species 0, fresh water (mask from 0x14017b3f0 at 0x14040ce94), with the flag that blocks chamber-to-pipe flow set (0x14040ceb9) and factor 1. "
+                      "Bias -60 makes it demand water as if the pipe pressure were 60 higher than it is." + rep)
+    f["b_steam"] = op(F_STEAM, 0x14040CE5F, "f3440f590da8347a00", 0x140BB0310, "Boiler Steam Out bias factor",
+                      "xmm9 = 2.5 × steam ÷ phase chamber volume after the phase step (0x14040ce56..0x14040ce68). Steam Out (component+0x270) admits only species 7 (0x14040d359), blocks pipe-to-chamber flow (0x14040d383) and passes xmm9 as its bias (0x14040d391), pushing steam out harder the more the chamber holds." + rep)
+    f["c_ports"] = code(F_STEAM, 0x14040D5E8, "ba07000000", "Condenser Steam In mask", "species 7, inflow only",
+                        "The condenser's Steam In (component+0x238) admits only steam with chamber-to-pipe flow blocked (0x14040d617); Water Out (+0x270) admits only fresh water (0x14040d6e4) with pipe-to-chamber flow blocked (0x14040d70b). Both use bias 0 and factor 1." + rep)
+    f["b_leak"] = code(F_STEAM, 0x14040CF90, "f30f59f7f3410f59f3f30f5cc6", "Damaged boiler steam loss", "steam × D × 0.1 per update",
+                       "When D is above 0 the boiler removes steam × D × 0.1 from its phase chamber each update (store at 0x14040cf9d), then emits an effect at its position. The condenser has no such branch." + rep)
+    # Turbine.
+    f["t_flow"] = op(F_STEAM, 0x14040D860, "f30f101dac207a00", 0x140BAF914, "Turbine flow factor",
+                     "steam_component_type 2 connects Steam In (component+0x1c8) to Steam Out (+0x200) through the two-port solver 0x1402ed8d0 (call at 0x14040d86e) with bias 0, all species, the one-way flag set (0x14040d85b) and this factor. "
+                     "It neither consumes nor condenses steam. For pure steam in volume-4 networks with pressures 0 to 60 and 0 < P_in - P_out ≤ 40 the step is at most (P_in - P_out) ÷ 24000 per update (investigation/steam.md)." + rep)
+    f["t_read"] = op(F_STEAM, 0x14040D87B, "f30f5935c92d7a00", 0x140BB064C, "Turbine steam read scale",
+                     "Reads the moved packet's species 7 amount (+0x148, 0x14040d873) times 10. Only a positive steam amount adds speed; other species pass without effect." + rep)
+    f["t_gain"] = op(F_STEAM, 0x14040D89D, "f30f5935eb2e7a00", 0x140BB0790, "Turbine speed gain",
+                     "Below damage 20 (cmp at 0x14040d890) the gain is 10 × 100 = 1000 × steam moved, added to the stored speed +0x6f8 (0x14040d8ba)." + rep)
+    f["t_damaged"] = op(F_STEAM, 0x14040D8B2, "f30f593562247a00", 0x140BAFD1C, "Turbine damaged gain",
+                        "Damage 1 to 19 multiplies the gain by this: 600 × steam moved. Damage 20 or more adds nothing." + rep)
+    f["t_decay"] = op(F_STEAM, 0x14040D8D2, "f30f5915ce257a00", 0x140BAFEA8, "Turbine speed retention",
+                      "Every update the stored speed is multiplied by this, with or without steam: v = 0.985 × (v + gain)." + rep)
+    f["t_weight"] = op(F_STEAM, 0x14040D8E8, "f30f1035782e7a00", 0x140BB0768, "Turbine shaft weight",
+                       "Both RPS ports (component+0x3f0 and +0x440, calls at 0x14040d8f3 and 0x14040d909) submit v as target speed with this weight; each submission writes the shaft group's speed back into v." + rep)
+    f["submit"] = code(F_SHAFT_SUBMIT, 0x1402EE727, "8b4130f30f114928f30f11512c418901", "Shaft port submission", "weight +0x28, target +0x2c, returns +0x30",
+                       "For a connected port (+0x20 nonzero) stores the weight (xmm1) at +0x28 and the target speed (xmm2) at +0x2c, and copies the group speed at +0x30 to the caller's pointer (r9)." + rep)
+    # Piston.
+    f["s_wrap"] = op(F_STEAM, 0x14040DA20, "f3440f5805ff317a00", 0x140BB0C28, "Piston phase wrap",
+                     "z = group phase (group+0) + the piston's offset (+0xae8, 0x14040da00); above 1 it adds this once, below 0 it adds 1 once (0x14040da31). Piston Position outputs z (0x14040ddd8)." + rep)
+    f["s_angle"] = op(F_STEAM, 0x14040DA3A, "f30f59056e297a00", 0x140BB03B0, "Piston angle factor",
+                      "Angle = z × π doubled (addss at 0x14040da42), passed to the sine routine 0x1409d6c20 (call at 0x14040da46)." + rep)
+    f["s_valve"] = op(F_STEAM, 0x14040DB6E, "f30f100546217a00", 0x140BAFCBC, "Piston valve switch phase",
+                      "Below damage 10 the four fluid ports exchange with their chambers through 0x1402ec710, bias 0, both direction flags clear and a flow factor: 1 and 0 (0x14040db66), swapped when 0.5 is above z (comiss at 0x14040db76). "
+                      "Ports +0x1c8 and +0x270 get the first factor (0x14040dbb4, 0x14040dcb6) and ports +0x200 and +0x238 the second (0x14040dc0a, 0x14040dc60); +0x1c8 and +0x200 serve chamber A (+0x530), +0x238 and +0x270 chamber B (+0x57c). "
+                      "A factor of 0 moves nothing (investigation/fluid-transport.md). So from z = 0.5 chamber A is open to +0x1c8 and B to +0x270, and below 0.5 A is open to +0x200 and B to +0x238." + rep)
+    f["s_bypass"] = code(F_STEAM, 0x14040DAF2, "83f80a", "Piston damage bypass", "damage 10",
+                         "At damage 10 or more the update instead joins +0x1c8 to +0x238 and +0x200 to +0x270 through the two-port solver (0x14040db27, 0x14040db5c) and adds no drive." + rep)
+    f["s_scale"] = op(F_STEAM, 0x14040DCE6, "f30f59356a1c7a00", 0x140BAF958, "Piston drive scale",
+                      "a = (p_B - p_A) × sin(2πz) × 0.01 (0x14040dcdc..0x14040dce6), p being each chamber's pressure (0x1402eb500, read at 0x14040da93 and 0x14040daa3 before the port exchanges) times its steam ÷ total amount." + rep)
+    f["s_factor"] = op(F_STEAM, 0x14040DD03, "f30f5935651e7a00", 0x140BAFB70, "Piston drive factor",
+                       "Below damage 10 a is multiplied by this and added to the crank group's accumulator group+8 (0x14040dd2e): 0.002 × (p_B - p_A) × sin(2πz) per update." + rep)
+    f["s_damaged"] = op(F_STEAM, 0x14040DD1B, "f30f5935f91f7a00", 0x140BAFD1C, "Piston damaged drive",
+                        "Damage 1 to 9 multiplies a by this as well: 0.0012 × (p_B - p_A) × sin(2πz)." + rep)
+    f["s_weight"] = op(F_STEAM, 0x14040DD5D, "f30f590d63297a00", 0x140BB06C8, "Piston shaft weight per voxel",
+                       "Both RPS ports (+0x3f0, +0x440; calls at 0x14040dd73 and 0x14040ddb4) submit the crank group's speed (group+4) with weight this × voxel count." + rep)
+    f["s_vol"] = op(F_STEAM_INIT, 0x14040C41E, "f30f5905d6347a00", 0x140BAF8FC, "Piston chamber volume per voxel",
+                    "Type 3 sets both chamber volumes (+0x538 and +0x584, 0x14040c43c) to this × voxel count. The update does not change them with z." + rep)
+    f["s_len"] = E.string(F_DEFSER, 0x140B5D768, "piston_len", "piston_len binding",
+                          "Bound at definition+0x2cd8 (lea at 0x1403181c6). It feeds the render transform, not the drive term." + rep)
+    f["s_len_default"] = op(F_DEFSER, 0x1403181B8, "f30f1005b87a8900", 0x140BAFC78, "piston_len default",
+                            "Default of piston_len when a definition omits it, as steam_piston.xml does." + rep)
+    f["s_cam"] = op(F_DEFSER, 0x1403181DF, "f30f1005a9788900", 0x140BAFA90, "piston_cam default",
+                    "piston_cam is bound at definition+0x2cdc (0x140b5d758) with this default. The render code uses it as the crank radius (investigation/steam.md, inference)." + rep)
+
+    # steam.json must agree with the bytes above and with the shipped definitions.
+    c = lambda k: float(f[k]["value"])
+    near = lambda a, b: math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-12)
+    parts = {}
+    for d in data["parts"]:
+        bid = d["file"].rsplit("/", 1)[1][:-4]
+        b = E.block(bid)
+        for key, raw in d["resource_attributes"].items():
+            if str(b["attributes"].get(key, b.get(key))) != raw:
+                raise ValueError("%s %s differs from %s" % (bid, key, ST_DATA))
+        vox = E.voxels(bid, "The steam update and initializer multiply by this count (definition+0xb8).")
+        N, t = vox["value"], d["subtype"]
+        if N != d["voxels"] or int(b["attributes"]["steam_component_type"]) != t or t not in STEAM_SUBTYPES:
+            raise ValueError("Steam definition %s differs from %s" % (bid, ST_DATA))
+        ok = True
+        if t in (5, 7):
+            ok = d["coal_group_item_slots"] == N
+        elif t == 4:
+            ok = (d["coal_group_item_slots"] == 10 and near(d["max_preliminary_coal_per_tick"], c("f_rate") * N)
+                  and d["temperature_increment_per_actual_fractional_coal"] == c("f_heat") and d["thermal_weight"] == c("f_span")
+                  and near(d["coolant_exchange_coefficient"], c("f_cool") * N) and d["target_temperature"] == c("f_target")
+                  and d["self_ignition_threshold_exclusive"] == c("f_hot") and d["ignition_state_value"] == 3600
+                  and d["coolant_volume_internal"] == d["air_volume_internal"] == d["exhaust_volume_internal"] == 4)
+        elif t in (0, 1):
+            # The ambient fraction comes from 0x140baf898 above, not from this file.
+            ok = (near(d["phase_volume_internal"], c("b_vol") * N) and d["coolant_volume_internal"] == N
+                  and near(d["heat_exchange_coefficient_undamaged"], c("b_k")) and d["water_intake_bias"] == (c("b_water") if t == 0 else 0))
+        elif t == 3:
+            length = float(b["attributes"].get("piston_len", c("s_len_default")))
+            cam = float(b["attributes"].get("piston_cam", c("s_cam")))
+            ok = (near(d["chamber_volume_each_internal"], c("s_vol") * N) and d["shaft_weight_each_port"] == c("s_weight") * N
+                  and near(d["rod_length_render_units"], length) and near(d["crank_radius_render_units"], cam)
+                  and near(d["inferred_render_stroke"], 2 * cam) and d["phase_output_range"] == [0, 1]
+                  and near(d["group_accumulator_gain_per_steam_partial_pressure_sine"], c("s_scale") * c("s_factor")))
+        elif t == 2:
+            ok = (d["shaft_weight_each_port"] == c("t_weight") and near(d["shaft_target_decay_per_tick"], c("t_decay"))
+                  and d["shaft_target_gain_before_decay"] == c("t_read") * c("t_gain") and near(d["flow_factor"], c("t_flow")) and d["one_way"])
+        if not ok:
+            raise ValueError("Steam figures for %s differ from the verified bytes" % bid)
+        parts[bid] = dict(d, voxel_finding=vox)
+    if sorted(parts) != sorted(STEAM_PARTS):
+        raise ValueError("Unexpected steam parts in " + ST_DATA)
+
+    # Figures per definition.
+    R = update_rate(E)
+    ups, rate = R["ups"], R["findings"][:1]
+    V = lambda bid: parts[bid]["voxel_finding"]
+    fig = {}
+    for bid in ("steam_coal_firebox", "steam_coal_firebox_l"):
+        N = parts[bid]["voxels"]
+        b0 = c("f_rate") * N
+        fig[bid] = E.derived("%s burn and coolant exchange" % E.block(bid)["name"],
+                             "at most %s coal per update, %s per simulated second; coolant k %s" % (_g(b0, 4), _g(b0 * ups, 4), _g(c("f_cool") * N, 4)),
+                             "%d voxels: 0.00002 × %d = %s fractional coal per update while the fire is far below 600 and air and exhaust allow it, × %d = %s per simulated second; "
+                             "each unit burned adds 200 to the fire temperature, so at most %s per update. Coolant exchange k = 0.0008 × %d = %s." % (
+                                 N, N, _g(b0, 4), ups, _g(b0 * ups, 4), _g(200 * b0, 4), N, _g(c("f_cool") * N, 4)),
+                             [f["f_rate"], f["f_heat"], f["f_cool"], V(bid)] + rate)
+    for bid in ("steam_boiler", "steam_condenser"):
+        N = parts[bid]["voxels"]
+        fig[bid] = E.derived("%s chamber volumes" % E.block(bid)["name"], "phase %s, coolant %d" % (_g(c("b_vol") * N, 4), N),
+                             "%d voxels: phase chamber 0.1 × %d = %s and coolant chamber %d internal amount units." % (N, N, _g(c("b_vol") * N, 4), N),
+                             [f["b_vol"], V(bid)])
+    for bid in ("steam_piston", "steam_piston_3x3", "steam_piston_5x5"):
+        N = parts[bid]["voxels"]
+        cam = parts[bid]["crank_radius_render_units"]
+        fig[bid] = E.derived("%s chambers and shaft weight" % E.block(bid)["name"],
+                             "chambers %s each, weight %d per port" % (_g(c("s_vol") * N, 4), int(c("s_weight") * N)),
+                             "%d voxels: chamber volume 0.0015 × %d = %s each, shaft weight 20 × %d = %d per RPS port. Crank radius %s, so a geometric stroke of %s world units, about metres (inference from the render code)." % (
+                                 N, N, _g(c("s_vol") * N, 4), N, int(c("s_weight") * N), _g(cam, 4), _g(2 * cam, 4)),
+                             [f["s_vol"], f["s_weight"], f["s_cam"], f["s_len"], V(bid)] + ([E.attr(bid, "piston_cam", "Crank radius used by the render code.")] if "piston_cam" in E.block(bid)["attributes"] else []))
+    for bid in ("steam_coal_duct", "steam_coal_duct_m", "steam_coal_duct_l", "steam_coal_hopper", "steam_coal_hopper_m", "steam_coal_hopper_l"):
+        fig[bid] = E.derived("%s item slots" % E.block(bid)["name"], parts[bid]["voxels"],
+                             "Adds %d item slots, one per voxel, to the connected coal inventory." % parts[bid]["voxels"], [f["c_slots"], V(bid)])
+    cap = 1 / 24000
+    steady = c("t_decay") * c("t_read") * c("t_gain") * cap / (1 - c("t_decay"))
+    fig["turbine"] = E.derived("Turbine steady target, inlet 2, exhaust 1", "%s RPS" % _g(steady, 7),
+                               "Inference, unloaded: with constant steam step q the recurrence v = 0.985 × (v + 1000 × q) settles at 0.985 ÷ 0.015 × 1000 × q. "
+                               "Pure steam in volume-4 networks at pressures 2 and 1 gives at most q = (2 - 1) ÷ 24000 per update, %s per simulated second, and %s RPS." % (_g(cap * ups, 4), _g(steady, 7)),
+                               [f["t_flow"], f["t_read"], f["t_gain"], f["t_decay"]] + rate)
+    fig["evaporation"] = per_second(E, "Evaporation per simulated second", "0.06 × (T - 100) until water runs short",
+                                    "0.001 × (T - 100) per update times %d; condensation at most 10%% of the steam per update." % ups)
+    fig["piston"] = E.derived("Piston drive at a quarter turn", "0.002 per unit of p_B - p_A",
+                              "At z = 0.25, sin(2πz) = 1, so a = 0.002 × (p_B - p_A); 0.0012 with damage 1 to 9; 0 at z = 0 and 0.5. Not a calibrated torque.",
+                              [f["s_scale"], f["s_factor"], f["s_damaged"], f["s_angle"]])
+    E.steam = {"f": f, "fig": fig, "parts": parts, "data": data}
+    return E.steam
+
+
+STEAM_PARTS = ("steam_boiler", "steam_coal_duct", "steam_coal_duct_l", "steam_coal_duct_m", "steam_coal_firebox", "steam_coal_firebox_l", "steam_coal_hopper",
+               "steam_coal_hopper_l", "steam_coal_hopper_m", "steam_condenser", "steam_piston", "steam_piston_3x3", "steam_piston_5x5", "steam_turbine")
+
+
 def steam(B, E):
-    cap = [E.attr(b, "steam_component_capacity", "Duct capacity configuration.") for b in ("steam_coal_duct", "steam_coal_duct_m", "steam_coal_duct_l")]
-    tips = [E.tooltip(b) for b in ("steam_coal_firebox", "steam_boiler", "steam_condenser", "steam_piston")]
+    S = steam_native(E)
+    f, fig, parts = S["f"], S["fig"], S["parts"]
+    R = update_rate(E)["findings"]
+    sh = electricity_native(E)["f"]
+    shaft = [sh[k] for k in ("shaft_one", "shaft_mul", "shaft_div")]
+    T, P = E.tooltip, E.port
+    coal = [f["c_slots"], f["c_firebox"]] + [fig[b] for b in ("steam_coal_duct", "steam_coal_duct_m", "steam_coal_duct_l", "steam_coal_hopper", "steam_coal_hopper_m", "steam_coal_hopper_l")]
+    burn = [f[k] for k in ("f_ignite", "f_hot", "f_reserve", "f_target", "f_span", "f_rate", "f_heat", "f_gas", "f_o2", "f_co2", "f_burn", "f_heat_add", "f_air", "f_exhaust")]
+    fire_heat = [f[k] for k in ("f_cool_bias", "f_temp_out", "f_damage", "f_amb_hi", "f_amb", "f_weight", "f_cool")]
+    phase = [f[k] for k in ("p_100", "p_rate", "p_min", "p_feedback", "p_cond", "p_boiler", "p_condenser")] + [fig["evaporation"]]
+    boiler = [f[k] for k in ("b_vol", "b_k", "b_cool_ports", "b_min", "b_amb", "b_water", "b_steam", "b_leak")]
+    condenser = [f[k] for k in ("b_vol", "b_k", "b_cool_ports", "b_min", "c_amb", "c_ports")]
+    turbine = [f[k] for k in ("t_flow", "t_read", "t_gain", "t_damaged", "t_decay", "t_weight", "submit")] + [fig["turbine"]] + shaft
+    piston = ([f[k] for k in ("s_wrap", "s_angle", "s_valve", "s_bypass", "s_scale", "s_factor", "s_damaged", "s_weight", "s_vol", "s_len", "s_len_default", "s_cam", "submit")]
+              + [fig["piston"]] + [fig[b] for b in ("steam_piston", "steam_piston_3x3", "steam_piston_5x5")] + shaft)
+    fires = [fig["steam_coal_firebox"], fig["steam_coal_firebox_l"]]
+    chambers = [fig["steam_boiler"], fig["steam_condenser"]]
+    ducts = ("steam_coal_duct", "steam_coal_duct_m", "steam_coal_duct_l")
+    caps = [E.attr(b, "steam_component_capacity", "Legacy capacity field; the traced capacity code reads the voxel count instead.") for b in ducts]
+    if any(float(x["value"]) != 1.5625 * parts[b]["voxels"] for x, b in zip(caps, ducts)):
+        raise ValueError("steam_component_capacity is no longer 1.5625 × voxels")
+    ratio = E.derived("steam_component_capacity per voxel", "1.5625",
+                      "%s ÷ %d = %s ÷ %d = %s ÷ %d = 1.5625 for the small, medium and large duct." % tuple(x for c_, b in zip(caps, ducts) for x in (c_["value"], parts[b]["voxels"])),
+                      caps + [parts[b]["voxel_finding"] for b in ducts])
+    shared = "Open items for the whole steam cycle are listed under Steam on the parts index."
+    static = "Static analysis of one build. Temperatures, pressures, amounts and speeds are the game's internal values; no figure here was measured in a running game."
+
+    coal_body = ("Ducts and hoppers add one item slot per voxel to the inventory they share with every connected firebox: 27, 125 and 225 for the small, medium and large sizes. Each firebox adds 10 more. "
+                 "Slots count whole items, and the firebox takes whole coal from them. The ducts' steam_component_capacity values 42.1875, 195.3125 and 351.5625 are 1.5625 times their voxel counts; the traced capacity code does not read them.")
+    burn_body = ("Ignition takes one coal and sets the ignition state to 3600; the fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. "
+                 "Each update it requests b = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal, T being the fire temperature: at most 0.054 coal per simulated second for the small firebox and 0.21 for the large. "
+                 "Air limits the burn. A fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of the Air chamber moves to the Exhaust chamber, r = b × 200 ÷ 60, and the burn is cut to the share that oxygen covers at a 0.21 reference fraction. "
+                 "So it needs Air pressure more than 1 above Exhaust pressure. Burnt oxygen becomes carbon dioxide in the exhaust. Each unit of coal actually burned adds 200 to the fire temperature.")
+    loss_body = ("The fire then loses 0.001 of its gap to the surrounding temperature per update, rising toward 0.01 with damage, and exchanges heat with its coolant chamber at k = 0.0008 × voxels: 0.036 small and 0.14 large. "
+                 "The fire counts with weight 400 and the coolant with its stored amount, and there is no exchange below 0.1 coolant. "
+                 "While burning, Air pulls air in with a bias of -10 and Exhaust pushes out with +10. With both coolant ports connected, Coolant In draws fluid with a bias of -clamp(T - 50, 0, 10), so a fire hotter than 50 drives its own coolant loop (inference from the port solver's sign).")
+    phase_body = ("The boiler and condenser convert between water and steam in their phase chamber at a fixed temperature of 100, whatever the pressure. "
+                  "At or above 100, min(0.001 × (T - 100), water) of fresh and salt water becomes steam per update, 1:1 by stored amount, which is 0.06 × (T - 100) per simulated second until water runs short. "
+                  "Below 100, min(0.001 × (100 - T), 0.1 × steam) condenses into fresh water. Each step shifts the chamber temperature by only 0.01 × converted ÷ total amount, so boiling takes almost no heat from the water.")
+    exchange_body = ("Each update the phase and coolant chambers exchange heat with k = 0.1 × (1 - D), D = clamp(0.1 × damage, 0, 1), each side moving by k times the other side's share of the liquid amount. "
+                     "The condenser counts its whole phase chamber, steam included. Both chambers then lose 0.0001 of their gap to the surroundings per update. "
+                     "The phase chamber holds 0.1 × voxels, 17.5 in the boiler and 7.5 in the condenser, and the coolant chamber 1 per voxel, 175 and 75.")
+    open_body = ("Not decoded: what counts down or clears the firebox ignition state after ignition; how a piston crank group turns its accumulated drive into phase and shaft speed; "
+                 "any global rupture or explosion path, beyond a damage flag on hot fireboxes, since no pressure limit or burst test appears in the boiler, condenser or phase code; "
+                 "the unit steam_component_capacity once had; and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.")
+    turbine_body = ("The turbine passes gas from Steam In to Steam Out one way, through the pump solver with flow factor 0.0025 and no bias, so it needs inlet pressure above exhaust pressure and consumes no steam. "
+                    "Each update it adds 1000 × the steam moved to its speed, 600 × when damaged and nothing at damage 20 or more, multiplies by 0.985 and submits the result as target RPS on both RPS ports with weight 65. "
+                    "The shaft group's speed then replaces the stored speed. Unloaded, a steady steam step q settles at 0.985 ÷ 0.015 × 1000 × q (inference). "
+                    "Pure steam networks of volume 4 at pressures 2 and 1 move at most (2 - 1) ÷ 24000 per update, which settles at 2.736111 RPS.")
+    piston_body = ("Each piston has two chambers of 0.0015 × voxels. Its crank phase z, wrapped to 0 to 1, opens one port per chamber: from z = 0.5 the first Steam In and the second Steam Out, below 0.5 the first Steam Out and the second Steam In "
+                   "(port order taken from the definition, inference). Each update it adds a = 0.002 × (p_B - p_A) × sin(2πz) to its crank group, p being chamber pressure times its steam fraction. "
+                   "With steam on both Steam In ports and both Steam Out ports vented, the open chamber matches the sign of the sine on each half turn, so the drive keeps one direction (inference). "
+                   "Both RPS ports submit the group speed with weight 20 × voxels: 120, 1620 and 5700.")
     B.category("Steam",
-               "Steam power chains a coal firebox, boiler, piston or turbine and condenser; duct sizes carry capacity fields 42.1875, 195.3125 and 351.5625.",
+               "A firebox burns at most 0.00002 × voxels coal per update and heats its coolant; the boiler boils water at a fixed temperature of 100 at min(0.001 × (T - 100), water) per update; "
+               "the turbine turns steam flow into a target RPS that keeps 0.985 per update, and the piston drives its crank by 0.002 × steam pressure difference × sin(2πz).",
                [section("Chain",
-                        "The firebox consumes one coal to ignite and heats coolant; the boiler turns that heat into steam and should be throttled to hold steam pressure; pistons need pressure alternated between their couplings by piston position; the condenser must stay cooled."),
-                section("Measurement questions",
-                        "Heat output per coal, boiler evaporation rate and piston torque against pressure.")],
-               cap + tips, ["Steam simulation code was not decoded."])
-    B.family("coal-duct", "Capacity fields 42.1875, 195.3125 and 351.5625 for small, medium and large ducts.",
-             [section("Variant tradeoffs", "The medium duct holds about 4.6 times and the large about 8.3 times the small duct's field.")],
-             cap + [E.derived("Duct capacity ratios", "1 : 4.6 : 8.3", "195.3125 ÷ 42.1875 = 4.63; 351.5625 ÷ 42.1875 = 8.33.", cap)],
-             ["Capacity unit unknown."])
-    B.family("steam-piston", "Steam on the outer coupling extends, on the inner coupling retracts; alternate by piston position.",
-             [section("Setup and interactions", "Drive the valves from Piston Position so pressure switches each half stroke; this keeps the crankpin turning.")],
-             [tips[3], E.port("steam_piston", "Piston Position")], ["Torque per pressure was not recovered."])
+                        "Coal from ducts and hoppers feeds the firebox. The firebox heats the fluid in its coolant chamber, which you circulate through the boiler's Coolant A and B. "
+                        "The boiler turns its water into steam for a turbine or pistons, and a condenser whose phase chamber is below 100 turns the exhaust back into water."),
+                section("Coal storage", coal_body),
+                section("Fireboxes", burn_body),
+                section("Firebox heat and coolant", loss_body),
+                section("Boiling and condensing", phase_body),
+                section("Boiler and condenser heat transfer", exchange_body),
+                section("Turbines", turbine_body),
+                section("Pistons", piston_body),
+                section("Open questions", open_body)],
+               coal + caps + [ratio] + burn + fire_heat + fires + phase + boiler + condenser + chambers + turbine + piston + R
+               + [T(b) for b in ("steam_coal_firebox", "steam_boiler", "steam_condenser", "steam_piston", "steam_turbine")],
+               [static, TICK])
+
+    B.family("coal-duct", "Each duct adds one item slot per voxel to the connected coal inventory: 27, 125 or 225.",
+             [section("Capacity",
+                      "Ducts, hoppers and fireboxes connected together share one inventory. Each duct adds its voxel count in item slots, 27, 125 or 225, each hopper the same, and each firebox 10. The firebox takes whole coal from it."),
+              section("The steam_component_capacity field",
+                      "The definitions carry steam_component_capacity 42.1875, 195.3125 and 351.5625, which are 1.5625 times the voxel counts. "
+                      "The traced capacity code reads the voxel count, not this field, so it does not set how much a duct holds (inference: it is legacy metadata).")],
+             coal + caps + [ratio] + [parts[b]["voxel_finding"] for b in ducts] + [T("steam_coal_duct")],
+             [shared, static])
+    B.family("coal-hopper", "Each hopper adds one item slot per voxel to the connected coal inventory: 27, 125 or 225.",
+             [section("Capacity",
+                      "Items poured in join the inventory shared with connected ducts and fireboxes. Each hopper adds its voxel count in slots, 27, 125 or 225, and each firebox 10.")],
+             coal + [parts[b]["voxel_finding"] for b in ("steam_coal_hopper", "steam_coal_hopper_m", "steam_coal_hopper_l")] + [T("steam_coal_hopper")],
+             [shared, static])
+    B.family("steam-firebox",
+             "Burns at most 0.00002 × voxels coal per update, 0.054 or 0.21 per simulated second, adding 200 to the fire temperature per unit of coal burned and heating its coolant at k = 0.0008 × voxels.",
+             [section("Ignition and coal", "Ignition takes one coal and sets the ignition state to 3600; the fire also keeps burning while it is hotter than 150. "
+                                           "Burning draws on a fractional reserve, refilled one coal at a time from the shared inventory, to which a firebox adds 10 slots."),
+              section("Burn rate", "Each update it requests 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal: 0.0009 per update for the small firebox and 0.0035 for the large while far below 600. "
+                                   "The request falls to 0 as the fire approaches 600. Air pressure must be more than 1 above Exhaust pressure and the air must carry oxygen near the 0.21 reference; otherwise the burn is cut. "
+                                   "Each unit of coal actually burned adds 200 to the fire temperature, and burnt oxygen leaves as carbon dioxide."),
+              section("Heat and coolant", loss_body),
+              section("Outputs", "Temperature reads the fire temperature, not the coolant temperature its description names, sampled before the update's burn. Coal Level is the inventory's whole item count.")],
+             burn + fire_heat + fires + coal[:2] + [parts[b]["voxel_finding"] for b in ("steam_coal_firebox", "steam_coal_firebox_l")] + [T("steam_coal_firebox"), P("steam_coal_firebox", "Ignition"), P("steam_coal_firebox", "Temperature"),
+                                                     P("steam_coal_firebox", "Coolant In"), P("steam_coal_firebox", "Air"), P("steam_coal_firebox", "Exhaust")] + R,
+             [shared, static, TICK])
+    B.family("part-steam-boiler",
+             "Boils water at or above a fixed temperature of 100 at min(0.001 × (T - 100), water) per update, 1:1 by amount, and pushes steam out through Steam Out.",
+             [section("Boiling", phase_body),
+              section("Heat transfer", exchange_body.replace("The condenser counts its whole phase chamber, steam included. ", "").replace("17.5 in the boiler and 7.5 in the condenser", "17.5 here").replace("175 and 75", "175")),
+              section("Ports", "Coolant A and B exchange only when both are connected, with no enforced direction and flow scaled by 1 - D. "
+                               "Water In admits fresh water only, one way in, demanding as if the pipe pressure were 60 higher. "
+                               "Steam Out passes steam only, one way out, with a bias of 2.5 × steam ÷ phase volume, so it pushes harder as steam builds up. Salt water already in the chamber still boils."),
+              section("Damage", "A damaged boiler loses 0.1 × D of its steam per update. No pressure limit or burst test appears in its update.")],
+             phase + boiler + [fig["steam_boiler"], parts["steam_boiler"]["voxel_finding"], T("steam_boiler"), P("steam_boiler", "Water In"), P("steam_boiler", "Steam Out"), P("steam_boiler", "Coolant A")] + R,
+             [shared, static, TICK])
+    B.family("part-steam-condenser",
+             "Condenses steam below a fixed temperature of 100 at min(0.001 × (100 - T), 0.1 × steam) per update into fresh water; its coolant must keep it below 100.",
+             [section("Condensing", "Below 100 the phase chamber turns min(0.001 × (100 - T), 0.1 × steam) of steam into fresh water per update, at most 10% of the steam. "
+                                    "At or above 100 it boils water like a boiler instead. Each step shifts the chamber temperature by only 0.01 × converted ÷ total amount."),
+              section("Heat transfer", exchange_body.replace("17.5 in the boiler and 7.5 in the condenser", "7.5 here").replace("175 and 75", "75")),
+              section("Ports", "Coolant A and B exchange only when both are connected, with no enforced direction. Steam In admits steam only, one way in; Water Out passes fresh water only, one way out; both with no bias.")],
+             phase + condenser + [fig["steam_condenser"], parts["steam_condenser"]["voxel_finding"], T("steam_condenser"), P("steam_condenser", "Steam In"), P("steam_condenser", "Water Out")] + R,
+             [shared, static, TICK])
+    B.family("part-steam-turbine",
+             "Adds 1000 × the steam it passes to its speed each update, keeps 0.985 of it and submits it as target RPS with weight 65 per port; steam flows only from Steam In to Steam Out.",
+             [section("Flow", "Gas passes from Steam In to Steam Out one way, through the pump solver with flow factor 0.0025 and no bias. Exhaust pressure at or above inlet pressure stops it, and the turbine consumes no steam."),
+              section("Speed", "Each update the speed gains 1000 × the steam moved, 600 × at damage 1 to 19 and nothing from damage 20, is multiplied by 0.985 and is submitted as target RPS on both RPS ports with weight 65. "
+                               "The shaft group's speed then replaces it, so loads slow it. Unloaded, a steady steam step q settles at 0.985 ÷ 0.015 × 1000 × q (inference)."),
+              section("Example", "Pure steam networks of volume 4 at pressures 2 and 1 move at most (2 - 1) ÷ 24000 per update, 0.0025 per simulated second, which settles at 2.736111 RPS. More pressure difference moves more steam, up to the solver's limits.")],
+             turbine + [T("steam_turbine"), P("steam_turbine", "Steam In"), P("steam_turbine", "Steam Out"), P("steam_turbine", "RPS")] + R,
+             [shared, static, TICK])
+    B.family("steam-piston",
+             "Switches its ports by half turn of the crank and adds 0.002 × (p_B - p_A) × sin(2πz) to its crank group each update; shaft weight 20 × voxels per port.",
+             [section("Valves", "The crank phase z, wrapped to 0 to 1, opens one port per chamber: from z = 0.5 the first Steam In and the second Steam Out, below 0.5 the first Steam Out and the second Steam In. "
+                                "The closed ports move nothing. The port order is taken from the definition (inference). Supply steam to both Steam In ports and vent both Steam Out ports; no external valve timing is needed."),
+              section("Drive", "Each update a = 0.002 × (p_B - p_A) × sin(2πz) is added to the crank group, p being each chamber's pressure times its steam fraction. The factor is 0.0012 at damage 1 to 9. "
+                               "The open chamber matches the sign of the sine on each half turn, so the drive keeps one direction (inference). At damage 10 or more the update joins the two Steam In ports to each other and the two Steam Out ports to each other, bypassing the chambers, and the piston adds nothing."),
+              section("Sizes", "Chambers hold 0.0015 × voxels, 0.009, 0.1215 and 0.4275, and both RPS ports submit the group speed with weight 120, 1620 and 5700. "
+                               "Crank radii 0.075, 0.146 and 0.216 give geometric strokes of 0.15, 0.292 and 0.432 world units, about metres (inference from the render code)."),
+              section("Outputs", "Piston Position is z in turns, 0 to 1, not rod extension. RPS is the crank group's speed.")],
+             piston + [parts[b]["voxel_finding"] for b in ("steam_piston", "steam_piston_3x3", "steam_piston_5x5")] + [T("steam_piston"), P("steam_piston", "Piston Position"), P("steam_piston", "Steam In"), P("steam_piston", "Steam Out"), P("steam_piston", "RPS")] + R,
+             [shared, static, TICK])
 
 
 # weapons pass; files under investigation/native/weapons/, report investigation/weapons.md.
@@ -6440,14 +6851,7 @@ def more_families(B, E):
     simple("part-electrolyser", "Splits fresh water into hydrogen and oxygen with electricity; the electrodes must be submerged.",
            [("Setup and interactions", "Feed its outputs to a fuel cell or a liquid fuel rocket's tanks.")], [T("electrolyser"), T("liquid_rocket_small")], [])
 
-    # Steam components.
-    simple("steam-firebox", "Ignition consumes one coal; it heats coolant pumped through it and has its own air supply and exhaust ports.",
-           [("Setup and interactions", "Feed coal by duct, connect Air and Exhaust, circulate coolant from Coolant Out to a boiler's coolant ports and back.")],
-           [T("steam_coal_firebox"), P("steam_coal_firebox", "Ignition")], ["Heat per coal not recovered."])
-    simple("part-steam-boiler", "Turns supplied heat into steam; throttle evaporation to hold steam pressure.",
-           [("Setup and interactions", "Hot fluid goes through Coolant A/B; regulate Water In to keep output pressure steady.")], [T("steam_boiler")], [])
-    simple("part-steam-condenser", "Returns steam to water; needs continuous cooling.",
-           [("Setup and interactions", "Run cold fluid through Coolant A/B, for example from a radiator loop.")], [T("steam_condenser")], [])
+    # Steam components; the decoded parts are in steam().
     simple("part-steam-nuclear-control-rod", "Insertion lowers the reaction rate of adjacent fuel rods.",
            [("Setup and interactions", "Place rods next to fuel assemblies and drive Insertion Target from fuel rod temperature.")], [T("steam_nuclear_control_rod"), P("steam_nuclear_fuel_assembly", "Fuel Rod Temperature")],
            ["Reaction kinetics not recovered."])
