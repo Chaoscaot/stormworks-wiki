@@ -1,0 +1,155 @@
+[
+  {
+    "id": "composite-cable-interfaces",
+    "title": "Composite data over electrical cables",
+    "category": "Control",
+    "summary": "Electrical cable anchors document separate data send and receive interfaces.",
+    "body": "The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports describe composite, on/off, video and audio send and receive paths. These are port types, not channel counts. A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph. It does not show when that cache is refreshed.",
+    "findings": [
+      {
+        "label": "Electrical Cable Anchor: Composite Input",
+        "value": "Composite data to send to the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L63-L63",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 63,
+          "lineEnd": 63
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor: Composite Output",
+        "value": "Composite data to receive from the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L66-L66",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 66,
+          "lineEnd": 66
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor: On/Off Input",
+        "value": "On/Off data to send to the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L69-L69",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 69,
+          "lineEnd": 69
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor: On/Off Output",
+        "value": "On/Off data to receive from the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L72-L72",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 72,
+          "lineEnd": 72
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor: Video Data Send",
+        "value": "Video data to send to the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L75-L75",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 75,
+          "lineEnd": 75
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor: Video Data Receive",
+        "value": "Video data to receive from the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L78-L78",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 78,
+          "lineEnd": 78
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor: Audio Data Send",
+        "value": "Audio data to send to the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L81-L81",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 81,
+          "lineEnd": 81
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor: Audio Data Receive",
+        "value": "Audio data to receive from the connected anchor.",
+        "detail": "Shipped connection description. This documents the interface; it is not a runtime measurement.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L84-L84",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 84,
+          "lineEnd": 84
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Electrical Cable Anchor",
+        "value": "Draw a rope logic link between two Electrical Cable Anchors to form a cable. Limited to only one link but can transfer Data and Electric across the link.",
+        "detail": "Shipped component tooltip.",
+        "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L3-L3",
+        "source": {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 3,
+          "lineEnd": 3
+        },
+        "status": "observed",
+        "evidenceType": "component-interface-description"
+      },
+      {
+        "label": "Scalar input getter",
+        "value": "returns the cached value at input + 0x18",
+        "detail": "Load, copy to the result, return. No recursive evaluation of upstream components. Bytes 8b 41 18 89 02 c3 at 0x1408cacf0. Report: investigation/config.md.",
+        "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cacf0",
+        "source": {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cacf0"
+        },
+        "status": "observed",
+        "evidenceType": "native-static"
+      }
+    ],
+    "limitations": [
+      "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
+      "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
+      "Still not decoded: the type-48 anchor's composite payload storage and copy routine, numeric and on/off channel layout and numbering, video and audio ownership, endpoint update order, transfer from producer to cache, cross-vehicle latency, microcontroller limits and Lua scheduling. The XML port types, the one-link tooltip, the empty microprocessor tooltips and the cached getter give no basis for those claims, and no composite packet format or fixed one-update latency was recovered."
+    ]
+  }
+]

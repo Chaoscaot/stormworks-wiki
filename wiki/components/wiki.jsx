@@ -236,7 +236,9 @@ export function RawValue({ value, depth = 0 }) {
   return String(value);
 }
 
-/* Paragraphs, simple lists and `code` from research text. No HTML is interpreted. */
+/* Paragraphs, simple lists, pipe tables and `code` from research text. No HTML is interpreted.
+   A table is a block of `| a | b |` rows whose second row is the `| --- |` separator, optionally
+   preceded by a `Table: caption` line. The first column holds row headers. */
 export function Prose({ text }) {
   if (!text) return null;
   const blocks = String(text).replace(/\r/g, '').split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
@@ -244,10 +246,33 @@ export function Prose({ text }) {
     s.split(/(`[^`]+`)/g).map((part, i) =>
       part.startsWith('`') && part.endsWith('`') ? <code key={i}>{part.slice(1, -1)}</code> : <Fragment key={i}>{part}</Fragment>,
     );
+  const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
   return (
     <>
       {blocks.map((b, i) => {
         const lines = b.split('\n');
+        const caption = /^Table:\s/.test(lines[0]) ? lines[0].replace(/^Table:\s*/, '') : null;
+        const rows = caption ? lines.slice(1) : lines;
+        if (rows.length >= 2 && rows.every((l) => /^\s*\|.*\|\s*$/.test(l)) && /^[\s|:-]+$/.test(rows[1])) {
+          const [head, , ...body] = rows.map(cells);
+          return (
+            <div key={i} className="table-wrap" role="region" aria-label={caption || head.join(', ')} tabIndex={0}>
+              <table className="wikitable">
+                {caption ? <caption>{caption}</caption> : null}
+                <thead>
+                  <tr>{head.map((c, j) => <th scope="col" key={j}>{inline(c)}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {body.map((r, j) => (
+                    <tr key={j}>
+                      {r.map((c, k) => (k === 0 ? <th scope="row" key={k}>{inline(c)}</th> : <td key={k} data-label={head[k]}>{inline(c)}</td>))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
         if (lines.every((l) => /^\s*[-*]\s+/.test(l))) {
           return <ul key={i}>{lines.map((l, j) => <li key={j}>{inline(l.replace(/^\s*[-*]\s+/, ''))}</li>)}</ul>;
         }

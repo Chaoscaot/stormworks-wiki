@@ -38,6 +38,8 @@ SMALL_PARTS = 'investigation/small-parts.md'
 SMALL_PARTS_DATA = 'investigation/native/small-parts/parts.json'
 FORCE_CAP = 'investigation/force-cap.md'
 NUCLEAR = 'investigation/nuclear.md'
+COMPOSITE = 'investigation/composite.md'
+COMPOSITE_DATA = 'investigation/native/composite/composite.json'
 NUCLEAR_DATA = 'investigation/native/nuclear/nuclear.json'
 # Open items of the nuclear decode, keyed by nuclear.json "open". The nuclear parts pages point here,
 # so this is the one place the wiki lists them.
@@ -49,7 +51,7 @@ NUCLEAR_OPEN = {
     'full downstream effects of gated damage event': 'what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments, and what the two game settings that gate it are',
 }
 # Articles whose body numbers must all occur in their findings, as in extract_behavior.py.
-CHECKED = ('aerodynamics', 'buoyancy-water-drag', 'resource-storage', 'nuclear-reactor-components')
+CHECKED = ('aerodynamics', 'buoyancy-water-drag', 'resource-storage', 'nuclear-reactor-components', 'composite-cable-interfaces')
 NUMBER = re.compile(r'(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)')
 CACHE: dict[str, tuple[str, str]] = {}
 BINARY: dict = {}
@@ -399,6 +401,45 @@ def nuclear_native():
     return out, dict(life=life, stroke=stroke, updates=C['full_stroke_updates'], open=[NUCLEAR_OPEN[k] for k in data['open']])
 
 
+def composite_native():
+    """Composite value, wire flush, cable-anchor copy and microcontroller limits from the composite decode, re-read from the executable."""
+    data = json.loads((ROOT / COMPOSITE_DATA).read_text())
+    c, mp = data['composite'], data['microprocessor']
+    if (data['target']['sha256'] != EXE_SHA256 or (c['size_bytes'], c['boolean_channels'], c['numeric_channels']) != (132, 32, 32)
+            or (mp['editor_dimensions']['minimum'], mp['editor_dimensions']['maximum']) != (1, 6) or data['anchor']['type'] != 48):
+        raise ValueError(f'Composite figures in {COMPOSITE_DATA} differ')
+    f32 = lambda addr: struct.unpack('<f', exe_bytes(addr, 4))[0]
+    if (f32(0x140bafecc), f32(0x140bb0540)) != (1.0, 6.0):
+        raise ValueError('Microcontroller size bounds moved')
+    r = COMPOSITE
+    return [
+        native('Composite number read', 'number c at byte 4 × c', 'Lua getNumber (0x1402e8e10) subtracts 1 from the channel, requires an unsigned index of at most 31 and loads binary32 from payload + 4 + 4 × (c - 1); outside 1 to 32 it returns 0. '
+               'The value is 132 bytes: a 32-bit on/off mask at byte 0, then 32 numbers, channel 32 at byte 128.',
+               '0x1402e8ebe', 'ff c9 83 f9 1f 77 06 f3 0f 10 44 8a 04', report=r),
+        native('Composite on/off read', 'bit c - 1', 'Lua getBool (0x1402e8d00) tests 1 << (c - 1) in the mask and returns false outside 1 to 32. Example: channels 1, 3 and 32 on give the mask 0x80000005.',
+               '0x1402e8dad', 'ff c9 83 f9 1f 77 0d ba 01 00 00 00 d3 e2', report=r),
+        native('Composite output flush', 'value address to each wired input, slot +0x60', 'Slot +0x28 of the composite output slot walks its wired inputs and passes its 132-byte value; the input copies it into its own cache (0x1402ea870). On/off and number outputs flush the same way through their own slot +0x28.',
+               '0x1402ea68b', '48 8d 53 18 48 8b 01 ff 50 60', report=r),
+        native('Component update loop', 'slot +0x358 per component', 'The dispatcher 0x140549240 first runs every component update.', '0x1405498d6', '41 ff 92 58 03 00 00', report=r),
+        native('Per-vehicle transport', 'call 0x1404baf80', 'In a second loop over the vehicles it runs each vehicle\'s transport pass, which calls slot +0x360 of every component (0x1404996a7); for rope hooks that is the cable copy 0x1403b6840.',
+               '0x140549a5b', 'e8 20 15 f7 ff', report=r),
+        native('Per-vehicle output flush', 'slot +0x28 of each output', 'Then it flushes that vehicle\'s outputs, before it moves to the next vehicle.', '0x140549ad2', 'ff 50 28', report=r),
+        native('Anchor state guard', 'both states below 5', 'The cable copy reads the linked peer from component+0xa98 and copies signals only while its own state and the peer\'s are below 5 (second test at 0x1403b68e5).',
+               '0x1403b68db', '83 7b 08 05 0f 83 6e 03 00 00', report=r),
+        native('Anchor composite copy', '132 bytes to the peer', 'Copies the Composite Input value (+0x250) to the peer\'s Composite Output value (+0x2f0): the mask, then the 32 numbers in eight 16-byte moves ending at 0x1403b6b93.',
+               '0x1403b6b37', '8b 83 50 02 00 00 89 01', report=r),
+        native('Anchor video copy', 'descriptor by value', 'Assigns Video Data Send (+0x400) to the peer\'s Video Data Receive (+0x638) with 0x1402e9ab0, a straight run of field copies with no call or allocation.',
+               '0x1403b6b0a', 'e8 a1 2f f3 ff', report=r),
+        native('Anchor audio copy', 'private sample buffer', 'Copies Audio Data Send (+0x888) to the peer\'s Audio Data Receive (+0x8d0) with 0x1402ea000, which allocates count × 4 bytes for the receiver when the count changes (0x1402ea043) and copies every sample word.',
+               '0x1403b6b24', 'e8 d7 34 f3 ff', report=r),
+        native('Pulley routing', 'subtype 9', 'When a side is an Electric Cable Pulley, subtype 9, the copies use the pulley\'s own composite, video and audio buffers.', '0x1403b6943', '83 b8 74 0e 00 00 09', report=r),
+        native('Microcontroller size controls', '1 to 6, step 1', 'The editor passes 1 as minimum and step and 6 as maximum to both size controls.', '0x140639101', 'f3 44 0f 10 05 c2 6d 57 00', report=r,
+               literals={'0x140bafecc': '00 00 80 3f', '0x140bb0540': '00 00 c0 40'}),
+        native('Microcontroller upload check', 'width and length at most 6', 'Upload rejects a width or length above 6 with "Microcontroller must not be larger than 6x6 voxels".', '0x1407c65e1', '41 83 bc 24 58 01 00 00 06 77 0f 41 83 bc 24 5c 01 00 00 06', report=r,
+               literals={'0x140b06c60': '4d 69 63 72 6f 63 6f 6e 74 72 6f 6c 6c 65 72 20 6d 75 73 74 20 6e 6f 74 20 62 65 20 6c 61 72 67 65 72 20 74 68 61 6e 20 36 78 36 20 76 6f 78 65 6c 73 00'}),
+    ]
+
+
 
 def lua(label, val, detail, path, needle, end=None, status='observed'):
     return finding(label, val, detail, cite(path, needle, end), status)
@@ -724,13 +765,31 @@ def build_articles():
             definition('gun_s', ['weapon_barrel_length_voxels'], tooltip=True) + definition('gun_drum_small', ['weapon_ammo_capacity'], tooltip=True) + definition('gun_belt_loader', tooltip=True) + definition('gun_l', ['weapon_barrel_length_voxels'], tooltip=True),
             [block_limit, static_limit, 'The velocity, flight, spread, impact, loading and fuse figures come from that native decode, not from these definitions alone. Still not decoded: a throughput model for arbitrary belt networks, the fastest firing schedule for cannons whose breech is opened and loaded by external control, and the final voxel damage, armour incidence and blast occlusion applied to a target. The firing rates above are state-machine inferences, not measurements.'])
     article('composite-cable-interfaces', 'Composite data over electrical cables', 'Control',
-            'Electrical cable anchors document separate data send and receive interfaces.',
-            'The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports describe composite, on/off, video and audio send and receive paths. These are port types, not channel counts. '
-            'A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph. It does not show when that cache is refreshed.',
+            'A composite value is 32 on/off channels and 32 binary32 numbers, numbered 1 to 32, in 132 bytes. Wires, microprocessor bridges and Electrical Cable Anchors copy it whole, and anchors also pass a video descriptor and a private copy of the audio samples.',
+            'The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports are composite, on/off, video and audio send and receive pairs. '
+            'A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph.\n\n'
+            f'A native decode ({COMPOSITE}, shown on the Electrical Cable Anchor, Microprocessor and Logic pages) recovered the value and every copy of it. '
+            'The value starts with a 32-bit on/off mask, channel c at bit c - 1, followed by 32 numbers, channel c at byte 4 × c, so channel 32 starts at byte 128. Lua getBool and getNumber return false and 0 outside 1 to 32. '
+            'This is the in-memory value, not a network or save format.\n\n'
+            'Table: Composite value\n'
+            '| Part | Where | Channel c |\n'
+            '| --- | --- | --- |\n'
+            '| On/off mask | 32-bit word at byte 0 | bit c - 1 |\n'
+            '| Numbers | 32 binary32 values from byte 4 | byte 4 × c |\n\n'
+            'Wires: the dispatcher first runs every component update, then goes through the vehicles one at a time. For each vehicle it runs the transport pass, which holds the cable copy, and then flushes that vehicle\'s outputs: each output pushes its value into the cache of every input wired to it. '
+            'Inference: on an ordinary wire a consumer reads a new value one update after the producer wrote it.\n\n'
+            'Cables: an anchor reads its linked peer and, while both states are below 5, copies its Composite Input value, all 132 bytes, to the peer\'s Composite Output, its on/off input to the peer\'s On/Off Output, its video descriptor to the peer\'s Video Data Receive and its audio samples to the peer\'s Audio Data Receive. '
+            'Video is copied by value with no allocation; audio goes into a buffer the receiving anchor owns. Electric Cable Pulleys (subtype 9) route the same copies through their own buffers. '
+            'Because cable copies and output flushes interleave vehicle by vehicle, a write to an anchor on another vehicle can land before or after that vehicle\'s flush, so the number of updates a cable adds depends on vehicle order.\n\n'
+            'Microcontrollers: composite bridges copy the whole value, video bridges the descriptor and audio bridges the samples. The editor limits width and length to 1 to 6, and upload rejects anything above 6.',
             definition('rope_hook_composite', tooltip=True) +
-            [native('Scalar input getter', 'returns the cached value at input + 0x18', 'Load, copy to the result, return. No recursive evaluation of upstream components.', '0x1408cacf0', '8b 41 18 89 02 c3')],
-            [block_limit, static_limit, 'Still not decoded: the type-48 anchor\'s composite payload storage and copy routine, numeric and on/off channel layout and numbering, video and audio ownership, endpoint update order, transfer from producer to cache, cross-vehicle latency, microcontroller limits and Lua scheduling. '
-             'The XML port types, the one-link tooltip, the empty microprocessor tooltips and the cached getter give no basis for those claims, and no composite packet format or fixed one-update latency was recovered.'])
+            [native('Scalar input getter', 'returns the cached value at input + 0x18', 'Load, copy to the result, return. No recursive evaluation of upstream components.', '0x1408cacf0', '8b 41 18 89 02 c3'),
+             finding('Electrical Cable Anchor: type and subtype', 'type 48, logic_gate_subtype 2', 'Rope-hook component type 48, subtype 2.', cite('rom/data/definitions/rope_hook_composite.xml', 'type="48"'), kind='component-configuration'),
+             finding('Electric Cable Pulley: subtype', 'logic_gate_subtype 9', 'Rope-hook subtype 9, the electric cable pulley.', cite('rom/data/definitions/winch_pulley_cable.xml', 'logic_gate_subtype="9"'), kind='component-configuration')]
+            + composite_native(),
+            [block_limit, 'Native findings are static readings of this executable build. No game process was executed, and no latency was measured.',
+             'Still not recovered: how many updates a value needs through cable anchors, pulleys and between vehicles, which needs the setup of the two anchor link pointers (+0xa98, +0xaa0), the full pulley traversal, the vehicle order and the inactive, sleeping and reduced-rate paths traced; '
+             'who owns and frees the resources behind a video descriptor; when Lua onTick and onDraw run and what budget they have; and any network or save format for composite data. The microcontroller port limit is listed on the Microprocessor part page.'])
     article('winches-hose-coils', 'Winch controls, length and hose connections', 'Fluids',
             'Winch descriptions document electrical operation, length telemetry and hose-coil ports. Rope-node winches reel at 0.012 × cable_length × Speed m/s; legacy winches and the Hose reel at 0.24 × Speed m/s at full electricity.',
             'The selected mechanical winch raises its cable on Up and lowers it on Down. Length reports the current cable length in metres. The selected large variant documents the same controls and units. Their short tooltips describe 20m and 100m mechanical winches respectively. Both expose electrical and hose-coil fluid connections. '

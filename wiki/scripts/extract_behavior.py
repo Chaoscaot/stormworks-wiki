@@ -9352,17 +9352,32 @@ def logic(B, E):
          "Expect it to switch a track junction rather than to feed other logic; the Logic category lists what of its routing remains open.")
     # Microprocessor.
     mp = microprocessor(E)
+    co = composite_native(E)
     B.family("part-microprocessor",
-             "A microcontroller in a block: each update it copies its connected inputs into an embedded logic graph, runs the graph, then copies the graph outputs back out.",
+             "A microcontroller in a block: each update it copies its connected inputs into an embedded logic graph, runs the graph, then copies the graph outputs back out. Composite bridges copy all 32 on/off and 32 number channels, video bridges a descriptor and audio bridges the samples.",
              [section("How it updates",
                       "Component type 37 runs the microprocessor update. It calls every input bridge, then the graph update with the embedded graph at +0x1c0, then every output bridge. "
-                      "Each bridge copies one value: a Boolean input bridge reads the connected vehicle signal into a graph node, and a Boolean output bridge writes a graph output to the connected signal. Bridges with no connection do nothing."),
+                      "Each bridge copies one value: an input bridge reads the connected vehicle signal into a graph node, and an output bridge writes a graph output to the connected signal. Bridges with no connection do nothing."),
               section("Ports",
                       "The definition lists no logic nodes and no tooltip. The ports come from the bridges of the embedded graph, with number, on/off, composite, video and audio bridge types. Read the ports from the microcontroller you placed, not from the definition."),
+              section("Composite, video and audio bridges",
+                      "A composite bridge copies the whole 132-byte value, the on/off mask and all 32 numbers, between the connected signal and its graph node, in both directions. "
+                      "A video bridge copies the fixed video descriptor field by field and allocates nothing. An audio bridge copies the samples into a buffer the receiving side owns. "
+                      "No bridge converts one kind into another: video and audio never enter composite channels."),
+              section("Size and port placement",
+                      "The editor's width and length controls run from 1 to 6 in steps of 1, and the upload check rejects a microcontroller whose width or length is above 6 with \"Microcontroller must not be larger than 6x6 voxels\". "
+                      "A port must sit inside the grid, 0 ≤ x < width and 0 ≤ z < length, in the bottom row y = 0. Two ports at one position are rejected when they have the same kind, or kinds 0 and 1 (internal codes); other kinds may share a position. "
+                      "This rule sets no total, so the 6 by 6 area and the 32 composite channels do not give a port limit."),
+              section("Composite channels inside the graph",
+                      "The composite read nodes (on/off and number) clamp their channel to 1 to 32, so channel 0 or less reads channel 1 and anything above 32 reads channel 32. A channel taken from an input is rounded first by adding 0.5 (inference: the library call is floor). "
+                      "Lua getBool and getNumber instead return false and 0 outside 1 to 32, setBool and setNumber ignore such channels, and setNumber rounds the Lua number to binary32. The Logic category gives the channel layout."),
               section("Inside the graph",
                       "The graph gathers every component's inputs before it runs any component, so a change moves one component per update (inference). Its components are separate routines from the physical gates: the PID has no max_error clamp, and the Blinker differs, as their part pages note.")],
-             mp + [A("microprocessor", "type", "Component type 37, the microprocessor class."), A("microprocessor", "category", "Definition category 5, the game's logic category."), f["graph_in"]],
-             ["The maximum port count, editor size limits and the payload handling of composite, video and audio bridges were not recovered."])
+             mp + [A("microprocessor", "type", "Component type 37, the microprocessor class."), A("microprocessor", "category", "Definition category 5, the game's logic category."), f["graph_in"]]
+             + [co[k] for k in ("b_co_in", "b_co_out", "b_co_gather", "b_vid_in", "b_vid_out", "b_aud_in", "b_aud_out", "vid_copy", "aud_alloc", "aud_copy",
+                                "dim_min", "dim_max", "upload", "upload_msg", "port_xz", "port_kind", "readb", "readn", "read_half", "getb", "getn", "setb", "setn", "n_getb", "n_setb")],
+             ["The maximum total number of external ports was not recovered: the port kinds the editor accepts, and every creation and save check, still need reconciling with the placement rule.",
+              CO_POINTER])
     # Category.
     B.category("Logic",
                "All logic gates run in one native update, once per update. Boolean gates are plain; latches and flip-flops act only when an input changes; timers count whole updates; numeric outputs replace NaN and infinity with 0.",
@@ -9378,9 +9393,27 @@ def logic(B, E):
                 section("Timers count updates",
                         "Delay, Blinker and Capacitor multiply their seconds by 60 and truncate to whole updates; 0.51 s becomes 30 updates. Counters and Up/Down step every update. The PID has no time step at all."),
                 section("Inside a microprocessor",
-                        "A microprocessor gathers every component's inputs before it runs any component, so a signal moves one component per update inside it (inference). Its PID, Blinker and timers are separate routines; see the PID Controller and Microprocessor pages.")],
-               [f["dispatch"], f["sanitize"], f["sixty"], f["graph_in"], div, trig, jk_guard, T("gate_float_threshold"), T("gate_float_greater_than"), T("gate_sr_latch")] + R,
-               ["Propagation latency between separate physical logic blocks was not traced: the step that copies one block's output into the next block's input, and its order across blocks and vehicles, was not located.",
+                        "A microprocessor gathers every component's inputs before it runs any component, so a signal moves one component per update inside it (inference). Its PID, Blinker and timers are separate routines; see the PID Controller and Microprocessor pages."),
+                section("Between logic blocks",
+                        "A physical output keeps its value in its own slot, and an input reads only its own cached copy. After every component on every vehicle has updated, the dispatcher walks each vehicle's outputs and pushes each value into every input wired to it: on/off as a byte, numbers as binary32, composite as the whole 132-byte value. "
+                        "Inference from that order: a change moves one block per update along a chain of physical logic blocks on one vehicle, the same rule as inside a microprocessor."),
+                section("Composite channel layout",
+                        "A composite signal carries 32 on/off channels and 32 numbers, both numbered 1 to 32, in one 132-byte value. Wires, microprocessor bridges and Electrical Cable Anchors copy it whole, as connectors and radios do on their links.",
+                        "Table: Composite value layout\n"
+                        "| Part | Bytes | Channel c |\n"
+                        "| --- | --- | --- |\n"
+                        "| On/off mask | one 32-bit word at byte 0 | bit c − 1 |\n"
+                        "| Numbers | 32 binary32 values from byte 4 to the end | 4 bytes from byte 4 × c |",
+                        "Table: Channels outside 1 to 32\n"
+                        "| Access | Channel 0 or below, above 32 |\n"
+                        "| --- | --- |\n"
+                        "| Lua getBool, getNumber | false, 0 |\n"
+                        "| Lua setBool, setNumber | ignored |\n"
+                        "| Microprocessor composite read nodes | clamped to channel 1 or 32 |",
+                        "Example: on/off channels 1, 3 and 32 on give the mask bytes 05 00 00 80, and number channel 1 = 1.5 is stored at byte 4 as 00 00 c0 3f. setNumber rounds a Lua number to binary32.")],
+               [f["dispatch"], f["sanitize"], f["sixty"], f["graph_in"], div, trig, jk_guard, T("gate_float_threshold"), T("gate_float_greater_than"), T("gate_sr_latch")] + R
+               + [co[k] for k in ("fl_bool", "fl_f32", "fl_co", "set_co", "flush", "transport", "getb", "getn", "setb", "setn", "readb", "readn", "b_co_in", "a_comp")],
+               ["Timing between vehicles and through cables is listed with the open questions of the Composite data over electrical cables mechanics article.",
                 "Sign, rounding and domain edge cases of the library helpers behind Modulo, Exponent and Trigonometry were not decoded.",
                 "The function block's expression language (operator set, parser, rounding and constant expressions) was not decoded.",
                 "Power Add and Power Meter do nothing in the logic update; their transmission-network formulas were not decoded.",
@@ -10279,12 +10312,254 @@ def nuclear(B, E):
              [NU_STATIC, NU_POINTER])
 
 
+# composite pass; files under investigation/native/composite/, report investigation/composite.md.
+CO_REPORT = "investigation/composite.md"
+CO_DATA = "investigation/native/composite/composite.json"
+F_LUA_IO = 0x1402E5230        # Lua API table builder: getBool/getNumber and setBool/setNumber name and function pairs
+F_LUA_GETB = 0x1402E8D00      # Lua getBool
+F_LUA_GETN = 0x1402E8E10      # Lua getNumber
+F_LUA_SETB = 0x1402E8AA0      # Lua setBool
+F_LUA_SETN = 0x1402E8BD0      # Lua setNumber
+F_CO_READB = 0x14037C910      # microprocessor composite read (on/off) tick
+F_CO_READN = 0x14037D7C0      # microprocessor composite read (number) tick
+F_CO_OUT = 0x140371E10        # microprocessor composite output bridge (node +0x20 → slot +0x18)
+F_CO_GATHER = 0x140371F40     # microprocessor composite graph input gathering (producer +0x20 → cache +0x38)
+F_CO_IN = 0x140371FA0         # microprocessor composite input bridge (slot +0x18 → cache +0x38)
+F_VID_OUT, F_VID_IN = 0x1403721B0, 0x1403722C0  # microprocessor video output and input bridges
+F_AUD_OUT, F_AUD_IN = 0x140372430, 0x140372510  # microprocessor audio output and input bridges
+F_FLUSH_BOOL, F_FLUSH_F32 = 0x1402EA450, 0x1402EA520  # on/off and number output slot flush, slot +0x28
+F_FLUSH_CO = 0x1402EA667      # chained unwind chunk of the composite output flush 0x1402ea650 (slot +0x28)
+F_FLUSH_VID = 0x1402EAA27     # chained unwind chunk of the video output flush 0x1402eaa10
+F_FLUSH_AUD = 0x1402EADC4     # chained unwind chunk of the audio output flush 0x1402eadb0
+F_SET_BOOL, F_SET_F32, F_SET_CO = 0x1402EA0B0, 0x1402EA270, 0x1402EA870  # input slot setters (leaves)
+F_VID_COPY = 0x1402E9AB0      # video descriptor assignment (leaf, no call)
+F_AUD_COPY = 0x1402EA000      # audio buffer assignment: reallocates and copies the sample words
+F_VEH_PASS = 0x1404BB052      # chained unwind chunk of the per-vehicle update 0x1404baf80
+F_ROPE_BIND = 0x1403B5300     # rope-hook port slot list: appends the eight signal slots in order
+F_MC_EDITOR = 0x140638E00     # microcontroller editor panel: width and length controls
+F_MC_UPLOAD = 0x1407C6040     # microcontroller upload validation
+F_MC_PORT = 0x14038FEE0       # microcontroller port placement validity (leaf)
+# (vtable, slot, target, RTTI name); the extractor re-reads every pointer and name.
+CO_SLOTS = (
+    (0x140AEED68, 0x28, 0x1402EA650, "c_vehicle_logic_slot_output_composite"), (0x140B709E0, 0x60, F_SET_CO, "c_vehicle_logic_slot_input_composite"),
+    (0x140B543E0, 0x28, F_FLUSH_BOOL, "c_vehicle_logic_slot_output_bool"), (0x140B74C10, 0x50, F_SET_BOOL, "c_vehicle_logic_slot_input_bool"),
+    (0x140B7B250, 0x28, F_FLUSH_F32, "c_vehicle_logic_slot_output_f32"), (0x140B45F08, 0x58, F_SET_F32, "c_vehicle_logic_slot_input_f32"),
+    (0x140B746F8, 0x28, 0x1402EAA10, "c_vehicle_logic_slot_output_video"), (0x140B7E7E8, 0x68, 0x1402EACF0, "c_vehicle_logic_slot_input_video"),
+    (0x140BA8230, 0x28, 0x1402EADB0, "c_vehicle_logic_slot_output_audio"), (0x140B720D8, 0x70, 0x1402EAFA0, "c_vehicle_logic_slot_input_audio"),
+    (0x140B718C0, 0x58, F_CO_IN, "c_microprocessor_logic_node_input_composite"), (0x140B70D88, 0x48, F_CO_OUT, "c_microprocessor_logic_node_output_composite"),
+    (0x140B91000, 0x58, F_VID_IN, "c_microprocessor_logic_node_input_video"), (0x140AF72C8, 0x48, F_VID_OUT, "c_microprocessor_logic_node_output_video"),
+    (0x140B0DA58, 0x58, F_AUD_IN, "c_microprocessor_logic_node_input_audio"), (0x140AFD5B0, 0x48, F_AUD_OUT, "c_microprocessor_logic_node_output_audio"),
+    (0x140BA4908, 0x50, F_CO_READB, "c_microprocessor_component_composite_read_bool"), (0x140B9D7B8, 0x50, F_CO_READN, "c_microprocessor_component_composite_read_f32"),
+    (0x140B600F0, 0x360, F_ROPE_FLUID, "c_scene_vehicle_component_rope_hook"),
+)
+_CO = "composite/asm/"
+CO_ASM = {
+    F_LUA_IO: (_CO + "1402e5230.asm", "1402e5230.c"), F_LUA_GETB: (_CO + "1402e8d00.asm", "1402e8d00.c"), F_LUA_GETN: (_CO + "1402e8e10.asm", "1402e8e10.c"),
+    F_LUA_SETB: (_CO + "1402e8aa0.asm", "1402e8aa0.c"), F_LUA_SETN: (_CO + "1402e8bd0.asm", "1402e8bd0.c"),
+    F_CO_READB: (_CO + "14037c910.asm", "14037c910.c"), F_CO_READN: (_CO + "14037d7c0.asm", "14037d7c0.c"),
+    F_CO_OUT: (_CO + "140371e10.asm", "140371e10.c"), F_CO_GATHER: (_CO + "140371f40.asm", "140371f40.c"), F_CO_IN: (_CO + "140371fa0.asm", "140371fa0.c"),
+    F_VID_OUT: (_CO + "1403721b0.asm", "1403721b0.c"), F_VID_IN: (_CO + "1403722c0.asm", "1403722c0.c"),
+    F_AUD_OUT: (_CO + "140372430.asm", "140372430.c"), F_AUD_IN: (_CO + "140372510.asm", "140372510.c"),
+    F_FLUSH_BOOL: (_CO + "1402ea000.asm", None), F_FLUSH_F32: (_CO + "1402ea000.asm", None),
+    F_FLUSH_CO: (_CO + "1402ea650.asm", "1402ea650.c"), F_FLUSH_VID: (_CO + "1402eaa10.asm", "1402eaa10.c"), F_FLUSH_AUD: (_CO + "1402eadb0.asm", "1402eadb0.c"),
+    F_SET_BOOL: (_CO + "1402ea000.asm", None), F_SET_F32: (_CO + "1402ea000.asm", None), F_SET_CO: (_CO + "1402ea870.asm", "1402ea870.c"),
+    F_VID_COPY: (_CO + "1402e9ab0.asm", "1402e9ab0.c"), F_AUD_COPY: (_CO + "1402ea000.asm", "1402ea000.c"),
+    F_DISPATCH: (_CO + "140549240.asm", "140549240.c"), F_VEH_PASS: (_CO + "1404baf80.asm", "1404baf80.c"),
+    F_ROPE_FLUID: (_CO + "1403b6840.asm", "1403b6840.c"), F_ROPE_BIND: (_CO + "1403b5300.asm", "1403b5300.c"),
+    F_MC_EDITOR: (_CO + "140638e00.asm", "140638e00.c"), F_MC_UPLOAD: (_CO + "1407c6040.asm", "1407c6040.c"), F_MC_PORT: (_CO + "14038fee0.asm", "14038fee0.c"),
+}
+CO_STATIC = "Static analysis of one build; no game process was run, and no latency was measured."
+CO_POINTER = ("Open questions about cable and cross-vehicle timing, video resource ownership, Lua scheduling and a composite network format are listed in the "
+              "Composite data over electrical cables mechanics article.")
+
+
+def composite_native(E):
+    """Composite value layout, slot flushes, microprocessor bridges, cable-anchor transport and microcontroller limits, verified once and shared."""
+    if hasattr(E, "composite"):
+        return E.composite
+    n = E.native
+    if not (E.root / CO_REPORT).is_file():
+        raise ValueError("Composite report missing: " + CO_REPORT)
+    for vtable, slot, target, name in CO_SLOTS:
+        if struct.unpack("<Q", n.raw(vtable + slot, 8))[0] != target or _rtti(n, vtable) != name:
+            raise ValueError("Slot +%#x of %s (%#x) does not hold %#x" % (slot, name, vtable, target))
+    data = json.loads((E.root / CO_DATA).read_bytes())
+    c, mp, an = data["composite"], data["microprocessor"], data["anchor"]
+    dims = mp["editor_dimensions"]
+    if (data["target"]["sha256"] != EXE_SHA256 or c["size_bytes"] != 4 + 4 * c["numeric_channels"] or (c["boolean_channels"], c["numeric_channels"]) != (32, 32)
+            or (c["public_channel_min"], c["public_channel_max"]) != (1, 32) or (dims["minimum"], dims["maximum"], dims["step"]) != (n.f32(0x140BAFECC), n.f32(0x140BB0540), n.f32(0x140BAFECC))
+            or (an["type"], an["logic_gate_subtype"], an["electric_pulley_subtype"]) != (48, 2, 9) or mp["maximum_total_ports"] is not None
+            or int(an["transport"], 16) != F_ROPE_FLUID or int(an["peer_pointer_offset"], 16) != 0xA98):
+        raise ValueError("Composite figures in %s differ from the verified bytes" % CO_DATA)
+    for bid, key, want in (("rope_hook_composite", "type", 48), ("rope_hook_composite", "logic_gate_subtype", 2),
+                           ("winch_pulley_cable", "logic_gate_subtype", 9), ("winch_pulley_cable_corner", "logic_gate_subtype", 9)):
+        if int(E.block(bid)["attributes"][key]) != want:
+            raise ValueError("%s %s is not %d" % (bid, key, want))
+    layout = next(x for x in data["worked_examples"] if x["name"] == "layout")
+    mask = sum(1 << (ch - 1) for ch in layout["true_boolean_channels"])
+    payload = bytes.fromhex(layout["payload_hex"])
+    if (mask != int(layout["mask_hex"], 16) or payload[:4] != struct.pack("<I", mask) or len(payload) != c["size_bytes"]
+            or any(payload[4 * int(ch):4 * int(ch) + 4] != struct.pack("<f", v) for ch, v in layout["numbers"].items())):
+        raise ValueError("Composite worked example in %s differs from the layout" % CO_DATA)
+    # The video assignment is one straight run of moves: no call before its return.
+    rows = (E.root / "investigation/native" / CO_ASM[F_VID_COPY][0]).read_text().splitlines()
+    run = []
+    for line in rows:
+        m = re.match(r"\s*([0-9a-f]+):\t(?:[0-9a-f]{2} )+\s*\t(\S+)", line)
+        if m:
+            run.append((int(m.group(1), 16), m.group(2)))
+            if m.group(2) == "ret":
+                break
+    if run[0][0] != F_VID_COPY or run[-1] != (0x1402E9DEB, "ret") or any(op in ("call", "jmp") for _, op in run):
+        raise ValueError("Video assignment 0x1402e9ab0 no longer runs straight to its return")
+    rep = " Report: %s." % CO_REPORT
+
+    def code(func, address, hexbytes, label, value, detail):
+        _wheel_cite(E, func, address, hexbytes, table=CO_ASM)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        _wheel_cite(E, func, address, hexbytes, table=CO_ASM)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    def name(func, lea, hexbytes, target, expected, label, detail):
+        if lea + 7 + struct.unpack("<i", n.raw(lea + 3, 4))[0] != target:
+            raise ValueError("lea at %#x does not address %#x" % (lea, target))
+        _wheel_cite(E, func, lea, hexbytes, key=target, table=CO_ASM)
+        return E.string(func, target, expected, label, detail + rep)
+
+    f = {}
+    # Value layout and Lua access.
+    f["n_getb"] = name(F_LUA_IO, 0x1402E5552, "488d150fd38200", 0x140B12868, "getBool", "Lua getBool name",
+                       "The Lua API builder pairs this name with 0x1402e8d00 (lea at 0x1402e555d) and getNumber (0x140b12840) with 0x1402e8e10 (lea at 0x1402e5573) in one table.")
+    f["n_setb"] = name(F_LUA_IO, 0x1402E551E, "488d0503d38200", 0x140B12828, "setBool", "Lua setBool name",
+                       "A second table pairs this name with 0x1402e8aa0 (lea at 0x1402e5529) and setNumber (0x140b127d0) with 0x1402e8bd0 (lea at 0x1402e553f).")
+    f["getn"] = code(F_LUA_GETN, 0x1402E8EBE, "ffc983f91f7706f30f10448a04", "Lua getNumber channel", "number c at byte 4 × c; 0 outside 1 to 32",
+                     "Converts the channel to an integer, subtracts 1 and loads a binary32 from payload + 4 + 4 × (c − 1) only when the unsigned index is at most 31 (0x1f); "
+                     "otherwise, and with no payload, it returns 0. Number channel 1 starts at byte 4 and channel 32 at byte 128 of the 132-byte value.")
+    f["getb"] = code(F_LUA_GETB, 0x1402E8DAD, "ffc983f91f770dba01000000d3e2418510", "Lua getBool channel", "bit c − 1 of the mask at byte 0; false outside 1 to 32",
+                     "Subtracts 1 from the channel, requires an unsigned index of at most 31 and tests 1 << (c − 1) in the 32-bit on/off mask at the start of the value; otherwise it returns false. "
+                     "Example: on/off channels 1, 3 and 32 on give the mask 0x80000005, bytes 05 00 00 80.")
+    f["setb"] = code(F_LUA_SETB, 0x1402E8B6C, "418d4aff83f91f7716", "Lua setBool channel", "bit c − 1; ignored outside 1 to 32",
+                     "Sets (bts) or clears (btr) bit c − 1 of the output mask only for an unsigned index c − 1 of at most 31; other channels leave the value unchanged.")
+    f["setn"] = code(F_LUA_SETN, 0x1402E8CAD, "8d46ff83f81f770a660f5ac6f30f11448104", "Lua setNumber channel", "binary32 at byte 4 × c; ignored outside 1 to 32",
+                     "Rounds the Lua number to binary32 (cvtpd2ps) and stores it at payload + 4 + 4 × (c − 1) for c from 1 to 32; other channels are ignored. Example: 1.5 is stored at byte 4 as 00 00 c0 3f.")
+    f["readb"] = code(F_CO_READB, 0x14037C93E, "33c0b91f00000085d20f4fc23bc10f4cc8", "Composite read (on/off) channel", "clamped to 1 to 32",
+                      "The microprocessor composite read node clamps its zero-based channel to 0 to 31 (cmovg, cmovl) and tests that bit of its cached mask, so channel 0 or less reads channel 1 and above 32 reads channel 32. Its vtable 0x140ba4908 holds this tick at slot +0x50.")
+    f["readn"] = code(F_CO_READN, 0x14037D7EE, "33c0b91f00000085d20f4fc23bc10f4cc8", "Composite read (number) channel", "clamped to 1 to 32",
+                      "The number read node clamps the same way and loads the number from its cache at +0x8c + 4 × index (0x14037d811). Its vtable 0x140b9d7b8 holds this tick at slot +0x50.")
+    f["read_half"] = op(F_CO_READB, 0x14037C92B, "f30f580589338300", 0x140BAFCBC, "Composite read channel input rounding",
+                        "With no fixed channel (+0x178 negative) the node adds this to its channel input (+0x148) and passes the sum to the library call 0x1409d57d8 before subtracting 1. Inference: that call is floor, so a channel input rounds half up.")
+    # Physical slots: outputs publish to inputs after the component pass.
+    f["fl_bool"] = code(F_FLUSH_BOOL, 0x1402EA482, "0fb65318488b01ff5050", "On/off output flush", "output byte +0x18 → each input's +0x50",
+                        "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118).")
+    f["fl_f32"] = code(F_FLUSH_F32, 0x1402EA545, "f30f104b18", "Number output flush", "output binary32 +0x18 → each input's +0x58",
+                       "Slot +0x28 of c_vehicle_logic_slot_output_f32 passes its binary32 value to each wired input's slot +0x58 (call at 0x1402ea55a), 0x1402ea270, which stores it at input+0x18 (bytes f30f114918).")
+    f["fl_co"] = code(F_FLUSH_CO, 0x1402EA68B, "488d5318488b01ff5060", "Composite output flush", "132-byte value +0x18 → each input's +0x60",
+                      "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60.")
+    f["set_co"] = code(F_SET_CO, 0x1402EA870, "8b02894118", "Composite input copy", "copies 132 bytes into input+0x18",
+                       "Slot +0x60 of c_vehicle_logic_slot_input_composite copies the on/off mask, then the 32 numbers in eight 16-byte moves, into the input's own value at +0x18. The input keeps a copy, not a pointer to the producer.")
+    f["fl_vid"] = code(F_FLUSH_VID, 0x1402EAA4B, "488d5318488b01ff5068", "Video output flush", "descriptor → each input's +0x68",
+                       "The video output flush 0x1402eaa10 passes its descriptor to each wired input's slot +0x68, 0x1402eacf0, which tail-calls the descriptor assignment 0x1402e9ab0.")
+    f["fl_aud"] = code(F_FLUSH_AUD, 0x1402EADE2, "488d5318488b01ff5070", "Audio output flush", "samples → each input's +0x70",
+                       "The audio output flush 0x1402eadb0 passes its buffer to each wired input's slot +0x70, 0x1402eafa0, which tail-calls the audio assignment 0x1402ea000.")
+    f["flush"] = code(F_DISPATCH, 0x140549AD2, "ff5028", "Output flush call", "slot +0x28 of every output, per vehicle",
+                      "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. "
+                      "Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later.")
+    f["transport"] = code(F_DISPATCH, 0x140549A5B, "e82015f7ff", "Per-vehicle transport call", "call 0x1404baf80, before the flush",
+                          "In the second loop each vehicle first runs 0x1404baf80, which reaches the component pass 0x1404995b0 (call at 0x1404bb2b3) that calls slot +0x360 of every component; for rope hooks that slot holds 0x1403b6840. "
+                          "Only then are that vehicle's outputs flushed, so cable copying and output flushes interleave vehicle by vehicle.")
+    f["veh_pass"] = code(F_VEH_PASS, 0x1404BB2B3, "e8f8e2fdff", "Component transport pass call", "call 0x1404995b0",
+                         "The per-vehicle update calls the pass that invokes slot +0x360 of each component (0x1404996a7).")
+    # Microprocessor bridges.
+    f["b_co_in"] = code(F_CO_IN, 0x140371FA9, "8b4218894138", "Composite input bridge", "slot value +0x18 → node cache +0x38, 132 bytes",
+                        "c_microprocessor_logic_node_input_composite slot +0x58. With a connected slot (+0x28) it copies the mask and the 32 numbers of the slot's value into the node cache; the eight 16-byte moves end at 0x140371fef.")
+    f["b_co_out"] = code(F_CO_OUT, 0x140371E19, "8b4120894218", "Composite output bridge", "node output +0x20 → slot value +0x18, 132 bytes",
+                         "c_microprocessor_logic_node_output_composite slot +0x48. Copies the mask and all 32 numbers of the graph output into the connected slot (last move at 0x140371e61).")
+    f["b_co_gather"] = code(F_CO_GATHER, 0x140371F49, "8b4220894138", "Composite graph gathering", "producer +0x20 → cache +0x38, 132 bytes",
+                            "Inside the graph a composite input copies its upstream component's whole value into its cache, as the on/off inputs do.")
+    f["b_vid_in"] = code(F_VID_IN, 0x1403722C9, "4883c2184883c138e9da77f7ff", "Video input bridge", "descriptor copy, slot +0x18 → cache +0x38",
+                         "c_microprocessor_logic_node_input_video slot +0x58 tail-calls the descriptor assignment 0x1402e9ab0.")
+    f["b_vid_out"] = code(F_VID_OUT, 0x1403721B9, "488d5120488d4818e9ea78f7ff", "Video output bridge", "descriptor copy, node +0x20 → slot +0x18",
+                          "c_microprocessor_logic_node_output_video slot +0x48 tail-calls 0x1402e9ab0.")
+    f["b_aud_in"] = code(F_AUD_IN, 0x140372519, "4883c2184883c138e9da7af7ff", "Audio input bridge", "sample copy, slot +0x18 → cache +0x38",
+                         "c_microprocessor_logic_node_input_audio slot +0x58 tail-calls the audio assignment 0x1402ea000.")
+    f["b_aud_out"] = code(F_AUD_OUT, 0x140372439, "488d5120488d4818e9ba7bf7ff", "Audio output bridge", "sample copy, node +0x20 → slot +0x18",
+                          "c_microprocessor_logic_node_output_audio slot +0x48 tail-calls 0x1402ea000.")
+    f["vid_copy"] = code(F_VID_COPY, 0x1402E9AB0, "8b028901", "Video descriptor assignment", "fixed fields copied by value",
+                         "Copies the fixed fields of a 0x220-byte video descriptor, through +0x21d, field by field and returns at 0x1402e9deb. The run from 0x1402e9ab0 to that return has no call or jump, so it allocates nothing, frees nothing and copies no pixel buffer; opaque 64-bit fields are copied unchanged.")
+    f["aud_alloc"] = code(F_AUD_COPY, 0x1402EA043, "48c1e102e8208d6c00", "Audio buffer allocation", "count × 4 bytes",
+                          "When the destination's sample count (+8) differs from the source's, the assignment frees the old buffer (0x1402ea02c) and allocates count × 4 bytes for the destination.")
+    f["aud_copy"] = code(F_AUD_COPY, 0x1402EA06D, "890491", "Audio sample copy", "one 32-bit word per sample",
+                         "Copies every 32-bit sample word into the destination's own buffer, then the 64-bit fields at +0x10, +0x18 and +0x20 and the 32-bit field at +0x28. Their meaning and the sample encoding were not part of this decode.")
+    # Microcontroller size and port placement.
+    f["dim_min"] = op(F_MC_EDITOR, 0x140639101, "f3440f1005c26d5700", 0x140BAFECC, "Microcontroller size control minimum and step",
+                      "The editor builds the width and length controls with 0x14024cb90 (calls at 0x140639145 and 0x140639236), passing this value as minimum (rsp+0x38) and step (rsp+0x48).")
+    f["dim_max"] = op(F_MC_EDITOR, 0x140639111, "f30f103d27745700", 0x140BB0540, "Microcontroller size control maximum",
+                      "Passed as the maximum (rsp+0x40) of both size controls: 1 to 6 blocks in steps of 1.")
+    f["upload"] = code(F_MC_UPLOAD, 0x1407C65E1, "4183bc245801000006770f4183bc245c01000006", "Microcontroller upload size check", "width and length at most 6",
+                       "Rejects a microcontroller whose width (+0x158) or length (+0x15c) is above 6 and reports the message at 0x140b06c60.")
+    f["upload_msg"] = E.string(F_MC_UPLOAD, 0x140B06C60, "Microcontroller must not be larger than 6x6 voxels", "Microcontroller size message",
+                               "Loaded at 0x1407c6624 when the size check at 0x1407c65e1 fails." + rep)
+    f["port_xz"] = code(F_MC_PORT, 0x14038FEEA, "8b42204c8bc285c00f88980000003b41400f8d8f000000", "Port placement bounds", "0 ≤ x < width, 0 ≤ z < length, y = 0",
+                        "The placement check rejects a port with x below 0 or at least the width (+0x40), with z (+0x28) below 0 or at least the length (cmp at 0x14038ff0c with +0x44), or with y (+0x24) other than 0 (0x14038ff11).")
+    f["port_kind"] = code(F_MC_PORT, 0x14038FF5B, "8b4234418b48343bc1742a", "Port placement conflicts", "same position: same kind, or kinds 0 and 1, rejected",
+                          "Against every other port at the same x, y and z it rejects an equal kind (+0x34), and kind 0 against kind 1; any other pair of kinds may share a position. The check sets no total count, so neither the 32-channel value nor the 6 by 6 area fixes a maximum number of ports.")
+    # Electrical Cable Anchor transport.
+    f["a_bind"] = code(F_ROPE_BIND, 0x1403B565F, "4c8d8338020000", "Anchor signal slots", "+0x238, +0x2d8, +0x390, +0x3b0, +0x3e8, +0x620, +0x870, +0x8b8",
+                       "The rope-hook slot list appends the composite input (+0x238), composite output (+0x2d8), on/off input (+0x390), on/off output (+0x3b0), video input and output (+0x3e8, +0x620) and audio input and output (+0x870, +0x8b8) in this order, "
+                       "the order of the eight data ports in rope_hook_composite.xml. Each slot's value starts at +0x18. Matching the slots to the port labels by order is an inference.")
+    f["a_peer"] = code(F_ROPE_FLUID, 0x1403B68C8, "488b89980a0000", "Anchor link peer", "component+0xa98",
+                       "The rope-hook pass reads the linked component from +0xa98 and does nothing more for signals when it is empty (je at 0x1403b68d5).")
+    f["a_state"] = code(F_ROPE_FLUID, 0x1403B68DB, "837b08050f836e030000", "Anchor state guard", "both states below 5",
+                        "Signals are copied only when the anchor's state (+8) is below 5 and, at 0x1403b68e5, the peer's state is below 5 too.")
+    f["a_onoff"] = code(F_ROPE_FLUID, 0x1403B6905, "0fb693a8030000", "Anchor on/off copy", "on/off input +0x3a8 → peer on/off output +0x3c8",
+                        "Loads the on/off input value and stores it in the peer's on/off output at 0x1403b6932 (bytes 8891c8030000). When this side is a pulley the value comes from its byte +0xcd9 instead (0x1403b68fc), and a pulley peer receives it at +0xcd9 or +0xcd8 (0x1403b6922, 0x1403b692a).")
+    f["a_video"] = code(F_ROPE_FLUID, 0x1403B6B03, "4881c138060000e8a12ff3ff", "Anchor video copy", "video send +0x400 → peer video receive +0x638",
+                        "Assigns the video descriptor of Video Data Send (+0x400, lea at 0x1403b6a85) to the peer's Video Data Receive with 0x1402e9ab0.")
+    f["a_audio"] = code(F_ROPE_FLUID, 0x1403B6B16, "488d93880800004881c1d0080000e8d734f3ff", "Anchor audio copy", "audio send +0x888 → peer audio receive +0x8d0",
+                        "Copies Audio Data Send into the peer's Audio Data Receive with 0x1402ea000, so the receiving anchor holds its own sample buffer.")
+    f["a_comp"] = code(F_ROPE_FLUID, 0x1403B6B29, "488b8b980a00004881c1f00200008b83500200008901", "Anchor composite copy", "composite input +0x250 → peer composite output +0x2f0, 132 bytes",
+                       "Copies the mask, then the 32 numbers in eight 16-byte moves (the last at 0x1403b6b93, to peer+0x2f0+0x74), from the Composite Input value to the peer's Composite Output value. No channel is scaled or dropped.")
+    f["a_pulley"] = code(F_ROPE_FLUID, 0x1403B6943, "83b8740e000009", "Anchor pulley routing", "subtype 9",
+                         "When this side or the peer has subtype 9, the electric cable pulley, the same copies go to and from the pulley's own buffers instead: video +0xce0 and +0xf00, audio +0x1120 and +0x1150, composite +0x1180 and +0x1204. "
+                         "Which pulley buffer is used depends on whether the peer's second link pointer (+0xaa0) points back (0x1403b6969).")
+    E.composite = f
+    return f
+
+
+def composite(B, E):
+    f = composite_native(E)
+    T, P, A = E.tooltip, E.port, E.attr
+    R = update_rate(E)["findings"]
+    bid = "rope_hook_composite"
+    ports = [P(bid, label) for label in ("Composite Input", "Composite Output", "On/Off Input", "On/Off Output",
+                                         "Video Data Send", "Video Data Receive", "Audio Data Send", "Audio Data Receive")]
+    B.family("part-rope-hook-composite",
+             "Copies Composite Input, On/Off Input, Video Data Send and Audio Data Send to the linked anchor's matching outputs once per update: all 32 on/off and 32 number channels, the video descriptor and a private copy of the audio samples.",
+             [section("Setup and interactions",
+                      "Draw one rope logic link to another Electrical Cable Anchor. Wire what one end should send to its Composite Input, On/Off Input, Video Data Send and Audio Data Send, and read it at the other end's Composite Output, On/Off Output, Video Data Receive and Audio Data Receive."),
+              section("How it updates",
+                      "The anchor is a type 48 rope hook with subtype 2. Its signal copy runs in the rope-hook pass (slot +0x360), which the dispatcher calls for each vehicle after every component has updated and before that vehicle's outputs are flushed. "
+                      "With a linked peer and both anchors' internal state below 5, the anchor copies its Composite Input value, all 132 bytes, to the peer's Composite Output, its on/off input to the peer's On/Off Output, its video descriptor to the peer's Video Data Receive and its audio samples to the peer's Audio Data Receive. "
+                      "Each copy replaces the previous one. Nothing is buffered, averaged or scaled, and the 32 + 32 channels arrive unchanged."),
+              section("Video and audio",
+                      "Video is a fixed descriptor copied field by field: no pixels are copied and nothing is allocated. Audio is copied sample by sample into a buffer the receiving anchor owns, reallocated as count × 4 bytes when the sample count changes, so the two ends never share one sample buffer."),
+              section("Electric cable pulleys",
+                      "Electric Cable Pulleys are rope hooks of subtype 9. When either side of a link is a pulley, the same copies run through the pulley's own buffers, so a cable through a pulley still carries every channel. "
+                      "The on/off value takes the same route through the pulley's own on/off bytes.")],
+             [f[k] for k in ("a_bind", "a_peer", "a_state", "a_onoff", "a_video", "a_audio", "a_comp", "a_pulley", "transport", "veh_pass", "flush", "vid_copy", "aud_alloc", "aud_copy")]
+             + [fluid_network(E)["r_pass"]] + R[:4] + [T(bid), A(bid, "type", "Type 48, the rope-hook component."), A(bid, "logic_gate_subtype", "Rope-hook subtype 2, the electrical cable anchor."),
+                                                   A("winch_pulley_cable", "logic_gate_subtype", "Subtype 9, routed through the pulley's own buffers.")] + ports,
+             [CO_STATIC, CO_POINTER])
+
+
 def build(root):
     E = Evidence(root)
     B = Book(E)
     for part in (heat_exchange, modular_engines, transmission, mechanical, electricity, fluids, engines,
                  propulsion, control_surfaces, jet_engines, wheels, steam, weapons, sensors_and_radio, remaining, more_families, extra_families,
-                 winches, fluid_links, connectors, air_scoop, displays, logic, keels, window_families, small_parts, nuclear):
+                 winches, fluid_links, connectors, air_scoop, displays, logic, keels, window_families, small_parts, nuclear, composite):
         part(B, E)
     # Give every variant of a family the same kind of evidence the entry cites for one of them,
     # so per-variant rows are filled from that variant's own tooltip and ports where they exist.

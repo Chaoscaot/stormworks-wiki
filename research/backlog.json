@@ -125,12 +125,6 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/9/limitations/0",
-        "text": "Propagation latency between separate physical logic blocks was not traced: the step that copies one block's output into the next block's input, and its order across blocks and vehicles, was not located.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
         "pointer": "/categories/9/limitations/1",
         "text": "Sign, rounding and domain edge cases of the library helpers behind Modulo, Exponent and Trigonometry were not decoded.",
         "scope": "Practical behavior guidance"
@@ -709,7 +703,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/139/limitations/0",
-        "text": "The maximum port count, editor size limits and the payload handling of composite, video and audio bridges were not recovered.",
+        "text": "The maximum total number of external ports was not recovered: the port kinds the editor accepts, and every creation and save check, still need reconciling with the placement rule.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -747,7 +741,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/196/limitations/0",
+        "pointer": "/families/197/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -760,7 +754,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/202/limitations/0",
+        "pointer": "/families/203/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -773,7 +767,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/203/limitations/0",
+        "pointer": "/families/204/limitations/0",
         "text": "What the two global flags tested by the directional gate 0x1402645f0 mean, and when the game sets them, was not decoded; while either is clear the antenna's gain is 0, so the range figures assume the gate passes.",
         "scope": "Practical behavior guidance"
       }
@@ -786,7 +780,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/239/limitations/0",
+        "pointer": "/families/240/limitations/0",
         "text": "The noise input is a shared counter, but how fast that counter advances and the helper's exact output bounds were not reproduced. When a disabled or destroyed transponder's entry leaves the shared list, and which loaded or remote transponders fill it, was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -799,13 +793,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/240/limitations/0",
+        "pointer": "/families/241/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/240/limitations/1",
+        "pointer": "/families/241/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -818,7 +812,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/243/limitations/0",
+        "pointer": "/families/244/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -831,7 +825,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/244/limitations/0",
+        "pointer": "/families/245/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -844,7 +838,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/253/limitations/0",
+        "pointer": "/families/254/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -857,7 +851,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/254/limitations/0",
+        "pointer": "/families/255/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -870,7 +864,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/256/limitations/0",
+        "pointer": "/families/257/limitations/0",
         "text": "Static analysis of one build; no radiator temperature was measured in game. The cooled quantity is a native amount × temperature unit; no conversion to joules or watts was recovered.",
         "scope": "Practical behavior guidance"
       },
@@ -935,7 +929,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/24/limitations/2",
-        "text": "Still not decoded: the type-48 anchor's composite payload storage and copy routine, numeric and on/off channel layout and numbering, video and audio ownership, endpoint update order, transfer from producer to cache, cross-vehicle latency, microcontroller limits and Lua scheduling. The XML port types, the one-link tooltip, the empty microprocessor tooltips and the cached getter give no basis for those claims, and no composite packet format or fixed one-update latency was recovered.",
+        "text": "Still not recovered: how many updates a value needs through cable anchors, pulleys and between vehicles, which needs the setup of the two anchor link pointers (+0xa98, +0xaa0), the full pulley traversal, the vehicle order and the inactive, sleeping and reduced-rate paths traced; who owns and frees the resources behind a video descriptor; when Lua onTick and onDraw run and what budget they have; and any network or save format for composite data. The microcontroller port limit is listed on the Microprocessor part page.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

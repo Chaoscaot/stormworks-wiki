@@ -5101,8 +5101,8 @@
       "id": "composite-cable-interfaces",
       "title": "Composite data over electrical cables",
       "category": "Control",
-      "summary": "Electrical cable anchors document separate data send and receive interfaces.",
-      "body": "The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports describe composite, on/off, video and audio send and receive paths. These are port types, not channel counts. A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph. It does not show when that cache is refreshed.",
+      "summary": "A composite value is 32 on/off channels and 32 binary32 numbers, numbered 1 to 32, in 132 bytes. Wires, microprocessor bridges and Electrical Cable Anchors copy it whole, and anchors also pass a video descriptor and a private copy of the audio samples.",
+      "body": "The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports are composite, on/off, video and audio send and receive pairs. A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph.\n\nA native decode (investigation/composite.md, shown on the Electrical Cable Anchor, Microprocessor and Logic pages) recovered the value and every copy of it. The value starts with a 32-bit on/off mask, channel c at bit c - 1, followed by 32 numbers, channel c at byte 4 × c, so channel 32 starts at byte 128. Lua getBool and getNumber return false and 0 outside 1 to 32. This is the in-memory value, not a network or save format.\n\nTable: Composite value\n| Part | Where | Channel c |\n| --- | --- | --- |\n| On/off mask | 32-bit word at byte 0 | bit c - 1 |\n| Numbers | 32 binary32 values from byte 4 | byte 4 × c |\n\nWires: the dispatcher first runs every component update, then goes through the vehicles one at a time. For each vehicle it runs the transport pass, which holds the cable copy, and then flushes that vehicle's outputs: each output pushes its value into the cache of every input wired to it. Inference: on an ordinary wire a consumer reads a new value one update after the producer wrote it.\n\nCables: an anchor reads its linked peer and, while both states are below 5, copies its Composite Input value, all 132 bytes, to the peer's Composite Output, its on/off input to the peer's On/Off Output, its video descriptor to the peer's Video Data Receive and its audio samples to the peer's Audio Data Receive. Video is copied by value with no allocation; audio goes into a buffer the receiving anchor owns. Electric Cable Pulleys (subtype 9) route the same copies through their own buffers. Because cable copies and output flushes interleave vehicle by vehicle, a write to an anchor on another vehicle can land before or after that vehicle's flush, so the number of updates a cable adds depends on vehicle order.\n\nMicrocontrollers: composite bridges copy the whole value, video bridges the descriptor and audio bridges the samples. The editor limits width and length to 1 to 6, and upload rejects anything above 6.",
       "findings": [
         {
           "label": "Electrical Cable Anchor: Composite Input",
@@ -5242,12 +5242,209 @@
           },
           "status": "observed",
           "evidenceType": "native-static"
+        },
+        {
+          "label": "Electrical Cable Anchor: type and subtype",
+          "value": "type 48, logic_gate_subtype 2",
+          "detail": "Rope-hook component type 48, subtype 2.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L2-L2",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 2,
+            "lineEnd": 2
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Electric Cable Pulley: subtype",
+          "value": "logic_gate_subtype 9",
+          "detail": "Rope-hook subtype 9, the electric cable pulley.",
+          "evidenceId": "resource:rom/data/definitions/winch_pulley_cable.xml:b5446ff64fc4:L2-L2",
+          "source": {
+            "path": "rom/data/definitions/winch_pulley_cable.xml",
+            "sha256": "b5446ff64fc4835a541eebc3b218a79da2150dbca0a43ca98aa7b0ab87ca234e",
+            "lineStart": 2,
+            "lineEnd": 2
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Composite number read",
+          "value": "number c at byte 4 × c",
+          "detail": "Lua getNumber (0x1402e8e10) subtracts 1 from the channel, requires an unsigned index of at most 31 and loads binary32 from payload + 4 + 4 × (c - 1); outside 1 to 32 it returns 0. The value is 132 bytes: a 32-bit on/off mask at byte 0, then 32 numbers, channel 32 at byte 128. Bytes ff c9 83 f9 1f 77 06 f3 0f 10 44 8a 04 at 0x1402e8ebe. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e8ebe",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e8ebe"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Composite on/off read",
+          "value": "bit c - 1",
+          "detail": "Lua getBool (0x1402e8d00) tests 1 << (c - 1) in the mask and returns false outside 1 to 32. Example: channels 1, 3 and 32 on give the mask 0x80000005. Bytes ff c9 83 f9 1f 77 0d ba 01 00 00 00 d3 e2 at 0x1402e8dad. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e8dad",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e8dad"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Composite output flush",
+          "value": "value address to each wired input, slot +0x60",
+          "detail": "Slot +0x28 of the composite output slot walks its wired inputs and passes its 132-byte value; the input copies it into its own cache (0x1402ea870). On/off and number outputs flush the same way through their own slot +0x28. Bytes 48 8d 53 18 48 8b 01 ff 50 60 at 0x1402ea68b. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea68b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Component update loop",
+          "value": "slot +0x358 per component",
+          "detail": "The dispatcher 0x140549240 first runs every component update. Bytes 41 ff 92 58 03 00 00 at 0x1405498d6. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405498d6",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Per-vehicle transport",
+          "value": "call 0x1404baf80",
+          "detail": "In a second loop over the vehicles it runs each vehicle's transport pass, which calls slot +0x360 of every component (0x1404996a7); for rope hooks that is the cable copy 0x1403b6840. Bytes e8 20 15 f7 ff at 0x140549a5b. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549a5b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549a5b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Per-vehicle output flush",
+          "value": "slot +0x28 of each output",
+          "detail": "Then it flushes that vehicle's outputs, before it moves to the next vehicle. Bytes ff 50 28 at 0x140549ad2. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549ad2",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Anchor state guard",
+          "value": "both states below 5",
+          "detail": "The cable copy reads the linked peer from component+0xa98 and copies signals only while its own state and the peer's are below 5 (second test at 0x1403b68e5). Bytes 83 7b 08 05 0f 83 6e 03 00 00 at 0x1403b68db. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b68db",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b68db"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Anchor composite copy",
+          "value": "132 bytes to the peer",
+          "detail": "Copies the Composite Input value (+0x250) to the peer's Composite Output value (+0x2f0): the mask, then the 32 numbers in eight 16-byte moves ending at 0x1403b6b93. Bytes 8b 83 50 02 00 00 89 01 at 0x1403b6b37. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6b37",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6b37"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Anchor video copy",
+          "value": "descriptor by value",
+          "detail": "Assigns Video Data Send (+0x400) to the peer's Video Data Receive (+0x638) with 0x1402e9ab0, a straight run of field copies with no call or allocation. Bytes e8 a1 2f f3 ff at 0x1403b6b0a. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6b0a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6b0a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Anchor audio copy",
+          "value": "private sample buffer",
+          "detail": "Copies Audio Data Send (+0x888) to the peer's Audio Data Receive (+0x8d0) with 0x1402ea000, which allocates count × 4 bytes for the receiver when the count changes (0x1402ea043) and copies every sample word. Bytes e8 d7 34 f3 ff at 0x1403b6b24. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6b24",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6b24"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Pulley routing",
+          "value": "subtype 9",
+          "detail": "When a side is an Electric Cable Pulley, subtype 9, the copies use the pulley's own composite, video and audio buffers. Bytes 83 b8 74 0e 00 00 09 at 0x1403b6943. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6943",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6943"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Microcontroller size controls",
+          "value": "1 to 6, step 1",
+          "detail": "The editor passes 1 as minimum and step and 6 as maximum to both size controls. Bytes f3 44 0f 10 05 c2 6d 57 00 at 0x140639101, literal 00 00 80 3f at 0x140bafecc, literal 00 00 c0 40 at 0x140bb0540. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140639101",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140639101"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Microcontroller upload check",
+          "value": "width and length at most 6",
+          "detail": "Upload rejects a width or length above 6 with \"Microcontroller must not be larger than 6x6 voxels\". Bytes 41 83 bc 24 58 01 00 00 06 77 0f 41 83 bc 24 5c 01 00 00 06 at 0x1407c65e1, literal 4d 69 63 72 6f 63 6f 6e 74 72 6f 6c 6c 65 72 20 6d 75 73 74 20 6e 6f 74 20 62 65 20 6c 61 72 67 65 72 20 74 68 61 6e 20 36 78 36 20 76 6f 78 65 6c 73 00 at 0x140b06c60. Report: investigation/composite.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407c65e1",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407c65e1"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
-        "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "Still not decoded: the type-48 anchor's composite payload storage and copy routine, numeric and on/off channel layout and numbering, video and audio ownership, endpoint update order, transfer from producer to cache, cross-vehicle latency, microcontroller limits and Lua scheduling. The XML port types, the one-link tooltip, the empty microprocessor tooltips and the cached getter give no basis for those claims, and no composite packet format or fixed one-update latency was recovered."
+        "Native findings are static readings of this executable build. No game process was executed, and no latency was measured.",
+        "Still not recovered: how many updates a value needs through cable anchors, pulleys and between vehicles, which needs the setup of the two anchor link pointers (+0xa98, +0xaa0), the full pulley traversal, the vehicle order and the inactive, sleeping and reduced-rate paths traced; who owns and frees the resources behind a video descriptor; when Lua onTick and onDraw run and what budget they have; and any network or save format for composite data. The microcontroller port limit is listed on the Microprocessor part page."
       ]
     },
     {
@@ -14132,8 +14329,8 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 416,
-    "sourceCount": 72,
+    "findingCount": 431,
+    "sourceCount": 73,
     "categories": [
       "Control",
       "Economy",
@@ -14440,6 +14637,11 @@
         "path": "rom/data/definitions/winch_large_a.xml",
         "sha256": "0c6bd48a34bbe4c53dd01381ec2799ff32ecee45dc056d3426bc2252c26b9e92",
         "lineCount": 369
+      },
+      {
+        "path": "rom/data/definitions/winch_pulley_cable.xml",
+        "sha256": "b5446ff64fc4835a541eebc3b218a79da2150dbca0a43ca98aa7b0ab87ca234e",
+        "lineCount": 267
       },
       {
         "path": "rom/data/missions/default_cargo/script.lua",

@@ -2751,10 +2751,18 @@
         {
           "title": "Inside a microprocessor",
           "body": "A microprocessor gathers every component's inputs before it runs any component, so a signal moves one component per update inside it (inference). Its PID, Blinker and timers are separate routines; see the PID Controller and Microprocessor pages."
+        },
+        {
+          "title": "Between logic blocks",
+          "body": "A physical output keeps its value in its own slot, and an input reads only its own cached copy. After every component on every vehicle has updated, the dispatcher walks each vehicle's outputs and pushes each value into every input wired to it: on/off as a byte, numbers as binary32, composite as the whole 132-byte value. Inference from that order: a change moves one block per update along a chain of physical logic blocks on one vehicle, the same rule as inside a microprocessor."
+        },
+        {
+          "title": "Composite channel layout",
+          "body": "A composite signal carries 32 on/off channels and 32 numbers, both numbered 1 to 32, in one 132-byte value. Wires, microprocessor bridges and Electrical Cable Anchors copy it whole, as connectors and radios do on their links.\n\nTable: Composite value layout\n| Part | Bytes | Channel c |\n| --- | --- | --- |\n| On/off mask | one 32-bit word at byte 0 | bit c − 1 |\n| Numbers | 32 binary32 values from byte 4 to the end | 4 bytes from byte 4 × c |\n\nTable: Channels outside 1 to 32\n| Access | Channel 0 or below, above 32 |\n| --- | --- |\n| Lua getBool, getNumber | false, 0 |\n| Lua setBool, setNumber | ignored |\n| Microprocessor composite read nodes | clamped to channel 1 or 32 |\n\nExample: on/off channels 1, 3 and 32 on give the mask bytes 05 00 00 80, and number channel 1 = 1.5 is stored at byte 4 as 00 00 c0 3f. setNumber rounds a Lua number to binary32."
         }
       ],
       "limitations": [
-        "Propagation latency between separate physical logic blocks was not traced: the step that copies one block's output into the next block's input, and its order across blocks and vehicles, was not located.",
+        "Timing between vehicles and through cables is listed with the open questions of the Composite data over electrical cables mechanics article.",
         "Sign, rounding and domain edge cases of the library helpers behind Modulo, Exponent and Trigonometry were not decoded.",
         "The function block's expression language (operator set, parser, rounding and constant expressions) was not decoded.",
         "Power Add and Power Meter do nothing in the logic update; their transmission-network formulas were not decoded.",
@@ -2788,7 +2796,67 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8b6c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8cad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8dad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8ebe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea545"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea870"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403718e9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140371fa9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14037c93e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14037d7ee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6b29"
         },
         {
           "path": "stormworks64.exe",
@@ -2819,6 +2887,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549a5b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
         },
         {
           "path": "stormworks64.exe",
@@ -73631,15 +73709,27 @@
     },
     {
       "id": "part-microprocessor",
-      "summary": "A microcontroller in a block: each update it copies its connected inputs into an embedded logic graph, runs the graph, then copies the graph outputs back out.",
+      "summary": "A microcontroller in a block: each update it copies its connected inputs into an embedded logic graph, runs the graph, then copies the graph outputs back out. Composite bridges copy all 32 on/off and 32 number channels, video bridges a descriptor and audio bridges the samples.",
       "sections": [
         {
           "title": "How it updates",
-          "body": "Component type 37 runs the microprocessor update. It calls every input bridge, then the graph update with the embedded graph at +0x1c0, then every output bridge. Each bridge copies one value: a Boolean input bridge reads the connected vehicle signal into a graph node, and a Boolean output bridge writes a graph output to the connected signal. Bridges with no connection do nothing."
+          "body": "Component type 37 runs the microprocessor update. It calls every input bridge, then the graph update with the embedded graph at +0x1c0, then every output bridge. Each bridge copies one value: an input bridge reads the connected vehicle signal into a graph node, and an output bridge writes a graph output to the connected signal. Bridges with no connection do nothing."
         },
         {
           "title": "Ports",
           "body": "The definition lists no logic nodes and no tooltip. The ports come from the bridges of the embedded graph, with number, on/off, composite, video and audio bridge types. Read the ports from the microcontroller you placed, not from the definition."
+        },
+        {
+          "title": "Composite, video and audio bridges",
+          "body": "A composite bridge copies the whole 132-byte value, the on/off mask and all 32 numbers, between the connected signal and its graph node, in both directions. A video bridge copies the fixed video descriptor field by field and allocates nothing. An audio bridge copies the samples into a buffer the receiving side owns. No bridge converts one kind into another: video and audio never enter composite channels."
+        },
+        {
+          "title": "Size and port placement",
+          "body": "The editor's width and length controls run from 1 to 6 in steps of 1, and the upload check rejects a microcontroller whose width or length is above 6 with \"Microcontroller must not be larger than 6x6 voxels\". A port must sit inside the grid, 0 ≤ x < width and 0 ≤ z < length, in the bottom row y = 0. Two ports at one position are rejected when they have the same kind, or kinds 0 and 1 (internal codes); other kinds may share a position. This rule sets no total, so the 6 by 6 area and the 32 composite channels do not give a port limit."
+        },
+        {
+          "title": "Composite channels inside the graph",
+          "body": "The composite read nodes (on/off and number) clamp their channel to 1 to 32, so channel 0 or less reads channel 1 and anything above 32 reads channel 32. A channel taken from an input is rounded first by adding 0.5 (inference: the library call is floor). Lua getBool and getNumber instead return false and 0 outside 1 to 32, setBool and setNumber ignore such channels, and setNumber rounds the Lua number to binary32. The Logic category gives the channel layout."
         },
         {
           "title": "Inside the graph",
@@ -73757,10 +73847,311 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403718e9"
           }
+        },
+        {
+          "label": "Composite input bridge",
+          "value": "slot value +0x18 → node cache +0x38, 132 bytes",
+          "detail": "c_microprocessor_logic_node_input_composite slot +0x58. With a connected slot (+0x28) it copies the mask and the 32 numbers of the slot's value into the node cache; the eight 16-byte moves end at 0x140371fef. Report: investigation/composite.md. Function 0x140371fa0-0x140372060; instruction bytes 8b4218894138 at 0x140371fa9. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140371fa0.asm:L11-L12; ../composite/pseudocode/140371fa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140371fa0@0x140371fa9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140371fa9"
+          }
+        },
+        {
+          "label": "Composite output bridge",
+          "value": "node output +0x20 → slot value +0x18, 132 bytes",
+          "detail": "c_microprocessor_logic_node_output_composite slot +0x48. Copies the mask and all 32 numbers of the graph output into the connected slot (last move at 0x140371e61). Report: investigation/composite.md. Function 0x140371e10-0x140371e70; instruction bytes 8b4120894218 at 0x140371e19. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140371e10.asm:L11-L12; ../composite/pseudocode/140371e10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140371e10@0x140371e19",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140371e19"
+          }
+        },
+        {
+          "label": "Composite graph gathering",
+          "value": "producer +0x20 → cache +0x38, 132 bytes",
+          "detail": "Inside the graph a composite input copies its upstream component's whole value into its cache, as the on/off inputs do. Report: investigation/composite.md. Function 0x140371f40-0x140372040; instruction bytes 8b4220894138 at 0x140371f49. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140371f40.asm:L11-L12; ../composite/pseudocode/140371f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140371f40@0x140371f49",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140371f49"
+          }
+        },
+        {
+          "label": "Video input bridge",
+          "value": "descriptor copy, slot +0x18 → cache +0x38",
+          "detail": "c_microprocessor_logic_node_input_video slot +0x58 tail-calls the descriptor assignment 0x1402e9ab0. Report: investigation/composite.md. Function 0x1403722c0-0x1403722f0; instruction bytes 4883c2184883c138e9da77f7ff at 0x1403722c9. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403722c0.asm:L11-L13; ../composite/pseudocode/1403722c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403722c0@0x1403722c9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403722c9"
+          }
+        },
+        {
+          "label": "Video output bridge",
+          "value": "descriptor copy, node +0x20 → slot +0x18",
+          "detail": "c_microprocessor_logic_node_output_video slot +0x48 tail-calls 0x1402e9ab0. Report: investigation/composite.md. Function 0x1403721b0-0x1403721d0; instruction bytes 488d5120488d4818e9ea78f7ff at 0x1403721b9. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403721b0.asm:L11-L13; ../composite/pseudocode/1403721b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403721b0@0x1403721b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403721b9"
+          }
+        },
+        {
+          "label": "Audio input bridge",
+          "value": "sample copy, slot +0x18 → cache +0x38",
+          "detail": "c_microprocessor_logic_node_input_audio slot +0x58 tail-calls the audio assignment 0x1402ea000. Report: investigation/composite.md. Function 0x140372510-0x140372540; instruction bytes 4883c2184883c138e9da7af7ff at 0x140372519. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140372510.asm:L11-L13; ../composite/pseudocode/140372510.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140372510@0x140372519",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140372519"
+          }
+        },
+        {
+          "label": "Audio output bridge",
+          "value": "sample copy, node +0x20 → slot +0x18",
+          "detail": "c_microprocessor_logic_node_output_audio slot +0x48 tail-calls 0x1402ea000. Report: investigation/composite.md. Function 0x140372430-0x140372450; instruction bytes 488d5120488d4818e9ba7bf7ff at 0x140372439. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140372430.asm:L11-L13; ../composite/pseudocode/140372430.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140372430@0x140372439",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140372439"
+          }
+        },
+        {
+          "label": "Video descriptor assignment",
+          "value": "fixed fields copied by value",
+          "detail": "Copies the fixed fields of a 0x220-byte video descriptor, through +0x21d, field by field and returns at 0x1402e9deb. The run from 0x1402e9ab0 to that return has no call or jump, so it allocates nothing, frees nothing and copies no pixel buffer; opaque 64-bit fields are copied unchanged. Report: investigation/composite.md. Function 0x1402e9ab0-0x1402e9bb0; instruction bytes 8b028901 at 0x1402e9ab0. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e9ab0.asm:L8-L9; ../composite/pseudocode/1402e9ab0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e9ab0@0x1402e9ab0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e9ab0"
+          }
+        },
+        {
+          "label": "Audio buffer allocation",
+          "value": "count × 4 bytes",
+          "detail": "When the destination's sample count (+8) differs from the source's, the assignment frees the old buffer (0x1402ea02c) and allocates count × 4 bytes for the destination. Report: investigation/composite.md. Function 0x1402ea000-0x1402ea0ab; instruction bytes 48c1e102e8208d6c00 at 0x1402ea043. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L29-L30; ../composite/pseudocode/1402ea000.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea000@0x1402ea043",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea043"
+          }
+        },
+        {
+          "label": "Audio sample copy",
+          "value": "one 32-bit word per sample",
+          "detail": "Copies every 32-bit sample word into the destination's own buffer, then the 64-bit fields at +0x10, +0x18 and +0x20 and the 32-bit field at +0x28. Their meaning and the sample encoding were not part of this decode. Report: investigation/composite.md. Function 0x1402ea000-0x1402ea0ab; instruction bytes 890491 at 0x1402ea06d. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L42; ../composite/pseudocode/1402ea000.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea000@0x1402ea06d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea06d"
+          }
+        },
+        {
+          "label": "Microcontroller size control minimum and step",
+          "value": "1",
+          "detail": "The editor builds the width and length controls with 0x14024cb90 (calls at 0x140639145 and 0x140639236), passing this value as minimum (rsp+0x38) and step (rsp+0x48). Report: investigation/composite.md. Function 0x140638e00-0x1406392ac; instruction bytes f3440f1005c26d5700 at 0x140639101 address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140638e00.asm:L185-L186; ../composite/pseudocode/140638e00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140638e00@0x140639101",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140639101"
+          }
+        },
+        {
+          "label": "Microcontroller size control maximum",
+          "value": "6",
+          "detail": "Passed as the maximum (rsp+0x40) of both size controls: 1 to 6 blocks in steps of 1. Report: investigation/composite.md. Function 0x140638e00-0x1406392ac; instruction bytes f30f103d27745700 at 0x140639111 address binary32 6 (bytes 0000c040) at 0x140bb0540. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140638e00.asm:L188-L189; ../composite/pseudocode/140638e00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140638e00@0x140639111",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140639111"
+          }
+        },
+        {
+          "label": "Microcontroller upload size check",
+          "value": "width and length at most 6",
+          "detail": "Rejects a microcontroller whose width (+0x158) or length (+0x15c) is above 6 and reports the message at 0x140b06c60. Report: investigation/composite.md. Function 0x1407c6040-0x1407c6b9d; instruction bytes 4183bc245801000006770f4183bc245c01000006 at 0x1407c65e1. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1407c6040.asm:L427-L431; ../composite/pseudocode/1407c6040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407c6040@0x1407c65e1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407c65e1"
+          }
+        },
+        {
+          "label": "Microcontroller size message",
+          "value": "Microcontroller must not be larger than 6x6 voxels",
+          "detail": "Loaded at 0x1407c6624 when the size check at 0x1407c65e1 fails. Report: investigation/composite.md. Function 0x1407c6040-0x1407c6b9d; it references the string 'Microcontroller must not be larger than 6x6 voxels' at 0x140b06c60. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407c6040@0x140b06c60",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b06c60"
+          }
+        },
+        {
+          "label": "Port placement bounds",
+          "value": "0 ≤ x < width, 0 ≤ z < length, y = 0",
+          "detail": "The placement check rejects a port with x below 0 or at least the width (+0x40), with z (+0x28) below 0 or at least the length (cmp at 0x14038ff0c with +0x44), or with y (+0x24) other than 0 (0x14038ff11). Report: investigation/composite.md. Function 0x14038fee0-0x14038ff9d; instruction bytes 8b42204c8bc285c00f88980000003b41400f8d8f000000 at 0x14038feea. Interpretation rests on retained output investigation/native/behavior/../composite/asm/14038fee0.asm:L10-L15; ../composite/pseudocode/14038fee0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038feea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14038feea"
+          }
+        },
+        {
+          "label": "Port placement conflicts",
+          "value": "same position: same kind, or kinds 0 and 1, rejected",
+          "detail": "Against every other port at the same x, y and z it rejects an equal kind (+0x34), and kind 0 against kind 1; any other pair of kinds may share a position. The check sets no total count, so neither the 32-channel value nor the 6 by 6 area fixes a maximum number of ports. Report: investigation/composite.md. Function 0x14038fee0-0x14038ff9d; instruction bytes 8b4234418b48343bc1742a at 0x14038ff5b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/14038fee0.asm:L46-L49; ../composite/pseudocode/14038fee0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038ff5b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14038ff5b"
+          }
+        },
+        {
+          "label": "Composite read (on/off) channel",
+          "value": "clamped to 1 to 32",
+          "detail": "The microprocessor composite read node clamps its zero-based channel to 0 to 31 (cmovg, cmovl) and tests that bit of its cached mask, so channel 0 or less reads channel 1 and above 32 reads channel 32. Its vtable 0x140ba4908 holds this tick at slot +0x50. Report: investigation/composite.md. Function 0x14037c910-0x14037c96b; instruction bytes 33c0b91f00000085d20f4fc23bc10f4cc8 at 0x14037c93e. Interpretation rests on retained output investigation/native/behavior/../composite/asm/14037c910.asm:L21-L26; ../composite/pseudocode/14037c910.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14037c910@0x14037c93e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14037c93e"
+          }
+        },
+        {
+          "label": "Composite read (number) channel",
+          "value": "clamped to 1 to 32",
+          "detail": "The number read node clamps the same way and loads the number from its cache at +0x8c + 4 × index (0x14037d811). Its vtable 0x140b9d7b8 holds this tick at slot +0x50. Report: investigation/composite.md. Function 0x14037d7c0-0x14037d824; instruction bytes 33c0b91f00000085d20f4fc23bc10f4cc8 at 0x14037d7ee. Interpretation rests on retained output investigation/native/behavior/../composite/asm/14037d7c0.asm:L21-L26; ../composite/pseudocode/14037d7c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14037d7c0@0x14037d7ee",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14037d7ee"
+          }
+        },
+        {
+          "label": "Composite read channel input rounding",
+          "value": "0.5",
+          "detail": "With no fixed channel (+0x178 negative) the node adds this to its channel input (+0x148) and passes the sum to the library call 0x1409d57d8 before subtracting 1. Inference: that call is floor, so a channel input rounds half up. Report: investigation/composite.md. Function 0x14037c910-0x14037c96b; instruction bytes f30f580589338300 at 0x14037c92b address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../composite/asm/14037c910.asm:L16-L17; ../composite/pseudocode/14037c910.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14037c910@0x14037c92b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14037c92b"
+          }
+        },
+        {
+          "label": "Lua getBool channel",
+          "value": "bit c − 1 of the mask at byte 0; false outside 1 to 32",
+          "detail": "Subtracts 1 from the channel, requires an unsigned index of at most 31 and tests 1 << (c − 1) in the 32-bit on/off mask at the start of the value; otherwise it returns false. Example: on/off channels 1, 3 and 32 on give the mask 0x80000005, bytes 05 00 00 80. Report: investigation/composite.md. Function 0x1402e8d00-0x1402e8e01; instruction bytes ffc983f91f770dba01000000d3e2418510 at 0x1402e8dad. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e8d00.asm:L62-L67; ../composite/pseudocode/1402e8d00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e8d00@0x1402e8dad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e8dad"
+          }
+        },
+        {
+          "label": "Lua getNumber channel",
+          "value": "number c at byte 4 × c; 0 outside 1 to 32",
+          "detail": "Converts the channel to an integer, subtracts 1 and loads a binary32 from payload + 4 + 4 × (c − 1) only when the unsigned index is at most 31 (0x1f); otherwise, and with no payload, it returns 0. Number channel 1 starts at byte 4 and channel 32 at byte 128 of the 132-byte value. Report: investigation/composite.md. Function 0x1402e8e10-0x1402e8f10; instruction bytes ffc983f91f7706f30f10448a04 at 0x1402e8ebe. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e8e10.asm:L62-L65; ../composite/pseudocode/1402e8e10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e8e10@0x1402e8ebe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e8ebe"
+          }
+        },
+        {
+          "label": "Lua setBool channel",
+          "value": "bit c − 1; ignored outside 1 to 32",
+          "detail": "Sets (bts) or clears (btr) bit c − 1 of the output mask only for an unsigned index c − 1 of at most 31; other channels leave the value unchanged. Report: investigation/composite.md. Function 0x1402e8aa0-0x1402e8bc2; instruction bytes 418d4aff83f91f7716 at 0x1402e8b6c. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e8aa0.asm:L69-L71; ../composite/pseudocode/1402e8aa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e8aa0@0x1402e8b6c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e8b6c"
+          }
+        },
+        {
+          "label": "Lua setNumber channel",
+          "value": "binary32 at byte 4 × c; ignored outside 1 to 32",
+          "detail": "Rounds the Lua number to binary32 (cvtpd2ps) and stores it at payload + 4 + 4 × (c − 1) for c from 1 to 32; other channels are ignored. Example: 1.5 is stored at byte 4 as 00 00 c0 3f. Report: investigation/composite.md. Function 0x1402e8bd0-0x1402e8cf6; instruction bytes 8d46ff83f81f770a660f5ac6f30f11448104 at 0x1402e8cad. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e8bd0.asm:L70-L74; ../composite/pseudocode/1402e8bd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e8bd0@0x1402e8cad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e8cad"
+          }
+        },
+        {
+          "label": "Lua getBool name",
+          "value": "getBool",
+          "detail": "The Lua API builder pairs this name with 0x1402e8d00 (lea at 0x1402e555d) and getNumber (0x140b12840) with 0x1402e8e10 (lea at 0x1402e5573) in one table. Report: investigation/composite.md. Function 0x1402e5230-0x1402e5a92; it references the string 'getBool' at 0x140b12868. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e5230.asm:L135; ../composite/pseudocode/1402e5230.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e5230@0x140b12868",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b12868"
+          }
+        },
+        {
+          "label": "Lua setBool name",
+          "value": "setBool",
+          "detail": "A second table pairs this name with 0x1402e8aa0 (lea at 0x1402e5529) and setNumber (0x140b127d0) with 0x1402e8bd0 (lea at 0x1402e553f). Report: investigation/composite.md. Function 0x1402e5230-0x1402e5a92; it references the string 'setBool' at 0x140b12828. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e5230.asm:L125; ../composite/pseudocode/1402e5230.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e5230@0x140b12828",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b12828"
+          }
         }
       ],
       "limitations": [
-        "The maximum port count, editor size limits and the payload handling of composite, video and audio bridges were not recovered."
+        "The maximum total number of external ports was not recovered: the port kinds the editor accepts, and every creation and save check, still need reconciling with the placement rule.",
+        "Open questions about cable and cross-vehicle timing, video resource ownership, Lua scheduling and a composite network format are listed in the Composite data over electrical cables mechanics article."
       ],
       "sources": [
         {
@@ -73774,6 +74165,41 @@
           "sha256": "b0c7c01462aa3181af3ad1e931d55e4ec13e79d02f6a65c8942fbf320db4e970",
           "lineStart": 5,
           "lineEnd": 5
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8b6c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8cad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8dad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e8ebe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e9ab0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea043"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea06d"
         },
         {
           "path": "stormworks64.exe",
@@ -73793,6 +74219,66 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140371e19"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140371f49"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140371fa9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403721b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403722c9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140372439"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140372519"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14037c92b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14037c93e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14037d7ee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14038feea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14038ff5b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403945b0"
         },
         {
@@ -73804,6 +74290,36 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140394610"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140639101"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140639111"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407c65e1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b06c60"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b12828"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b12868"
         }
       ]
     },
@@ -106918,6 +107434,576 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14041ecfe"
+        }
+      ]
+    },
+    {
+      "id": "part-rope-hook-composite",
+      "summary": "Copies Composite Input, On/Off Input, Video Data Send and Audio Data Send to the linked anchor's matching outputs once per update: all 32 on/off and 32 number channels, the video descriptor and a private copy of the audio samples.",
+      "sections": [
+        {
+          "title": "Setup and interactions",
+          "body": "Draw one rope logic link to another Electrical Cable Anchor. Wire what one end should send to its Composite Input, On/Off Input, Video Data Send and Audio Data Send, and read it at the other end's Composite Output, On/Off Output, Video Data Receive and Audio Data Receive."
+        },
+        {
+          "title": "How it updates",
+          "body": "The anchor is a type 48 rope hook with subtype 2. Its signal copy runs in the rope-hook pass (slot +0x360), which the dispatcher calls for each vehicle after every component has updated and before that vehicle's outputs are flushed. With a linked peer and both anchors' internal state below 5, the anchor copies its Composite Input value, all 132 bytes, to the peer's Composite Output, its on/off input to the peer's On/Off Output, its video descriptor to the peer's Video Data Receive and its audio samples to the peer's Audio Data Receive. Each copy replaces the previous one. Nothing is buffered, averaged or scaled, and the 32 + 32 channels arrive unchanged."
+        },
+        {
+          "title": "Video and audio",
+          "body": "Video is a fixed descriptor copied field by field: no pixels are copied and nothing is allocated. Audio is copied sample by sample into a buffer the receiving anchor owns, reallocated as count × 4 bytes when the sample count changes, so the two ends never share one sample buffer."
+        },
+        {
+          "title": "Electric cable pulleys",
+          "body": "Electric Cable Pulleys are rope hooks of subtype 9. When either side of a link is a pulley, the same copies run through the pulley's own buffers, so a cable through a pulley still carries every channel. The on/off value takes the same route through the pulley's own on/off bytes."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Anchor signal slots",
+          "value": "+0x238, +0x2d8, +0x390, +0x3b0, +0x3e8, +0x620, +0x870, +0x8b8",
+          "detail": "The rope-hook slot list appends the composite input (+0x238), composite output (+0x2d8), on/off input (+0x390), on/off output (+0x3b0), video input and output (+0x3e8, +0x620) and audio input and output (+0x870, +0x8b8) in this order, the order of the eight data ports in rope_hook_composite.xml. Each slot's value starts at +0x18. Matching the slots to the port labels by order is an inference. Report: investigation/composite.md. Function 0x1403b5300-0x1403b5a17; instruction bytes 4c8d8338020000 at 0x1403b565f. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b5300.asm:L200; ../composite/pseudocode/1403b5300.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b5300@0x1403b565f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b565f"
+          }
+        },
+        {
+          "label": "Anchor link peer",
+          "value": "component+0xa98",
+          "detail": "The rope-hook pass reads the linked component from +0xa98 and does nothing more for signals when it is empty (je at 0x1403b68d5). Report: investigation/composite.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 488b89980a0000 at 0x1403b68c8. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b6840.asm:L41; ../composite/pseudocode/1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b68c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b68c8"
+          }
+        },
+        {
+          "label": "Anchor state guard",
+          "value": "both states below 5",
+          "detail": "Signals are copied only when the anchor's state (+8) is below 5 and, at 0x1403b68e5, the peer's state is below 5 too. Report: investigation/composite.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 837b08050f836e030000 at 0x1403b68db. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b6840.asm:L45-L46; ../composite/pseudocode/1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b68db",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b68db"
+          }
+        },
+        {
+          "label": "Anchor on/off copy",
+          "value": "on/off input +0x3a8 → peer on/off output +0x3c8",
+          "detail": "Loads the on/off input value and stores it in the peer's on/off output at 0x1403b6932 (bytes 8891c8030000). When this side is a pulley the value comes from its byte +0xcd9 instead (0x1403b68fc), and a pulley peer receives it at +0xcd9 or +0xcd8 (0x1403b6922, 0x1403b692a). Report: investigation/composite.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 0fb693a8030000 at 0x1403b6905. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b6840.asm:L54; ../composite/pseudocode/1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6905",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6905"
+          }
+        },
+        {
+          "label": "Anchor video copy",
+          "value": "video send +0x400 → peer video receive +0x638",
+          "detail": "Assigns the video descriptor of Video Data Send (+0x400, lea at 0x1403b6a85) to the peer's Video Data Receive with 0x1402e9ab0. Report: investigation/composite.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 4881c138060000e8a12ff3ff at 0x1403b6b03. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b6840.asm:L144-L145; ../composite/pseudocode/1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6b03",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6b03"
+          }
+        },
+        {
+          "label": "Anchor audio copy",
+          "value": "audio send +0x888 → peer audio receive +0x8d0",
+          "detail": "Copies Audio Data Send into the peer's Audio Data Receive with 0x1402ea000, so the receiving anchor holds its own sample buffer. Report: investigation/composite.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 488d93880800004881c1d0080000e8d734f3ff at 0x1403b6b16. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b6840.asm:L147-L149; ../composite/pseudocode/1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6b16",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6b16"
+          }
+        },
+        {
+          "label": "Anchor composite copy",
+          "value": "composite input +0x250 → peer composite output +0x2f0, 132 bytes",
+          "detail": "Copies the mask, then the 32 numbers in eight 16-byte moves (the last at 0x1403b6b93, to peer+0x2f0+0x74), from the Composite Input value to the peer's Composite Output value. No channel is scaled or dropped. Report: investigation/composite.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 488b8b980a00004881c1f00200008b83500200008901 at 0x1403b6b29. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b6840.asm:L150-L153; ../composite/pseudocode/1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6b29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6b29"
+          }
+        },
+        {
+          "label": "Anchor pulley routing",
+          "value": "subtype 9",
+          "detail": "When this side or the peer has subtype 9, the electric cable pulley, the same copies go to and from the pulley's own buffers instead: video +0xce0 and +0xf00, audio +0x1120 and +0x1150, composite +0x1180 and +0x1204. Which pulley buffer is used depends on whether the peer's second link pointer (+0xaa0) points back (0x1403b6969). Report: investigation/composite.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 83b8740e000009 at 0x1403b6943. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1403b6840.asm:L67; ../composite/pseudocode/1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6943",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6943"
+          }
+        },
+        {
+          "label": "Per-vehicle transport call",
+          "value": "call 0x1404baf80, before the flush",
+          "detail": "In the second loop each vehicle first runs 0x1404baf80, which reaches the component pass 0x1404995b0 (call at 0x1404bb2b3) that calls slot +0x360 of every component; for rope hooks that slot holds 0x1403b6840. Only then are that vehicle's outputs flushed, so cable copying and output flushes interleave vehicle by vehicle. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes e82015f7ff at 0x140549a5b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L490; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549a5b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549a5b"
+          }
+        },
+        {
+          "label": "Component transport pass call",
+          "value": "call 0x1404995b0",
+          "detail": "The per-vehicle update calls the pass that invokes slot +0x360 of each component (0x1404996a7). Report: investigation/composite.md. Function 0x1404bb052-0x1404bb4b7; instruction bytes e8f8e2fdff at 0x1404bb2b3. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1404baf80.asm:L201; ../composite/pseudocode/1404baf80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bb052@0x1404bb2b3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bb2b3"
+          }
+        },
+        {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "Video descriptor assignment",
+          "value": "fixed fields copied by value",
+          "detail": "Copies the fixed fields of a 0x220-byte video descriptor, through +0x21d, field by field and returns at 0x1402e9deb. The run from 0x1402e9ab0 to that return has no call or jump, so it allocates nothing, frees nothing and copies no pixel buffer; opaque 64-bit fields are copied unchanged. Report: investigation/composite.md. Function 0x1402e9ab0-0x1402e9bb0; instruction bytes 8b028901 at 0x1402e9ab0. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402e9ab0.asm:L8-L9; ../composite/pseudocode/1402e9ab0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402e9ab0@0x1402e9ab0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402e9ab0"
+          }
+        },
+        {
+          "label": "Audio buffer allocation",
+          "value": "count × 4 bytes",
+          "detail": "When the destination's sample count (+8) differs from the source's, the assignment frees the old buffer (0x1402ea02c) and allocates count × 4 bytes for the destination. Report: investigation/composite.md. Function 0x1402ea000-0x1402ea0ab; instruction bytes 48c1e102e8208d6c00 at 0x1402ea043. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L29-L30; ../composite/pseudocode/1402ea000.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea000@0x1402ea043",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea043"
+          }
+        },
+        {
+          "label": "Audio sample copy",
+          "value": "one 32-bit word per sample",
+          "detail": "Copies every 32-bit sample word into the destination's own buffer, then the 64-bit fields at +0x10, +0x18 and +0x20 and the 32-bit field at +0x28. Their meaning and the sample encoding were not part of this decode. Report: investigation/composite.md. Function 0x1402ea000-0x1402ea0ab; instruction bytes 890491 at 0x1402ea06d. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L42; ../composite/pseudocode/1402ea000.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea000@0x1402ea06d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea06d"
+          }
+        },
+        {
+          "label": "Rope-hook fluid pass",
+          "value": "slot +0x360",
+          "detail": "The vehicle component pass calls slot +0x360. In the rope-hook vtable 0x140b600f0 that slot (0x140b60450) holds 0x1403b6840, the hose-link fluid exchange. Report: investigation/fluids-network.md. Function 0x1404995e7-0x140499801; instruction bytes 41ff9260030000 at 0x1404996a7. Interpretation rests on retained output investigation/native/behavior/../mechanical-joints/asm/live-dispatch.asm:L52; ../mechanical-joints/asm/0x1404995e7.asm:L52. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404995e7@0x1404996a7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404996a7"
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · tooltip",
+          "value": "Draw a rope logic link between two Electrical Cable Anchors to form a cable. Limited to only one link but can transfer Data and Electric across the link.",
+          "detail": "rope_hook_composite: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L3-L3",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 3,
+            "lineEnd": 3
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · type",
+          "value": "48",
+          "detail": "rope_hook_composite: definition attribute type. Type 48, the rope-hook component.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · logic_gate_subtype",
+          "value": "2",
+          "detail": "rope_hook_composite: definition attribute logic_gate_subtype. Rope-hook subtype 2, the electrical cable anchor.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Electric Cable Pulley · logic_gate_subtype",
+          "value": "9",
+          "detail": "winch_pulley_cable: definition attribute logic_gate_subtype. Subtype 9, routed through the pulley's own buffers.",
+          "evidenceId": "resource:rom/data/definitions/winch_pulley_cable.xml:b5446ff64fc4:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/winch_pulley_cable.xml",
+            "sha256": "b5446ff64fc4835a541eebc3b218a79da2150dbca0a43ca98aa7b0ab87ca234e",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port Composite Input",
+          "value": "Composite data to send to the connected anchor.",
+          "detail": "rope_hook_composite: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L63-L63",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 63,
+            "lineEnd": 63
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port Composite Output",
+          "value": "Composite data to receive from the connected anchor.",
+          "detail": "rope_hook_composite: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L66-L66",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 66,
+            "lineEnd": 66
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port On/Off Input",
+          "value": "On/Off data to send to the connected anchor.",
+          "detail": "rope_hook_composite: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L69-L69",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 69,
+            "lineEnd": 69
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port On/Off Output",
+          "value": "On/Off data to receive from the connected anchor.",
+          "detail": "rope_hook_composite: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L72-L72",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 72,
+            "lineEnd": 72
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port Video Data Send",
+          "value": "Video data to send to the connected anchor.",
+          "detail": "rope_hook_composite: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L75-L75",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 75,
+            "lineEnd": 75
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port Video Data Receive",
+          "value": "Video data to receive from the connected anchor.",
+          "detail": "rope_hook_composite: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L78-L78",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 78,
+            "lineEnd": 78
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port Audio Data Send",
+          "value": "Audio data to send to the connected anchor.",
+          "detail": "rope_hook_composite: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L81-L81",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 81,
+            "lineEnd": 81
+          }
+        },
+        {
+          "label": "Electrical Cable Anchor · port Audio Data Receive",
+          "value": "Audio data to receive from the connected anchor.",
+          "detail": "rope_hook_composite: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/rope_hook_composite.xml:73e65998195f:L84-L84",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/rope_hook_composite.xml",
+            "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+            "lineStart": 84,
+            "lineEnd": 84
+          }
+        }
+      ],
+      "limitations": [
+        "Static analysis of one build; no game process was run, and no latency was measured.",
+        "Open questions about cable and cross-vehicle timing, video resource ownership, Lua scheduling and a composite network format are listed in the Composite data over electrical cables mechanics article."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 3,
+          "lineEnd": 3
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 63,
+          "lineEnd": 63
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 66,
+          "lineEnd": 66
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 69,
+          "lineEnd": 69
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 72,
+          "lineEnd": 72
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 75,
+          "lineEnd": 75
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 78,
+          "lineEnd": 78
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 81,
+          "lineEnd": 81
+        },
+        {
+          "path": "rom/data/definitions/rope_hook_composite.xml",
+          "sha256": "73e65998195f49c1c5f0d0f88925bfd2d62fc7ff219b2d945886069314a86af4",
+          "lineStart": 84,
+          "lineEnd": 84
+        },
+        {
+          "path": "rom/data/definitions/winch_pulley_cable.xml",
+          "sha256": "b5446ff64fc4835a541eebc3b218a79da2150dbca0a43ca98aa7b0ab87ca234e",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402e9ab0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea043"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea06d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b565f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b68c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b68db"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6905"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6943"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6b03"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6b16"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6b29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404996a7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bb2b3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549a5b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
         }
       ]
     },
@@ -155842,7 +156928,7 @@
     "schemaVersion": 1,
     "categoryCount": 21,
     "categoriesInFamilies": 21,
-    "familyCount": 283,
+    "familyCount": 284,
     "familyTotal": 536,
     "familiesByCategory": {
       "Control surfaces": {
@@ -155894,7 +156980,7 @@
         "total": 16
       },
       "Other components": {
-        "withBehavior": 113,
+        "withBehavior": 114,
         "total": 269
       },
       "Propulsion": {
@@ -156100,7 +157186,6 @@
       "part-relief-valve-gas",
       "part-relief-valve-liquid",
       "part-rope-hook",
-      "part-rope-hook-composite",
       "part-rope-hook-net",
       "part-rope-hook-sail",
       "part-rotating-light",
@@ -156185,12 +157270,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8542,
+    "findingCount": 8598,
     "findingsByStatus": {
-      "derived": 720,
-      "observed": 7822
+      "derived": 721,
+      "observed": 7877
     },
-    "nativeFindingCount": 6160,
+    "nativeFindingCount": 6204,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -156242,8 +157327,8 @@
     ],
     "evidenceUse": {
       "derived": 417,
-      "native": 1315,
-      "resource": 2648
+      "native": 1357,
+      "resource": 2660
     }
   }
 }

@@ -1,0 +1,171 @@
+{
+  "target": {
+    "file": "stormworks64.exe",
+    "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+    "method": "static analysis only"
+  },
+  "composite": {
+    "status": "decoded",
+    "size_bytes": 132,
+    "byte_order": "little endian",
+    "boolean_channels": 32,
+    "numeric_channels": 32,
+    "public_channel_min": 1,
+    "public_channel_max": 32,
+    "boolean_mask": {
+      "offset": 0,
+      "storage": "uint32",
+      "channel_c_bit": "1 << (c - 1)"
+    },
+    "numbers": {
+      "first_offset": 4,
+      "last_offset": 128,
+      "stride_bytes": 4,
+      "storage": "IEEE 754 binary32",
+      "channel_c_offset": "4*c"
+    },
+    "not_claimed": "network or save-file packet encoding"
+  },
+  "cache_transfer": {
+    "output_dispatch": "0x1402ea650",
+    "input_copy": "0x1402ea870",
+    "input_payload_offset": "0x18",
+    "output_payload_offset": "0x18",
+    "output_subscriber_list_offset": "0xa0",
+    "output_subscriber_count_offset": "0xb0",
+    "latency": "one component-evaluation boundary for ordinary physical composite wires in the recovered dispatcher",
+    "latency_status": "static inference",
+    "dispatcher": "0x140549240"
+  },
+  "anchor": {
+    "definition": "rom/data/definitions/rope_hook_composite.xml",
+    "type": 48,
+    "logic_gate_subtype": 2,
+    "transport": "0x1403b6840",
+    "peer_pointer_offset": "0xa98",
+    "source_payloads": {
+      "composite": "0x250",
+      "video": "0x400",
+      "audio": "0x888"
+    },
+    "ordinary_peer_receive_payloads": {
+      "composite": "0x2f0",
+      "video": "0x638",
+      "audio": "0x8d0"
+    },
+    "electric_pulley_subtype": 9,
+    "video_copy": "0x1402e9ab0",
+    "audio_copy": "0x1402ea000",
+    "audio_ownership": "destination has separately allocated 32-bit sample-word buffer; metadata copied",
+    "video_ownership": "fixed descriptor fields copied by value; ultimate resource ownership and lifetime still open",
+    "cross_vehicle_latency": "still open; per-vehicle transport and flush interleave"
+  },
+  "microprocessor": {
+    "tick": "0x140394500",
+    "graph_update": "0x14038d270",
+    "order": [
+      "input bridge",
+      "graph gather and evaluation",
+      "output bridge"
+    ],
+    "composite_input_bridge": "0x140371fa0",
+    "composite_output_bridge": "0x140371e10",
+    "video_input_bridge": "0x1403722c0",
+    "video_output_bridge": "0x1403721b0",
+    "audio_input_bridge": "0x140372510",
+    "audio_output_bridge": "0x140372430",
+    "editor_dimensions": {
+      "minimum": 1,
+      "maximum": 6,
+      "step": 1,
+      "axes": 2,
+      "constructor": "0x140638e00",
+      "upload_validation": "0x1407c6040"
+    },
+    "port_validity": "0x14038fee0",
+    "maximum_total_ports": null,
+    "maximum_total_ports_status": "still open; dimension bound and kind-dependent position conflicts recovered, accepted creation kinds and all serializer paths not exhaustively reconciled"
+  },
+  "open_items": [
+    {
+      "item": "maximum total external port count",
+      "ruled_out": [
+        "32 composite channels do not establish a 32-port limit",
+        "6x6 does not alone establish a 36-port total",
+        "container allocation shrink comparisons to 0x20 in inspected editor region are not a port cap"
+      ],
+      "next": "enumerate permitted external kinds in creation UI and deserialize all port records; reconcile other total-count checks"
+    },
+    {
+      "item": "cross-vehicle and cable-chain tick count",
+      "ruled_out": [
+        "scalar getter recursion",
+        "composite pointer aliasing in the recovered copy path",
+        "a universal one-tick-per-cable claim based on the ordinary-wire flush"
+      ],
+      "next": "resolve +0xa98/+0xaa0 construction and pulley direction, all vehicle traversal orders and inactive paths"
+    },
+    {
+      "item": "ultimate video resource ownership and lifetime",
+      "ruled_out": [
+        "pixel-buffer deep copy or refcount increment inside 0x1402e9ab0",
+        "one exclusive owner of both directions of cable audio"
+      ],
+      "next": "trace producers, opaque descriptor fields, resource destruction and rendering consumers"
+    },
+    {
+      "item": "Lua scheduler details",
+      "ruled_out": [
+        "deriving scheduling from channel count, type IDs or cached getters"
+      ],
+      "next": "trace onTick/onDraw dispatch and eligibility across normal, inactive and reduced-rate controllers"
+    }
+  ],
+  "worked_examples": [
+    {
+      "name": "layout",
+      "numbers": {
+        "1": 1.5,
+        "2": -2.25,
+        "32": 123.0
+      },
+      "true_boolean_channels": [
+        1,
+        3,
+        32
+      ],
+      "mask_hex": "0x80000005",
+      "mask_bytes": "05 00 00 80",
+      "number_bytes": {
+        "1": {
+          "offset": "0x4",
+          "bytes": "00 00 c0 3f"
+        },
+        "2": {
+          "offset": "0x8",
+          "bytes": "00 00 10 c0"
+        },
+        "32": {
+          "offset": "0x80",
+          "bytes": "00 00 f6 42"
+        }
+      },
+      "payload_hex": "050000800000c03f000010c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f642"
+    },
+    {
+      "name": "copy isolation",
+      "consumer_channel_1_after_copy": 1.5,
+      "producer_channel_1_after_later_write": 9.0,
+      "meaning": "Consumer holds a value copy until another transfer. This example does not simulate the game scheduler."
+    },
+    {
+      "name": "ordinary physical wire phases",
+      "steps": [
+        "evaluation n: producer writes new output; consumer evaluates old cache",
+        "post-evaluation n: output +0x28 calls input +0x60 to refresh cache",
+        "evaluation n+1: consumer can use new cache"
+      ],
+      "status": "static phase inference for the recovered normal dispatcher; excludes cable chains, reduced-rate and inactive paths"
+    }
+  ]
+}
