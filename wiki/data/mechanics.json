@@ -1320,7 +1320,7 @@
       "title": "Speed, altitude and radar signals",
       "category": "Sensors",
       "summary": "Selected sensor descriptions state their units and radar input ranges.",
-      "body": "Linear speed uses m/s. Angular speed uses rotations per second, and its tooltip names the component y axis. Altitude is metres above sea level. The selected short range radar uses turns for yaw and elevation, with FOV input 0.01 to 0.125 and facing yaw -0.5 to 0.5. Its radar_range field is 5000. That value alone does not guarantee a detection distance for any target.",
+      "body": "Linear speed uses m/s. Angular speed uses rotations per second, and its tooltip names the component y axis. Altitude is metres above sea level. The selected short range radar uses turns for yaw and elevation, with FOV input 0.01 to 0.125 and facing yaw -0.5 to 0.5. Its radar_range field is 5000. That value alone does not guarantee a detection distance for any target. A native decode of the advanced radars (definition type 56: Basic, AWACS, Dish, Phalanx and Missile; investigation/sensors-radio.md, shown on the Other components parts page) found that they also report angles in turns, dividing by 2π. Their working range is R = radar_range × 0.02 × 0.02 ÷ (FOV x × FOV y) on the native FOV fields, a new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates, and a target passes when its distance is at most R and R ÷ 10000 × signature ÷ distance exceeds 0.025. At the SDK defaults reported distances carry up to ±1% noise and angles up to ±0.001 turn. The short range radar here is a legacy type-16 radar, which that decode does not cover.",
       "findings": [
         {
           "label": "Linear Speed Sensor: Linear Speed",
@@ -1508,15 +1508,15 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "This article covers the selected radar definition only. Target signature, occlusion, scan timing and other radar variants are not established."
+        "The advanced-radar formulas come from that native decode. How a target's size sets its signature, which objects block the radar line-of-sight query, the legacy radars' detection and scan timing, and the speed and altitude sensors' update timing, filtering and altitude datum were not recovered."
       ]
     },
     {
       "id": "sensor-noise",
-      "title": "SDK radar and sonar noise defaults",
+      "title": "Radar and sonar output noise",
       "category": "Sensors",
-      "summary": "SDK comments distinguish position noise from radar distance discrepancy.",
-      "body": "The SDK documents sonar_noise and radar_noise as positive and negative ranges of small discrepancies in reported positions. Both defaults are 0.001. It separately describes radar_distance_noise, default 0.01, as a maximum percentage discrepancy in reported distance. The descriptions do not establish a distribution, update cadence or exact coordinate interpretation.",
+      "summary": "The SDK noise settings bound the random error on advanced radar distance and on radar and sonar angles.",
+      "body": "The SDK documents sonar_noise and radar_noise as positive and negative ranges of small discrepancies in reported positions. Both defaults are 0.001. It separately describes radar_distance_noise, default 0.01, as a maximum percentage discrepancy in reported distance. A native decode of the advanced radar and sonar (investigation/sensors-radio.md, shown on the Other components parts page) found that the game reads all three names from data/game_constants.xml, with built-in fallbacks 0.001, 0.001 and 0.01, and applies them to each output value with a fresh random U from 0 to 1. Radar distance becomes distance × (1 - D + 2D U) with D = radar_distance_noise, so ±1% at the default. Each radar and sonar angle, in turns, gets -A + 2A U with A = radar_noise or sonar_noise, so ±0.001 turn (±0.36 degrees). Sonar outputs get no distance noise. U = (random integer & 32767) ÷ 32767, so the error stays inside that band whatever the generator's distribution.",
       "findings": [
         {
           "label": "sonar_noise",
@@ -1559,12 +1559,54 @@
           },
           "status": "observed",
           "evidenceType": "sdk-documented-default"
+        },
+        {
+          "label": "sonar_noise",
+          "value": 0.001,
+          "detail": "Positive and negative range of small discrepancies in reported sonar positions",
+          "evidenceId": "resource:sdk/data/game_constants.xml:adc43687a339:L86-L86",
+          "source": {
+            "path": "sdk/data/game_constants.xml",
+            "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+            "lineStart": 86,
+            "lineEnd": 86
+          },
+          "status": "observed",
+          "evidenceType": "sdk-configuration"
+        },
+        {
+          "label": "radar_noise",
+          "value": 0.001,
+          "detail": "Positive and negative range of small discrepancies in reported radar positions",
+          "evidenceId": "resource:sdk/data/game_constants.xml:adc43687a339:L87-L87",
+          "source": {
+            "path": "sdk/data/game_constants.xml",
+            "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+            "lineStart": 87,
+            "lineEnd": 87
+          },
+          "status": "observed",
+          "evidenceType": "sdk-configuration"
+        },
+        {
+          "label": "radar_distance_noise",
+          "value": 0.01,
+          "detail": "Max percentage discrepancy in reported radar distance",
+          "evidenceId": "resource:sdk/data/game_constants.xml:adc43687a339:L88-L88",
+          "source": {
+            "path": "sdk/data/game_constants.xml",
+            "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+            "lineStart": 88,
+            "lineEnd": 88
+          },
+          "status": "observed",
+          "evidenceType": "sdk-configuration"
         }
       ],
       "limitations": [
         "SDK comments describe defaults and editable SDK attributes. Neither proves the active binary uses that value.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "No Gaussian, uniform or distance-dependent noise formula is assumed. The SDK description does not by itself prove active radar or sonar error bounds."
+        "The noise arithmetic comes from that native decode and covers the advanced radars and sonars only. The legacy radars and sonars (definition type 16) were not decoded, so their noise handling is open. The random generator's distribution was not verified."
       ]
     },
     {
@@ -13091,7 +13133,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 339,
+    "findingCount": 342,
     "sourceCount": 71,
     "categories": [
       "Control",

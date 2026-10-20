@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -659,4 +659,55 @@ test('joint graph constants remain tied to verified native and definition findin
   assert.equal(jointVariantFor('part-multibody-turret-large-b').id, 'multibody_turret_large_a');
   assert.equal(jointVariantFor(null, 'linear_matic_a').id, 'linear_matic_a');
   assert.deepEqual(graphKindsForFamily('part-multibody-suspension-a'), []);
+});
+
+// Examples from investigation/native/sensors-radio/tools/models.py, model-example.json and the report's per-part table.
+test('radar model reproduces the recovered range, interval and score boundary', () => {
+  const basic = radarDetection({ partRange: 60000, signature: 1 });
+  assert.equal(basic.range, 60000);
+  assert.equal(basic.limit, 240);
+  assert.equal(basic.interval, 30);
+  const table = { radar_advanced: [30, 240], radar_advanced_awacs: [250, 2000], radar_advanced_dish: [100, 800], radar_advanced_phalanx: [50, 400], radar_advanced_missile: [10, 80] };
+  for (const v of RADAR_VARIANTS) {
+    const r = radarDetection({ partRange: v.range, signature: 1 });
+    assert.deepEqual([r.interval, r.limit], table[v.id], v.id);
+    near(r.seconds, r.interval / 60);
+  }
+  near(radarRange({ partRange: 60000, fovX: 0.04, fovY: 0.04 }), 15000);
+  near(radarRange({ partRange: 60000, fovX: 0.01, fovY: 0.01 }), 240000);
+  assert.equal(radarDetection({ partRange: 60000, signature: 1, fovX: 0.01, fovY: 0.01 }).interval, 120);
+  assert.equal(radarDetection({ partRange: 60000, signature: 1000 }).limit, 60000, 'range cap above S = 250');
+  assert.equal(radarDetection({ partRange: 60000, signature: 250 }).capBinds, true);
+  assert.equal(radarDetection({ partRange: 1000, signature: 1 }).interval, 1, 'interval is at least 1');
+  // Strict score boundary (240 m for S = 1 at P = 60000); inclusive range cap.
+  assert.equal(radarCandidate({ partRange: 60000, signature: 1, distance: 239.9 }), true);
+  assert.equal(radarCandidate({ partRange: 60000, signature: 1, distance: 240.1 }), false);
+  assert.equal(radarCandidate({ partRange: 60000, signature: 1000, distance: 60000 }), true);
+  assert.equal(radarCandidate({ partRange: 60000, signature: 1000, distance: 60000.1 }), false);
+  assert.throws(() => radarRange({ partRange: 60000, fovX: 0, fovY: 0.02 }), RangeError);
+});
+
+test('radar graph constants remain tied to verified native and definition findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const fams = new Map(data.families.map((f) => [f.id, f]));
+  const any = (label) => data.families.flatMap((f) => f.findings).find((x) => x.label === label);
+  assert.equal(Number(any('Radar range factor').value), RADAR.rangeFactor);
+  assert.equal(Number(any('Radar score divisor').value), RADAR.scoreDivisor);
+  assert.equal(Number(any('Radar score threshold').value), RADAR.threshold);
+  assert.equal(Number(any('Radar scan interval divisor').value), RADAR.intervalDivisor);
+  assert.equal(Number(any('Radar target limit').value), RADAR.targetLimit);
+  assert.match(any('Radar FOV default').value, /^0\.02 /);
+  for (const label of ['Radar working range', 'Radar candidate score', 'Radar range cap', 'Radar scan counter']) {
+    assert.ok(any(label)?.source?.address, `${label}: native address is required`);
+  }
+  for (const v of RADAR_VARIANTS) {
+    const fam = fams.get(v.families[0]);
+    assert.ok(fam, v.id);
+    assert.equal(Number(fam.findings.find((x) => x.label === `${v.label} · radar_range`)?.value), v.range, v.id);
+    assert.equal(fam.findings.find((x) => x.label === `${v.label} · type`)?.value, '56', v.id);
+    assert.deepEqual(graphKindsForFamily(v.families[0]), ['radar']);
+  }
+  assert.equal(radarVariantFor('part-radar-advanced-awacs').id, 'radar_advanced_awacs');
+  assert.deepEqual(graphKindsForFamily('part-radar'), [], 'legacy radar has no graph');
+  assert.deepEqual(graphKindsForFamily('part-radar-advanced-missile-laser'), []);
 });

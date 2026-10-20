@@ -10,6 +10,7 @@
 // Jet engines: investigation/jet-engines.md (jet engine update 0x140350f40).
 // PID controller: investigation/logic.md (logic update case 29 at 0x1403c5f19, microprocessor PID 0x14037a210).
 // Mechanical joints: investigation/mechanical-joints.md (joint motor update 0x140357ca0).
+// Advanced radar: investigation/sensors-radio.md (initializer 0x1403b7fc0, candidate test in 0x140909e40).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -703,6 +704,51 @@ export function jointMotor({ kind, force, speed, ratio, power = 1, availability 
   }
 }
 
+// Advanced radar, investigation/sensors-radio.md, ported from investigation/native/sensors-radio/tools/models.py.
+// partRange is radar_range P, fovX and fovY the native FOV fields (0.02 by default; the editor's limits are not decoded) and
+// signature S the target record value, in internal units with no known hull-size conversion. Real arithmetic; the game mixes
+// binary32 and binary64. No occlusion, power, eight-target limit or other target types.
+export const RADAR = { fovDefault: 0.02, rangeFactor: 0.02, scoreDivisor: 10000, threshold: 0.025, intervalDivisor: 2000, targetLimit: 8 };
+const radar = (id, label, range) => ({ id, label, range, families: [`part-${id.replaceAll('_', '-')}`] });
+export const RADAR_VARIANTS = [
+  radar('radar_advanced', 'Radar (Basic)', 60000),
+  radar('radar_advanced_awacs', 'Radar (AWACS)', 500000),
+  radar('radar_advanced_dish', 'Radar (Dish)', 200000),
+  radar('radar_advanced_phalanx', 'Radar (Phalanx)', 100000),
+  radar('radar_advanced_missile', 'Radar (Missile)', 20000),
+];
+export const radarVariantFor = (family, variant = null) =>
+  RADAR_VARIANTS.find((v) => v.id === variant) ?? RADAR_VARIANTS.find((v) => v.families.includes(family)) ?? RADAR_VARIANTS[0];
+
+export function radarRange({ partRange, fovX = RADAR.fovDefault, fovY = RADAR.fovDefault }) {
+  finite([partRange, fovX, fovY]);
+  if (partRange <= 0 || fovX <= 0 || fovY <= 0) throw new RangeError('Range and FOV must be positive.');
+  return partRange * RADAR.rangeFactor * RADAR.rangeFactor / (fovX * fovY);
+}
+
+// Strict score test, inclusive range cap.
+export function radarCandidate({ partRange, signature, distance, fovX, fovY }) {
+  finite([signature, distance]);
+  const r = radarRange({ partRange, fovX, fovY });
+  return distance > 0 && distance <= r && (r / RADAR.scoreDivisor) * signature / distance > RADAR.threshold;
+}
+
+export function radarDetection({ partRange, signature, fovX = RADAR.fovDefault, fovY = RADAR.fovDefault }) {
+  finite([signature]);
+  const range = radarRange({ partRange, fovX, fovY });
+  const interval = Math.max(1, Math.floor(range / RADAR.intervalDivisor + 0.5));
+  const scoreLimit = Math.max(0, range * signature / (RADAR.scoreDivisor * RADAR.threshold));
+  return {
+    range,
+    interval,
+    seconds: interval / UPDATES_PER_SECOND,
+    scoreLimit,
+    limit: Math.min(range, scoreLimit),
+    capBinds: scoreLimit >= range,
+    capSignature: RADAR.scoreDivisor * RADAR.threshold,
+  };
+}
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -721,5 +767,6 @@ const FAMILY_GRAPHS = {
   'part-jet-engine-combustion-chamber': ['chamber'],
   'part-gate-pid-controller': ['pid'],
   ...Object.fromEntries(JOINT_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['gear']])),
+  ...Object.fromEntries(RADAR_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['radar']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

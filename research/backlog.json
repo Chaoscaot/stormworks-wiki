@@ -238,13 +238,19 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/12/limitations/0",
-        "text": "Range fields are configuration; detection and signal models were not decoded.",
+        "text": "Signature S is a value on the target record whose producer was not recovered, so these formulas give no detection distance in metres for a given vehicle size.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/12/sections/2/body",
-        "text": "Detection probability against target size and FOV for the advanced radars; radio signal strength against distance.",
+        "pointer": "/categories/12/limitations/1",
+        "text": "Radio signal strength, propagation and size-specific range were not decoded.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/categories/12/sections/6/body",
+        "text": "Not decoded: how a vehicle's size, shape or material sets the signature S, so no detection distance follows for a given vehicle; the editor's minimum and maximum FOV, so no figures at those limits; which objects block the line-of-sight query; the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar; radio signal strength against distance.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1186,64 +1192,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/162/limitations/0",
-        "text": "Detection model not decoded.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-advanced",
-    "title": "Radar (Basic): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-advanced",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/163/limitations/0",
-        "text": "Range is configuration; the detection model was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/163/sections/1/body",
-        "text": "Detection distance against target size at minimum and maximum FOV.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-advanced-awacs",
-    "title": "Radar (AWACS): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-advanced-awacs",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/164/limitations/0",
-        "text": "Range is configuration; the detection model was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/164/sections/1/body",
-        "text": "Detection distance against target size at minimum and maximum FOV.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-advanced-dish",
-    "title": "Radar (Dish): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-advanced-dish",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/165/limitations/0",
-        "text": "Range is configuration; the detection model was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/165/sections/1/body",
-        "text": "Detection distance against target size at minimum and maximum FOV.",
+        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1255,33 +1204,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/166/limitations/0",
-        "text": "Range is configuration; the detection model was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/166/sections/1/body",
-        "text": "Detection distance against target size at minimum and maximum FOV.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-radar-advanced-phalanx",
-    "title": "Radar (Phalanx): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-advanced-phalanx",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/167/limitations/0",
-        "text": "Range is configuration; the detection model was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/167/sections/1/body",
-        "text": "Detection distance against target size at minimum and maximum FOV.",
+        "pointer": "/families/166/limitations/1",
+        "text": "The Missile radar (radar_type 1) takes separate orientation branches in the update; their effect on the sweep and look direction was not decoded.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1294,7 +1218,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/168/limitations/0",
-        "text": "Detection model not decoded.",
+        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1307,7 +1231,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/169/limitations/0",
-        "text": "Detection model not decoded.",
+        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1320,7 +1244,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/170/limitations/0",
-        "text": "Detection model not decoded.",
+        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1333,7 +1257,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/171/limitations/0",
-        "text": "Detection model not decoded.",
+        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1346,7 +1270,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/172/limitations/0",
-        "text": "Detection model not decoded.",
+        "text": "Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1469,45 +1393,6 @@
     ]
   },
   {
-    "key": "family:part-sonar-advanced",
-    "title": "Sonar (Small): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-sonar-advanced",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/196/limitations/0",
-        "text": "Detection thresholds were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-sonar-advanced-5",
-    "title": "Sonar (Medium): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-sonar-advanced-5",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/197/limitations/0",
-        "text": "Detection thresholds were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-sonar-advanced-7",
-    "title": "Sonar (Large): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-sonar-advanced-7",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/198/limitations/0",
-        "text": "Detection thresholds were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:part-steam-nuclear-control-rod",
     "title": "Nuclear Control Rod: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-steam-nuclear-control-rod",
@@ -1528,7 +1413,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/210/limitations/0",
-        "text": "Pulse frequency against distance was not recovered.",
+        "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -2236,19 +2121,13 @@
   },
   {
     "key": "mechanics:sensor-noise",
-    "title": "SDK radar and sonar noise defaults: resolve missing mechanics",
+    "title": "Radar and sonar output noise: resolve missing mechanics",
     "wiki": "https://sw-wiki.maxsp.de/mechanics/sensor-noise",
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/9/body",
-        "text": "The SDK documents sonar_noise and radar_noise as positive and negative ranges of small discrepancies in reported positions. Both defaults are 0.001. It separately describes radar_distance_noise, default 0.01, as a maximum percentage discrepancy in reported distance. The descriptions do not establish a distribution, update cadence or exact coordinate interpretation.",
-        "scope": "Shipped-resource mechanics article"
-      },
-      {
-        "file": "wiki/data/mechanics.json",
         "pointer": "/articles/9/limitations/2",
-        "text": "No Gaussian, uniform or distance-dependent noise formula is assumed. The SDK description does not by itself prove active radar or sonar error bounds.",
+        "text": "The noise arithmetic comes from that native decode and covers the advanced radars and sonars only. The legacy radars and sonars (definition type 16) were not decoded, so their noise handling is open. The random generator's distribution was not verified.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -2261,7 +2140,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/8/limitations/2",
-        "text": "This article covers the selected radar definition only. Target signature, occlusion, scan timing and other radar variants are not established.",
+        "text": "The advanced-radar formulas come from that native decode. How a target's size sets its signature, which objects block the radar line-of-sight query, the legacy radars' detection and scan timing, and the speed and altitude sensors' update timing, filtering and altitude datum were not recovered.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

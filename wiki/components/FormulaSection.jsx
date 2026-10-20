@@ -55,6 +55,11 @@ const FINDINGS = {
     'Linear position force cap', 'Compact track force cap', 'Up/Down track command', 'Max Power slider scale', 'Joint availability scale',
     'Speed setting default', 'Hinge impulse field', 'Slider force field',
   ],
+  radar: [
+    'Type-56 component factory case', 'Radar FOV default', 'radar_range binding', 'Radar range factor', 'Radar working range',
+    'Radar scan interval divisor', 'Radar scan counter', 'Radar range cap', 'Radar score divisor', 'Radar candidate score',
+    'Radar score threshold', 'Radar target limit', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -68,6 +73,7 @@ const TITLES = {
   chamber: 'Chamber fuel use, pressure and heat against RPS',
   pid: 'PID step response with an example plant',
   gear: 'Joint speed and holding cap against Gear Ratio',
+  radar: 'Radar detection distance against target signature and FOV',
 };
 
 /*
@@ -483,9 +489,40 @@ const GEAR = {
   ],
 };
 
+const RADAR_DETECTION = {
+  intro: (
+    <p>
+      Advanced radars turn radar_range into a working range that grows as the FOV narrows. A target passes the score test when its
+      signature over distance is high enough, and never beyond the working range. The chart plots the farthest passing distance
+      against signature: it rises in proportion to signature, then levels off at the working range once the signature reaches 250.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="r">{mi('R')}{mo('=')}<mfrac><mrow>{mi('P')}{mo('×')}{mn('0.02')}{mo('×')}{mn('0.02')}</mrow><mrow>{sub('F', 'x')}{mo('×')}{sub('F', 'y')}</mrow></mfrac><mspace width="1em" />{mi('N')}{mo('=')}{fn('max')}<mrow>{mo('(')}{mn('1')}{mo(',')}{fn('floor')}<mrow>{mo('(')}<mfrac>{mi('R')}{mn('2000')}</mfrac>{mo('+')}{mn('0.5')}{mo(')')}</mrow>{mo(')')}</mrow></mrow>,
+        <mrow key="s"><mtext>pass if</mtext><mspace width="0.5em" />{mi('d')}{mo('≤')}{mi('R')}<mspace width="0.5em" /><mtext>and</mtext><mspace width="0.5em" /><mfrac>{mi('R')}{mn('10000')}</mfrac>{mo('×')}<mfrac>{mi('S')}{mi('d')}</mfrac>{mo('>')}{mn('0.025')}</mrow>,
+        <mrow key="d">{sub('d', 'max')}{mo('=')}{fn('min')}<mrow>{mo('(')}{mi('R')}{mo(',')}<mfrac><mrow>{mi('R')}{mi('S')}</mrow>{mn('250')}</mfrac>{mo(')')}</mrow></mrow>,
+      ]}
+      text={[
+        'R = P * 0.02 * 0.02 / (Fx * Fy); P = radar_range, Fx and Fy the native FOV fields (0.02 by default)',
+        'N = max(1, floor(R / 2000 + 0.5)) updates between scans, 60 updates per second',
+        'A target with signature S at distance d passes if d <= R and (R / 10000) * S / d > 0.025',
+        'Farthest passing distance d_max = min(R, R * S / 250); the range cap applies from S = 250',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Signature S is the target record value in internal units. How a vehicle\'s size, shape or material sets it is not known, so the chart gives no distance for a named vehicle.',
+    'FOV values are the native fields. The editor\'s minimum and maximum are not known, so the slider range only explores the formula.',
+    'The score test is strict and the range cap inclusive. There is no random roll.',
+    'Not modelled: line-of-sight blocking, the eight-target limit per scan, power, damage and the output noise. The laser missile radar uses a separate update and is not listed.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
-  pid: PID_CONTROLLER, gear: GEAR,
+  pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION,
 };
 
 function Evidence({ items }) {

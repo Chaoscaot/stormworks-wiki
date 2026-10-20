@@ -1,0 +1,198 @@
+[
+  {
+    "address": "0x140293fbd",
+    "meaning": "settings: sonar_noise literal",
+    "bytes": "4c 8d 05 1c fb 8b 00",
+    "instruction": "lea    r8,[rip+0x8bfb1c]        # 0x140b53ae0",
+    "source": "investigation/native/sensors-radio/asm/140293a40.asm"
+  },
+  {
+    "address": "0x140293fe2",
+    "meaning": "settings: radar_noise literal",
+    "bytes": "4c 8d 05 3f fb 8b 00",
+    "instruction": "lea    r8,[rip+0x8bfb3f]        # 0x140b53b28",
+    "source": "investigation/native/sensors-radio/asm/140293a40.asm"
+  },
+  {
+    "address": "0x140294003",
+    "meaning": "settings: radar_distance_noise literal",
+    "bytes": "4c 8d 05 06 fb 8b 00",
+    "instruction": "lea    r8,[rip+0x8bfb06]        # 0x140b53b10",
+    "source": "investigation/native/sensors-radio/asm/140293a40.asm"
+  },
+  {
+    "address": "0x1403b80de",
+    "meaning": "radar: first 0.02 factor",
+    "bytes": "f3 0f 59 05 ca 78 7f 00",
+    "instruction": "mulss  xmm0,DWORD PTR [rip+0x7f78ca]        # 0x140baf9b0",
+    "source": "investigation/native/sensors-radio/asm/1403b7fc0.asm"
+  },
+  {
+    "address": "0x1403b80e6",
+    "meaning": "radar: second 0.02 factor",
+    "bytes": "f3 0f 59 05 c2 78 7f 00",
+    "instruction": "mulss  xmm0,DWORD PTR [rip+0x7f78c2]        # 0x140baf9b0",
+    "source": "investigation/native/sensors-radio/asm/1403b7fc0.asm"
+  },
+  {
+    "address": "0x1403b80ee",
+    "meaning": "radar: divide by FOV product",
+    "bytes": "f3 0f 5e c2",
+    "instruction": "divss  xmm0,xmm2",
+    "source": "investigation/native/sensors-radio/asm/1403b7fc0.asm"
+  },
+  {
+    "address": "0x1403b80fa",
+    "meaning": "radar: interval divisor 2000",
+    "bytes": "f3 0f 5e 05 72 87 7f 00",
+    "instruction": "divss  xmm0,DWORD PTR [rip+0x7f8772]        # 0x140bb0874",
+    "source": "investigation/native/sensors-radio/asm/1403b7fc0.asm"
+  },
+  {
+    "address": "0x1403b8127",
+    "meaning": "radar: store scan interval",
+    "bytes": "89 87 64 04 00 00",
+    "instruction": "mov    DWORD PTR [rdi+0x464],eax",
+    "source": "investigation/native/sensors-radio/asm/1403b7fc0.asm"
+  },
+  {
+    "address": "0x1403ba292",
+    "meaning": "radar: increment interval counter",
+    "bytes": "41 ff 86 60 04 00 00",
+    "instruction": "inc    DWORD PTR [r14+0x460]",
+    "source": "investigation/native/sensors-radio/asm/1403ba040.asm"
+  },
+  {
+    "address": "0x1403bc033",
+    "meaning": "radar: segment intersection query",
+    "bytes": "e8 c8 82 de ff",
+    "instruction": "call   0x1401a4300",
+    "source": "investigation/native/sensors-radio/asm/1403ba040.asm"
+  },
+  {
+    "address": "0x1403bcaa0",
+    "meaning": "radar: load angle noise",
+    "bytes": "f3 0f 10 b8 fc 00 00 00",
+    "instruction": "movss  xmm7,DWORD PTR [rax+0xfc]",
+    "source": "investigation/native/sensors-radio/asm/1403ba040.asm"
+  },
+  {
+    "address": "0x1403bcaad",
+    "meaning": "radar: load distance noise",
+    "bytes": "f3 44 0f 10 88 00 01 00 00",
+    "instruction": "movss  xmm9,DWORD PTR [rax+0x100]",
+    "source": "investigation/native/sensors-radio/asm/1403ba040.asm"
+  },
+  {
+    "address": "0x1403bf859",
+    "meaning": "sonar: emitter amplitude 235",
+    "bytes": "c7 40 18 00 00 6b 43",
+    "instruction": "mov    DWORD PTR [rax+0x18],0x436b0000",
+    "source": "investigation/native/sensors-radio/asm/1403bf740.asm"
+  },
+  {
+    "address": "0x1403c0d41",
+    "meaning": "sonar: timer times 12.333333",
+    "bytes": "f3 0f 59 35 23 f9 7e 00",
+    "instruction": "mulss  xmm6,DWORD PTR [rip+0x7ef923]        # 0x140bb066c",
+    "source": "investigation/native/sensors-radio/asm/1403bf8e0.asm"
+  },
+  {
+    "address": "0x1403c0d4c",
+    "meaning": "sonar: upper edge of distance window",
+    "bytes": "f3 0f 58 3d 18 f9 7e 00",
+    "instruction": "addss  xmm7,DWORD PTR [rip+0x7ef918]        # 0x140bb066c",
+    "source": "investigation/native/sensors-radio/asm/1403bf8e0.asm"
+  },
+  {
+    "address": "0x1403c16e4",
+    "meaning": "sonar: segment intersection query",
+    "bytes": "e8 17 2c de ff",
+    "instruction": "call   0x1401a4300",
+    "source": "investigation/native/sensors-radio/asm/1403bf8e0.asm"
+  },
+  {
+    "address": "0x1403c85cd",
+    "meaning": "locator: distance times 0.002",
+    "bytes": "f3 41 0f 59 c8",
+    "instruction": "mulss  xmm1,xmm8",
+    "source": "investigation/native/sensors-radio/asm/1403c4d20.asm"
+  },
+  {
+    "address": "0x1403c85d2",
+    "meaning": "locator: add 0.5",
+    "bytes": "f3 0f 58 cf",
+    "instruction": "addss  xmm1,xmm7",
+    "source": "investigation/native/sensors-radio/asm/1403c4d20.asm"
+  },
+  {
+    "address": "0x1403c85d9",
+    "meaning": "locator: reciprocal",
+    "bytes": "f3 0f 5e c1",
+    "instruction": "divss  xmm0,xmm1",
+    "source": "investigation/native/sensors-radio/asm/1403c4d20.asm"
+  },
+  {
+    "address": "0x1403c85e2",
+    "meaning": "locator: retain maximum",
+    "bytes": "e8 59 60 52 00",
+    "instruction": "call   0x1408ee640",
+    "source": "investigation/native/sensors-radio/asm/1403c4d20.asm"
+  },
+  {
+    "address": "0x1403c8656",
+    "meaning": "locator: clamp increment to 0..1",
+    "bytes": "e8 b5 5f 52 00",
+    "instruction": "call   0x1408ee610",
+    "source": "investigation/native/sensors-radio/asm/1403c4d20.asm"
+  },
+  {
+    "address": "0x1403c8660",
+    "meaning": "locator: add accumulator",
+    "bytes": "f3 41 0f 58 86 d0 08 00 00",
+    "instruction": "addss  xmm0,DWORD PTR [r14+0x8d0]",
+    "source": "investigation/native/sensors-radio/asm/1403c4d20.asm"
+  },
+  {
+    "address": "0x1403c8681",
+    "meaning": "locator: compare accumulator to 10",
+    "bytes": "0f 2f c1",
+    "instruction": "comiss xmm0,xmm1",
+    "source": "investigation/native/sensors-radio/asm/1403c4d20.asm"
+  },
+  {
+    "address": "0x140432f21",
+    "meaning": "radio: copy configured range into component record",
+    "bytes": "89 86 dc 09 00 00",
+    "instruction": "mov    DWORD PTR [rsi+0x9dc],eax",
+    "source": "investigation/native/sensors-radio/asm/140432c80.asm"
+  },
+  {
+    "address": "0x14090a060",
+    "meaning": "radar candidate: divide configured range by 10000",
+    "bytes": "f3 41 0f 5e c6",
+    "instruction": "divss  xmm0,xmm14",
+    "source": "investigation/native/sensors-radio/asm/140909e40.asm"
+  },
+  {
+    "address": "0x14090a06d",
+    "meaning": "radar candidate: multiply signature",
+    "bytes": "f3 41 0f 59 c1",
+    "instruction": "mulss  xmm0,xmm9",
+    "source": "investigation/native/sensors-radio/asm/140909e40.asm"
+  },
+  {
+    "address": "0x14090a0a5",
+    "meaning": "radar candidate: divide by distance",
+    "bytes": "f2 0f 5e f0",
+    "instruction": "divsd  xmm6,xmm0",
+    "source": "investigation/native/sensors-radio/asm/140909e40.asm"
+  },
+  {
+    "address": "0x14090a0ad",
+    "meaning": "radar candidate: compare against 0.025",
+    "bytes": "41 0f 2f f4",
+    "instruction": "comiss xmm6,xmm12",
+    "source": "investigation/native/sensors-radio/asm/140909e40.asm"
+  }
+]

@@ -211,7 +211,7 @@ class Evidence:
                             "Shipped realtime configuration value. %s The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved." % meaning)
 
     def sdk(self, name, meaning):
-        m, line, _ = self.at(SDK, r'\s%s="([^"]*)"' % re.escape(name))
+        m, line, _ = self.at(SDK, r'\s%s\s*=\s*"([^"]*)"' % re.escape(name))
         return self.located(SDK, line, line, "SDK " + name, m.group(1), "SDK game_constants attribute. " + meaning)
 
     # -- native ----------------------------------------------------------
@@ -4093,6 +4093,255 @@ def weapons(B, E):
              [section("Variant tradeoffs", "The larger box holds four times as much.")], boxes + [E.tooltip("gun_drum_xsmall")], [])
 
 
+# sensor pass; files under investigation/native/sensors-radio/, report investigation/sensors-radio.md.
+SR = "../sensors-radio/"
+SR_REPORT = "investigation/sensors-radio.md"
+F_RADAR_CTOR = 0x1403B78F0   # advanced radar constructor: vtable 0x140b93268, FOV defaults
+F_RADAR_INIT = 0x1403B7FC0   # advanced radar initializer: range R and scan interval N
+F_RADAR = 0x1403BA040        # advanced radar update, vtable 0x140b93268 slot +0x358
+F_RADAR_SCAN = 0x140909E67   # chained unwind chunk of the radar candidate collection 0x140909e40: range cap and score
+F_SONAR_CTOR = 0x1403BEA80   # advanced sonar constructor: vtable 0x140b83ef0
+F_SONAR_EMIT = 0x1403BF740   # advanced sonar emitter registration, slot +0x350
+F_SONAR = 0x1403BF8E0        # advanced sonar update, slot +0x358
+# (slot, target): radar +0x358 and +0x360 (radar_type 2), sonar +0x350 and +0x358.
+SENSOR_SLOTS = ((0x140B935C0, F_RADAR), (0x140B935C8, 0x1403BCCE0), (0x140B84240, F_SONAR_EMIT), (0x140B84248, F_SONAR))
+SENSOR_FACTORY = ((56, 0x14045E984, 0x14045E6CB), (57, 0x14045E988, 0x14045E6E9))  # factory jump-table entry and target
+LOCATOR_CASE = (55, 0x1403C8494)  # logic jump-table entry of the transponder locator
+ADV_RADARS = (("part-radar-advanced", "radar_advanced"), ("part-radar-advanced-awacs", "radar_advanced_awacs"),
+              ("part-radar-advanced-dish", "radar_advanced_dish"), ("part-radar-advanced-phalanx", "radar_advanced_phalanx"),
+              ("part-radar-advanced-missile", "radar_advanced_missile"))
+ADV_SONARS = (("part-sonar-advanced", "sonar_advanced", "small"), ("part-sonar-advanced-5", "sonar_advanced_5", "medium"),
+              ("part-sonar-advanced-7", "sonar_advanced_7", "large"))
+_SA, _SP = SR + "asm/", SR + "pseudocode/"
+_RI, _RU, _RS = _SA + "1403b7fc0.asm", _SA + "1403ba040.asm", _SA + "140909e40.asm"
+_SU, _LO, _GC = _SA + "1403bf8e0.asm", _SA + "1403c4d20.asm", _SA + "140293a40.asm"
+WHERE.update({
+    (F_DEFSER, 0x140B5D5F0): _SA + "1403168d0.asm:L1341-L1351",
+    (F_RADAR_CTOR, None): _SA + "1403b78f0.asm:L23,L90-L92; " + _SP + "1403b78f0.c",
+    (F_RADAR_INIT, None): _RI + ":L17,L72-L97; " + _SP + "1403b7fc0.c",
+    (F_RADAR, 0x1403BA292): _RU + ":L153-L164; " + _SP + "1403ba040.c",
+    (F_RADAR, 0x1403BBEC0): _RU + ":L1851-L1853; " + _SP + "1403ba040.c",
+    (F_RADAR, 0x1403BC033): _RU + ":L1937; " + _SP + "1403ba040.c",
+    (F_RADAR, 0x1403BC3DC): _RU + ":L2178-L2203; " + _SP + "1403ba040.c",
+    (F_RADAR, 0x1403BCAA0): _RU + ":L2556-L2560; " + _SA + "140294520.asm",
+    (F_RADAR, 0x1403BCAAD): _RU + ":L2556-L2560; " + _SA + "140294520.asm",
+    (F_RADAR, 0x1403BCAC4): _RU + ":L2493-L2497,L2565-L2593",
+    (F_RADAR, 0x1403BCAD7): _RU + ":L2493-L2497,L2569-L2628",
+    (F_RADAR, 0x1403BCAE4): _RU + ":L2572-L2628",
+    (F_RADAR_SCAN, None): _RS + ":L39-L55,L136-L167; " + _SP + "140909e40.c",
+    (F_SONAR_CTOR, None): _SA + "1403bea80.asm:L14",
+    (F_SONAR_EMIT, None): _SA + "1403bf740.asm:L77; " + _SP + "1403bf740.c",
+    (F_SONAR, 0x1403C0236): _SU + ":L589-L703; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C03DB): _SU + ":L589-L703; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C0D41): _SU + ":L1312-L1315; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C0F10): _SU + ":L1423-L1521; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C1092): _SU + ":L1423-L1521; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C1303): _SU + ":L1638,L1664-L1674; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C1464): _SU + ":L1638,L1748,L1882; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C1660): _SU + ":L1872-L1882; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C16E4): _SU + ":L1903; " + _SP + "1403bf8e0.c",
+    (F_SONAR, 0x1403C2175): _SU + ":L2533-L2580; " + _SP + "1403bf8e0.c",
+    (F_LOGIC, 0x1403C857E): _LO + ":L3273-L3305; " + _SP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C8586): _LO + ":L3273-L3305; " + _SP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C85CD): _LO + ":L3273-L3305; " + _SP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C85E2): _LO + ":L3305; " + _SP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C862A): _LO + ":L3322-L3325; " + _SP + "1401e3460.c",
+    (F_LOGIC, 0x1403C8656): _LO + ":L3326-L3336; " + _SP + "1403c4d20.c",
+    (F_LOGIC, 0x1403C8679): _LO + ":L3336-L3349; " + _SP + "1403c4d20.c",
+    (F_TUNING, 0x140B53AE0): _GC + ":L308-L315; " + _SA + "140846920.asm; " + _SA + "140929950.asm",
+    (F_TUNING, 0x140B53B28): _GC + ":L308-L321; " + _SA + "140846920.asm; " + _SA + "140929950.asm",
+    (F_TUNING, 0x140B53B10): _GC + ":L322-L329; " + _SA + "140846920.asm; " + _SA + "140929950.asm",
+    (F_TUNING, 0x140293FAE): _GC + ":L308-L321",
+})
+
+
+def sensor_native(E):
+    """Advanced radar, advanced sonar, transponder locator and SDK noise paths, verified once and shared by their entries."""
+    if hasattr(E, "sensor"):
+        return E.sensor
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / SR_REPORT).is_file():
+        raise ValueError("Sensor report missing: " + SR_REPORT)
+    for slot, target in SENSOR_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Sensor vtable slot %#x does not point to %#x" % (slot, target))
+    for dtype, table, target in SENSOR_FACTORY:
+        if n.base + struct.unpack("<I", n.raw(table, 4))[0] != target:
+            raise ValueError("Factory case %d at %#x does not lead to %#x" % (dtype, table, target))
+    gtype, entry = LOCATOR_CASE
+    if n.base + struct.unpack("<I", n.raw(LOGIC_TABLE + 4 * gtype, 4))[0] != entry:
+        raise ValueError("Logic jump-table entry %d does not lead to %#x" % (gtype, entry))
+    for _, bid in ADV_RADARS:
+        if E.block(bid)["attributes"]["type"] != "56":
+            raise ValueError("%s is not definition type 56" % bid)
+    for _, bid, _ in ADV_SONARS:
+        if E.block(bid)["attributes"]["type"] != "57":
+            raise ValueError("%s is not definition type 57" % bid)
+    rep = " Report: %s." % SR_REPORT
+    f = {}
+    # Advanced radar: identity, range and timing.
+    f["r_factory"] = code(F_FACTORY, 0x14045E6DC, "e80f92f5ff", "Type-56 component factory case", "call 0x1403b78f0",
+                          "The component factory switches on definition type; jump-table entry 56 at 0x14045e984 leads to this call of the advanced radar constructor. "
+                          "The Basic, AWACS, Dish, Phalanx, Missile and laser missile radars all have type 56." + rep)
+    f["r_vtable"] = code(F_RADAR_CTOR, 0x1403B792B, "488d0536b97d00", "Advanced radar vtable", "0x140b93268",
+                         "The constructor installs vtable 0x140b93268. Slot +0x358 at 0x140b935c0 holds 0x1403ba040, the radar update the component dispatcher calls once per update; "
+                         "slot +0x360 at 0x140b935c8 holds 0x1403bcce0, a separate update for radar_type 2 (the laser missile radar). The extractor re-reads both pointers." + rep)
+    f["r_fov"] = code(F_RADAR_CTOR, 0x1403B7A99, "c787180400000ad7a33c", "Radar FOV default", "0.02 per axis",
+                      "The constructor stores binary32 0x3ca3d70a, 0.02, in the FOV x field at +0x418 and, at 0x1403b7aa3, in the FOV y field at +0x41c. "
+                      "These fields save as m_fov_x and m_fov_y. They are the native FOV values, not degrees." + rep)
+    f["r_field"] = E.string(F_DEFSER, 0x140B5D5F0, "radar_range", "radar_range binding",
+                            "The definition loader binds radar_range to definition+0x2ca4 (lea r9 at 0x1403180bb) with fallback 20000 (0x140bb08ec), and radar_speed to +0x2ca8 (0x1403180e2). "
+                            "Advanced radars and advanced sonars read +0x2ca4 as their part range P." + rep)
+    f["r_k"] = op(F_RADAR_INIT, 0x1403B80DE, "f30f5905ca787f00", 0x140BAF9B0, "Radar range factor",
+                  "The initializer loads P from definition+0x2ca4 and multiplies it by 0.02 here and again at 0x1403b80e6 (same bytes and constant), so P × 0.0004. "
+                  "It forms FOV y × FOV x at 0x1403b80bf-0x1403b80c7." + rep)
+    f["r_range"] = code(F_RADAR_INIT, 0x1403B80EE, "f30f5ec2f30f11877004", "Radar working range", "R = P × 0.02 × 0.02 ÷ (FOV x × FOV y)",
+                        "Divides by the FOV product and stores R at +0x470. At the default 0.02 × 0.02 FOV, R equals radar_range. Halving both FOV fields makes R four times larger; doubling both makes it a quarter." + rep)
+    f["r_interval"] = op(F_RADAR_INIT, 0x1403B80FA, "f30f5e0572877f00", 0x140BB0874, "Radar scan interval divisor",
+                         "N = max(1, floor(R ÷ 2000 + 0.5)) updates: + 0.5 at 0x1403b8102, floor helper 0x1409d57d8 at 0x1403b810a, a lower bound of 1 by cmovl at 0x1403b811f (ebp = 1 from 0x1403b7fe1), stored at +0x464 (0x1403b8127)." + rep)
+    f["r_count"] = code(F_RADAR, 0x1403BA292, "41ff8660040000", "Radar scan counter", "new scan every N updates",
+                        "Each active update increments the counter at +0x460 and compares it with N at 0x1403ba2a0 (jb skips). At N it resets the counter (0x1403ba2d7), clears the previous results and collects a new scan. "
+                        "So results refresh every N updates, N ÷ 60 s. This is separate from the sweep rotation, which advances by radar_speed each update." + rep)
+    # Candidate test in the physics-record helper.
+    f["r_cap"] = code(F_RADAR_SCAN, 0x14090A031, "410f28c3f3410f59c3f30f5ac0660f2fd00f87f4000000", "Radar range cap", "distance ≤ R",
+                      "R × R is compared with the squared distance to the target; a larger squared distance rejects the target (ja at 0x14090a042), so the cap is inclusive." + rep)
+    f["r_div"] = op(F_RADAR_SCAN, 0x140909ED9, "f3440f1035da692a00", 0x140BB08BC, "Radar score divisor",
+                    "xmm14 holds 10000 for the score R ÷ 10000 × S ÷ distance. S is the target record's signature at +0x8 (loaded at 0x140909f03); targets with S ≤ 0 are skipped." + rep)
+    f["r_score"] = code(F_RADAR_SCAN, 0x14090A060, "f3410f5ec6f20f59dbf20f5cfdf3410f59c1", "Radar candidate score", "R ÷ 10000 × S ÷ distance",
+                        "divss by 10000 at 0x14090a060 and mulss by S at 0x14090a06d; the result is widened and divided by the distance at 0x14090a0a5 in double precision." + rep)
+    f["r_thr"] = op(F_RADAR_SCAN, 0x140909EC0, "f3440f1025175b2a00", 0x140BAF9E0, "Radar score threshold",
+                    "The score is narrowed to binary32 and compared with this at 0x14090a0ad (comiss xmm6,xmm12); jbe at 0x14090a0b1 rejects, so the score must exceed 0.025. "
+                    "Equivalent: distance < R × S ÷ 250, together with distance ≤ R. No random draw takes part in this test." + rep)
+    f["r_limit"] = code(F_RADAR, 0x1403BBEC0, "4183be8804000008", "Radar target limit", "8",
+                        "Before each accepted target the update compares the result count at +0x488 with 8 and stops at 8 (jae at 0x1403bbec8). The report traces a descending sort by score before this loop." + rep)
+    f["r_ray"] = code(F_RADAR, 0x1403BC033, "e8c882deff", "Radar line-of-sight query", "call 0x1401a4300",
+                      "Per candidate the update runs a segment query from the sensor to the target with mask 0x7f; an intervening record can reject the target, with exceptions for the target itself and the same owner." + rep)
+    f["r_turns"] = op(F_RADAR, 0x1403BC3DC, "f30f5e056c417f00", 0x140BB0550, "Radar angle unit",
+                      "Each target's yaw is negated and divided by 2π before it is stored at record +0x34, and the pitch is divided by 2π at 0x1403bc42b, so reported angles are in turns." + rep)
+    # Output noise.
+    f["r_noise_a"] = code(F_RADAR, 0x1403BCAA0, "f30f10b8fc000000", "Radar angle noise source", "settings +0xfc (radar_noise)",
+                          "The output stage gets the settings object (call 0x140294520) and loads the radar_noise field." + rep)
+    f["r_noise_d"] = code(F_RADAR, 0x1403BCAAD, "f3440f108800010000", "Radar distance noise source", "settings +0x100 (radar_distance_noise)",
+                          "The output stage loads the radar_distance_noise field." + rep)
+    f["r_rand"] = op(F_RADAR, 0x1403BCAE4, "f30f1035203e7f00", 0x140BB090C, "Radar noise random scale",
+                     "Each noisy value draws U = (random & 32767) ÷ 32767 (call 0x1409afa20, and at 0x1403bcb25, divss at 0x1403bcb31), a separate call per value." + rep)
+    f["r_dnoise"] = code(F_RADAR, 0x1403BCAC4, "450f28d3f3450f5cd1f3450f58cbf3450f5cca", "Radar distance noise", "distance × (1 − D + 2D U)",
+                         "With xmm11 = 1 (reloaded at 0x1403bc904) this forms 1 − D and 2D from D = radar_distance_noise; the reported distance is the true distance times (1 − D) + 2D U (0x1403bcb35-0x1403bcb46). "
+                         "With the SDK default D = 0.01 that is ±1%." + rep)
+    f["r_anoise"] = code(F_RADAR, 0x1403BCAD7, "440f28c7450f57c5f3410f5cf8", "Radar angle noise", "angle − A + 2A U",
+                         "Negates A = radar_noise with the sign mask in xmm13 and forms 2A; both reported angles get −A + 2A U (0x1403bcb89-0x1403bcb92 and 0x1403bcbd8-0x1403bcbe1). "
+                         "With the default A = 0.001 that is ±0.001 turn, ±0.36 degrees. A fourth per-target value is copied without noise (0x1403bcc16)." + rep)
+    # Advanced sonar.
+    f["s_factory"] = code(F_FACTORY, 0x14045E6FA, "e88103f6ff", "Type-57 component factory case", "call 0x1403bea80",
+                          "Jump-table entry 57 at 0x14045e988 leads to this call of the advanced sonar constructor. sonar_advanced, sonar_advanced_5 and sonar_advanced_7 have type 57." + rep)
+    f["s_vtable"] = code(F_SONAR_CTOR, 0x1403BEA93, "488d0556547c00", "Advanced sonar vtable", "0x140b83ef0",
+                         "Slot +0x350 at 0x140b84240 holds 0x1403bf740, the ping emitter registration; slot +0x358 at 0x140b84248 holds 0x1403bf8e0, the sonar update. The extractor re-reads both pointers." + rep)
+    f["s_div"] = op(F_SONAR, 0x1403C0236, "f3440f10157d067f00", 0x140BB08BC, "Sonar score divisor",
+                    "xmm10 holds 10000 for the active score. P is read from definition+0x2ca4 (0x1403c02b2), the radar_range field; targets with signature S ≤ 0 (0x1403c02f4), beyond P (comisd at 0x1403c03b8) or at zero distance (0x1403c03c0) are skipped." + rep)
+    f["s_score"] = code(F_SONAR, 0x1403C03DB, "f3410f5ec2f30f594708f30f5ac0f20f5ec6", "Sonar active score", "P ÷ 10000 × S ÷ distance",
+                        "Divides P by 10000, multiplies by S from target record +0x8 and divides by the distance in double precision; the strength is stored at +0x38 (0x1403c03f1)." + rep)
+    f["s_thr"] = op(F_SONAR, 0x1403C1464, "f3440f1025ebe47e00", 0x140BAF958, "Sonar strength threshold",
+                    "Compared with each target's strength at 0x1403c1685 (comiss xmm0,xmm12; jbe rejects), so the strength must exceed 0.01. Active returns: distance < P × S ÷ 100 within P." + rep)
+    f["s_merge"] = code(F_SONAR, 0x1403C1303, "440f2fe1", "Sonar direction merge", "squared difference < 0.01",
+                        "xmm12 holds 0.01 (0x1403c127d). Two targets whose unit direction vectors differ by less than 0.01 in squared length merge into one, weighted by strength." + rep)
+    f["s_limit"] = code(F_SONAR, 0x1403C1660, "4183bf5003000010", "Sonar target limit", "16",
+                        "Output stops at 16 targets (jae at 0x1403c1668). Candidates are taken in strength order (report)." + rep)
+    f["s_window"] = op(F_SONAR, 0x1403C0D41, "f30f593523f97e00", 0x140BB066C, "Sonar echo window",
+                       "After a ping, active targets are reported once their distance falls in [t × 12.333333, (t + 1) × 12.333333) m, where t counts updates since the ping (upper edge at 0x1403c0d4c)." + rep)
+    f["s_amp"] = code(F_SONAR_EMIT, 0x1403BF859, "c74018 00006b43".replace(" ", ""), "Sonar ping amplitude", "235",
+                      "While the sonar's active latch is set it publishes a ping emitter with amplitude 235.0 (binary32 0x436b0000) at +0x18." + rep)
+    f["s_pfac"] = op(F_SONAR, 0x1403C0F10, "f3440f100563e97e00", 0x140BAF87C, "Sonar passive factor",
+                     "In the passive branch each ping source more than 1 m away (comiss at 0x1403c0fbd) scores amplitude × P × 0.00002 ÷ distance. Against the 0.01 threshold one amplitude-235 ping passes within 235 × 0.00002 ÷ 0.01 × P = 0.47 × P." + rep)
+    f["s_passive"] = code(F_SONAR, 0x1403C1092, "f30f59b0a42c0000f3410f59f0f30f5ef7", "Sonar passive strength", "amplitude × P × 0.00002 ÷ distance",
+                          "mulss by P (definition+0x2ca4), by 0.00002, divss by the distance; stored as the target strength at +0x38 (0x1403c10a3) and tested against the same 0.01." + rep)
+    f["s_ray"] = code(F_SONAR, 0x1403C16E4, "e8172cdeff", "Sonar line-of-sight query", "call 0x1401a4300",
+                      "The same segment query as the radar runs for each output candidate." + rep)
+    f["s_noise"] = code(F_SONAR, 0x1403C2175, "f30f10b8f8000000", "Sonar angle noise", "angle − A + 2A U, A = sonar_noise",
+                        "The output stage loads settings +0xf8 and adds −A + 2A U, U = (random & 32767) ÷ 32767, to each of the two reported angles (0x1403c218b-0x1403c2229). There is no distance noise. "
+                        "With the default A = 0.001 turn that is ±0.36 degrees." + rep)
+    # Transponder locator (logic_gate_type 55).
+    f["l_off"] = op(F_LOGIC, 0x1403C857E, "f30f103d36777e00", 0x140BAFCBC, "Locator distance offset",
+                    "Logic case 55 (jump-table entry at 0x1403c9554 + 4 × 55 leads to 0x1403c8494) walks the powered beacons; the term per beacon is 1 ÷ (0.002 × distance + 0.5)." + rep)
+    f["l_k"] = op(F_LOGIC, 0x1403C8586, "f3440f10057d737e00", 0x140BAF90C, "Locator distance factor",
+                  "Multiplies each beacon distance (helper 0x140176180) by this before adding 0.5." + rep)
+    f["l_term"] = code(F_LOGIC, 0x1403C85CD, "f3410f59c8f30f58cf0f28c6f30f5ec1", "Locator beacon term", "1 ÷ (0.002 d + 0.5)",
+                       "mulss by 0.002, addss 0.5, then 1 ÷ that (xmm6 = 1 from 0x1403c856e). The term is 1 at 250 m, 0.4 at 1000 m and 1 ÷ 20.5 at 10000 m." + rep)
+    f["l_max"] = code(F_LOGIC, 0x1403C85E2, "e859605200", "Locator nearest beacon", "max over beacons",
+                      "The running value starts at 0 (0x1403c855f) and keeps the larger term (max helper 0x1408ee640), so the nearest beacon sets it; beacons do not add up." + rep)
+    f["l_noise"] = op(F_LOGIC, 0x1403C862A, "f30f59050e737e00", 0x140BAF940, "Locator noise scale",
+                      "The term is multiplied by 1 + n × 0.0078125 × 0.1 (× 0.1 at 0x1403c8632), where n comes from the spatial-noise helper 0x1401e3460 (call at 0x1403c8625)." + rep)
+    f["l_clamp"] = code(F_LOGIC, 0x1403C8656, "e8b55f5200", "Locator increment clamp", "0 to 1",
+                        "Clamp helper 0x1408ee610 limits the noisy term to 0 to 1." + rep)
+    f["l_acc"] = op(F_LOGIC, 0x1403C8679, "f30f100dcb7f7e00", 0x140BB064C, "Locator pulse threshold",
+                    "The increment is added to the accumulator at +0x8d0 (0x1403c8660). At 10 or more (comiss at 0x1403c8681) it subtracts 10 and sets the pulse output for that update (0x1403c8695)." + rep)
+    # SDK noise readers.
+    sdk_rep = " The startup path 0x140846920 parses data/game_constants.xml and passes settings +0x5c to the reader, so subobject offsets +0x9c, +0xa0 and +0xa4 are settings +0xf8, +0xfc and +0x100." + rep
+    f["sdk_sonar"] = E.string(F_TUNING, 0x140B53AE0, "sonar_noise", "sonar_noise reader",
+                              "Read into subobject +0x9c (lea r9 at 0x140293fb6), settings +0xf8, which the sonar output stage loads." + sdk_rep)
+    f["sdk_radar"] = E.string(F_TUNING, 0x140B53B28, "radar_noise", "radar_noise reader",
+                              "Read into subobject +0xa0 (0x140293fd5), settings +0xfc, which the radar output stage loads." + sdk_rep)
+    f["sdk_dist"] = E.string(F_TUNING, 0x140B53B10, "radar_distance_noise", "radar_distance_noise reader",
+                             "Read into subobject +0xa4 (0x140293ffc) with fallback 0.01 (0x140baf958), settings +0x100, which the radar output stage loads." + sdk_rep)
+    f["sdk_default"] = op(F_TUNING, 0x140293FAE, "f30f10354 2b99100".replace(" ", ""), 0x140BAF8F8, "Angle noise fallback",
+                          "Fallback for sonar_noise and radar_noise when the attribute is absent; it matches the SDK default." + rep)
+    f["sdk"] = [E.sdk(name, meaning) for name, meaning in (
+        ("sonar_noise", "Read by the executable and used as the sonar angle noise bound A (turns)."),
+        ("radar_noise", "Read by the executable and used as the radar angle noise bound A (turns)."),
+        ("radar_distance_noise", "Read by the executable and used as the radar distance noise fraction D."))]
+    R = update_rate(E)
+    ups = R["ups"]
+    f["s_speed"] = E.derived("Sonar echo window speed", "%s m/s" % _num(round(n.f32(0x140BB066C) * ups, 4)),
+                             "12.333333 m per update × %d updates per simulated second = 740 m of target distance per second, about 6.2 s across 4600 m. "
+                             "Reading it as a round trip at about 1480 m/s sound speed is an inference." % ups,
+                             [f["s_window"], R["findings"][0]])
+    rows = []
+    for d in (250, 1000, 10000):
+        q = min(1.0, 1 / (0.002 * d + 0.5))
+        rows.append("%d m: %s Hz (one pulse per %s updates)" % (d, _num(round(ups * q / 10, 4)), _num(round(10 / q, 4))))
+    f["l_rate"] = E.derived("Locator nominal pulse rate", "6 Hz up to 250 m; 2.4 Hz at 1000 m; 0.2927 Hz at 10000 m",
+                            "With noise factor 1: rate = %d × min(1, 1 ÷ (0.002 d + 0.5)) ÷ 10 Hz for the nearest beacon at d metres. %s. "
+                            "The accumulator can alternate between neighbouring whole intervals for other distances." % (ups, "; ".join(rows)),
+                            [f["l_term"], f["l_acc"], f["l_max"], f["l_clamp"], R["findings"][0]])
+    f["noise"] = E.derived("Sensor output noise bounds", "radar distance ±1%; radar and sonar angles ±0.001 turn",
+                           "At the SDK defaults D = 0.01 and A = 0.001: distance × (0.99 to 1.01), angles ± 0.001 turn = ±0.36 degrees (0.001 × 360). "
+                           "U = (random & 32767) ÷ 32767 lies in 0 to 1, so the error stays inside the band whatever the random generator's distribution.",
+                           [f["r_dnoise"], f["r_anoise"], f["s_noise"]] + f["sdk"])
+    E.sensor = f
+    return f
+
+
+def radar_figures(E, bid):
+    """Derived default-FOV and half-FOV figures for one advanced radar."""
+    f = sensor_native(E)
+    R = update_rate(E)
+    P = float(E.block(bid)["attributes"]["radar_range"])
+    def at(fov):
+        r = P * 0.02 * 0.02 / (fov * fov)
+        nn = max(1, math.floor(r / 2000 + 0.5))
+        return r, nn, nn / R["ups"]
+    r, nn, s = at(0.02)
+    r2, n2, s2 = at(0.01)
+    g = _num
+    return E.derived("%s detection figures" % E.block(bid)["name"],
+                     "R = %s m; scan every %d updates (%s s); score passes for distance < %s × S" % (g(r), nn, g(round(s, 6)), g(r / 250)),
+                     "P = %s. At FOV 0.02 × 0.02: R = %s × 0.0004 ÷ 0.0004 = %s m, N = floor(%s ÷ 2000 + 0.5) = %d updates = %s s, score bound R × S ÷ 250 = %s × S m, capped at R. "
+                     "At FOV 0.01 × 0.01: R = %s m, N = %d updates = %s s, bound %s × S m. Signature S is the target record value, not a hull size." % (
+                         g(P), g(P), g(r), g(r), nn, g(round(s, 6)), g(r / 250), g(r2), n2, g(round(s2, 6)), g(r2 / 250)),
+                     [f["r_k"], f["r_range"], f["r_interval"], f["r_thr"], R["findings"][0]])
+
+
+def sonar_figures(E, bid):
+    """Derived active and passive boundaries for one advanced sonar."""
+    f = sensor_native(E)
+    P = float(E.block(bid)["attributes"]["radar_range"])
+    g = _num
+    return E.derived("%s detection figures" % E.block(bid)["name"],
+                     "active: distance < %s × S, capped at %s m; one standard ping heard within %s m" % (g(P / 100), g(P), g(P * 0.47)),
+                     "P = %s. Active score P ÷ 10000 × S ÷ d > 0.01 gives d < P × S ÷ 100 = %s × S, capped at P. "
+                     "Passive score 235 × P × 0.00002 ÷ d > 0.01 gives d < 235 × 0.00002 ÷ 0.01 × P = 0.47 × P = %s m for one amplitude-235 ping." % (g(P), g(P / 100), g(P * 0.47)),
+                     [f["s_div"], f["s_thr"], f["s_amp"], f["s_pfac"]])
+
+
 def sensors_and_radio(B, E):
     rx = {b: E.attr(b, "rx_range", "Radio range configuration; equals the tooltip range on the v2 radios.") for b in
           ("rx_small_v2", "rx_med_v2", "rx_large_v2", "rx_huge_v2", "rx_small", "rx_med", "rx_large", "rx_huge", "rx_directional", "rx_directional_large")}
@@ -4100,16 +4349,40 @@ def sensors_and_radio(B, E):
     radar = {b: E.attr(b, "radar_range", "Sensor range configuration; equals the stated tooltip range where one is given.") for b in
              ("radar", "radar_dish", "radar_large", "radar_huge", "radar_sonar", "radar_sonar_small", "radar_advanced", "radar_advanced_awacs",
               "radar_advanced_dish", "radar_advanced_missile", "radar_advanced_phalanx", "sonar_advanced", "sonar_advanced_5", "sonar_advanced_7", "fish_finder")}
+    f = sensor_native(E)
+    rate = update_rate(E)["findings"][0]
+    radar_core = [f[k] for k in ("r_factory", "r_vtable", "r_fov", "r_field", "r_k", "r_range", "r_interval", "r_count", "r_cap", "r_div",
+                                 "r_score", "r_thr", "r_limit", "r_ray", "r_turns", "r_noise_a", "r_noise_d", "r_rand", "r_dnoise", "r_anoise")]
+    sonar_core = [f[k] for k in ("s_factory", "s_vtable", "s_div", "s_score", "s_thr", "s_merge", "s_limit", "s_window", "s_speed", "s_amp",
+                                 "s_pfac", "s_passive", "s_ray", "s_noise")]
+    locator = [f[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_clamp", "l_acc", "l_rate")]
+    noise = [f[k] for k in ("sdk_sonar", "sdk_radar", "sdk_dist", "sdk_default", "noise")] + f["sdk"]
     B.category("Other components",
-               "This catch-all holds sensors, radios, lights, fluid fittings, connectors, winches, doors and tools; the most useful hard numbers are ranges, which the definitions confirm: v2 radios 100 m to 20 km with legacy radios configured identically, and radar ranges from 5000 to 500000 m.",
+               "This catch-all holds sensors, radios, lights, fluid fittings, connectors, winches, doors and tools. Definitions give the ranges: v2 radios 100 m to 20 km with legacy radios configured identically, and radar ranges from 5000 to 500000 m. "
+               "Advanced radars and sonars pass a target when signature over distance beats a fixed threshold, and the transponder locator pulses faster near a beacon.",
                [section("Radio ranges",
                         "rx_range equals the tooltip's ground-level range on every v2 radio (100, 1000, 4000, 20000) and on the directional antennas (8000000, 10000000). The legacy radios carry the same rx_range values as their v2 counterparts, so expect the same ranges."),
                 section("Radar and sonar ranges",
                         "radar_range matches the stated range for the basic radars (5000, 20000, 50000), sonars (3000, 1000), advanced sonars (60000, 100000, 200000) and the fish finder (100). The advanced radars without a stated range carry 60000 (radar), 500000 (AWACS), 200000 (dish), 100000 (phalanx) and 20000 (missile)."),
-                section("Measurement questions",
-                        "Detection probability against target size and FOV for the advanced radars; radio signal strength against distance.")],
-               list(rx.values()) + list(rx_t.values()) + list(radar.values()) + [E.tooltip("radar"), E.tooltip("sonar_advanced")],
-               ["Range fields are configuration; detection and signal models were not decoded.",
+                section("Advanced radar detection",
+                        "The Basic, AWACS, Dish, Phalanx and Missile radars turn radar_range P into a working range R = P × 0.02 × 0.02 ÷ (FOV x × FOV y). The FOV values are the part's native FOV fields, 0.02 each by default, so R equals radar_range at the default FOV and halving both FOV fields makes R four times larger. "
+                        "A new scan runs every N = max(1, floor(R ÷ 2000 + 0.5)) updates, at 60 updates per second.",
+                        "A target with signature S at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250. There is no random roll in this test. Each scan keeps at most 8 targets, best score first, and runs a line-of-sight query to each."),
+                section("Advanced sonar detection",
+                        "Advanced sonars use radar_range as P. An active return passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < P × S ÷ 100. After a ping, targets show up as an echo window moves out by 12.333333 m per update, 740 m per second.",
+                        "While not pinging, a sonar hears other sonars' pings of amplitude 235 when 235 × P × 0.00002 ÷ d > 0.01, so one ping is heard within 0.47 × P. Targets whose directions differ by less than 0.01 in squared length merge, and at most 16 targets are output."),
+                section("Transponder locator pulses",
+                        "The locator takes the nearest beacon's 1 ÷ (0.002 d + 0.5), applies a small noise factor, clamps it to 0 to 1 and adds it to an accumulator each update. Each time the accumulator reaches 10 it pulses. Without noise that is 6 Hz within 250 m, 2.4 Hz at 1000 m and 0.2927 Hz at 10000 m."),
+                section("Output noise",
+                        "The game reads radar_noise, radar_distance_noise and sonar_noise from the SDK game_constants file. Radar distances are multiplied by 1 − D + 2D U, and radar and sonar angles get −A + 2A U, with a fresh random U from 0 to 1 per value. "
+                        "At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise."),
+                section("Open questions",
+                        "Not decoded: how a vehicle's size, shape or material sets the signature S, so no detection distance follows for a given vehicle; the editor's minimum and maximum FOV, so no figures at those limits; which objects block the line-of-sight query; "
+                        "the laser missile radar (radar_type 2) acquisition path; the legacy radars and sonars (definition type 16); sonar submersion gating and the noisemaker's effect on the sonar; radio signal strength against distance.")],
+               list(rx.values()) + list(rx_t.values()) + list(radar.values()) + [E.tooltip("radar"), E.tooltip("sonar_advanced")] +
+               radar_core + sonar_core + locator + noise + [rate],
+               ["Signature S is a value on the target record whose producer was not recovered, so these formulas give no detection distance in metres for a given vehicle size.",
+                "Radio signal strength, propagation and size-specific range were not decoded.",
                 "Unrelated definitions carry serialized default ranges; only sensor and radio definitions are interpreted here."])
     legacy = (("part-rx-small", "rx_small", "rx_small_v2", "100 m"), ("part-rx-med", "rx_med", "rx_med_v2", "1 km"),
               ("part-rx-large", "rx_large", "rx_large_v2", "4 km"), ("part-rx-huge", "rx_huge", "rx_huge_v2", "20 km"))
@@ -4122,16 +4395,28 @@ def sensors_and_radio(B, E):
         B.family(fid, "Range %s per tooltip and rx_range field; defaults to receive." % E.block(bid)["attributes"]["rx_range"],
                  [section("Setup and interactions", "Transmit Mode defaults to receive; set it on to send. One frequency is shared for send and receive.")],
                  [rx[bid], rx_t[bid], E.port(bid, "Transmit Mode")], [])
-    for fid, bid, stated in (("part-radar-advanced", "radar_advanced", None), ("part-radar-advanced-awacs", "radar_advanced_awacs", None),
-                             ("part-radar-advanced-dish", "radar_advanced_dish", None), ("part-radar-advanced-phalanx", "radar_advanced_phalanx", None),
-                             ("part-radar-advanced-missile", "radar_advanced_missile", None)):
+    g = _num
+    for fid, bid in ADV_RADARS:
         rng = E.block(bid)["attributes"]["radar_range"]
-        B.family(fid, "Configured range %s; sensitivity depends on FOV, target size and distance." % rng,
-                 [section("Variant tradeoffs",
-                          "The tooltip gives no range, but radar_range is %s. On the basic radars and sonars this field equals the stated range." % rng),
-                  section("Open measurement questions", "Detection distance against target size at minimum and maximum FOV.")],
-                 [radar[bid], radar["radar"], E.tooltip("radar"), E.tooltip(bid)],
-                 ["Range is configuration; the detection model was not decoded."] +
+        P = float(rng)
+        r2, n1, n2 = P * 4, max(1, math.floor(P / 2000 + 0.5)), max(1, math.floor(P * 4 / 2000 + 0.5))
+        fig = radar_figures(E, bid)
+        missile = bid == "radar_advanced_missile"
+        B.family(fid, "Range %s m at the default FOV; a new scan every %d updates (%s s); targets of signature S pass out to %s × S m." % (rng, n1, g(round(n1 / 60, 6)), g(P / 250)),
+                 [section("Detection",
+                          "R = %s × 0.02 × 0.02 ÷ (FOV x × FOV y) m: %s m at the default FOV of 0.02 per axis, %s m at 0.01. A target at distance d passes when d ≤ R and R ÷ 10000 × S ÷ d > 0.025, that is d < R × S ÷ 250, %s × S m at the default FOV. "
+                          "Narrowing the FOV reaches farther but scans less often." % (rng, rng, g(r2), g(P / 250)),
+                          "A new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates: %d (%s s) at the default FOV, %d (%s s) at 0.01. Each scan keeps at most 8 targets, best score first, and checks line of sight to each." % (
+                              n1, g(round(n1 / 60, 6)), n2, g(round(n2 / 60, 6)))),
+                  section("Outputs",
+                          "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."),
+                  section("Variant tradeoffs",
+                          "The tooltip gives no range, but radar_range is %s. On the basic radars and sonars this field equals the stated range." % rng)],
+                 [radar[bid], radar["radar"], E.tooltip("radar"), E.tooltip(bid), E.attr(bid, "type", "Definition type 56, the advanced radar class."),
+                  E.attr(bid, "radar_speed", "Sweep step per update."), fig] + radar_core + [f["noise"], rate] +
+                 ([E.attr(bid, "radar_type", "radar_type 1 selects the missile orientation branches in the radar update.")] if missile else []),
+                 ["Signature S and the editor's FOV limits are open questions listed under Other components; the formulas above take S and the native FOV values as inputs."] +
+                 (["The Missile radar (radar_type 1) takes separate orientation branches in the update; their effect on the sweep and look direction was not decoded."] if missile else []) +
                  (["20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."] if rng == "20000" else []))
 
 
@@ -4212,20 +4497,41 @@ def more_families(B, E):
     simple("part-fish-finder", "Sonar that reports one random fish within 100 m while submerged; its radar_range field is 100.",
            [("Operating conditions", "Needs power, Activate on and submersion. Values give yaw in turns, horizontal distance and depth in metres.")],
            [T("fish_finder"), A("fish_finder", "radar_range", "Equals the stated 100 m range."), P("fish_finder", "Fish Data")], [])
-    for fid, bid in (("part-sonar-advanced", "sonar_advanced"), ("part-sonar-advanced-5", "sonar_advanced_5"), ("part-sonar-advanced-7", "sonar_advanced_7")):
-        simple(fid, "Passive and active sonar; tooltip range and radar_range both %s." % A(bid, "radar_range", "")["value"],
+    sf = sensor_native(E)
+    sonar_core = [sf[k] for k in ("s_factory", "s_vtable", "s_div", "s_score", "s_thr", "s_merge", "s_limit", "s_window", "s_speed", "s_amp",
+                                  "s_pfac", "s_passive", "s_ray", "s_noise", "noise")]
+    for fid, bid, size in ADV_SONARS:
+        pr = float(A(bid, "radar_range", "")["value"])
+        simple(fid, "Passive and active sonar; tooltip range and radar_range both %s. Active returns pass out to %s × S m, and one standard ping is heard within %s m." % (
+                   A(bid, "radar_range", "")["value"], _num(pr / 100), _num(pr * 0.47)),
                [("Operating conditions", "Passively it hears noisy components such as propellers and engines. Holding Ping suppresses passive returns; each new ping overrides the previous one, and active returns appear briefly as the echo arrives."),
-                ("Setup and interactions", "The sonar data composite carries up to 16 targets as pivot and pitch pairs. Sonar jammers create passive decoys.")],
-               [T(bid), A(bid, "radar_range", "Equals the tooltip range in metres."), P(bid, "Sonar Data"), T("sonar_jammer")], ["Detection thresholds were not recovered."])
+                ("Setup and interactions", "The sonar data composite carries up to 16 targets as pivot and pitch pairs. Sonar jammers create passive decoys."),
+                ("Detection",
+                 ["With P = radar_range = %s, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < %s × S m. "
+                  "Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second." % (_num(pr), _num(pr / 100)),
+                  "While it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within %s m, the %s advanced sonar's figure. "
+                  "Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default." % (_num(pr * 0.47), size)])],
+               [T(bid), A(bid, "radar_range", "Equals the tooltip range in metres."), P(bid, "Sonar Data"), T("sonar_jammer"),
+                A(bid, "type", "Definition type 57, the advanced sonar class."), sonar_figures(E, bid)] + sonar_core,
+               ["Signature S, submersion gating and the noisemaker's effect are open questions listed under Other components; the formulas above take S as an input."])
     for fid, bid in (("part-radar", "radar"), ("part-radar-dish", "radar_dish"), ("part-radar-large", "radar_large"), ("part-radar-huge", "radar_huge"),
                      ("part-radar-sonar", "radar_sonar"), ("part-radar-sonar-small", "radar_sonar_small")):
         simple(fid, "Range %s (tooltip and radar_range agree); FOV input 0.01–0.125 turns." % A(bid, "radar_range", "")["value"],
                [("Setup and interactions", "Set the search width with the FOV input (0.01–0.125 turns); outputs give distance in metres and angles in turns.")],
-               [T(bid), A(bid, "radar_range", "Equals the tooltip range."), P(bid, "FOV")], ["Detection model not decoded."])
-    simple("part-transponder-locator", "Pulses faster the closer the strongest transponder is.",
-           [("Operating conditions", "Needs power and Active. Signal strength decreases with distance; the pulse frequency encodes distance to the nearest transponder.")],
-           [T("transponder_locator"), P("transponder_locator", "Transponder Pulse"), E.realtime("transponder_variance", "Name suggests transponder noise.")],
-           ["Pulse frequency against distance was not recovered."])
+               [T(bid), A(bid, "radar_range", "Equals the tooltip range."), P(bid, "FOV"), A(bid, "type", "Definition type 16, the logic component class."),
+                A(bid, "logic_gate_type", "Logic case 50; not the type-56 advanced radar or type-57 advanced sonar.")],
+               ["Legacy sensor: definition type 16, logic case 50, a separate path from the advanced radar and sonar. Its detection model was not decoded, and the advanced formulas do not apply to it."])
+    simple("part-transponder-locator", "Pulses up to 6 times a second, slower as the nearest transponder gets farther: 2.4 Hz at 1000 m, 0.2927 Hz at 10000 m.",
+           [("Operating conditions", "Needs power and Active. Signal strength decreases with distance; the pulse frequency encodes distance to the nearest transponder."),
+            ("Pulse rate",
+             ["Each update the locator takes the nearest transponder's 1 ÷ (0.002 d + 0.5) for distance d in metres, multiplies it by a noise factor 1 + n × 0.0078125 × 0.1, clamps the result to 0 to 1 and adds it to an accumulator. "
+              "When the accumulator reaches 10 it drops by 10 and Transponder Pulse is on for that update.",
+              "Without noise that is 6 Hz within 250 m (a pulse every 10 updates), 2.4 Hz at 1000 m (25 updates) and 0.2927 Hz at 10000 m (205 updates). "
+              "Only the nearest transponder counts; several do not add up. The part's radar_range of 20000 is not a cutoff in this loop."])],
+           [T("transponder_locator"), P("transponder_locator", "Transponder Pulse"), E.realtime("transponder_variance", "Name suggests transponder noise."),
+            A("transponder_locator", "logic_gate_type", "Logic case 55, the locator evaluator."), A("transponder_locator", "radar_range", "Not read as a distance cutoff by the locator loop.")] +
+           [sf[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_clamp", "l_acc", "l_rate")] + [update_rate(E)["findings"][0]],
+           ["The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced."])
 
     # Radios.
     for fid, bid in (("part-rx-directional", "rx_directional"), ("part-rx-directional-large", "rx_directional_large")):
