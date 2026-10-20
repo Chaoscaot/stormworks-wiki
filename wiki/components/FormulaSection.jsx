@@ -45,6 +45,13 @@ const FINDINGS = {
     'PID first-enable derivative guard', 'PID derivative difference', 'PID integral term', 'PID proportional term', 'PID derivative term',
     'PID output finite check', 'PID inactive reset', 'Microprocessor PID tick', 'Component updates per simulated second',
   ],
+  gear: [
+    'Gear Ratio selector', 'Gear multiplier for 1:1', 'Gear multiplier for 1:2', 'Gear multiplier for 1:4', 'Gear multiplier for 1:8',
+    'Gear multiplier for 1:16', 'Gear multiplier for 1:32', 'Rotary position gain', 'Rotary position impulse cap: × F',
+    'Rotary position impulse cap: × r', 'Rotary position impulse cap: × P', 'Rotary speed command limit', 'Rotary speed impulse cap',
+    'Linear position force cap', 'Compact track force cap', 'Up/Down track command', 'Max Power slider scale', 'Joint availability scale',
+    'Speed setting default', 'Hinge impulse field', 'Slider force field',
+  ],
 };
 
 const TITLES = {
@@ -57,6 +64,7 @@ const TITLES = {
   jet: 'Exhaust force against incoming pressure',
   chamber: 'Chamber fuel use, pressure and heat against RPS',
   pid: 'PID step response with an example plant',
+  gear: 'Joint speed and holding cap against Gear Ratio',
 };
 
 /*
@@ -425,9 +433,44 @@ const PID_CONTROLLER = {
   ],
 };
 
+const GEAR = {
+  intro: (
+    <p>
+      Gear Ratio picks a multiplier r of 1, 2, 4, 8, 16 or 32. The motor divides its commanded speed by r and multiplies its cap by r²
+      on a hinge or by r on a slider. Max Power scales the cap and leaves the speed alone. The chart shows both against 1:1 on a doubling
+      scale; the readout and table give the selected joint&apos;s values.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="r">{mi('r')}{mo('∈')}<mrow>{mo('{')}{mn('1')}{mo(',')}{mn('2')}{mo(',')}{mn('4')}{mo(',')}{mn('8')}{mo(',')}{mn('16')}{mo(',')}{mn('32')}{mo('}')}</mrow><mspace width="1em" />{mi('P')}{mo('=')}<mfrac><mtext>Max Power %</mtext>{mn('100')}</mfrac></mrow>,
+        <mrow key="h"><mtext>hinge:</mtext><mspace width="0.5em" />{sub('J', 'max')}{mo('=')}{mi('F')}<msup>{mi('r')}{mn('2')}</msup>{mi('P')}<mspace width="1em" /><mtext>slider:</mtext><mspace width="0.5em" />{sub('F', 'max')}{mo('=')}{mi('F')}{mi('r')}{mi('P')}<mspace width="1em" /><mtext>speed motors × </mtext>{mi('A')}</mrow>,
+        <mrow key="p"><mtext>position servo:</mtext><mspace width="0.5em" />{mi('v')}{mo('=')}{mi('clamp')}<mrow>{mo('(')}{mn('10')}{mi('e')}{mo(',')}{mo('−')}{mi('W')}{mo(',')}{mi('W')}{mo(')')}</mrow><mfrac>{mi('V')}{mi('r')}</mfrac></mrow>,
+        <mrow key="v"><mtext>speed motor:</mtext><mspace width="0.5em" />{mi('v')}{mo('=')}{mi('clamp')}<mrow>{mo('(')}<mfrac><mrow>{mi('s')}{mi('V')}</mrow>{mi('r')}</mfrac>{mo(',')}{mo('−')}{mn('10')}{mo(',')}{mn('10')}{mo(')')}</mrow></mrow>,
+      ]}
+      text={[
+        'r = 1, 2, 4, 8, 16 or 32 for Gear Ratio 1:1 to 1:32; P = Max Power % / 100; F = max_motor_force, V = max_motor_speed',
+        'Hinge impulse cap per physics step J = F * r^2 * P; slider force cap F_max = F * r * P',
+        'Speed motors (velocity pivots, turret rings, compact track) multiply the cap by availability A',
+        'Position servo: v = clamp(10 * error, -W, W) * V / r (rad/s for hinges, error in rad; m/s for the piston, error normalised to the stroke)',
+        'Speed motor: v = clamp(s * V / r, -10, 10) (turns/s for hinges, m/s for the compact track)',
+        'Up/Down track: v = W * A * V / r m/s while one input is on; F_max = F * r * P',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'Caps are internal units. A hinge cap is an impulse per physics solver step; the equivalent torque is the cap divided by the solver timestep, which this graph does not convert.',
+    'Position servos show their top speed, W × V ÷ r, reached while the target is more than W ÷ 10 away. Closer in they slow down.',
+    'Speed motors show the command for an input of 1. Larger inputs scale it up to the limit of 10.',
+    'A is the electric fraction times the damage factor. It is held fixed here; in play it changes as the electrical network supplies the joint.',
+    'Suspensions and unpowered pivots have no Gear Ratio and are not listed.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
-  pid: PID_CONTROLLER,
+  pid: PID_CONTROLLER, gear: GEAR,
 };
 
 function Evidence({ items }) {

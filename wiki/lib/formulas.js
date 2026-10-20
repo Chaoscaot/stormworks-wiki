@@ -8,6 +8,7 @@
 // Classic engines: investigation/classic-engines.md (classic engine update 0x14034ba00).
 // Jet engines: investigation/jet-engines.md (jet engine update 0x140350f40).
 // PID controller: investigation/logic.md (logic update case 29 at 0x1403c5f19, microprocessor PID 0x14037a210).
+// Mechanical joints: investigation/mechanical-joints.md (joint motor update 0x140357ca0).
 // Update rate: investigation/update-rate.md. Active, normally simulated vehicles; pauses, sleep,
 // unloaded vehicles and real-time slowdown are outside this conversion.
 export const UPDATES_PER_SECOND = 60;
@@ -572,6 +573,48 @@ export function pidResponse({ kp, ki, kd, bound = 0, physical = true, setpoint =
   return samples;
 }
 
+// Mechanical joints, investigation/mechanical-joints.md, ported from investigation/native/mechanical-joints/tools/model.py.
+// Gear Ratio options 1:1 to 1:32 select the multiplier r. power is P = Max Power % ÷ 100, availability A is 0 to 1,
+// speedSetting is the Speed slider W and input the smoothed command s. Caps are internal units: an impulse per physics
+// solver step for hinges, a force for sliders. Position servos report their top speed, reached while |c| = W.
+export const GEAR_RATIOS = [1, 2, 4, 8, 16, 32];
+export const JOINT = { speedLimit: 10, gain: 10 };
+const joint = (id, label, kind, force, speed, heads = []) => ({ id, label, kind, force, speed, families: [`part-${id.replaceAll('_', '-')}`, ...heads] });
+export const JOINT_VARIANTS = [
+  joint('multibody_robotic_pivot_01_a', 'Robotic Pivot (Power)', 'rotary_position', 200, 5, ['part-multibody-robotic-pivot-01-b']),
+  joint('multibody_robotic_pivot_01_a_fluid', 'Robotic Pivot (Fluid)', 'rotary_position', 200, 5, ['part-multibody-robotic-pivot-01-b-fluid']),
+  joint('multibody_compact_pivot_robotic_a', 'Compact Robotic Pivot', 'rotary_position', 200, 5, ['part-multibody-compact-pivot-b']),
+  joint('multibody_robotic_hinge_01_a', 'Robotic Hinge', 'rotary_position', 400, 5, ['part-multibody-robotic-hinge-01-b']),
+  joint('multibody_door_hinge_a', 'Robotic Door Hinge', 'rotary_position', 400, 5, ['part-multibody-door-hinge-b']),
+  joint('multibody_velocity_pivot_a', 'Velocity Pivot', 'rotary_velocity', 1000, 5, ['part-multibody-velocity-pivot-b']),
+  joint('multibody_velocity_pivot_01_a_fluid', 'Velocity Pivot (Fluid)', 'rotary_velocity', 1000, 5, ['part-multibody-velocity-pivot-01-b-fluid']),
+  joint('multibody_velocity_pivot_01_a_torque', 'Velocity Pivot (Power)', 'rotary_velocity', 1000, 5, ['part-multibody-velocity-pivot-01-b-torque']),
+  joint('multibody_compact_pivot_velocity_a', 'Compact Velocity Pivot', 'rotary_velocity', 100, 5),
+  joint('multibody_turret_small_a', 'Turret Ring (Small)', 'rotary_velocity', 500, 2, ['part-multibody-turret-small-b']),
+  joint('multibody_turret_medium_a', 'Turret Ring (Medium)', 'rotary_velocity', 1000, 1, ['part-multibody-turret-medium-b']),
+  joint('multibody_turret_large_a', 'Turret Ring (Large)', 'rotary_velocity', 2000, 0.5, ['part-multibody-turret-large-b']),
+  joint('linear_matic_a', 'Pneumatic Piston', 'linear_position', 200000, 5, ['part-linear-matic-b']),
+  joint('linear_base', 'Linear Track Base', 'track_up_down', 20000, 5, ['part-linear-head']),
+  joint('linear_compact_base', 'Compact Linear Track Base', 'linear_velocity', 10000, 5, ['part-linear-compact-head']),
+];
+export const jointVariantFor = (family, variant = null) =>
+  JOINT_VARIANTS.find((v) => v.id === variant) ?? JOINT_VARIANTS.find((v) => v.families.includes(family)) ?? JOINT_VARIANTS[0];
+
+export function jointMotor({ kind, force, speed, ratio, power = 1, availability = 1, speedSetting = 1, input = 1 }) {
+  finite([force, speed, ratio, power, availability, speedSetting, input]);
+  if (!GEAR_RATIOS.includes(ratio)) throw new RangeError('Gear Ratio multiplier must be 1, 2, 4, 8, 16 or 32.');
+  const r = ratio;
+  const limit = (v) => clamp(v, -JOINT.speedLimit, JOINT.speedLimit);
+  switch (kind) {
+    case 'rotary_position': return { speed: speedSetting * speed / r, unit: 'rad/s', cap: r * r * force * power, capUnit: 'impulse per physics step', capExponent: 2 };
+    case 'rotary_velocity': return { speed: limit(input * speed / r), unit: 'turns/s', cap: availability * r * r * force * power, capUnit: 'impulse per physics step', capExponent: 2 };
+    case 'linear_position': return { speed: speedSetting * speed / r, unit: 'm/s', cap: r * force * power, capUnit: 'force', capExponent: 1 };
+    case 'linear_velocity': return { speed: limit(clamp(input, -1, 1) * speed / r), unit: 'm/s', cap: availability * r * force * power, capUnit: 'force', capExponent: 1 };
+    case 'track_up_down': return { speed: speedSetting * availability * speed / r, unit: 'm/s', cap: r * force * power, capUnit: 'force', capExponent: 1 };
+    default: throw new RangeError(`No powered joint rule for ${kind}.`);
+  }
+}
+
 const FAMILY_GRAPHS = {
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
@@ -589,5 +632,6 @@ const FAMILY_GRAPHS = {
   'part-jet-engine-exhaust-rotating': ['jet'],
   'part-jet-engine-combustion-chamber': ['chamber'],
   'part-gate-pid-controller': ['pid'],
+  ...Object.fromEntries(JOINT_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['gear']])),
 };
 export const graphKindsForFamily = (id) => [...(FAMILY_GRAPHS[id] ?? [])];

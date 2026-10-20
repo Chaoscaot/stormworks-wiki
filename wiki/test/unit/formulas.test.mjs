@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -512,4 +512,53 @@ test('PID findings carry native addresses and the graph is attached', () => {
   assert.equal(Number(value('PID bound denominator floor').value), Number(PID.boundFloor.toPrecision(1)));
   assert.deepEqual(graphKindsForFamily('part-gate-pid-controller'), ['pid']);
   assert.deepEqual(graphKindsForFamily('part-gate-jk-flipflop'), []);
+});
+
+// Worked examples from investigation/native/mechanical-joints/tools/verify.py (tools/model.py).
+test('joint motor reproduces the recovered gear ratio and cap rules', () => {
+  for (const [force, speed, rps, cap] of [[500, 2, 0.5, 8000], [1000, 1, 0.25, 16000], [2000, 0.5, 0.125, 32000]]) {
+    const m = jointMotor({ kind: 'rotary_velocity', force, speed, ratio: 4 });
+    assert.equal(m.speed, rps);
+    assert.equal(m.cap, cap);
+  }
+  assert.equal(jointMotor({ kind: 'rotary_position', force: 200, speed: 5, ratio: 4 }).speed, 1.25);
+  for (const r of GEAR_RATIOS) {
+    const hinge = jointMotor({ kind: 'rotary_position', force: 400, speed: 5, ratio: r, power: 0.5, availability: 0 });
+    assert.equal(hinge.cap, 400 * r * r * 0.5, 'availability does not enter the position cap');
+    const piston = jointMotor({ kind: 'linear_position', force: 200000, speed: 5, ratio: r });
+    assert.equal(piston.cap, 200000 * r);
+    assert.equal(piston.speed, 5 / r);
+  }
+  assert.equal(jointMotor({ kind: 'rotary_velocity', force: 1000, speed: 5, ratio: 1, input: 3 }).speed, JOINT.speedLimit);
+  assert.equal(jointMotor({ kind: 'linear_velocity', force: 10000, speed: 5, ratio: 1, input: 3 }).speed, 5, 'compact track input clamps to 1');
+  assert.equal(jointMotor({ kind: 'rotary_velocity', force: 1000, speed: 5, ratio: 2, availability: 0.5 }).cap, 2000);
+  assert.equal(jointMotor({ kind: 'track_up_down', force: 20000, speed: 5, ratio: 2, availability: 0.5 }).cap, 40000);
+  assert.throws(() => jointMotor({ kind: 'rotary_velocity', force: 1, speed: 1, ratio: 3 }), RangeError);
+  assert.throws(() => jointMotor({ kind: 'suspension', force: 1, speed: 1, ratio: 1 }), RangeError);
+});
+
+test('joint graph constants remain tied to verified native and definition findings', () => {
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const fams = new Map(data.families.map((f) => [f.id, f]));
+  const any = (label) => data.families.flatMap((f) => f.findings).find((x) => x.label === label);
+  assert.deepEqual(GEAR_RATIOS.map((r) => Number(any(`Gear multiplier for 1:${r}`).value)), GEAR_RATIOS);
+  assert.equal(Number(any('Rotary speed command limit').value), JOINT.speedLimit);
+  assert.equal(Number(any('Rotary position gain').value), JOINT.gain);
+  for (const label of ['Rotary position impulse cap: × P', 'Rotary speed impulse cap', 'Linear position force cap', 'Compact track force cap', 'Gear Ratio selector']) {
+    assert.ok(any(label)?.source?.address, `${label}: native address is required`);
+  }
+  for (const v of JOINT_VARIANTS) {
+    const fam = fams.get(v.families[0]);
+    assert.ok(fam, v.id);
+    const attr = (name) => fam.findings.find((x) => x.label === `${v.label} · ${name}`)?.value;
+    assert.equal(Number(attr('max_motor_force')), v.force, `${v.id} force`);
+    assert.equal(Number(attr('max_motor_speed') ?? fam.findings.find((x) => x.label === 'Motor speed default')?.value), v.speed, `${v.id} speed`);
+    const flags = Number(attr('flags'));
+    assert.equal(flags & 0x100, 0x100, `${v.id} is powered`);
+    assert.equal(Boolean(flags & 0x200), v.kind === 'rotary_velocity' || v.kind === 'linear_velocity', `${v.id} speed control flag`);
+    for (const id of v.families) assert.deepEqual(graphKindsForFamily(id), ['gear']);
+  }
+  assert.equal(jointVariantFor('part-multibody-turret-large-b').id, 'multibody_turret_large_a');
+  assert.equal(jointVariantFor(null, 'linear_matic_a').id, 'linear_matic_a');
+  assert.deepEqual(graphKindsForFamily('part-multibody-suspension-a'), []);
 });

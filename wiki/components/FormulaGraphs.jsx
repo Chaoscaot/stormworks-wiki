@@ -5,7 +5,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, jetChamber, jetExhaust, pidResponse, radiatorRate, scoopInflow, surfaceForce,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, pidResponse, radiatorRate, scoopInflow, surfaceForce,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1167,9 +1167,100 @@ function PidGraph() {
   );
 }
 
+/* ---------- joint gear ratio ---------- */
+
+const ratioLabel = (r) => `1:${r}`;
+const times = (k) => (k < 0 ? `×1/${2 ** -k}` : `×${2 ** k}`);
+const JOINT_KINDS = {
+  rotary_position: { speed: 'Top speed', hint: 'Position servo: the speed reached while far from the target.' },
+  rotary_velocity: { speed: 'Speed at input 1', hint: 'Speed motor: commanded speed for a Rotational Speed of 1, capped at 10 turns/s.' },
+  linear_position: { speed: 'Top speed', hint: 'Position servo: the speed reached while far from the target.' },
+  linear_velocity: { speed: 'Speed at input 1', hint: 'Speed motor: commanded speed for a Slider Speed of 1.' },
+  track_up_down: { speed: 'Speed with one input on', hint: 'Up/Down track: speed while exactly one of Up and Down is on.' },
+};
+
+function GearGraph({ family, variant }) {
+  const uid = useUid();
+  const [part, setPart] = useState(() => jointVariantFor(family, variant).id);
+  const [power, setPower] = useState(100);
+  const [availability, setAvailability] = useState(1);
+  const [speedSetting, setSpeedSetting] = useState(1);
+  const [index, setIndex] = useState(2);
+  const v = JOINT_VARIANTS.find((x) => x.id === part);
+  const kind = JOINT_KINDS[v.kind];
+  const usesW = v.kind !== 'rotary_velocity' && v.kind !== 'linear_velocity';
+  const usesA = v.kind !== 'rotary_position' && v.kind !== 'linear_position';
+  const run = (ratio) => jointMotor({ kind: v.kind, force: v.force, speed: v.speed, ratio, power: power / 100, availability, speedSetting });
+  const rows = GEAR_RATIOS.map((ratio) => ({ ratio, k: Math.log2(ratio), ...run(ratio) }));
+  const at = rows[index];
+  const e = at.capExponent;
+  const capLabel = e === 2 ? 'Hinge impulse cap (r²)' : 'Slider force cap (r)';
+  const summary = `${v.label} at ${ratioLabel(at.ratio)}: ${kind.speed.toLowerCase()} ${fixed(at.speed, 4)} ${at.unit}, cap ${grouped(at.cap)} (${at.capUnit}).`;
+  const status = useSettled(summary);
+  const desc = `Each step from 1:1 to 1:32 halves the speed and multiplies the cap by ${e === 2 ? 4 : 2}. From 1:1 to 1:32 the speed falls from ${fixed(rows[0].speed, 4)} to ${fixed(rows[5].speed, 4)} ${at.unit} and the cap rises from ${grouped(rows[0].cap)} to ${grouped(rows[5].cap)}. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: `${kind.speed}, relative to 1:1`, className: 'graph-line-a' },
+        { label: `${capLabel}, relative to 1:1`, className: 'graph-line-b' },
+      ]}
+      controls={(
+        <>
+          <div className="graph-field">
+            <label htmlFor={`${uid}-part`}>Joint</label>
+            <select id={`${uid}-part`} value={part} onChange={(ev) => setPart(ev.target.value)} aria-describedby={`${uid}-part-hint`}>
+              {JOINT_VARIANTS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+            <span id={`${uid}-part-hint`} className="graph-field-hint">{`${kind.hint} max_motor_force ${v.force}, max_motor_speed ${v.speed}.`}</span>
+          </div>
+          <Range id={`${uid}-p`} label="Max Power" value={power} min={0} max={100} step={1} onChange={setPower} valueText={`${fixed(power, 0)}%`} hint="Scales the cap, not the speed." />
+          <Range id={`${uid}-a`} label="Availability A" value={availability} min={0} max={1} step={0.05} onChange={(x) => setAvailability(+x.toFixed(2))} valueText={fixed(availability, 2)} hint={usesA ? 'Electric fraction × damage factor. Scales this joint’s speed or cap.' : 'Not in this joint’s cap or top speed; low availability only slows how fast its target follows the input.'} />
+          <Range id={`${uid}-w`} label="Speed setting W" value={speedSetting} min={0.1} max={5} step={0.1} onChange={(x) => setSpeedSetting(+x.toFixed(1))} valueText={fixed(speedSetting, 1)} hint={usesW ? 'The Speed slider, 0.1 to 5.' : 'Speed motors have no Speed slider.'} />
+          <Range id={`${uid}-x`} label="Selected Gear Ratio" value={index} min={0} max={5} step={1} onChange={setIndex} valueText={ratioLabel(GEAR_RATIOS[index])} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Speed and cap against Gear Ratio, relative to 1:1"
+          desc={desc}
+          x={{ min: 0, max: 5, ticks: [0, 1, 2, 3, 4, 5], format: (k) => ratioLabel(2 ** Math.round(k)), label: 'Gear Ratio option (only these six exist)' }}
+          y={{ min: -5, max: 10, ticks: [-5, 0, 5, 10], format: times }}
+          series={[
+            { key: 'speed', className: 'graph-line-a', points: rows.map((x) => [x.k, -x.k]) },
+            { key: 'cap', className: 'graph-line-b', points: rows.map((x) => [x.k, e * x.k]) },
+          ]}
+          selected={{ x: at.k, points: [{ key: 'speed', y: -at.k, className: 'graph-dot-a' }, { key: 'cap', y: e * at.k, className: 'graph-dot-b' }] }}
+          onSelect={(x) => setIndex(Math.round(clamp(x, 0, 5)))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`${v.label} at ${ratioLabel(at.ratio)}`}
+          rows={[
+            ['Gear multiplier r', String(at.ratio)],
+            [kind.speed, `${fixed(at.speed, 4)} ${at.unit}`],
+            [`Cap, ${at.capUnit}`, grouped(at.cap)],
+            ['Speed against 1:1', times(-at.k)],
+            ['Cap against 1:1', times(e * at.k)],
+          ]}
+        />
+      )}
+      table={{
+        caption: `${v.label}, Max Power ${fixed(power, 0)}%, A ${fixed(availability, 2)}${usesW ? `, W ${fixed(speedSetting, 1)}` : ''}`,
+        cols: ['Gear Ratio', `${kind.speed} (${at.unit})`, `Cap (${at.capUnit})`],
+        rows: rows.map((x) => [ratioLabel(x.ratio), fixed(x.speed, 4), grouped(x.cap)]),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
-  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph,
+  jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

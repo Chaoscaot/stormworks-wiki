@@ -109,7 +109,7 @@ class Native:
 
     def references(self, func, target):
         start, body = self.body(func)
-        return [start + p for p in range(len(body) - 4)
+        return [start + p for p in range(len(body) - 3)
                 if start + p + 4 + struct.unpack_from("<i", body, p)[0] == target]
 
     def f32(self, va):
@@ -2353,49 +2353,458 @@ def transmission(B, E):
              ["The 4000 limit is tooltip text; the enforcing code was not located."])
 
 
+# mechanical-joint pass; files under investigation/native/mechanical-joints/, report investigation/mechanical-joints.md.
+MJ = "../mechanical-joints/"
+MJ_REPORT = "investigation/mechanical-joints.md"
+MJ_TABLE = "investigation/native/mechanical-joints/joints.json"
+F_JOINT_CTOR = 0x140356480   # multibody component constructor: vtable 0x140b02a08, Speed, Gear Ratio and Max Power defaults
+F_JOINT_SETUP = 0x140357281  # chained unwind chunk of the constraint setup 0x140356fa0 (slot +0x2f0): initial limits
+F_JOINT_ENTRY = 0x140357CA0  # entry chunk of the joint motor update (slot +0x360): the 0.5 suspension offset
+F_JOINT_HEAD = 0x140357CB6   # second chunk: Max Power load, constant 1, availability scale, direction sign
+F_JOINT = 0x140357D75        # main chunk: gear ratio, rotary, linear, track and suspension branches
+F_SLIDER_EVENT = 0x1401A2410  # slider motor event handler (leaf): maximum force and target velocity
+F_HINGE_EVENT = 0x1401A2830   # hinge motor event handler (leaf): maximum impulse and target angular velocity
+F_TRACK = 0x1404AF3C0        # track scan: slider limits from aligned track blocks
+JOINT_SLOT = 0x140B02D68     # slot +0x360 of the multibody vtable 0x140b02a08
+RATIO_TABLE = 0x140358AB0    # gear-ratio jump table, image-relative dwords indexed by the selector at component+0x41c
+RATIOS = (1, 2, 4, 8, 16, 32)
+_MU, _MP = MJ + "asm/0x140357ca0.asm", MJ + "pseudocode/0x140357ca0.c"
+_MS = MJ + "asm/0x140356fa0.asm"
+WHERE.update({
+    (F_EMP_PASS, 0x1404996A7): MJ + "asm/live-dispatch.asm:L52; " + MJ + "asm/0x1404995e7.asm:L52",
+    (F_DEFSER, 0x140B5BE90): MJ + "asm/definition-bindings.asm:L47-L52",
+    (F_DEFSER, 0x1403172D3): MJ + "asm/definition-bindings.asm:L53-L59",
+    (F_JOINT_CTOR, None): MJ + "asm/0x140356480.asm:L94-L107; " + MJ + "pseudocode/0x140356480.c",
+    (F_JOINT_ENTRY, 0x140357CAB): _MU + ":L11,L368-L377; " + _MP,
+    (F_JOINT_HEAD, 0x140357CFD): _MU + ":L32,L67-L88; " + _MP,
+    (F_JOINT_HEAD, 0x140357D3F): _MU + ":L38-L47; " + _MP,
+    (F_JOINT_HEAD, 0x140357D5B): _MU + ":L54,L155-L166; " + _MP,
+    (F_JOINT_HEAD, 0x140357D6D): _MU + ":L58-L66; " + _MP,
+    (F_JOINT, 0x140357DA3): _MU + ":L67-L88; " + _MP,
+    (F_JOINT, 0x140357F2B): _MU + ":L167-L173,L500-L506; " + _MP,
+    (F_JOINT, 0x140357E2A): _MU + ":L105,L356-L364; " + MJ + "asm/0x1402eeca0.asm",
+    (F_JOINT, 0x140357FC9): _MU + ":L185-L208; " + _MP,
+    (F_JOINT, 0x140358032): _MU + ":L214-L236; " + _MP,
+    (F_JOINT, 0x1403580EB): _MU + ":L240-L314; " + _MP,
+    (F_JOINT, 0x140358183): _MU + ":L306-L314; " + MJ + "asm/0x1401a87c0.asm",
+    (F_JOINT, 0x1403581A0): _MU + ":L318-L331; " + _MP,
+    (F_JOINT, 0x1403581CA): _MU + ":L331-L352; " + _MP,
+    (F_JOINT, 0x140358211): _MU + ":L351-L356; " + _MP,
+    (F_JOINT, 0x140358262): _MU + ":L366-L398; " + _MP + "; " + MJ + "asm/0x1401a87c0.asm",
+    (F_JOINT, 0x140358288): _MU + ":L366-L398; " + _MP,
+    (F_JOINT, 0x140358502): _MU + ":L506-L536; " + _MP,
+    (F_JOINT, 0x14035851D): _MU + ":L536-L543; " + _MP,
+    (F_JOINT, 0x140358581): _MU + ":L539-L566; " + _MP,
+    (F_JOINT, 0x1403585A7): _MU + ":L566-L573; " + MJ + "asm/0x1402eeca0.asm",
+    (F_JOINT, 0x1403585C4): _MU + ":L423,L575-L583; " + _MP,
+    (F_JOINT, 0x1403585F9): _MU + ":L579-L600; " + _MP,
+    (F_JOINT, 0x14035862E): _MU + ":L600-L612; " + MJ + "asm/0x1401a8e10.asm",
+    (F_JOINT, 0x14035863E): _MU + ":L600-L612; " + MJ + "asm/0x1401a8e10.asm",
+    (F_JOINT, 0x140358649): _MU + ":L600-L612; " + MJ + "asm/0x1401a8e10.asm",
+    (F_JOINT, 0x140358660): _MU + ":L613-L620; " + MJ + "asm/0x1402eeca0.asm",
+    (F_JOINT, 0x140358748): _MU + ":L657-L680; " + _MP,
+    (F_JOINT_SETUP, 0x1403574C1): _MS + ":L308-L326; " + MJ + "asm/0x1401a8640.asm",
+    (F_JOINT_SETUP, 0x14035789C): _MS + ":L536-L558; " + MJ + "asm/0x1401a8d50.asm",
+    (F_HINGE_EVENT, None): MJ + "asm/0x1401a2830.asm:L16-L18; " + MJ + "asm/0x140124510.asm:L735-L740",
+    (F_SLIDER_EVENT, None): MJ + "asm/0x1401a2410.asm:L12-L18; " + MJ + "asm/0x140130c60.asm:L1064-L1071",
+    (F_TRACK, None): MJ + "asm/0x1404af3c0.asm:L22,L345-L364; " + MJ + "pseudocode/0x1404af3c0.c",
+    (F_MULTI_UI, 0x140358C65): MJ + "asm/0x140358b30.asm:L82-L116; " + MJ + "asm/0x1408b3890.asm",
+})
+
+
+def joint_kind(dtype, flags, ctype):
+    """Branch of the joint motor update selected by a definition (the report's kinds)."""
+    if dtype == 9:
+        return "track_extension"
+    if flags & 0x80:
+        return "attached_head"
+    if flags & 0x10000:
+        return "suspension"
+    if not flags & 0x100:
+        return "passive_rotary" if ctype == 0 else "passive_linear"
+    if ctype == 0:
+        return "rotary_velocity" if flags & 0x200 else "rotary_position"
+    if flags & 0x1000:
+        return "track_up_down"
+    return "linear_velocity" if flags & 0x200 else "linear_position"
+
+
+def joint_table(E):
+    """Per-definition joint data from investigation/native/mechanical-joints/joints.json, re-derived from the shipped definitions."""
+    if hasattr(E, "joint_rows"):
+        return E.joint_rows
+    data = json.loads((E.root / MJ_TABLE).read_bytes())
+    if data["target"]["sha256"] != EXE_SHA256:
+        raise ValueError("Joint table was built for a different executable")
+    rows = {}
+    for d in data["definitions"]:
+        bid = d["definition"]
+        b = E.block(bid)
+        a = b["attributes"]
+        if b["source"]["sha256"] != d["source_sha256"]:
+            raise ValueError("Joint table source differs: " + bid)
+        flags, ctype, axis = int(a.get("flags") or 0), int(a.get("constraint_type") or 0), int(a.get("constraint_axis") or 0)
+        # Loader defaults: max_motor_force 0, max_motor_speed 5 (0x1403172ad, 0x1403172d3).
+        F, V = float(a.get("max_motor_force") or 0), float(a.get("max_motor_speed") or 5)
+        R = float(a.get("constraint_range_of_motion") or 0)
+        row = {"id": bid, "name": b["name"], "flags": flags, "kind": joint_kind(int(a["type"]), flags, ctype), "ctype": ctype,
+               "axis": axis, "R": R, "F": F, "V": V, "child": a.get("child_name") or None, "extender": a.get("extender_name") or None,
+               "family": E.block_family[bid]}
+        got = (d["flags"], d["kind"], d["constraint_type"], d["axis"], d["range"], d["max_motor_force"], d["max_motor_speed"],
+               d["parent_generated_child"], d["extender"])
+        want = (flags, row["kind"], ctype, axis, R, F, V, row["child"], row["extender"])
+        if got != want:
+            raise ValueError("Joint table differs from the definition for %s: %s != %s" % (bid, got, want))
+        # Suspension speed: the bytes at 0x140358262-0x140358282 use the sign σ for axis 1 and σ × (−1) for axis 0
+        # (xmm6 = −1 from 0x140357d6d), so both move at 1 m/s. joints.json was corrected to match.
+        rows[bid] = row
+    for row in rows.values():
+        row["parents"] = [p["id"] for p in rows.values() if p["child"] == row["id"]]
+        if row["kind"] == "attached_head" and not row["parents"]:
+            raise ValueError("Joint head without a base: " + row["id"])
+    E.joint_rows = rows
+    return rows
+
+
+def joint_motor(E):
+    """Multibody joint motor update, verified once and shared by the joint entries."""
+    if hasattr(E, "joint"):
+        return E.joint
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / MJ_REPORT).is_file():
+        raise ValueError("Mechanical joint report missing: " + MJ_REPORT)
+    if struct.unpack("<Q", n.raw(JOINT_SLOT, 8))[0] != F_JOINT_ENTRY:
+        raise ValueError("Multibody vtable slot %#x does not point to %#x" % (JOINT_SLOT, F_JOINT_ENTRY))
+    rep = " Report: %s." % MJ_REPORT
+    f = {}
+    f["dispatch"] = code(F_EMP_PASS, 0x1404996A7, "41ff9260030000", "Joint motor update call", "call [vtable+0x360]",
+                         "The vehicle component pass calls slot +0x360 of each component. For c_scene_vehicle_component_multibody (vtable 0x140b02a08) that slot at 0x140b02d68 holds 0x140357ca0, the joint motor update; the extractor re-reads the pointer. "
+                         "Pivots, hinges, pistons, tracks, turret rings and suspensions are one class; definition flags select the branch: 0x100 powered, 0x200 speed control, 0x1000 Up/Down track, 0x10000 suspension, 0x80 moving head." + rep)
+    f["force_field"] = E.string(F_DEFSER, 0x140B5BE90, "max_motor_force", "Motor force field",
+                                "The definition loader binds max_motor_force to definition+0x390 (lea r9,[rsi+0x390] at 0x1403172ad) with default 0. The motor update reads it as F." + rep)
+    f["speed_default"] = op(F_DEFSER, 0x1403172D3, "f30f100505928900", 0x140BB04E0, "Motor speed default",
+                            "max_motor_speed binds to definition+0x394 (0x1403172cc) with this default when the attribute is absent. The motor update reads it as V; the Compact Linear Track Base omits the attribute and gets this value." + rep)
+    f["w_default"] = code(F_JOINT_CTOR, 0x140356666, "c786000300000000803f", "Speed setting default", "W = 1",
+                          "The constructor stores W = 1 at component+0x300, the Speed slider bounds 0.1 at +0x304 (0x140356670) and 5 at +0x308 (0x14035667a). The editor shows this slider only for powered position joints (flag 0x100 without 0x200) whose constraint_axis is 1 or 2 (0x140358b73-0x140358bac)." + rep)
+    f["ratio_default"] = code(F_JOINT_CTOR, 0x14035669F, "c7861c04000002000000", "Gear Ratio default", "selector 2, 1:4",
+                              "A newly built joint starts with Gear Ratio selector 2, the 1:4 option." + rep)
+    f["p_default"] = code(F_JOINT_CTOR, 0x1403566A9, "c786200400000000803f", "Max Power default", "P = 1, shown as 100%",
+                          "The constructor stores P = 1 at component+0x420, shown as 100%." + rep)
+    f["p_slider"] = op(F_MULTI_UI, 0x140358C65, "f30f1035eb6c8500", 0x140BAF958, "Max Power slider scale",
+                       "The Max Power slider writes component+0x420 with display scale 0.01 and format %.f%%, so P = shown percent ÷ 100. Its upper bound is 100 (0x140358c6d). "
+                       "Suspensions (flag 0x10000) get a slider from 1 to 100; powered joints (flag 0x100) one from 0 to 100 (0x140358d94)." + rep)
+    f["r1"] = op(F_JOINT_HEAD, 0x140357CFD, "f3440f101dc6818500", 0x140BAFECC, "Gear multiplier for 1:1",
+                 "xmm11 holds 1; selector case 0 copies it into r (movaps xmm10,xmm11 at 0x140357daf). The same register is the availability used in bypass mode and the bound of the compact track input clamp." + rep)
+    targets = [0x140357DAF, 0x140357DB5, 0x140357DC0, 0x140357DCB, 0x140357DD6, 0x140357DE1]
+    f["ratio"] = E.case_table(F_JOINT, 0x140357DA3, "8b8c82b08a3500", RATIO_TABLE, targets, "Gear Ratio selector",
+                              "Each update reads the selector at component+0x41c (0x140357d90); values above 5 take the last case (cmp eax,5; ja). Cases 0 to 5 set the multiplier r to 1, 2, 4, 8, 16 and 32, the options 1:1 to 1:32." + rep)
+    for i, (address, hexbytes, target) in enumerate(((0x140357DB5, "f3440f10155a848500", 0x140BB0218), (0x140357DC0, "f3440f1015bf868500", 0x140BB0488),
+                                                     (0x140357DCB, "f3440f10152c888500", 0x140BB0600), (0x140357DD6, "f3440f1015c9888500", 0x140BB06A8),
+                                                     (0x140357DE1, "f3440f10152a898500", 0x140BB0714)), 1):
+        f["r%d" % RATIOS[i]] = op(F_JOINT, address, hexbytes, target, "Gear multiplier for 1:%d" % RATIOS[i],
+                                  "Selector case %d loads r = %d." % (i, RATIOS[i]) + (" Selectors above 5 also land here." if i == 5 else "") + rep)
+    f["p_state"] = code(F_JOINT_HEAD, 0x140357D3F, "f3440f59ed", "Max Power by component state", "state 1: P × 0.5",
+                        "The update reads P from component+0x420 (0x140357d18). When the component state word at +0x8 is 1 it halves P; above 1 it sets P to 0. The formulas on these pages are for state 0." + rep)
+    f["availability"] = op(F_JOINT_HEAD, 0x140357D5B, "f3440f1025948a8500", 0x140BB07F8, "Joint availability scale",
+                           "A = max(0, (300 − damage) ÷ 300) × electric fraction, from component+0x290 and +0x2a4 (0x140357eef-0x140357f11). A global bypass flag sets A = 1. A is 0 to 1." + rep)
+    f["sign"] = op(F_JOINT_HEAD, 0x140357D6D, "f30f1035b38e8500", 0x140BB0C28, "Joint direction sign",
+                   "If the orientation byte at component+0x418 is set (cmp at 0x140357d7d) the update uses σ = −1, otherwise σ = 1. It multiplies the input and the measured outputs by σ." + rep)
+    f["smooth"] = code(F_JOINT, 0x140357F2B, "f3440f5cc8f3440f59caf3440f58c8", "Input smoothing", "s ← s + (σ u − s) × A",
+                       "Powered branches first move the stored command s (component+0x1a8, stored at 0x140357f3a) toward σ times the input u by the fraction A. At A = 1 s takes the input at once; at A = 0 s keeps its last value. The rotary branch repeats this at 0x14035848c." + rep)
+    # Rotary position.
+    f["rp_target"] = op(F_JOINT, 0x1403585C4, "f30f5905f0768500", 0x140BAFCBC, "Rotary target factor",
+                        "Target angle R × 0.5 × 2π × s = π R s rad, with R from definition+0x38c and 2π loaded at 0x14035834a. R = 0.5 gives ±0.25 turns." + rep)
+    f["rp_gain"] = op(F_JOINT, 0x1403585F9, "f30f59354b808500", 0x140BB064C, "Rotary position gain",
+                      "c = clamp(10 × (target − angle), −W, W) with W the Speed setting (component+0x300, 0x1403585cc). The target angular speed is c × V ÷ r rad/s (0x14035861c, 0x140358639)." + rep)
+    f["rp_cap"] = code(F_JOINT, 0x14035862E, "f30f599e90030000", "Rotary position impulse cap: × F", "r × F",
+                       "The hinge impulse cap starts as r × F." + rep)
+    f["rp_cap_r"] = code(F_JOINT, 0x14035863E, "f3410f59da", "Rotary position impulse cap: × r", "r × F × r",
+                         "The second multiplication by r gives r² × F." + rep)
+    f["rp_cap_p"] = code(F_JOINT, 0x140358649, "f3410f59dd", "Rotary position impulse cap: × P", "J = r² × F × P",
+                         "Multiplying by P completes the cap, which then goes to the hinge motor event (call 0x1401a8e10 at 0x14035864e). Availability A does not enter it." + rep)
+    f["rp_power"] = op(F_JOINT, 0x140358660, "f30f5935f0728500", 0x140BAF958, "Rotary position electricity request",
+                       "Request 0.01 × |c| per update, passed to the draw helper 0x1402eeca0 at 0x140358672. A joint resting on its target requests nothing." + rep)
+    f["rp_limits"] = op(F_JOINT_SETUP, 0x14035789C, "f30f59157c968500", 0x140BB0F20, "Hinge angle limits",
+                        "For flag 0x100 without 0x200 the setup sets hinge limits R × 0.5 × (−2π) to R × 0.5 × 2π, that is ±π R rad (0x140357891-0x1403578a4); flag 0x20000 sets the lower limit to 0. Hinges with other flags get no limit from R here." + rep)
+    f["hinge_store"] = code(F_HINGE_EVENT, 0x1401A2852, "f20f118a78050000", "Hinge impulse field", "btHingeConstraint +0x578",
+                            "The hinge event stores the cap as the hinge's maximum motor impulse and the angular speed at +0x570 (0x1401a285a). The hinge solver 0x140124510 uses +0x578 directly as an impulse bound per solver step." + rep)
+    # Rotary velocity.
+    f["rv_clamp"] = op(F_JOINT, 0x140358502, "f3440f5d0d41818500", 0x140BB064C, "Rotary speed command limit",
+                       "z = clamp(s × V ÷ r, −10, 10) turns per second (V at 0x1403584be, ÷ r at 0x1403584d1, −10 at 0x14035850b). A NaN or infinite z becomes 0." + rep)
+    f["rv_omega"] = op(F_JOINT, 0x14035851D, "f30f59358b7e8500", 0x140BB03B0, "Turns to radians",
+                       "ω = z × π, doubled by addss at 0x140358532: ω = 2π z rad/s." + rep)
+    f["rv_cap"] = code(F_JOINT, 0x140358581, "f3410f59d9", "Rotary speed impulse cap", "J = A × r² × F × P",
+                       "r × F at 0x140358529, × r at 0x140358536, × P at 0x14035853b, then × A here. The motor stays on at zero command with this cap, so it brakes and holds." + rep)
+    f["rv_power"] = op(F_JOINT, 0x1403585A7, "f30f59351d758500", 0x140BAFACC, "Rotary speed electricity request",
+                       "Request about 0.1 × |ω| × P per update (× P at 0x1403585af), ω in rad/s." + rep)
+    # Linear position, compact track, Up/Down track.
+    f["lin_power"] = op(F_JOINT, 0x140357E2A, "f3440f103d257b8500", 0x140BAF958, "Linear electricity factor",
+                        "Linear branches request 0.01 × |c × V| (position and Up/Down) or 0.01 × |v| (compact track) per update (0x14035823a-0x140358250)." + rep)
+    f["lp_scale"] = op(F_JOINT, 0x1403581A0, "f30f5905147b8500", 0x140BAFCBC, "Linear stroke factor",
+                       "Normalised error s − x ÷ (0.5 R), x the slider position in metres (0x1403581a8), so the target is x = 0.5 × R × s m." + rep)
+    f["lp_gain"] = op(F_JOINT, 0x1403581CA, "f30f59357a848500", 0x140BB064C, "Linear position gain",
+                      "c = clamp(10 × (s − x ÷ (0.5 R)), −W, W); target speed c × V ÷ r m/s (0x140358200, 0x14035820c)." + rep)
+    f["lp_cap"] = code(F_JOINT, 0x140358211, "f3440f599090030000", "Linear position force cap", "F_max = r × F × P",
+                       "× F here and × P at 0x140358220; A does not enter. The slider motor event follows at 0x140358229." + rep)
+    f["slider_store"] = code(F_SLIDER_EVENT, 0x1401A2420, "f20f1182d0080000", "Slider force field", "btSliderConstraint +0x8d0",
+                             "The slider event stores the cap as the slider's maximum motor force and the speed at +0x8c8 (0x1401a2438). The slider solver 0x140130c60 divides +0x8d0 by its solver rate to form an impulse bound, so it is a force." + rep)
+    f["lp_limits"] = op(F_JOINT_SETUP, 0x1403574C1, "f30f5915f3878500", 0x140BAFCBC, "Slider limits",
+                        "Slider setup sets limits −0.5 × R to 0.5 × R m (0x1403574ac-0x1403574d1)." + rep)
+    f["lv_clamp"] = op(F_JOINT, 0x140357FC9, "f3440f5d0d7a868500", 0x140BB064C, "Compact track speed limit",
+                       "The compact track clamps s to −1 … 1 and stores it (0x140357f7b-0x140357f98), then v = clamp(s × V ÷ r, −10, 10) m/s." + rep)
+    f["lv_cap"] = code(F_JOINT, 0x140358032, "f3440f599090030000", "Compact track force cap", "F_max = A × r × F × P",
+                       "× F here, × P at 0x14035803b and × A at 0x140358040; the slider event follows at 0x140358049." + rep)
+    f["track"] = code(F_JOINT, 0x1403580EB, "f30f598300030000", "Up/Down track command", "c = σ × W × A × (±1 per input)",
+                      "The flag-0x1000 track takes two on/off inputs (component+0x1c8 and +0x1e8). One subtracts σ × W × A, the other adds it, so both or neither give 0. "
+                      "Speed c × V ÷ r m/s, force cap r × F × P without A (0x14035815e-0x14035817a); the slider event follows at 0x140358183." + rep)
+    f["track_step"] = op(F_TRACK, 0x1404AF3E8, "f30f1035cc077000", 0x140BAFBBC, "Track travel per block",
+                         "The track scan counts aligned blocks of the base's own definition or its extender_name in each direction along the axis." + rep)
+    f["track_limits"] = code(F_TRACK, 0x1404AF8F7, "e8448dcfff", "Track slider limits", "−0.25 N_forward to 0.25 N_backward m",
+                             "The counts are scaled by 0.25 (0x1404af8ef, 0x1404af8f3) and installed as the slider limits (call 0x1401a8640), so each accepted block adds 0.25 m of travel that way." + rep)
+    # Suspension.
+    f["s_offset"] = op(F_JOINT_ENTRY, 0x140357CAB, "f30f102d09808500", 0x140BAFCBC, "Suspension position offset",
+                       "The suspension branch (flag 0x10000) forms |x + 0.5| from the slider position x (addss at 0x140358275, andps at 0x14035827f)." + rep)
+    f["s_force"] = op(F_JOINT, 0x140358288, "f30f591db0868500", 0x140BB0940, "Suspension force scale",
+                      "F_max = 100000 × |x + 0.5| × P (× P at 0x140358293). No gear ratio, no availability and no electricity request in this branch; max_motor_force is not read." + rep)
+    f["s_speed"] = code(F_JOINT, 0x140358262, "83be8803000000", "Suspension target speed", "σ, or −σ for constraint_axis 0",
+                        "The branch compares constraint_axis (definition+0x388) with 0. For axis 0 it multiplies σ by −1 (0x14035827b; xmm6 holds −1 from 0x140357d6d); otherwise it uses σ. "
+                        "The target speed is 1 m/s either way; the slider event follows at 0x1403582df." + rep)
+    # Passive hinges.
+    f["passive"] = code(F_JOINT, 0x140358748, "f3440f59ae90030000", "Unpowered hinge hold", "J = F × P at zero speed",
+                        "Hinges without flag 0x100 skip the powered branches. If the on/off input at component+0x1c8 is set the update enables a zero-speed hold with impulse cap F × P; otherwise it turns the hinge motor off (call at 0x14035876c with the enable flag clear)." + rep)
+    E.joint = f
+    return f
+
+
+def _joint_ports(E, bid):
+    return [p["attributes"]["label"] for p in E.block(bid)["logic"] if p["attributes"].get("label")]
+
+
+def _num(x):
+    """Plain decimal without an exponent: 2048000, 0.015625."""
+    return ("%.7f" % x).rstrip("0").rstrip(".")
+
+
+def _deg(x):
+    return _num(round(math.degrees(x), 6))
+
+
+def _joint_rule(E, row):
+    """(summary, how-it-moves paragraph, capacity paragraph, derived value, derived detail) for a definition that runs a branch."""
+    F, V, R, k = row["F"], row["V"], row["R"], row["kind"]
+    g = _num
+    caps = lambda power: ", ".join("%s at 1:%d" % (g(power(r)), r) for r in RATIOS)
+    speeds = lambda: ", ".join("%s at 1:%d" % (g(V / r), r) for r in RATIOS)
+    if k == "rotary_position":
+        lim = math.pi * R
+        return ("Position servo: Rotation Target sets an angle within ±%s turns. Gear Ratio divides its speed by r and the impulse cap is %s × r² × P." % (g(R / 2), g(F)),
+                "Rotation Target s (after smoothing) sets a target angle of π × %s × s rad, ±%s degrees at s = ±1, and the setup puts hard stops at ±%s turns. "
+                "Each update the motor aims for clamp(10 × angle error, −W, W) × %s ÷ r rad/s, where W is the Speed setting (0.1 to 5, default 1). So it moves at up to W × %s ÷ r rad/s and slows over the last W ÷ 10 rad." % (g(R), _deg(lim), g(R / 2), g(V), g(V)),
+                "The impulse cap per physics step is %s × r² × P. With Max Power 100%% it is %s. Electrical availability does not lower the cap; it slows how fast the target follows the input. "
+                "Each update requests 0.01 × |c| electricity, so a joint resting on its target requests none." % (g(F), caps(lambda r: F * r * r)),
+                "θ = π × %s × s rad; ω = clamp(10 × (θ − angle), −W, W) × %s ÷ r rad/s; J = %s × r² × P" % (g(R), g(V), g(F)),
+                "Limits ±%s rad = ±%s degrees = ±%s turns. Top speed W × %s ÷ r rad/s: %s at W = 1. Impulse cap at P = 1: %s." % (
+                    g(round(lim, 7)), _deg(lim), g(R / 2), g(V), speeds(), caps(lambda r: F * r * r)))
+    if k == "rotary_velocity":
+        return ("Speed motor: Rotational Speed s turns it at s × %s ÷ r turns per second (at most 10), with impulse cap A × %s × r² × P." % (g(V), g(F)),
+                "The command is clamp(s × %s ÷ r, −10, 10) turns per second. At s = 1 that is %s. There is no angle limit; the motor turns continuously." % (
+                    g(V), speeds()),
+                "The impulse cap per physics step is A × %s × r² × P, where A is the electrical and damage availability. At A = P = 1 it is %s. "
+                "At s = 0 the motor stays on with this cap, so it brakes and holds. Each update requests about 0.1 × |ω| × P electricity, ω = 2π × turns per second." % (g(F), caps(lambda r: F * r * r)),
+                "z = clamp(s × %s ÷ r, −10, 10) RPS; J = A × %s × r² × P" % (g(V), g(F)),
+                "At s = 1: %s RPS. Impulse cap at A = P = 1: %s." % (speeds(), caps(lambda r: F * r * r)))
+    if k == "linear_position":
+        return ("Electric position servo over ±%s m: force cap %s × r × P, speed up to W × %s ÷ r m/s." % (g(R / 2), g(F), g(V)),
+                "The target position is 0.5 × %s × s = %s × s m, with hard stops at ±%s m. Each update it aims for c × %s ÷ r m/s with c = clamp(10 × (s − x ÷ %s), −W, W), where x is the rod position and W the Speed setting (0.1 to 5, default 1). "
+                "The motor reads electricity, not fluid pressure, despite the name." % (g(R), g(R / 2), g(R / 2), g(V), g(R / 2)),
+                "The force cap is %s × r × P. With Max Power 100%% it is %s. Availability does not lower it. Each update requests 0.01 × |c × %s| electricity." % (g(F), caps(lambda r: F * r), g(V)),
+                "x = %s × s m; v = clamp(10 × (s − x ÷ %s), −W, W) × %s ÷ r m/s; F_max = %s × r × P" % (g(R / 2), g(R / 2), g(V), g(F)),
+                "Stops ±%s m. Top speed at W = 1: %s m/s. Force cap at P = 1: %s." % (g(R / 2), speeds(), caps(lambda r: F * r)))
+    if k == "linear_velocity":
+        return ("Speed-controlled track: Slider Speed s moves the head at s × %s ÷ r m/s with force cap A × %s × r × P." % (g(V), g(F)),
+                "Slider Speed is clamped to −1 … 1, then the head moves at clamp(s × %s ÷ r, −10, 10) m/s. At s = 1 that is %s m/s. "
+                "Travel comes from the track: each aligned base or extension block adds 0.25 m in its direction." % (g(V), speeds()),
+                "The force cap is A × %s × r × P. At A = P = 1 it is %s. At s = 0 it holds with this cap. Each update requests 0.01 × |v| electricity." % (g(F), caps(lambda r: F * r)),
+                "v = clamp(clamp(s, −1, 1) × %s ÷ r, −10, 10) m/s; F_max = A × %s × r × P" % (g(V), g(F)),
+                "At s = 1: %s m/s. Force cap at A = P = 1: %s. Travel 0.25 m per aligned block." % (speeds(), caps(lambda r: F * r)))
+    if k == "track_up_down":
+        return ("Up/Down track: each input drives the head one way at W × A × %s ÷ r m/s, with force cap %s × r × P." % (g(V), g(F)),
+                "Up and Down push in opposite directions; both or neither give zero speed, and the motor then holds the head with its force cap. "
+                "Speed W × A × %s ÷ r m/s. At W = A = 1 that is %s m/s. Travel comes from the track: each aligned base or extension block adds 0.25 m in its direction." % (g(V), speeds()),
+                "The force cap is %s × r × P without availability. With Max Power 100%% it is %s. Each update requests 0.01 × |c × %s| electricity while moving." % (g(F), caps(lambda r: F * r), g(V)),
+                "v = σ × W × A × (±1) × %s ÷ r m/s; F_max = %s × r × P" % (g(V), g(F)),
+                "Speed at W = A = 1: %s m/s. Force cap at P = 1: %s. Travel 0.25 m per aligned block." % (speeds(), caps(lambda r: F * r)))
+    if k == "suspension":
+        lo, hi = 100000 * abs(-R / 2 + 0.5), 100000 * abs(R / 2 + 0.5)
+        sign = "−σ" if row["axis"] == 0 else "σ"
+        return ("Slider over ±%s m driven at 1 m/s with a force cap of 100000 × P × |x + 0.5|, %s × P to %s × P across the travel." % (g(R / 2), g(lo), g(hi)),
+                "Each update the slider motor targets %s × 1 m/s along its axis (constraint_axis %d), with a force cap of 100000 × P × |x + 0.5| for slider position x in metres. "
+                "Over the stops at ±%s m the cap rises from %s × P to %s × P. There is no separate spring rate or damping coefficient." % (sign, row["axis"], g(R / 2), g(lo), g(hi)),
+                "Max Power runs from 1 to 100%% and scales the cap. Gear Ratio, electricity and the max_motor_force field (%s) do not enter this branch." % g(F),
+                "v = %s m/s; F_max = 100000 × P × |x + 0.5|" % sign,
+                "Stops ±%s m; cap at P = 1 from %s (x = −%s) to %s (x = %s)." % (g(R / 2), g(lo), g(R / 2), g(hi), g(R / 2)))
+    if k == "passive_rotary":
+        return ("Unpowered hinge: nothing drives it.",
+                "The motor update leaves this hinge's motor off. It would hold at zero speed with cap %s × P only while an on/off input is set, and the definition declares no on/off input." % g(F),
+                None, "motor off; no gear ratio", "Flags 0x%x lack the powered bit 0x100." % row["flags"])
+    if k == "track_extension":
+        return ("Track block: adds 0.25 m of travel per aligned block; it has no motor.",
+                "A matching base counts aligned blocks of its own type or of this extension in each direction and allows 0.25 m of travel per block that way.",
+                None, "0.25 m travel per aligned block", "Named as extender_name by its base; type %s." % E.block(row["id"])["attributes"]["type"])
+    raise ValueError("No joint rule for %s (%s)" % (row["id"], k))
+
+
 def mechanical(B, E):
+    rows = joint_table(E)
+    f = joint_motor(E)
+    rep = " Report: %s." % MJ_REPORT
     opts = [E.string(F_MULTI_UI, a, s, "Joint gear ratio option %s" % s, "Offered by the Gear Ratio selector for multibody components with definition flag 0x100.")
             for a, s in ((0x140B632D8, "1:1"), (0x140B632F0, "1:2"), (0x140B632EC, "1:4"), (0x140B632FC, "1:8"), (0x140B632F4, "1:16"), (0x140B63314, "1:32"))]
     names = [E.text_id(0x1401FDED9, 0x67C, "Speed"), E.text_id(0x1401FDEF2, 0x67D, "Max Power"), E.text_id(0x1401FDF0B, 0x67E, "Gear Ratio")]
     pct = E.string(F_MULTI_UI, 0x140B58F3C, "%.f%%", "Max Power display format", "The Max Power slider is shown as a percentage.")
-    flags = [E.attr(b, "flags", "Bit 0x100 enables the Max Power and Gear Ratio properties.") for b in
-             ("multibody_robotic_pivot_01_a", "multibody_velocity_pivot_a", "multibody_turret_small_a")]
-    ranges = [E.tooltip("multibody_robotic_pivot_01_a"), E.tooltip("multibody_velocity_pivot_a"), E.tooltip("multibody_turret_large_a"),
-              E.port("multibody_robotic_hinge_01_a", "Current Rotation")]
+    ui = opts + names + [pct, f["p_slider"], f["p_default"], f["ratio_default"], f["w_default"]]
+    ratio = [f["ratio"]] + [f["r%d" % r] for r in RATIOS]
+    common = [f["dispatch"], f["force_field"], f["speed_default"], f["p_state"], f["availability"], f["sign"], f["smooth"]]
+    branch = {
+        "rotary_position": [f[x] for x in ("rp_target", "rp_gain", "rp_cap", "rp_cap_r", "rp_cap_p", "rp_power", "rp_limits", "hinge_store")],
+        "rotary_velocity": [f[x] for x in ("rv_clamp", "rv_omega", "rv_cap", "rv_power", "hinge_store")],
+        "linear_position": [f[x] for x in ("lp_scale", "lp_gain", "lp_cap", "lin_power", "lp_limits", "slider_store")],
+        "linear_velocity": [f[x] for x in ("lv_clamp", "lv_cap", "lin_power", "track_step", "track_limits", "slider_store")],
+        "track_up_down": [f[x] for x in ("track", "lin_power", "track_step", "track_limits", "slider_store")],
+        "suspension": [f[x] for x in ("s_offset", "s_force", "s_speed", "lp_limits", "slider_store", "p_slider")],
+        "passive_rotary": [f["passive"]],
+        "track_extension": [f["track_step"], f["track_limits"]],
+    }
+    powered = {"rotary_position", "rotary_velocity", "linear_position", "linear_velocity", "track_up_down"}
+    R = update_rate(E)["findings"]
+
+    def attrs(bid):
+        a = E.block(bid)["attributes"]
+        out = [E.attr(bid, "flags", "Selects the joint branch: 0x80 head, 0x100 powered, 0x200 speed control, 0x1000 Up/Down track, 0x10000 suspension.")]
+        for name, meaning in (("constraint_range_of_motion", "R in the joint formulas."), ("constraint_axis", "Joint axis index."),
+                              ("max_motor_force", "F in the joint formulas."), ("max_motor_speed", "V in the joint formulas."),
+                              ("child_name", "The moving head this base places."), ("extender_name", "The track block that extends its travel.")):
+            if a.get(name):
+                out.append(E.attr(bid, name, meaning))
+        return out
+
+    def rule(row):
+        """Derived per-definition rule; numbers come from the definition attributes and the motor findings."""
+        summary, how, cap, value, detail = _joint_rule(E, row)
+        k = row["kind"]
+        shared = common if k in powered else [f["dispatch"], f["sign"], f["p_state"]] if k == "suspension" else [f["dispatch"]]
+        inputs = attrs(row["id"]) + branch[k] + (ratio if k in powered else []) + shared
+        if row["kind"] not in ("passive_rotary", "track_extension", "suspension") and not E.block(row["id"])["attributes"].get("max_motor_speed"):
+            inputs.append(f["speed_default"])
+        d = E.derived("%s rule" % row["name"], value, "%s: %s" % (row["id"], detail) + rep, inputs)
+        return summary, how, cap, [d] + inputs
+
+    def extras(bid):
+        out = []
+        blk = E.block(bid)
+        if blk.get("description"):
+            out.append(E.tooltip(bid))
+        out += [E.port(bid, p) for p in _joint_ports(E, bid)]
+        return out
+
+    def connections(bid):
+        ports = _joint_ports(E, bid)
+        text = []
+        if "RPS" in ports:
+            text.append("The RPS port passes mechanical power across the joint.")
+        if "Fluid" in ports:
+            text.append("The Fluid port carries fluid across the joint; the motor does not read its pressure.")
+        if "Current Rotation" in ports:
+            text.append("Current Rotation reports σ × angle ÷ 2π in turns" + (", counted across full turns." if rows[bid]["kind"] == "rotary_velocity" else "."))
+        if "Piston Rod Position" in ports:
+            text.append("Piston Rod Position reports σ × x in metres.")
+        return " ".join(text)
+
+    # Category.
+    gear = ("Gear Ratio sets a multiplier r of 1, 2, 4, 8, 16 or 32 for the options 1:1 to 1:32; a new joint starts at 1:4. Commanded speed is divided by r. "
+            "A hinge's impulse cap is F × r² × P and a slider's force cap F × r × P, where F is the definition's max_motor_force and P the Max Power percent ÷ 100. "
+            "So doubling r halves the speed, quadruples a hinge's cap and doubles a slider's. Max Power scales the cap and leaves the speed alone. "
+            "Speed motors (turret rings, velocity pivots, the compact track) also multiply the cap by the availability A; position servos and the Up/Down track do not.")
+    hold = ("A hinge cap is an impulse per physics solver step, not a torque: the hinge solver uses it directly as its impulse bound. "
+            "The equivalent holding torque in game units is the cap ÷ the solver timestep, so it depends on the physics step rate. A slider cap is a force; its solver divides it by the solver rate.")
     B.category("Mechanical joints",
-               "Powered pivots, hinges, turrets and sliders expose Speed, Max Power and a Gear Ratio of 1:1 to 1:32; robotic joints are limited to 0.25 turns either way while velocity joints and turret rings turn continuously.",
+               "Powered pivots, hinges, turret rings, tracks and pistons are one component class. Gear Ratio 1:1 to 1:32 divides speed by r = 1 to 32 and multiplies a hinge's impulse cap by r² or a slider's force cap by r; Max Power scales the cap.",
                [section("Joint properties",
-                        "Multibody components whose definition flags include 0x100 get a Max Power slider shown as a percentage and a Gear Ratio selector with 1:1, 1:2, 1:4, 1:8, 1:16 and 1:32. Robotic and velocity types additionally show a Speed slider."),
+                        "Definitions with flag 0x100 get a Max Power slider, 0 to 100%, and a Gear Ratio selector with 1:1, 1:2, 1:4, 1:8, 1:16 and 1:32. "
+                        "Powered position joints also get a Speed slider W from 0.1 to 5, default 1. Suspensions get a Max Power slider from 1 to 100%."),
+                section("Gear Ratio and Max Power", gear),
+                section("Holding strength", hold),
+                section("How the command is followed",
+                        "Each update the stored command s moves toward the input by the fraction A: s ← s + (σ × input − s) × A. "
+                        "A = max(0, (300 − damage) ÷ 300) × electric fraction, so with full power and no damage the joint follows the input at once and with none it keeps its last target. "
+                        "σ is +1 or −1 from the part's orientation flag."),
                 section("Choosing a joint",
-                        "Robotic pivots and hinges seek a target inside ±0.25 turns and report Current Rotation in that range. Velocity pivots and turret rings rotate continuously at the commanded speed, report rotation in turns, and stop at an input of 0. Turret rings also extend a sealed volume through the ring."),
-                section("Measurement questions",
-                        "How the gear ratio trades speed for holding torque and what Max Power scales were not recovered numerically; measure with a torque meter on a torque-capable joint.")],
-               opts + names + [pct] + flags + ranges,
-               ["The numeric effect of Gear Ratio and Max Power was not decoded.", "Static analysis only."])
-    shared = opts + names + [pct]
-    B.family("part-multibody-robotic-pivot-01-a",
-             "Seeks a target angle within ±0.25 turns and exposes Speed, Max Power and Gear Ratio settings.",
-             [section("Operating conditions",
-                      "A standard input maps to the target orientation inside the ±0.25-turn range; Current Rotation reports the measured position in the same range. The component needs electricity."),
-              section("Setup and interactions",
-                      "Use Max Power (shown in percent) and Gear Ratio (1:1 … 1:32) to trade speed for holding strength; their numeric effect was not recovered, so test under load."),
-              section("Open measurement questions",
-                      "Holding torque against Gear Ratio and Max Power.")],
-             shared + [flags[0], E.tooltip("multibody_robotic_pivot_01_a"), E.port("multibody_robotic_pivot_01_a", "Current Rotation")],
-             ["Gear Ratio and Max Power effects were not decoded."])
-    B.family("part-multibody-velocity-pivot-a",
-             "Turns continuously at the commanded speed; Current Rotation counts full turns.",
-             [section("Operating conditions",
-                      "An input of 0 stops it; an output of 1 is one full turn, -1 one turn the other way. It shares the Speed, Max Power and Gear Ratio (1:1 … 1:32) properties.")],
-             shared + [flags[1], E.tooltip("multibody_velocity_pivot_a")],
-             ["Torque limits were not recovered."])
-    for fid, bid in (("part-multibody-turret-small-a", "multibody_turret_small_a"), ("part-multibody-turret-medium-a", "multibody_turret_medium_a"),
-                     ("part-multibody-turret-large-a", "multibody_turret_large_a")):
-        B.family(fid, "Continuously rotating turret ring that also passes a sealed volume through its centre.",
-                 [section("Setup and interactions",
-                          "It behaves like a velocity pivot: Rotational Speed sets the rate, Current Rotation reports fractions of full turns. The gap inside the ring forms a door seal, so a sealed compartment can continue through it. Gear Ratio offers 1:1 … 1:32.")],
-                 shared + [E.tooltip(bid), E.port(bid, "Current Rotation")] + ([flags[2]] if bid == "multibody_turret_small_a" else []),
-                 ["Rotation speed range and torque were not recovered."])
+                        "Robotic pivots and hinges are position servos: the input sets an angle within ±0.25 turns and the motor slows as it closes in. "
+                        "Velocity pivots and turret rings are speed motors: the input sets turns per second, capped at 10, with no angle limit, and they brake at an input of 0. "
+                        "Suspensions are force-limited sliders without Gear Ratio or electricity. Plain and power pivots are unpowered hinges. Turret rings also extend a sealed volume through the ring.")],
+               ui + ratio + common + [f[x] for x in ("rp_target", "rp_gain", "rp_cap", "rp_cap_r", "rp_cap_p", "rp_power", "rp_limits", "hinge_store",
+                                                     "rv_clamp", "rv_omega", "rv_cap", "rv_power", "lp_scale", "lp_gain", "lp_cap", "lin_power",
+                                                     "lp_limits", "slider_store", "s_offset", "s_force", "s_speed", "passive")],
+               ["Hinge impulse and slider force are internal game units; their conversion to SI torque or force was not recovered.",
+                "An equivalent spring rate and damping for the suspensions was not recovered; the update is a speed motor with a position-dependent force cap.",
+                "Losses and shaft speed or torque for power and fluid passed through a joint were not traced.",
+                "The world direction of σ for each placement was not recovered; the local sign flip is decoded.",
+                "The plain and power pivots' tooltip stop at 0.25 turns was not located in code: the setup sets angle limits from the range field only for powered position joints.",
+                TICK, "Static analysis only; no game process was run."])
+
+    # Families: every joint definition, driven by joints.json and checked against the definitions above.
+    for bid, row in rows.items():
+        fid, k = row["family"], row["kind"]
+        tail = connections(bid)
+        if k == "attached_head":
+            parents = [rows[p] for p in row["parents"]]
+            plural = len(parents) > 1
+            inputs, how, cap = [], [], None
+            for p in parents:
+                summary_p, how_p, cap_p, findings_p = rule(p)
+                inputs += findings_p
+                if plural:
+                    label, rest = summary_p.split(": ", 1)
+                    how.append("With the %s it is a %s: %s" % (p["name"], label.lower(), rest))
+                else:
+                    how, cap = [summary_p, how_p], cap_p
+            head = [E.attr(bid, "flags", "Bit 0x80 marks a moving head; it lacks the powered bit 0x100."),
+                    E.attr(parents[0]["id"], "child_name", "The base places this head.")]
+            for p in parents[1:]:
+                head.append(E.attr(p["id"], "child_name", "The base places this head."))
+            names = " or ".join(p["name"] for p in parents)
+            note = ""
+            if not plural and row["name"] != parents[0]["name"].split(" (")[0] and not parents[0]["name"].endswith("Base"):
+                note = " Its name is %s, but it is the head of the %s." % (row["name"], parents[0]["name"])
+            body = ("This is the moving half that %s places as its child_name. The base runs the motor; this definition carries flag 0x80 without the powered bit, "
+                    "so its own motor fields do not set the joint's performance." % names) + note
+            sections = [section("What drives it", body), section("Assembled joint", " ".join(how))]
+            if cap:
+                sections.append(section("Gear Ratio and Max Power" if parents[0]["kind"] in powered else "Max Power", cap))
+            if tail:
+                sections.append(section("Setup and interactions", tail))
+            driven = any(p["kind"] in powered or p["kind"] == "suspension" for p in parents)
+            B.family(fid, "Moving head of the %s. %s" % (names, how[0] if not plural else "Its base sets the motor."), sections,
+                     head + inputs + extras(bid) + (ui if driven else []), [TICK] if any(p["kind"] in powered for p in parents) else [])
+            continue
+        summary, how, cap, findings = rule(row)
+        sections = [section("How it moves", how)]
+        if cap:
+            sections.append(section("Gear Ratio and Max Power" if k in powered else "Max Power", cap))
+        if row["id"].startswith("multibody_turret"):
+            tail = (tail + " " if tail else "") + "The gap inside the ring forms a door seal, so a sealed compartment can continue through it."
+        if tail:
+            sections.append(section("Setup and interactions", tail))
+        if k == "rotary_velocity" and row["id"].startswith("multibody_turret"):
+            sections.append(section("Variant tradeoffs",
+                                    "The three rings trade speed for capacity at a fixed product: small V 2 with F 500, medium V 1 with F 1000, large V 0.5 with F 2000. "
+                                    "At 1:4 and full power they turn at 0.5, 0.25 and 0.125 turns per second with impulse caps 8000, 16000 and 32000."))
+            findings = findings + [E.attr(b, x, "Turret motor field.") for b in ("multibody_turret_small_a", "multibody_turret_medium_a", "multibody_turret_large_a")
+                                   for x in ("max_motor_force", "max_motor_speed")] + [E.derived(
+                "Turret ring speed and cap at 1:4", "0.5, 0.25, 0.125 RPS; 8000, 16000, 32000",
+                "V ÷ 4 and F × 16 for the small, medium and large rings at A = P = 1." + rep, [f["rv_clamp"], f["rv_cap"], f["r4"]])]
+        B.family(fid, summary, sections, findings + extras(bid) + (ui if k in powered or k == "suspension" else []),
+                 [TICK] if k in powered else [])
 
 
 def electricity_native(E):
@@ -3451,25 +3860,6 @@ def more_families(B, E):
     simple("part-oil-rig-well-head", "Anchors only within about 1 m of terrain and ±30 degrees of upright; unanchoring resets drilling progress.",
            [("Setup and interactions", "Drive the rod from a rotary table, force it down and keep drilling slurry flowing through a swivel; extract saturated slurry from the well head.")],
            [T("oil_rig_well_head"), P("oil_rig_well_head", "Anchor")], [])
-
-    # Joints with motor fields.
-    t_force = [A(b, "max_motor_force", "Joint motor force configuration.") for b in ("multibody_turret_small_a", "multibody_turret_medium_a", "multibody_turret_large_a")]
-    t_speed = [A(b, "max_motor_speed", "Joint motor speed configuration.") for b in ("multibody_turret_small_a", "multibody_turret_medium_a", "multibody_turret_large_a")]
-    B.families["part-multibody-turret-small-a"]["sections"].append(section("Variant tradeoffs",
-        "Turret motor fields trade speed for force: small 500 force at speed 2, medium 1000 at 1, large 2000 at 0.5."))
-    for fid in ("part-multibody-turret-small-a", "part-multibody-turret-medium-a", "part-multibody-turret-large-a"):
-        B.families[fid]["findings"] = dedupe(B.families[fid]["findings"] + t_force + t_speed)
-        B.families[fid]["sources"] = sources_of(B.families[fid]["findings"])
-    for fid in ("part-multibody-turret-medium-a", "part-multibody-turret-large-a"):
-        B.families[fid]["sections"].append(section("Variant tradeoffs",
-            "Turret motor fields trade speed for force: small 500 force at speed 2, medium 1000 at 1, large 2000 at 0.5."))
-    rng = A("multibody_robotic_hinge_01_a", "constraint_range_of_motion", "Total travel; matches ±0.25 turns.")
-    simple("part-multibody-robotic-hinge-01-a", "Robotic hinge with ±0.25-turn travel that also passes torque and fluid across the joint.",
-           [("Setup and interactions", "constraint_range_of_motion is 0.5, the full ±0.25 turns. The RPS and Fluid ports pass power and fluid to the other half, so a drivetrain or pipe can cross the hinge. Its motor field is 400.")],
-           [rng, A("multibody_robotic_hinge_01_a", "max_motor_force", "Motor force configuration."), T("multibody_robotic_hinge_01_a"), P("multibody_robotic_hinge_01_a", "Fluid")], [])
-    simple("part-linear-matic-a", "Pneumatic piston with 1 m stroke (1.25 m to 2.25 m tall) and a motor field of 200000.",
-           [("Operating conditions", "A standard value sets the rod target; Piston Rod Position reports −0.5 to 0.5 m. Speed is set with the select tool.")],
-           [T("linear_matic_a"), P("linear_matic_a", "Piston Rod Position"), A("linear_matic_a", "max_motor_force", "Motor force configuration.")], [])
 
     # Electricity helpers.
     N = electricity_native(E)

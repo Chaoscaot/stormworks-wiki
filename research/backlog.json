@@ -176,13 +176,31 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/10/limitations/0",
-        "text": "The numeric effect of Gear Ratio and Max Power was not decoded.",
+        "text": "Hinge impulse and slider force are internal game units; their conversion to SI torque or force was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/10/sections/2/body",
-        "text": "How the gear ratio trades speed for holding torque and what Max Power scales were not recovered numerically; measure with a torque meter on a torque-capable joint.",
+        "pointer": "/categories/10/limitations/1",
+        "text": "An equivalent spring rate and damping for the suspensions was not recovered; the update is a speed motor with a position-dependent force cap.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/categories/10/limitations/2",
+        "text": "Losses and shaft speed or torque for power and fluid passed through a joint were not traced.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/categories/10/limitations/3",
+        "text": "The world direction of σ for each placement was not recovered; the local sign flip is decoded.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/categories/10/limitations/4",
+        "text": "The plain and power pivots' tooltip stop at 0.25 turns was not located in code: the setup sets angle limits from the range field only for powered position joints.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -1298,52 +1316,13 @@
     ]
   },
   {
-    "key": "family:part-linear-compact-head",
-    "title": "Compact Linear Track Head: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-linear-compact-head",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/61/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-linear-head",
-    "title": "Linear Track Head: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-linear-head",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/260/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-linear-matic-b",
-    "title": "Pneumatic Piston: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-linear-matic-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/356/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
     "key": "family:part-magall",
     "title": "Mag All: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-magall",
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/107/limitations/0",
+        "pointer": "/families/114/limitations/0",
         "text": "Stress unit unknown.",
         "scope": "Practical behavior guidance"
       }
@@ -1356,7 +1335,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/109/limitations/0",
+        "pointer": "/families/116/limitations/0",
         "text": "The maximum port count, editor size limits and the payload handling of composite, video and audio bridges were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1369,7 +1348,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/110/limitations/0",
+        "pointer": "/families/117/limitations/0",
         "text": "The pressure value's unit was not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1382,7 +1361,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/111/sections/1/body",
+        "pointer": "/families/118/sections/1/body",
         "text": "How ω relates to crank RPS through the belt coupling and what the charge unit is were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1395,294 +1374,9 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/112/limitations/0",
+        "pointer": "/families/119/limitations/0",
         "text": "The coolant heat-transfer coefficient was not recovered.",
         "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-compact-pivot-b",
-    "title": "Compact Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-compact-pivot-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/63/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-compact-pivot-torque-b",
-    "title": "Compact Pivot (Power): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-compact-pivot-torque-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/65/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-door-hinge-b",
-    "title": "Robotic Door Hinge: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-door-hinge-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/400/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-piston-suspension-b",
-    "title": "Piston Suspension: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-piston-suspension-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/348/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-pivot-b",
-    "title": "Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-pivot-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/351/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-pivot-torque-b",
-    "title": "Pivot (Power): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-pivot-torque-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/353/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-robotic-hinge-01-b",
-    "title": "Robotic Hinge: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-robotic-hinge-01-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/402/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-robotic-pivot-01-a",
-    "title": "Robotic Pivot (Power): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-robotic-pivot-01-a",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/limitations/0",
-        "text": "Gear Ratio and Max Power effects were not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/sections/1/body",
-        "text": "Use Max Power (shown in percent) and Gear Ratio (1:1 … 1:32) to trade speed for holding strength; their numeric effect was not recovered, so test under load.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/117/sections/2/body",
-        "text": "Holding torque against Gear Ratio and Max Power.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-robotic-pivot-01-b",
-    "title": "Robotic Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-robotic-pivot-01-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/403/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-robotic-pivot-01-b-fluid",
-    "title": "Robotic Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-robotic-pivot-01-b-fluid",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/404/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-suspension-b",
-    "title": "Suspension: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-suspension-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/463/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-turret-large-a",
-    "title": "Turret Ring (Large): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-turret-large-a",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/118/limitations/0",
-        "text": "Rotation speed range and torque were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-turret-large-b",
-    "title": "Turret Ring (Large): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-turret-large-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/504/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-turret-medium-a",
-    "title": "Turret Ring (Medium): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-turret-medium-a",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/119/limitations/0",
-        "text": "Rotation speed range and torque were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-turret-medium-b",
-    "title": "Turret Ring (Medium): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-turret-medium-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/506/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-turret-small-a",
-    "title": "Turret Ring (Small): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-turret-small-a",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/120/limitations/0",
-        "text": "Rotation speed range and torque were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-turret-small-b",
-    "title": "Turret Ring (Small): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-turret-small-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/508/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-velocity-pivot-01-b-fluid",
-    "title": "Velocity Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-velocity-pivot-01-b-fluid",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/513/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-velocity-pivot-01-b-torque",
-    "title": "Velocity Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-velocity-pivot-01-b-torque",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/514/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-velocity-pivot-a",
-    "title": "Velocity Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-velocity-pivot-a",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/121/limitations/0",
-        "text": "Torque limits were not recovered.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:part-multibody-velocity-pivot-b",
-    "title": "Robotic Pivot: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-multibody-velocity-pivot-b",
-    "locations": [
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/405/body",
-        "text": "The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.",
-        "scope": "Definition-only extraction"
       }
     ]
   },
@@ -1706,7 +1400,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/125/limitations/0",
+        "pointer": "/families/159/limitations/0",
         "text": "Detection model not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1719,13 +1413,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/126/limitations/0",
+        "pointer": "/families/160/limitations/0",
         "text": "Range is configuration; the detection model was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/126/sections/1/body",
+        "pointer": "/families/160/sections/1/body",
         "text": "Detection distance against target size at minimum and maximum FOV.",
         "scope": "Practical behavior guidance"
       }
@@ -1738,13 +1432,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/127/limitations/0",
+        "pointer": "/families/161/limitations/0",
         "text": "Range is configuration; the detection model was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/127/sections/1/body",
+        "pointer": "/families/161/sections/1/body",
         "text": "Detection distance against target size at minimum and maximum FOV.",
         "scope": "Practical behavior guidance"
       }
@@ -1757,13 +1451,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/128/limitations/0",
+        "pointer": "/families/162/limitations/0",
         "text": "Range is configuration; the detection model was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/128/sections/1/body",
+        "pointer": "/families/162/sections/1/body",
         "text": "Detection distance against target size at minimum and maximum FOV.",
         "scope": "Practical behavior guidance"
       }
@@ -1776,13 +1470,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/129/limitations/0",
+        "pointer": "/families/163/limitations/0",
         "text": "Range is configuration; the detection model was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/129/sections/1/body",
+        "pointer": "/families/163/sections/1/body",
         "text": "Detection distance against target size at minimum and maximum FOV.",
         "scope": "Practical behavior guidance"
       }
@@ -1795,13 +1489,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/130/limitations/0",
+        "pointer": "/families/164/limitations/0",
         "text": "Range is configuration; the detection model was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/130/sections/1/body",
+        "pointer": "/families/164/sections/1/body",
         "text": "Detection distance against target size at minimum and maximum FOV.",
         "scope": "Practical behavior guidance"
       }
@@ -1814,7 +1508,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/131/limitations/0",
+        "pointer": "/families/165/limitations/0",
         "text": "Detection model not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1827,7 +1521,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/132/limitations/0",
+        "pointer": "/families/166/limitations/0",
         "text": "Detection model not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1840,7 +1534,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/133/limitations/0",
+        "pointer": "/families/167/limitations/0",
         "text": "Detection model not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1853,7 +1547,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/134/limitations/0",
+        "pointer": "/families/168/limitations/0",
         "text": "Detection model not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1866,7 +1560,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/135/limitations/0",
+        "pointer": "/families/169/limitations/0",
         "text": "Detection model not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1879,7 +1573,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/136/limitations/0",
+        "pointer": "/families/170/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1892,7 +1586,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/137/limitations/0",
+        "pointer": "/families/171/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1905,7 +1599,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/138/limitations/0",
+        "pointer": "/families/172/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1918,7 +1612,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/139/limitations/0",
+        "pointer": "/families/173/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1931,7 +1625,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/140/limitations/0",
+        "pointer": "/families/174/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1944,7 +1638,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/143/limitations/0",
+        "pointer": "/families/177/limitations/0",
         "text": "Equal configuration does not prove identical propagation code.",
         "scope": "Practical behavior guidance"
       }
@@ -1957,7 +1651,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/145/limitations/0",
+        "pointer": "/families/179/limitations/0",
         "text": "Equal configuration does not prove identical propagation code.",
         "scope": "Practical behavior guidance"
       }
@@ -1970,7 +1664,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/147/limitations/0",
+        "pointer": "/families/181/limitations/0",
         "text": "Equal configuration does not prove identical propagation code.",
         "scope": "Practical behavior guidance"
       }
@@ -1983,7 +1677,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/149/limitations/0",
+        "pointer": "/families/183/limitations/0",
         "text": "Equal configuration does not prove identical propagation code.",
         "scope": "Practical behavior guidance"
       }
@@ -1996,7 +1690,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/159/limitations/0",
+        "pointer": "/families/193/limitations/0",
         "text": "Detection thresholds were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2009,7 +1703,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/160/limitations/0",
+        "pointer": "/families/194/limitations/0",
         "text": "Detection thresholds were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2022,7 +1716,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/161/limitations/0",
+        "pointer": "/families/195/limitations/0",
         "text": "Detection thresholds were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2035,7 +1729,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/167/limitations/0",
+        "pointer": "/families/201/limitations/0",
         "text": "Reaction kinetics not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2048,13 +1742,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/173/limitations/0",
+        "pointer": "/families/207/limitations/0",
         "text": "Pulse frequency against distance was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/173/findings/2/detail",
+        "pointer": "/families/207/findings/2/detail",
         "text": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
         "scope": "Practical behavior guidance"
       }
@@ -2067,13 +1761,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/174/limitations/0",
+        "pointer": "/families/208/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/174/limitations/1",
+        "pointer": "/families/208/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -2086,7 +1780,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/175/limitations/0",
+        "pointer": "/families/209/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2112,7 +1806,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/176/limitations/0",
+        "pointer": "/families/210/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -2125,7 +1819,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/177/limitations/0",
+        "pointer": "/families/211/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -2138,7 +1832,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/178/limitations/0",
+        "pointer": "/families/212/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2164,7 +1858,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/179/limitations/0",
+        "pointer": "/families/213/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2190,7 +1884,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/180/limitations/0",
+        "pointer": "/families/214/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2216,7 +1910,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/181/limitations/0",
+        "pointer": "/families/215/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2242,7 +1936,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/182/limitations/0",
+        "pointer": "/families/216/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -2255,7 +1949,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/183/limitations/0",
+        "pointer": "/families/217/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -2287,19 +1981,19 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/187/findings/0/detail",
+        "pointer": "/families/221/findings/0/detail",
         "text": "propeller_pitch_small: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/187/findings/1/detail",
+        "pointer": "/families/221/findings/1/detail",
         "text": "propeller_pitch: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/187/findings/2/detail",
+        "pointer": "/families/221/findings/2/detail",
         "text": "propeller_pitch_large: definition attribute force_emitter_max_force. Force-emitter configuration; not measured thrust.",
         "scope": "Practical behavior guidance"
       },
@@ -2342,7 +2036,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/191/limitations/0",
+        "pointer": "/families/225/limitations/0",
         "text": "Thrust and burn time per segment were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2355,7 +2049,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/192/limitations/0",
+        "pointer": "/families/226/limitations/0",
         "text": "Heat per coal not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2368,7 +2062,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/193/limitations/0",
+        "pointer": "/families/227/limitations/0",
         "text": "Torque per pressure was not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -2381,7 +2075,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/194/limitations/0",
+        "pointer": "/families/228/limitations/0",
         "text": "Track physics was not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -2419,13 +2113,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/195/limitations/0",
+        "pointer": "/families/229/limitations/0",
         "text": "How power splits between the two connections was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/195/sections/0/body",
+        "pointer": "/families/229/sections/0/body",
         "text": "Each has two power connections (A and B), which allows rotors to be stacked along one drivetrain; how power divides between them was not recovered.",
         "scope": "Practical behavior guidance"
       },
@@ -2499,7 +2193,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/196/limitations/0",
+        "pointer": "/families/230/limitations/0",
         "text": "Whether the wording difference reflects different mechanics is unknown.",
         "scope": "Practical behavior guidance"
       }
@@ -2512,13 +2206,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/197/limitations/0",
+        "pointer": "/families/231/limitations/0",
         "text": "The metre interpretation is unverified.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/197/sections/1/body",
+        "pointer": "/families/231/sections/1/body",
         "text": "Verify speed per RPS with a linear speed sensor.",
         "scope": "Practical behavior guidance"
       }

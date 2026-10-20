@@ -338,10 +338,20 @@ def build(root):
                 raise ValueError("Unknown or multiply assigned block: " + bid)
             covered.add(bid)
     curated_count = len(specs)
+    # Joint heads have no tooltip; their base names them as child_name and runs the motor (investigation/mechanical-joints.md).
+    bases = {}
+    for b in blocks:
+        child = b["attributes"].get("child_name")
+        if child and child.startswith(("multibody_", "linear_")):
+            bases.setdefault(child, []).append(b["name"])
     for bid in sorted(set(by_id) - covered):
         block = by_id[bid]
+        body = None
+        if bid in bases and not (block["description"] or block["short_description"]):
+            body = ("The moving half of a joint. %s places it as its child_name and runs the joint's motor; this definition has no tooltip of its own. "
+                    "The practical behaviour research gives the assembled joint's rule." % " or ".join(bases[bid]))
         specs.append(dict(id="part-" + bid.replace("_", "-"), title=block["name"], category=fallback_category(block),
-                          ids=[bid], summary=None, body=None, sections=[], fields=[], limits=["Singleton fallback. No equivalence with similarly named definitions is asserted."]))
+                          ids=[bid], summary=None, body=body, sections=[], fields=[], limits=["Singleton fallback. No equivalence with similarly named definitions is asserted."]))
     families = []
     mapping = {}
     for spec in specs:

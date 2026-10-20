@@ -1,0 +1,1343 @@
+{
+  "schema_version": 1,
+  "target": {
+    "path": "stormworks64.exe",
+    "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699"
+  },
+  "status": "main motor, setup and per-family rules decoded; physical unit conversion and equivalent suspension damping open",
+  "cadence": "60 component updates per nominal simulated second; solver timestep is independent",
+  "symbols": {
+    "r": "gear ratio multiplier",
+    "P": "editor Max Power percent/100",
+    "A": "max(0,(300-damage)/300)*electrical fraction, or 1 in bypass mode",
+    "s": "smoothed signed numeric command",
+    "W": "input_velocity editor speed limit, initialized 1",
+    "F": "definition max_motor_force",
+    "V": "definition max_motor_speed, default 5",
+    "x": "slider displacement in metres",
+    "q": "hinge angle in radians",
+    "Jmax": "maximum hinge impulse per physics solve"
+  },
+  "class_dispatch": {
+    "rtti": "c_scene_vehicle_component_multibody",
+    "vtable": "0x140b02a08",
+    "slot_358": "0x140357a60",
+    "motor_slot_360": "0x140357ca0",
+    "setup_slot_2f0": "0x140356fa0"
+  },
+  "equation_source": "tools/model.py",
+  "definitions": [
+    {
+      "definition": "linear_base",
+      "source": "rom/data/definitions/linear_base.xml",
+      "source_sha256": "c0f0d4e7a7947c972f97dae5da212d01e7bb2d122e4cc5f7ce68f02709460845",
+      "name": "Linear Track Base",
+      "flags": 4416,
+      "kind": "track_up_down",
+      "rule": "Up and Down boolean inputs drive opposite linear velocities; both together cancel.",
+      "constraint_type": 1,
+      "axis": 2,
+      "range": 0.0,
+      "max_motor_force": 20000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "metres",
+        "lower": "-0.25*N_forward",
+        "upper": "0.25*N_backward",
+        "counts": "Accepted same-definition or extender_name blocks in aligned grid cells, scanned from the base."
+      },
+      "parent_generated_child": "linear_head",
+      "extender": "linear_module",
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "linear_compact_base",
+      "source": "rom/data/definitions/linear_compact_base.xml",
+      "source_sha256": "2fa547d970d69da59197b44b0b46b47e765f1a593a6ec5c0472d4a5f0a392a62",
+      "name": "Compact Linear Track Base",
+      "flags": 832,
+      "kind": "linear_velocity",
+      "rule": "Number input controls linear velocity in metres/s.",
+      "constraint_type": 1,
+      "axis": 2,
+      "range": 0.0,
+      "max_motor_force": 10000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "metres",
+        "lower": "-0.25*N_forward",
+        "upper": "0.25*N_backward",
+        "counts": "Accepted same-definition or extender_name blocks in aligned grid cells, scanned from the base."
+      },
+      "parent_generated_child": "linear_compact_head",
+      "extender": "linear_compact_module",
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "linear_compact_head",
+      "source": "rom/data/definitions/linear_compact_head.xml",
+      "source_sha256": "7e831d7db29ef93d0c12bc76eb4dfcf61cf11b0eaffbdc9965d28147be2ac25c",
+      "name": "Compact Linear Track Head",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "linear_compact_module",
+      "source": "rom/data/definitions/linear_compact_module.xml",
+      "source_sha256": "092a1e554102e9b14f191459525cc46ad8a14ac51c8e56746e634797be49724b",
+      "name": "Compact Linear Track Extension",
+      "flags": 288,
+      "kind": "track_extension",
+      "rule": "Extends a compatible aligned track; no independent powered motor.",
+      "constraint_type": 1,
+      "axis": 2,
+      "range": 0.0,
+      "max_motor_force": 200.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "metres",
+        "lower": -0.0,
+        "upper": 0.0
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "linear_head",
+      "source": "rom/data/definitions/linear_head.xml",
+      "source_sha256": "cc5e4d46ec928082d229544b2174255297c0ea9a62a84ebbf0cdf1f3b1420ad0",
+      "name": "Linear Track Head",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "linear_matic_a",
+      "source": "rom/data/definitions/linear_matic_a.xml",
+      "source_sha256": "b9c957082b880f59679157cf8326b5cd342b72692608d0d321de66633088a532",
+      "name": "Pneumatic Piston",
+      "flags": 320,
+      "kind": "linear_position",
+      "rule": "Number input controls target extension over the configured stroke.",
+      "constraint_type": 1,
+      "axis": 1,
+      "range": 1.0,
+      "max_motor_force": 200000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "metres",
+        "lower": -0.5,
+        "upper": 0.5
+      },
+      "parent_generated_child": "linear_matic_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "linear_matic_b",
+      "source": "rom/data/definitions/linear_matic_b.xml",
+      "source_sha256": "9b21b207d93ca841bb40137d117afafd5b2f1bd710ae8bd29bdf1bfdf22bebc4",
+      "name": "Pneumatic Piston",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "linear_module",
+      "source": "rom/data/definitions/linear_module.xml",
+      "source_sha256": "104006f7decfcd2d2d6c3b178ed256b916db5cf787b79d357a6f7a482343d2d2",
+      "name": "Linear Track Extension",
+      "flags": 288,
+      "kind": "track_extension",
+      "rule": "Extends a compatible aligned track; no independent powered motor.",
+      "constraint_type": 1,
+      "axis": 2,
+      "range": 0.0,
+      "max_motor_force": 200.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "metres",
+        "lower": -0.0,
+        "upper": 0.0
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_compact_pivot_b",
+      "source": "rom/data/definitions/multibody_compact_pivot_b.xml",
+      "source_sha256": "53549b8f55a51f65e513170b752f83371372b357c009ec15a0e93bd0d56a0fc4",
+      "name": "Compact Pivot",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_compact_pivot_robotic_a",
+      "source": "rom/data/definitions/multibody_compact_pivot_robotic_a.xml",
+      "source_sha256": "e7ea2d801d8e1a4c1e462f5d1fa4d819b1aa17f2b00a041aa1493e311e0b8cfa",
+      "name": "Compact Robotic Pivot",
+      "flags": 320,
+      "kind": "rotary_position",
+      "rule": "Number input controls target angle; range is in turns.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.5,
+      "max_motor_force": 200.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "radians",
+        "lower": -1.5707963267948966,
+        "upper": 1.5707963267948966
+      },
+      "parent_generated_child": "multibody_compact_pivot_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_compact_pivot_torque_a",
+      "source": "rom/data/definitions/multibody_compact_pivot_torque_a.xml",
+      "source_sha256": "5581e94c797a846d576449d58dd05689ad7fea8011dd1368b1bfadd3a9d2a384",
+      "name": "Compact Pivot (Power)",
+      "flags": 64,
+      "kind": "passive_rotary",
+      "rule": "No numeric powered servo. The rotary branch disables the motor unless its boolean brake state is set; then it targets zero speed with cap F*P.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 200.0,
+      "max_motor_speed": 5.0,
+      "limits": null,
+      "parent_generated_child": "multibody_compact_pivot_torque_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_compact_pivot_torque_b",
+      "source": "rom/data/definitions/multibody_compact_pivot_torque_b.xml",
+      "source_sha256": "9d7fb03d3ecad6fcd695ece41edea01ebd656a2b5fd30fae1bd2e8c9809683aa",
+      "name": "Compact Pivot (Power)",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_compact_pivot_velocity_a",
+      "source": "rom/data/definitions/multibody_compact_pivot_velocity_a.xml",
+      "source_sha256": "91ae71b22863c86b805d3e73744a58ee674bba79cbd20bc5b2f7d7b7590eabe6",
+      "name": "Compact Velocity Pivot",
+      "flags": 832,
+      "kind": "rotary_velocity",
+      "rule": "Number input controls angular velocity in turns/s.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "turns_per_second",
+        "command_lower": -10,
+        "command_upper": 10,
+        "nominal_at_abs_input_1": "5.0/r",
+        "angular_position": "unlimited by this setup"
+      },
+      "parent_generated_child": "multibody_compact_pivot_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_door_hinge_a",
+      "source": "rom/data/definitions/multibody_door_hinge_a.xml",
+      "source_sha256": "faad073244a0f8003ae04f32770af54f3c8b94b7425b1e44acc8cb3bd5886de7",
+      "name": "Robotic Door Hinge",
+      "flags": 320,
+      "kind": "rotary_position",
+      "rule": "Number input controls target angle; range is in turns.",
+      "constraint_type": 0,
+      "axis": 2,
+      "range": 0.5,
+      "max_motor_force": 400.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "radians",
+        "lower": -1.5707963267948966,
+        "upper": 1.5707963267948966
+      },
+      "parent_generated_child": "multibody_door_hinge_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_door_hinge_b",
+      "source": "rom/data/definitions/multibody_door_hinge_b.xml",
+      "source_sha256": "9fe0f72c443f063c4551b997ea5f99302aa298eeb1b52fcb7f5e23c4a8c249d3",
+      "name": "Robotic Door Hinge",
+      "flags": 384,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 2,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_piston_suspension_a",
+      "source": "rom/data/definitions/multibody_piston_suspension_a.xml",
+      "source_sha256": "72e8d5a57ef37326bf3c35106bd39790b76d2b244b3eec674a04d06fb430cc48",
+      "name": "Piston Suspension",
+      "flags": 65600,
+      "kind": "suspension",
+      "rule": "Slider motor retracts at a signed speed cap with position-dependent maximum force, not an explicit spring/damper pair.",
+      "constraint_type": 1,
+      "axis": 1,
+      "range": 0.5,
+      "max_motor_force": 1000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "metres",
+        "lower": -0.25,
+        "upper": 0.25
+      },
+      "parent_generated_child": "multibody_piston_suspension_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ],
+      "force_cap": "100000*P*abs(x+0.5)",
+      "velocity": "sign*(-1 if axis==0 else 1) m/s",
+      "electrical_demand": "No electrical helper call in this branch",
+      "unresolved": [
+        "Equivalent continuous spring stiffness/damping, including solver ERP/CFM and motor saturation, was not reduced to an ODE."
+      ]
+    },
+    {
+      "definition": "multibody_piston_suspension_b",
+      "source": "rom/data/definitions/multibody_piston_suspension_b.xml",
+      "source_sha256": "adb6e38dd9a3a7910e554b3dc3238036cf894015cadec4dfceb9e0b05f2bc2ce",
+      "name": "Piston Suspension",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 1,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_pivot_a",
+      "source": "rom/data/definitions/multibody_pivot_a.xml",
+      "source_sha256": "d4ead7a31d6935d82cb496fbf256d488c944be6c9e13a8d692d6563e05459d55",
+      "name": "Pivot",
+      "flags": 64,
+      "kind": "passive_rotary",
+      "rule": "No numeric powered servo. The rotary branch disables the motor unless its boolean brake state is set; then it targets zero speed with cap F*P.",
+      "constraint_type": 0,
+      "axis": 2,
+      "range": 0.5,
+      "max_motor_force": 20.0,
+      "max_motor_speed": 5.0,
+      "limits": null,
+      "parent_generated_child": "multibody_pivot_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_pivot_b",
+      "source": "rom/data/definitions/multibody_pivot_b.xml",
+      "source_sha256": "c9a1114d76aaafecf6742e6689b8ff8b72c7aaaf666c1981b5613da5886f8c45",
+      "name": "Pivot",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 0,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_pivot_torque_a",
+      "source": "rom/data/definitions/multibody_pivot_torque_a.xml",
+      "source_sha256": "a43e893a80695599f753f90cf3d515dea7a6b4f62cecbe21d2e99d701b7fcd16",
+      "name": "Pivot (Power)",
+      "flags": 64,
+      "kind": "passive_rotary",
+      "rule": "No numeric powered servo. The rotary branch disables the motor unless its boolean brake state is set; then it targets zero speed with cap F*P.",
+      "constraint_type": 0,
+      "axis": 2,
+      "range": 0.5,
+      "max_motor_force": 20.0,
+      "max_motor_speed": 5.0,
+      "limits": null,
+      "parent_generated_child": "multibody_pivot_torque_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_pivot_torque_b",
+      "source": "rom/data/definitions/multibody_pivot_torque_b.xml",
+      "source_sha256": "5b54e4fceff578fe2138b7d54fa67fce686bf897776bae813d1b56e5a04c705f",
+      "name": "Pivot (Power)",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 0,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_robotic_hinge_01_a",
+      "source": "rom/data/definitions/multibody_robotic_hinge_01_a.xml",
+      "source_sha256": "613bd00c63a0ec46d7cb7354fce36834ee3200a3136db40b54fe19bfb4b04043",
+      "name": "Robotic Hinge",
+      "flags": 320,
+      "kind": "rotary_position",
+      "rule": "Number input controls target angle; range is in turns.",
+      "constraint_type": 0,
+      "axis": 2,
+      "range": 0.5,
+      "max_motor_force": 400.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "radians",
+        "lower": -1.5707963267948966,
+        "upper": 1.5707963267948966
+      },
+      "parent_generated_child": "multibody_robotic_hinge_01_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_robotic_hinge_01_b",
+      "source": "rom/data/definitions/multibody_robotic_hinge_01_b.xml",
+      "source_sha256": "e58b930f3f32b51020cfeb83a3a98efb2c8dffbd97889d53196a0adfa8f9dd7b",
+      "name": "Robotic Hinge",
+      "flags": 384,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 2,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_robotic_pivot_01_a",
+      "source": "rom/data/definitions/multibody_robotic_pivot_01_a.xml",
+      "source_sha256": "fc771d754019acb44d6842b7322d43081a2e3c297ffd471c228ebe2c68958921",
+      "name": "Robotic Pivot (Power)",
+      "flags": 320,
+      "kind": "rotary_position",
+      "rule": "Number input controls target angle; range is in turns.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.5,
+      "max_motor_force": 200.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "radians",
+        "lower": -1.5707963267948966,
+        "upper": 1.5707963267948966
+      },
+      "parent_generated_child": "multibody_robotic_pivot_01_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_robotic_pivot_01_a_fluid",
+      "source": "rom/data/definitions/multibody_robotic_pivot_01_a_fluid.xml",
+      "source_sha256": "f50c06bf173a5547a29f4af5e8a9566ecee9641b4e5ccc5c1c1287855883886d",
+      "name": "Robotic Pivot (Fluid)",
+      "flags": 320,
+      "kind": "rotary_position",
+      "rule": "Number input controls target angle; range is in turns.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.5,
+      "max_motor_force": 200.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "radians",
+        "lower": -1.5707963267948966,
+        "upper": 1.5707963267948966
+      },
+      "parent_generated_child": "multibody_robotic_pivot_01_b_fluid",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_robotic_pivot_01_b",
+      "source": "rom/data/definitions/multibody_robotic_pivot_01_b.xml",
+      "source_sha256": "6f26d1cfb5d8f6c1f8f0d29f56f9d60f7d191a84e872a461465de0a3de8e981b",
+      "name": "Robotic Pivot",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_robotic_pivot_01_b_fluid",
+      "source": "rom/data/definitions/multibody_robotic_pivot_01_b_fluid.xml",
+      "source_sha256": "74527c1349917e10c255250dcde48969eef8f68b39b0bf2466a53286e04a3037",
+      "name": "Robotic Pivot",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_suspension_a",
+      "source": "rom/data/definitions/multibody_suspension_a.xml",
+      "source_sha256": "52741c61845d4f0a5a27b8abdab5f8b406f1bbaa94e9cbf3a4f98e911020b9ce",
+      "name": "Suspension",
+      "flags": 65600,
+      "kind": "suspension",
+      "rule": "Slider motor retracts at a signed speed cap with position-dependent maximum force, not an explicit spring/damper pair.",
+      "constraint_type": 1,
+      "axis": 0,
+      "range": 0.5,
+      "max_motor_force": 1000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "metres",
+        "lower": -0.25,
+        "upper": 0.25
+      },
+      "parent_generated_child": "multibody_suspension_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ],
+      "force_cap": "100000*P*abs(x+0.5)",
+      "velocity": "sign*(-1 if axis==0 else 1) m/s",
+      "electrical_demand": "No electrical helper call in this branch",
+      "unresolved": [
+        "Equivalent continuous spring stiffness/damping, including solver ERP/CFM and motor saturation, was not reduced to an ODE."
+      ]
+    },
+    {
+      "definition": "multibody_suspension_b",
+      "source": "rom/data/definitions/multibody_suspension_b.xml",
+      "source_sha256": "8f60e53010b857200c08b03364e06451846dbc40b6c9bc3467497eab8fea1c19",
+      "name": "Suspension",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 1,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 100.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_turret_large_a",
+      "source": "rom/data/definitions/multibody_turret_large_a.xml",
+      "source_sha256": "f61f9a553b1490d5e3a06306f07468d514e797415d32a24de0c4a59d5b80ab5c",
+      "name": "Turret Ring (Large)",
+      "flags": 832,
+      "kind": "rotary_velocity",
+      "rule": "Number input controls angular velocity in turns/s.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 2000.0,
+      "max_motor_speed": 0.5,
+      "limits": {
+        "unit": "turns_per_second",
+        "command_lower": -10,
+        "command_upper": 10,
+        "nominal_at_abs_input_1": "0.5/r",
+        "angular_position": "unlimited by this setup"
+      },
+      "parent_generated_child": "multibody_turret_large_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_turret_large_b",
+      "source": "rom/data/definitions/multibody_turret_large_b.xml",
+      "source_sha256": "479e5eafcf19359b407b3ccc895937262af9061221388e955706e0b1eac13005",
+      "name": "Turret Ring (Large)",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 0.5,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_turret_medium_a",
+      "source": "rom/data/definitions/multibody_turret_medium_a.xml",
+      "source_sha256": "9b43663cfcd356fcd05ee963a60a8f2d6c95ff09883146ae2315fab70691a630",
+      "name": "Turret Ring (Medium)",
+      "flags": 832,
+      "kind": "rotary_velocity",
+      "rule": "Number input controls angular velocity in turns/s.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 1000.0,
+      "max_motor_speed": 1.0,
+      "limits": {
+        "unit": "turns_per_second",
+        "command_lower": -10,
+        "command_upper": 10,
+        "nominal_at_abs_input_1": "1.0/r",
+        "angular_position": "unlimited by this setup"
+      },
+      "parent_generated_child": "multibody_turret_medium_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_turret_medium_b",
+      "source": "rom/data/definitions/multibody_turret_medium_b.xml",
+      "source_sha256": "d7704d56eb640546e3a0f42def083f05e1b0e7eb0a7da4f8306cb614d316a80c",
+      "name": "Turret Ring (Medium)",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 1.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_turret_small_a",
+      "source": "rom/data/definitions/multibody_turret_small_a.xml",
+      "source_sha256": "e09e6cdab6af78ce5dd3e62493f78770b15fef237c5ba893aaca51a50f10cbcc",
+      "name": "Turret Ring (Small)",
+      "flags": 832,
+      "kind": "rotary_velocity",
+      "rule": "Number input controls angular velocity in turns/s.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 500.0,
+      "max_motor_speed": 2.0,
+      "limits": {
+        "unit": "turns_per_second",
+        "command_lower": -10,
+        "command_upper": 10,
+        "nominal_at_abs_input_1": "2.0/r",
+        "angular_position": "unlimited by this setup"
+      },
+      "parent_generated_child": "multibody_turret_small_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_turret_small_b",
+      "source": "rom/data/definitions/multibody_turret_small_b.xml",
+      "source_sha256": "a6ef7a114aef439bc7631adf99a0edff91fdbbbbe9781b7122f5a73f38134a32",
+      "name": "Turret Ring (Small)",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 2.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_velocity_pivot_01_a_fluid",
+      "source": "rom/data/definitions/multibody_velocity_pivot_01_a_fluid.xml",
+      "source_sha256": "9d582befd700d0f3925e12b412d4d867b3f94470a93a546eb5d772ada29285c6",
+      "name": "Velocity Pivot (Fluid)",
+      "flags": 832,
+      "kind": "rotary_velocity",
+      "rule": "Number input controls angular velocity in turns/s.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.5,
+      "max_motor_force": 1000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "turns_per_second",
+        "command_lower": -10,
+        "command_upper": 10,
+        "nominal_at_abs_input_1": "5.0/r",
+        "angular_position": "unlimited by this setup"
+      },
+      "parent_generated_child": "multibody_velocity_pivot_01_b_fluid",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_velocity_pivot_01_a_torque",
+      "source": "rom/data/definitions/multibody_velocity_pivot_01_a_torque.xml",
+      "source_sha256": "e6a7f1ed8398d1c2bb49598f1de9bbc0d140d1e5c045a64f59176cbf81821142",
+      "name": "Velocity Pivot (Power)",
+      "flags": 832,
+      "kind": "rotary_velocity",
+      "rule": "Number input controls angular velocity in turns/s.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.5,
+      "max_motor_force": 1000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "turns_per_second",
+        "command_lower": -10,
+        "command_upper": 10,
+        "nominal_at_abs_input_1": "5.0/r",
+        "angular_position": "unlimited by this setup"
+      },
+      "parent_generated_child": "multibody_velocity_pivot_01_b_torque",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_velocity_pivot_01_b_fluid",
+      "source": "rom/data/definitions/multibody_velocity_pivot_01_b_fluid.xml",
+      "source_sha256": "32bc2ae805ea2315744f513d3003c0165fde83f786e38d2e5d5c2a7b7e1ffb86",
+      "name": "Velocity Pivot",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_velocity_pivot_01_b_torque",
+      "source": "rom/data/definitions/multibody_velocity_pivot_01_b_torque.xml",
+      "source_sha256": "dd6b6f56b4440f94a14f2579ba4f75abe08e8e31d6de64016d08fe51a71b415e",
+      "name": "Velocity Pivot",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    },
+    {
+      "definition": "multibody_velocity_pivot_a",
+      "source": "rom/data/definitions/multibody_velocity_pivot_a.xml",
+      "source_sha256": "44f057f3609fd14a28f222ed354f26d12a9a7f0898473d69f56afadbeaeaf966",
+      "name": "Velocity Pivot",
+      "flags": 832,
+      "kind": "rotary_velocity",
+      "rule": "Number input controls angular velocity in turns/s.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 1000.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "unit": "turns_per_second",
+        "command_lower": -10,
+        "command_upper": 10,
+        "nominal_at_abs_input_1": "5.0/r",
+        "angular_position": "unlimited by this setup"
+      },
+      "parent_generated_child": "multibody_velocity_pivot_b",
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0"
+      ]
+    },
+    {
+      "definition": "multibody_velocity_pivot_b",
+      "source": "rom/data/definitions/multibody_velocity_pivot_b.xml",
+      "source_sha256": "626e010b8e1ebad69226386df68f135a0978462b590684a297591489f8b09df9",
+      "name": "Robotic Pivot",
+      "flags": 128,
+      "kind": "attached_head",
+      "rule": "Attached moving body; its compatible parent supplies the constraint, motor and limits. Its own motor fields do not set the assembled joint performance.",
+      "constraint_type": 0,
+      "axis": 1,
+      "range": 0.0,
+      "max_motor_force": 0.0,
+      "max_motor_speed": 5.0,
+      "limits": {
+        "inherited_from_parent": true
+      },
+      "parent_generated_child": null,
+      "extender": null,
+      "evidence": [
+        "0x140357ca0",
+        "0x140356fa0",
+        "definition flag 0x80",
+        "0x1404af3c0 for track heads"
+      ]
+    }
+  ],
+  "issue_9_replacements": [
+    {
+      "quote": "The numeric effect of Gear Ratio and Max Power was not decoded.",
+      "replacement": "Gear Ratio selects r=1,2,4,8,16,32. Powered joint speed scales as 1/r. Max Power P is the stored fraction of the editor percentage and scales motor capacity linearly: hinge maximum impulse is F*r^2*P, slider maximum force is F*r*P. Velocity motors additionally multiply capacity by electrical/damage availability A. Suspension uses its separate force law."
+    },
+    {
+      "quote": "How the gear ratio trades speed for holding torque and what Max Power scales were not recovered numerically; measure with a torque meter on a torque-capable joint.",
+      "replacement": "Doubling ratio halves commanded speed, quadruples the hinge impulse cap and doubles slider force capacity. Max Power scales capacity, not the target speed. Hinge holding torque in internal units is Jmax/dt for the physics solver timestep dt; do not equate Jmax to SI torque or assume one solve per component update."
+    }
+  ],
+  "family_issues": [
+    {
+      "issue": 59,
+      "family": "part-linear-compact-head",
+      "parents": [
+        "linear_compact_base"
+      ],
+      "replacement": "Compact head follows its compact base speed motor: v=clamp(s*5/r,-10,10) m/s, Fmax=A*r*10000*P; aligned extensions add 0.25 m per accepted grid step.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 60,
+      "family": "part-linear-head",
+      "parents": [
+        "linear_base"
+      ],
+      "replacement": "Track head follows its base: Up/Down command opposite velocities, v=sign*W*A*(Up-Down)*5/r m/s, Fmax=r*20000*P; travel follows aligned track cells.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 61,
+      "family": "part-linear-matic-b",
+      "parents": [
+        "linear_matic_a"
+      ],
+      "replacement": "Pneumatic piston is an electric position servo: target x=0.5*s m, hard stroke [-0.5,0.5] m, |v|<=W*5/r m/s, Fmax=r*200000*P; fluid is transferred through the joint.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 68,
+      "family": "part-multibody-compact-pivot-b",
+      "parents": [
+        "multibody_compact_pivot_robotic_a",
+        "multibody_compact_pivot_velocity_a"
+      ],
+      "replacement": "Compact head takes its rule from its base: robotic base targets +/-0.25 turns with Jmax=r^2*200*P; velocity base gives 5/r RPS and Jmax=A*r^2*100*P at unit command.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 69,
+      "family": "part-multibody-compact-pivot-torque-b",
+      "parents": [
+        "multibody_compact_pivot_torque_a"
+      ],
+      "replacement": "Compact power pivot is a passive hinge with a mechanical power connector; no numeric powered servo or ratio-based holding-torque rule applies.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 70,
+      "family": "part-multibody-door-hinge-b",
+      "parents": [
+        "multibody_door_hinge_a"
+      ],
+      "replacement": "Robotic door hinge targets angle pi*0.5*s radians, limits +/-90 degrees, |omega|<=W*5/r rad/s and Jmax=r^2*400*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 71,
+      "family": "part-multibody-piston-suspension-b",
+      "parents": [
+        "multibody_piston_suspension_a"
+      ],
+      "replacement": "Piston suspension uses a slider over +/-0.25 m, moves at 1 m/s, and caps force at 100000*P*abs(x+0.5); no explicit damper coefficient appears.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 72,
+      "family": "part-multibody-pivot-b",
+      "parents": [
+        "multibody_pivot_a"
+      ],
+      "replacement": "Pivot is a passive hinge; the resource range 0.5 does not activate the powered angle-limit setup.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 73,
+      "family": "part-multibody-pivot-torque-b",
+      "parents": [
+        "multibody_pivot_torque_a"
+      ],
+      "replacement": "Power pivot is a passive hinge with a mechanical power connector; it has no numeric electric servo.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 74,
+      "family": "part-multibody-robotic-hinge-01-b",
+      "parents": [
+        "multibody_robotic_hinge_01_a"
+      ],
+      "replacement": "Robotic hinge targets +/-0.25 turns, with |omega|<=W*5/r rad/s and Jmax=r^2*400*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 75,
+      "family": "part-multibody-robotic-pivot-01-a",
+      "parents": [
+        "multibody_robotic_pivot_01_a"
+      ],
+      "replacement": "Power robotic pivot targets +/-0.25 turns, with |omega|<=W*5/r rad/s and Jmax=r^2*200*P; mechanical power passes through its connector.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 76,
+      "family": "part-multibody-robotic-pivot-01-b",
+      "parents": [
+        "multibody_robotic_pivot_01_a"
+      ],
+      "replacement": "Robotic pivot head follows its parent position servo: +/-0.25 turns, |omega|<=W*5/r rad/s, Jmax=r^2*200*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 77,
+      "family": "part-multibody-robotic-pivot-01-b-fluid",
+      "parents": [
+        "multibody_robotic_pivot_01_a_fluid"
+      ],
+      "replacement": "Fluid robotic pivot head follows the same position servo as #76; its fluid connection is transfer, not a pressure-driven motor input.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 78,
+      "family": "part-multibody-suspension-b",
+      "parents": [
+        "multibody_suspension_a"
+      ],
+      "replacement": "Suspension uses the same force-cap law as piston suspension over +/-0.25 m, but its axis-0 branch flips the motor direction; the speed is also 1 m/s.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 79,
+      "family": "part-multibody-turret-large-a",
+      "parents": [
+        "multibody_turret_large_a"
+      ],
+      "replacement": "Large turret base is continuous velocity control: unit input gives 0.5/r RPS, global command cap +/-10 RPS, Jmax=A*r^2*2000*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 80,
+      "family": "part-multibody-turret-large-b",
+      "parents": [
+        "multibody_turret_large_a"
+      ],
+      "replacement": "Large turret head inherits its base: 0.5/r RPS at unit input and Jmax=A*r^2*2000*P; its zero motor-force resource does not override the base.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 81,
+      "family": "part-multibody-turret-medium-a",
+      "parents": [
+        "multibody_turret_medium_a"
+      ],
+      "replacement": "Medium turret base is continuous velocity control: unit input gives 1/r RPS, global command cap +/-10 RPS, Jmax=A*r^2*1000*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 82,
+      "family": "part-multibody-turret-medium-b",
+      "parents": [
+        "multibody_turret_medium_a"
+      ],
+      "replacement": "Medium turret head inherits its base: 1/r RPS at unit input and Jmax=A*r^2*1000*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 83,
+      "family": "part-multibody-turret-small-a",
+      "parents": [
+        "multibody_turret_small_a"
+      ],
+      "replacement": "Small turret base is continuous velocity control: unit input gives 2/r RPS, global command cap +/-10 RPS, Jmax=A*r^2*500*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 84,
+      "family": "part-multibody-turret-small-b",
+      "parents": [
+        "multibody_turret_small_a"
+      ],
+      "replacement": "Small turret head inherits its base: 2/r RPS at unit input and Jmax=A*r^2*500*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 85,
+      "family": "part-multibody-velocity-pivot-01-b-fluid",
+      "parents": [
+        "multibody_velocity_pivot_01_a_fluid"
+      ],
+      "replacement": "Fluid velocity-pivot head follows a continuous velocity base: 5/r RPS at unit input, +/-10 RPS command cap, Jmax=A*r^2*1000*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 86,
+      "family": "part-multibody-velocity-pivot-01-b-torque",
+      "parents": [
+        "multibody_velocity_pivot_01_a_torque"
+      ],
+      "replacement": "Power velocity-pivot head follows the same continuous motor as #85 and provides mechanical power transfer.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 87,
+      "family": "part-multibody-velocity-pivot-a",
+      "parents": [
+        "multibody_velocity_pivot_a"
+      ],
+      "replacement": "Velocity pivot base commands clamp(5*s/r,-10,10) RPS and Jmax=A*r^2*1000*P, including braking at zero commanded speed.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    },
+    {
+      "issue": 88,
+      "family": "part-multibody-velocity-pivot-b",
+      "parents": [
+        "multibody_velocity_pivot_a"
+      ],
+      "replacement": "This resource is named Robotic Pivot but is the velocity-pivot moving head; its parent controls continuous rotation at 5/r RPS and Jmax=A*r^2*1000*P.",
+      "status": "decoded",
+      "remaining": "Internal impulse/force units have no proven SI torque/force conversion."
+    }
+  ],
+  "open_questions": [
+    {
+      "item": "SI torque or force conversion",
+      "ruled_out": "Definition max_motor_force cannot be quoted as torque: hinge uses raw impulse, slider divides force by solver fps. No torque-meter conversion was traced."
+    },
+    {
+      "item": "Equivalent spring/damper ODE",
+      "ruled_out": "Selected suspension setup constructs btSliderConstraint, not btGeneric6DofSpring. Selected update has no independent spring or damper coefficient; it uses a force-limited velocity motor."
+    },
+    {
+      "item": "Transfer network loss or mechanical RPS/torque through pass-through joints",
+      "ruled_out": "The powered hinge/slider motor equations do not establish transfer-network loss. Gear Ratio here is motor gearing, not a proven gearbox formula for pass-through shafts."
+    },
+    {
+      "item": "Absolute editor placement to world-coordinate signs",
+      "ruled_out": "Local sign reversal and axis handling are recovered; placement transforms were not reduced to a world-space orientation table."
+    }
+  ]
+}
