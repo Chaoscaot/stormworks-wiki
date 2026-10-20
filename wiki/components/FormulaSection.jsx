@@ -80,6 +80,10 @@ const FINDINGS = {
     'Shaft speed removed', 'Thrust factor', 'Medium gate', 'Altitude factor slope', 'Altitude factor exponent', 'Altitude factor ceiling',
     'Thrust application limit', 'Thrust cap test',
   ],
+  clutch: [
+    'Clutch input', 'Clutch input exponent', 'Clutch power call', 'Clutch coupling', 'Clutch availability divisor', 'Clutch availability factor',
+    'Bridge edge factor', 'Bridge path cutoff', 'Clutch target exponent', 'Clutch engagement slew', 'Component updates per simulated second',
+  ],
 };
 
 const TITLES = {
@@ -97,6 +101,7 @@ const TITLES = {
   legacy: 'Legacy radar and sonar detection distance against target body mass',
   radio: 'Radio signal strength against distance, height and power',
   propeller: 'Propeller and rotor force and shaft load against RPS',
+  clutch: 'Clutch coupling against Clutch Pressure',
 };
 
 /*
@@ -642,9 +647,41 @@ const PROPELLER = {
   ],
 };
 
+const CLUTCH = {
+  intro: (
+    <p>
+      The standalone clutch and the modular engine clutch run different code. The standalone clutch sets its bridge fraction to
+      e × u⁶ every update, with no slew, and the shaft solver crosses it with path weight 0.95 × c, skipping paths at or below 0.001.
+      The modular clutch moves its engagement toward u³ by at most 0.1 per update. Both curves use the same Clutch Pressure u.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="u">{mi('u')}{mo('=')}{mi('clamp')}<mrow>{mo('(')}<mtext>Clutch Pressure</mtext>{mo(',')}{mn('0')}{mo(',')}{mn('1')}{mo(')')}</mrow><mspace width="1em" />{mi('e')}{mo('=')}{mi('min')}<mrow>{mo('(')}{mn('1')}{mo(',')}<mfrac>{mi('a')}{mn('0.01')}</mfrac>{mo(')')}</mrow></mrow>,
+        <mrow key="c"><mtext>standalone:</mtext><mspace width="0.5em" />{mi('c')}{mo('=')}{mi('e')}<msup>{mi('u')}{mn('6')}</msup><mspace width="1em" />{mi('h')}{mo('=')}{mn('0.95')}{mi('c')}<mspace width="1em" /><mtext>couples when </mtext>{mi('h')}{mo('>')}{mn('0.001')}</mrow>,
+        <mrow key="m"><mtext>modular:</mtext><mspace width="0.5em" />{mi('E')}{mo('←')}{mi('E')}{mo('+')}{mi('clamp')}<mrow>{mo('(')}<msup>{mi('u')}{mn('3')}</msup>{mo('−')}{mi('E')}{mo(',')}{mo('−')}{mn('0.1')}{mo(',')}{mn('0.1')}{mo(')')}</mrow></mrow>,
+      ]}
+      text={[
+        'u = clamp(Clutch Pressure, 0, 1)',
+        'Standalone clutch: e = min(1, a / 0.01), a = max(0, (300 - EMP count) / 300) * charge fraction, 1 with infinite electricity',
+        '  c = e * u^6, set every update with no slew; path weight h = 0.95 * c; no transfer when h <= 0.001',
+        'Modular clutch: engagement E moves toward u^3 by at most 0.1 per update',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'The standalone curve is the bridge fraction, not torque or power. How much speed it moves depends on the weights of the two shaft groups.',
+    'The modular curve is the target engagement; the engagement reaches it at 0.1 per update, and the readout gives the number of updates from 0.',
+    'The coupling onset assumes an isolated clutch, one bridge between two groups. A path through further bridges multiplies further 0.95 factors.',
+    'A damaged standalone clutch has c = 0 whatever the input.',
+  ],
+};
+
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
+  clutch: CLUTCH,
 };
 
 function Evidence({ items }) {

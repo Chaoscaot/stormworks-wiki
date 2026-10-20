@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1002,4 +1002,39 @@ test('propeller graph constants and parts remain tied to verified native and def
   assert.equal(PROPELLER_VARIANTS.length, 23);
   assert.equal(propellerVariantFor('helicopter-rotor', 'huge_rotor').id, 'huge_rotor');
   assert.equal(propellerVariantFor('ducted-fan').id, 'fan_small');
+});
+
+test('standalone clutch couples with e × input^6 and the 0.95 path weight', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(b)), `${a} != ${b}`);
+  assert.equal(standaloneClutch({ input: 0.5 }).coupling, 1 / 64);
+  assert.equal(standaloneClutch({ input: 2 }).coupling, 1);
+  assert.equal(standaloneClutch({ input: -1 }).coupling, 0);
+  close(standaloneClutch({ input: 1, availability: 0.005 }).coupling, 0.5);
+  assert.equal(standaloneClutch({ input: 1, availability: 0.5 }).e, 1, '1% availability already gives full strength');
+  assert.equal(standaloneClutch({ input: 1, availability: 0 }).coupling, 0);
+  close(standaloneClutch({ input: 0.5 }).pathWeight, TRANSMISSION.edge / 64);
+  close(standaloneClutchOnset(), (0.001 / 0.95) ** (1 / 6));
+  assert.ok(Math.abs(standaloneClutchOnset() - 0.318943) < 1e-6, 'report onset near 0.318943');
+  assert.equal(standaloneClutch({ input: 0.3 }).couples, false);
+  assert.equal(standaloneClutch({ input: 0.32 }).couples, true);
+  assert.equal(standaloneClutchOnset(0.00001), null, 'e = 0.001 leaves even full input below the cutoff');
+  close(standaloneClutchOnset(0.001), (0.001 / 0.095) ** (1 / 6));
+  assert.deepEqual(graphKindsForFamily('part-torque-clutch'), ['clutch']);
+  assert.deepEqual(graphKindsForFamily('modular-engine-clutch'), ['clutch']);
+});
+
+test('shaft bridge pass matches investigation/native/transmission/tools/examples.json when present', (t) => {
+  const file = new URL('../../../investigation/native/transmission/tools/examples.json', import.meta.url);
+  if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
+  const ex = JSON.parse(readFileSync(file, 'utf8'));
+  const close = (a, b, what) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), `${what}: ${a} != ${b}`);
+  const { A, B } = ex.inputs;
+  const check = (got, want, what) => { close(got.A, want.A, `${what} A`); close(got.B, want.B, `${what} B`); close(got.h, want.h, `${what} h`); };
+  check(shaftBridge(A, B, 1 / 3), ex['3_to_1_one_pass'], '3:1');
+  check(shaftBridge(A, B, -1), ex.reverse_one_pass, '1:-1');
+  assert.equal(standaloneClutch({ input: 0.5 }).coupling, ex.half_clutch_coupling);
+  check(shaftBridge(A, B, 1, standaloneClutch({ input: 0.5 }).coupling), ex.half_clutch_1_to_1, 'half clutch');
+  check(shaftBridge(A, B, 1, standaloneClutch({ input: 0.3 }).coupling), ex.input_0_3_below_path_cutoff, 'input 0.3');
+  check(shaftBridge(A, B, 1, 0), ex.off, 'off');
+  check(shaftBridge([30, 201], [10, 101], 1 / 3), ex.ratio_matched, 'ratio matched');
 });

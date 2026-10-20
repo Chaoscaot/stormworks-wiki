@@ -5,7 +5,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
-  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce,
+  exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce, standaloneClutch, standaloneClutchOnset, TRANSMISSION,
 } from '@/lib/formulas.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -1799,9 +1799,79 @@ function PropellerGraph({ family, variant }) {
   );
 }
 
+/* ---------- clutch coupling ---------- */
+
+const CLUTCH_INPUTS = steps(0, 1, 0.01);
+
+function ClutchGraph() {
+  const uid = useUid();
+  const [availability, setAvailability] = useState(2);
+  const [input, setInput] = useState(0.5);
+  const a = availability / 100;
+  const rows = useMemo(() => CLUTCH_INPUTS.map((u) => ({ u, ...standaloneClutch({ input: u, availability: a }), target: u ** MODULAR.clutchExponent })), [a]);
+  const at = { ...standaloneClutch({ input, availability: a }), target: input ** MODULAR.clutchExponent };
+  const onset = standaloneClutchOnset(a);
+  const travel = Math.ceil(+(at.target / MODULAR.clutchSlew).toFixed(9));
+  const summary = `At input ${fixed(input, 2)}: standalone coupling ${fixed(at.coupling, 4)}, modular target ${fixed(at.target, 4)}.`;
+  const status = useSettled(summary);
+  const desc = `Standalone clutch coupling e × input^6 and modular clutch target input^3 from input 0 to 1. ${onset === null ? 'At this availability the standalone clutch never couples.' : `An isolated standalone clutch couples from input ${fixed(onset, 3)}.`} ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: 'Standalone clutch coupling c = e × u⁶', className: 'graph-line-a' },
+        { label: 'Modular clutch target u³', className: 'graph-line-b' },
+      ]}
+      controls={(
+        <>
+          <Range id={`${uid}-a`} label="Standalone clutch availability" value={availability} min={0} max={2} step={0.05} onChange={(x) => setAvailability(+x.toFixed(2))} valueText={`${fixed(availability, 2)}%`} hint="EMP-adjusted charge fraction. From 1% up the coupling is at full strength. The modular clutch law has no electric term." />
+          <Range id={`${uid}-x`} label="Selected Clutch Pressure" value={input} min={0} max={1} step={0.01} onChange={(x) => setInput(+x.toFixed(2))} valueText={fixed(input, 2)} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Clutch coupling against Clutch Pressure"
+          desc={desc}
+          x={{ min: 0, max: 1, ticks: steps(0, 1, 0.2), format: (v) => fixed(v, 1), label: 'Clutch Pressure u, clamped to 0 to 1' }}
+          y={{ min: 0, max: 1, ticks: steps(0, 1, 0.25), format: (v) => fixed(v, 2) }}
+          series={[
+            { key: 'standalone', className: 'graph-line-a', points: rows.map((r) => [r.u, r.coupling]) },
+            { key: 'modular', className: 'graph-line-b', points: rows.map((r) => [r.u, r.target]) },
+          ]}
+          selected={{ x: input, points: [{ key: 'standalone', y: at.coupling, className: 'graph-dot-a' }, { key: 'modular', y: at.target, className: 'graph-dot-b' }] }}
+          onSelect={(x) => setInput(snap(x, 0, 1, 0.01))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`Clutch Pressure ${fixed(input, 2)}`}
+          rows={[
+            ['Standalone availability factor e', fixed(at.e, 3)],
+            ['Standalone coupling c', fixed(at.coupling, 6)],
+            [`Path weight ${TRANSMISSION.edge} × c`, fixed(at.pathWeight, 6)],
+            ['Isolated standalone clutch couples', at.couples ? 'Yes' : `No, path weight at or below ${TRANSMISSION.cutoff}`],
+            ['Lowest coupling input', onset === null ? 'None at this availability' : fixed(onset, 4)],
+            ['Modular target u³', fixed(at.target, 4)],
+            ['Modular updates from 0 to target', `${travel} (${fixed(travel / UPDATES_PER_SECOND, 3)} s)`],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Coupling with standalone availability ${fixed(availability, 2)}%`,
+        cols: ['Clutch Pressure', 'Standalone c', 'Path weight', 'Modular target'],
+        rows: rows.filter((r) => Math.round(r.u * 100) % 10 === 0).map((r) => [fixed(r.u, 1), fixed(r.coupling, 6), fixed(r.pathWeight, 6), fixed(r.target, 4)]),
+      }}
+    />
+  );
+}
+
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
+  clutch: ClutchGraph,
 };
 
 export default function FormulaGraph({ kind, family = null, variant = null }) {

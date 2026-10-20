@@ -2656,9 +2656,12 @@ def modular_engines(B, E):
                       "The target is u³, with u the Clutch Pressure clamped to 0 to 1, so 0.5 asks for 0.125. Stored engagement moves toward the target by at most 0.1 per update: from 0 at input 0.5 it reads 0.1, then 0.125. A full engage or release takes at least ten updates, 0.167 simulated seconds."),
               section("Output",
                       "Each update the clutch gives its output shaft group the weight engagement × I and the crank RPS, then moves the crank RPS toward the output group's speed by the engagement. At engagement 1 the crank takes the output's speed. "
-                      "Clutches are not part of the crank weight sum, and the clutch weight is a solver weight, not a torque in N m.")],
+                      "Clutches are not part of the crank weight sum, and the clutch weight is a solver weight, not a torque in N m."),
+              section("Standalone clutch",
+                      "The standalone clutch part runs different code. It sets its coupling directly to e × clamp(input, 0, 1)^6 each update with no slew, so input 0.5 gives 1/64 there against a target of 0.125 here, and it joins two shaft groups through the 0.95 bridge rather than a crank.")],
              [clutch, slew_s, E.const(F_ENGINE, 0x140BB0ABC, "Clutch release slew", "Lower clamp of the engagement change."), E.tooltip("modular_engine_clutch")]
-             + [m[x] for x in ("cl_in", "cl_exp", "cl_w", "cl_mix", "clutch_ex", "mask")] + [wts[b] for b in ME_NO_I] + R,
+             + [m[x] for x in ("cl_in", "cl_exp", "cl_w", "cl_mix", "clutch_ex", "mask")] + [wts[b] for b in ME_NO_I] + R
+             + [transmission_native(E)["f"][k] for k in ("c_sq", "c_ex", "edge")],
              [TICK])
     B.family("part-modular-engine-fluid-pump",
              "Belt-driven pump coupled to the crank by clutch pressure; its own speed decays by the factor 0.99 every update.",
@@ -2709,7 +2712,179 @@ def modular_engines(B, E):
              [TICK])
 
 
+# transmission pass; files under investigation/native/transmission/, report investigation/transmission.md.
+TX = "../transmission/"
+TX_REPORT = "investigation/transmission.md"
+F_TORQUE_BIND = 0x1403FACC0  # torque component vtable slot +0x18: ports A/B, reciprocal link, ratio, node+0x48
+F_TORQUE_DAMAGE = 0x140325AB0  # base damage setter, vtable slot +0x20 (leaf): min(damage, 50)
+F_BASE_SAVE = 0x1403261D0    # base component serializer: names +8 "damage"
+TORQUE_VTABLE = 0x140B66710  # c_scene_vehicle_component_torque
+TORQUE_SLOTS = ((TORQUE_VTABLE + 0x18, F_TORQUE_BIND), (TORQUE_VTABLE + 0x20, F_TORQUE_DAMAGE), (TORQUE_VTABLE + 0x358, F_TORQUE))
+GEARBOXES = ("modular_engine_gearbox_1x1", "modular_engine_gearbox_3x3", "modular_engine_gearbox_5x5", "torque_gearbox", "torque_gearbox_2")
+_TU, _TB, _TS = TX + "asm/torque-update.asm", TX + "asm/torque-bind.asm", TX + "asm/shaft-collect.asm"
+_TUC, _TBC, _TSC = "; " + TX + "pseudocode/0x1403fae40.c", "; " + TX + "pseudocode/0x1403facc0.c", "; " + TX + "pseudocode/0x1404c9d20.c"
+WHERE.update({
+    (F_TORQUE_BIND, 0x1403FADD7): _TB + ":L73-L74" + _TBC, (F_TORQUE_BIND, 0x1403FADEC): _TB + ":L79-L80" + _TBC,
+    (F_TORQUE_BIND, 0x1403FADF0): _TB + ":L79-L80" + _TBC, (F_TORQUE_BIND, 0x1403FAE06): _TB + ":L84-L89; " + TX + "asm/torque-ratios.asm" + _TBC,
+    (F_TORQUE_BIND, 0x1403FAE1F): _TB + ":L84-L89" + _TBC,
+    (F_TORQUE, 0x1403FAE6D): _TU + ":L19-L27" + _TUC, (F_TORQUE, 0x1403FAE75): _TU + ":L19-L27" + _TUC,
+    (F_TORQUE, 0x1403FAE8B): _TU + ":L19-L27" + _TUC, (F_TORQUE, 0x1403FAEA9): _TU + ":L28-L39" + _TUC,
+    (F_TORQUE, 0x1403FAEBF): _TU + ":L28-L39" + _TUC, (F_TORQUE, 0x1403FAED2): _TU + ":L40-L49" + _TUC,
+    (F_TORQUE, 0x1403FB200): _TU + ":L201-L222" + _TUC, (F_TORQUE, 0x1403FB252): _TU + ":L218-L223" + _TUC,
+    (F_TORQUE, 0x1403FB25A): _TU + ":L218-L223" + _TUC, (F_TORQUE, 0x1403FB27B): _TU + ":L224-L230" + _TUC,
+    (F_TORQUE, 0x1403FB28C): _TU + ":L231-L238" + _TUC, (F_TORQUE, 0x1403FB2AF): _TU + ":L231-L238" + _TUC,
+    (F_TORQUE, 0x1403FB2BE): _TU + ":L239-L241; " + ELC + "asm/electric-draw.asm" + _TUC,
+    (F_TORQUE, 0x1403FB467): _TU + ":L331-L340" + _TUC, (F_TORQUE, 0x1403FB48F): _TU + ":L341-L343" + _TUC,
+    (F_TORQUE, 0x1403FB497): _TU + ":L341-L343; " + TX + "asm/power-helper.asm; " + TX + "pseudocode/0x1409b9c10.c",
+    (F_TORQUE, 0x1403FB4DD): _TU + ":L344-L359" + _TUC, (F_TORQUE, 0x1403FB4E5): _TU + ":L344-L359" + _TUC,
+    (F_TORQUE, 0x1403FB505): _TU + ":L360-L367" + _TUC, (F_TORQUE, 0x1403FB519): _TU + ":L368-L374" + _TUC,
+    (F_TORQUE, 0x1403FB522): _TU + ":L368-L374" + _TUC, (F_TORQUE, 0x1403FB536): _TU + ":L368-L374" + _TUC,
+    (F_NET_ALLOC, 0x1404CA0C8): _TS + ":L232-L233" + _TSC, (F_NET_ALLOC, 0x1404CA0D1): _TS + ":L232-L233" + _TSC,
+    (F_NET_ALLOC, 0x1404CA437): _TS + ":L436-L443" + _TSC, (F_NET_ALLOC, 0x1404CA657): _TS + ":L566-L576" + _TSC,
+    (F_NET_ALLOC, 0x1404CA669): _TS + ":L566-L576" + _TSC,
+    (F_TORQUE_DAMAGE, None): TX + "asm/base-damage-setter.asm", (F_BASE_SAVE, 0x140B605D4): TX + "asm/damage-label.asm",
+})
+
+
+def bridge_pass(a, b, q, c, edge=0.95, cutoff=0.001):
+    """Port of investigation/native/transmission/tools/model.py exchange(): two groups (speed, weight), one bridge, one pass, doubles."""
+    (va, ia), (vb, ib) = a, b
+    h = edge * c
+    if h <= cutoff:
+        return va, vb
+    s = math.copysign(1, q)
+    return (ia * va + s * vb * ib * h) / (ia + ib * h * abs(q)), (ib * vb + s * va * ia * h) / (ib + ia * h / abs(q))
+
+
+def transmission_native(E):
+    """Gearbox and standalone clutch: binding, ratio, switching, clutch law, damage and the bridge solve, verified once and shared."""
+    if hasattr(E, "tx"):
+        return E.tx
+    n, code, op = E.native, E.code, E.operand
+    if not (E.root / TX_REPORT).is_file():
+        raise ValueError("Transmission report missing: " + TX_REPORT)
+    for slot, target in TORQUE_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Torque component vtable slot %#x does not point to %#x" % (slot, target))
+    # No literal 4000 in the gearbox update, binder, ratio helper or the shaft collect and publish code.
+    for func in (F_TORQUE, F_TORQUE_BIND, F_RATIO, F_NET_ALLOC, F_PUBLISH, F_PUBLISH_Q):
+        _, body = n.body(func)
+        if n.references(func, 0x140BB0894) or n.references(func, 0x140BB0508) or struct.pack("<f", 4000) in body or struct.pack("<I", 4000) in body:
+            raise ValueError("A 4000 constant now occurs in %#x" % func)
+    rep = " Report: %s." % TX_REPORT
+    f = {}
+    # Binding: ports, reciprocal link and ratio.
+    f["force"] = code(F_TORQUE_BIND, 0x1403FADD7, "8b8348080000", "Gearbox force_emitter_max_force read", "definition+0x848 → port A node+0x48",
+                      "The binder loads force_emitter_max_force and stores it at port A's node+0x48 (0x1403faddd), not at node+0x28, the weight the shaft solve reads. "
+                      "The gearbox branch does not submit it as a solver weight, the traced shaft collect and publish code does not compare node+0x48 with a speed or weight difference, and the extractor re-checks that the gearbox update, binder, ratio helper and shaft collect and publish code hold no binary32 4000 (0x140bb0894), binary64 4000 (0x140bb0508) or immediate 4000." + rep)
+    f["link_a"] = code(F_TORQUE_BIND, 0x1403FADEC, "48894a38", "Port A bridge link", "A node+0x38 → B node",
+                       "When both definition ports exist the binder points port A's node at port B's node; 0x1403fadf0 writes the reverse link. The two ports stay separate shaft groups joined by a bridge. "
+                       "Port A is the first type-2 (mechanical) logic node of the definition and port B the second; in all five gearbox definitions those are labelled RPS A and RPS B." + rep)
+    f["link_b"] = code(F_TORQUE_BIND, 0x1403FADF0, "48895138", "Port B bridge link", "B node+0x38 → A node",
+                       "The reverse link from port B's node to port A's node." + rep)
+    f["ratio_a"] = code(F_TORQUE_BIND, 0x1403FAE06, "f30f11873c020000", "Port A ratio", "q",
+                        "Stores the selected multiplier q from the ratio helper 0x1403fb870 at component+0x23c, which is port A's node+0x44, the ratio the shaft solve applies when it crosses from A to B." + rep)
+    f["ratio_b"] = code(F_TORQUE_BIND, 0x1403FAE1F, "f30f114844", "Port B ratio", "1 ÷ q",
+                        "Computes 1 ÷ q (divss at 0x1403fae1b) and stores it at port B's node+0x44, the ratio applied from B to A." + rep)
+    # Update: damage, bridge fraction, branch.
+    f["dmg_test"] = code(F_TORQUE, 0x1403FAE6D, "83790800", "Damage test", "component+8 > 0",
+                         "The update first tests the component's unsigned damage field at +8, before any type branch." + rep)
+    f["dmg_a"] = code(F_TORQUE, 0x1403FAE75, "898138020000", "Damaged bridge fraction, port A", "0",
+                      "With nonzero damage the update stores 0 to port A's bridge fraction (component+0x238, node+0x40) and to the linked port B fraction at 0x1403fae8b, then returns. This applies to gearboxes and the standalone clutch alike." + rep)
+    f["dmg_b"] = code(F_TORQUE, 0x1403FAE8B, "894140", "Damaged bridge fraction, port B", "0", "Port B's bridge fraction set to 0 with nonzero damage." + rep)
+    f["dmg_name"] = E.string(F_BASE_SAVE, 0x140B605D4, "damage", "Component field +8",
+                             "The base component serializer binds +8 (lea r9,[r13+0x8] at 0x140328728) to the name damage." + rep)
+    f["dmg_cap"] = code(F_TORQUE_DAMAGE, 0x140325ABA, "894108", "Damage setter", "min(damage, 50)",
+                        "Slot +0x20 of the torque component vtable is the base damage setter: mov eax,0x32; cmp edx,eax; cmovb eax,edx, then this store to +8." + rep)
+    f["intact_a"] = code(F_TORQUE, 0x1403FAEA9, "c787380200000000803f", "Gearbox bridge fraction, port A", "1",
+                         "For an undamaged component whose torque_component_type is neither 0 (clutch) nor 3, the update sets port A's bridge fraction to 1 before any power test; 0x1403faebf does the same for port B." + rep)
+    f["intact_b"] = code(F_TORQUE, 0x1403FAEBF, "c742400000803f", "Gearbox bridge fraction, port B", "1", "Port B's bridge fraction set to 1 each update." + rep)
+    f["clutch_case"] = code(F_TORQUE, 0x1403FAED2, "0f848f050000", "Clutch branch", "torque_component_type 0 → 0x1403fb467",
+                            "torque_component_type 0 (torque_clutch) jumps to the clutch branch; type 1 goes to the gearbox branch at 0x1403fb200 and type 2 to the torque meter at 0x1403fb1da." + rep)
+    # Gearbox switching.
+    f["switch"] = code(F_TORQUE, 0x1403FB200, "0fb69f80010000", "Gear Switch read", "component+0x180",
+                       "The gearbox branch reads the cached Gear Switch value, then returns unless max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0 (0x1403fb248), or the world has infinite electricity." + rep)
+    f["on"] = code(F_TORQUE, 0x1403FB252, "8b97e4020000", "Gear Switch on", "Ratio On (component+0x2e4)",
+                   "With Gear Switch on the saved Ratio On option is passed to the ratio helper." + rep)
+    f["off"] = code(F_TORQUE, 0x1403FB25A, "8b97e0020000", "Gear Switch off", "Ratio Off (component+0x2e0)",
+                    "With Gear Switch off the saved Ratio Off option is passed to the ratio helper." + rep)
+    f["change"] = op(F_TORQUE, 0x1403FB27B, "f30f101575467b00", 0x140BAF8F8, "Ratio change threshold",
+                     "A change happens only when |stored q - new q| is above this; the same value is the electricity request per change." + rep)
+    f["set_a"] = code(F_TORQUE, 0x1403FB28C, "f30f118f3c020000", "Ratio switch, port A", "new q, same update",
+                      "The new q replaces port A's ratio directly; 0x1403fb2af stores 1 ÷ q to port B. There is no interpolation or timer on this path." + rep)
+    f["set_b"] = code(F_TORQUE, 0x1403FB2AF, "f30f114044", "Ratio switch, port B", "1 ÷ new q", "Port B's ratio replaced in the same update." + rep)
+    f["draw"] = code(F_TORQUE, 0x1403FB2BE, "e8dd39efff", "Ratio change electricity request", "0.001 through 0x1402eeca0",
+                     "After a change the branch requests 0.001 (xmm1 from the threshold) through the draw helper. Its return value is not used to undo the change." + rep)
+    # Standalone clutch.
+    f["c_in"] = code(F_TORQUE, 0x1403FB467, "f30f108760010000", "Clutch input", "clamp(component+0x160, 0, 1)",
+                     "The clutch branch reads its first number input (Clutch Pressure) and clamps it to 0 to 1." + rep)
+    f["c_exp"] = op(F_TORQUE, 0x1403FB48F, "f30f100df94e7b00", 0x140BB0390, "Clutch input exponent",
+                    "Passed with the clamped input u to the power helper." + rep)
+    f["c_pow"] = code(F_TORQUE, 0x1403FB497, "e874e75b00", "Clutch power call", "u³ via 0x1409b9c10",
+                      "Inference: 0x1409b9c10 is the runtime power function x^y, identified from its exponent 0 and 1 handling, integer-exponent sign handling and logarithm/exponential algorithm; it has no recovered symbol." + rep)
+    f["c_div"] = op(F_TORQUE, 0x1403FB4DD, "f30f5e3573447b00", 0x140BAF958, "Clutch availability divisor",
+                    "The clutch forms a = max(0, (300 - EMP count) ÷ 300) × charge fraction (1 with infinite electricity) and divides it by this." + rep)
+    f["c_min"] = code(F_TORQUE, 0x1403FB4E5, "f3440f5dc6", "Clutch availability factor", "e = min(1, a ÷ 0.01)",
+                      "minss with 1 caps the factor, so 1% availability already gives full engagement strength." + rep)
+    f["c_req"] = op(F_TORQUE, 0x1403FB505, "f30f590deb437b00", 0x140BAF8F8, "Clutch electricity request factor",
+                    "Requests this × |previous c - e × u³| through the draw helper before the new value is stored." + rep)
+    f["c_sq"] = code(F_TORQUE, 0x1403FB519, "f30f59ff", "Clutch coupling", "c = e × (u³)² = e × u⁶",
+                     "Squares the power result and multiplies by e at 0x1403fb51d. No slew or previous value enters c." + rep)
+    f["c_a"] = code(F_TORQUE, 0x1403FB522, "f30f11bf38020000", "Clutch bridge fraction, port A", "c",
+                    "Stores c as port A's bridge fraction; 0x1403fb536 stores the same c to port B. The clutch ratio stays 1." + rep)
+    f["c_b"] = code(F_TORQUE, 0x1403FB536, "f30f117840", "Clutch bridge fraction, port B", "c", "Port B's bridge fraction set to c in the same update." + rep)
+    # Bridge solve.
+    f["edge"] = op(F_NET_ALLOC, 0x1404CA0C8, "f3440f1005975d6e00", 0x140BAFE68, "Bridge edge factor",
+                   "Held in xmm8 for the shaft traversal: crossing a bridge multiplies the path weight h by the node's bridge fraction (0x1404ca657) and by this (0x1404ca65c)." + rep)
+    f["cutoff"] = op(F_NET_ALLOC, 0x1404CA0D1, "f3440f102d1e586e00", 0x140BAF8F8, "Bridge path cutoff",
+                     "Held in xmm13; at 0x1404ca437 a queued path with h at or below this is skipped (comiss xmm7,xmm13; jbe)." + rep)
+    f["cut_test"] = code(F_NET_ALLOC, 0x1404CA437, "410f2ffd", "Bridge path test", "h > 0.001",
+                         "Paths contribute and continue only while h is above 0.001." + rep)
+    f["frac"] = code(F_NET_ALLOC, 0x1404CA657, "f30f594640", "Bridge fraction in path weight", "h × c × 0.95",
+                     "Multiplies h by the crossed node's bridge fraction (node+0x40), then by the edge factor 0.95." + rep)
+    f["ratio_mul"] = code(F_NET_ALLOC, 0x1404CA669, "f30f594644", "Bridge ratio in path", "r × node ratio",
+                          "Multiplies the path's cumulative ratio r by the crossed node's ratio (node+0x44): q leaving port A, 1 ÷ q leaving port B." + rep)
+    edge, cutoff = float(f["edge"]["value"]), float(f["cutoff"]["value"])
+    sweep = [f["edge"], f["cutoff"], f["cut_test"], f["frac"], f["ratio_mul"]]
+    f["orient"] = E.derived("Ratio orientation", "RPS B → q × RPS A; N:1 makes RPS A the fast side",
+                            "With q on port A and 1 ÷ q on port B, a path from A to B carries r = q and adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight. "
+                            "If A dominates, B tends to q × v_A, and A tends to v_B ÷ q. For 3:1, q = 1/3: RPS A at 30 pulls RPS B toward 10. 1:-1 targets equal speed with opposite sign." + rep,
+                            [f["ratio_a"], f["ratio_b"], f["ratio_mul"], f["link_a"]])
+    f["two"] = E.derived("Two groups across one bridge", "A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|); B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|)",
+                         "h = 0.95 × c, and no exchange when h is at or below 0.001. A pair already at v_B = q × v_A stays there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. "
+                         "Loops, both ports on one group and graph rebuilds are outside this two-group form." + rep, sweep)
+    a = (6000 / 201, 201)
+    b = (0.0, 101)
+    third = bridge_pass(a, b, 1 / 3, 1, edge, cutoff)
+    rev = bridge_pass(a, b, -1, 1, edge, cutoff)
+    half = bridge_pass(a, b, 1, 0.5 ** 6, edge, cutoff)
+    held = bridge_pass((30, 201), (10, 101), 1 / 3, 1, edge, cutoff)
+    if not (math.isclose(held[0], 30) and math.isclose(held[1], 10)):
+        raise ValueError("Ratio-matched pair moved in the bridge model")
+    f["example"] = E.derived("Bridge worked example", "3:1: A %.4g, B %.4g RPS; 1:-1: A %.4g, B %.4g RPS" % (third + rev),
+                             "Group A from rest with one part of weight 200 at 30 RPS: v_A = 6000 ÷ 201 = %.4g RPS, I_A = 201. Group B from rest with one part of weight 100 at 0 RPS: v_B = 0, I_B = 101. "
+                             "One pass at 3:1 gives A %.4g and B %.4g RPS; at 1:-1, A %.4g and B %.4g. A standalone clutch at input 0.5 (c = 1/64) at 1:1 gives A %.4g and B %.4g. "
+                             "Groups already at A 30 and B 10 with 3:1 stay at 30 and 10. Python doubles; the game uses binary32 and phased component submissions." % ((a[0],) + third + rev + half) + rep,
+                             sweep + [f["ratio_a"], f["ratio_b"], f["c_sq"]])
+    onset = (cutoff / edge) ** (1 / 6)
+    f["c_ex"] = E.derived("Clutch coupling examples", "input 0.5 → c = 1/64; no coupling below input %.4g" % onset,
+                          "At full availability c = u⁶: input 0.5 gives 0.015625 = 1/64 and input 1 gives 1. The path weight 0.95 × c must exceed 0.001, so with an isolated clutch input below (0.001 ÷ 0.95)^(1/6) = %.4g transfers nothing. "
+                          "That threshold comes from the solver's path cutoff, not from a clamp on the input. The modular clutch instead targets u³ and moves by at most 0.1 per update." % onset + rep,
+                          [f["c_in"], f["c_exp"], f["c_pow"], f["c_sq"], f["c_min"]] + sweep)
+    f["forces"] = [E.attr(bid, "force_emitter_max_force", "Copied to port A's node+0x48 at binding; not a solver weight in the decoded gearbox path.") for bid in GEARBOXES]
+    E.tx = {"f": f, "nums": {"vA": a[0], "third": third, "rev": rev, "half": half, "onset": onset},
+            "bind": [f[k] for k in ("link_a", "link_b", "ratio_a", "ratio_b", "orient")],
+            "solve": sweep + [f["two"], f["example"]],
+            "switch": [f[k] for k in ("switch", "on", "off", "change", "set_a", "set_b", "draw", "intact_a", "intact_b")],
+            "damage": [f[k] for k in ("dmg_test", "dmg_a", "dmg_b", "dmg_name", "dmg_cap")],
+            "clutch": [f[k] for k in ("clutch_case", "c_in", "c_exp", "c_pow", "c_div", "c_min", "c_req", "c_sq", "c_a", "c_b", "c_ex")]}
+    return E.tx
+
+
 def transmission(B, E):
+    T = transmission_native(E)
+    f, nums = T["f"], T["nums"]
+    meter = electricity_native(E)["f"]
     sel = [E.string(F_GEAR_UI, a, s, "Gearbox ratio option %s" % s, "Offered in both ratio selectors when torque_component_type is 1.")
            for a, s in ((0x140B6DBC8, "1:-1"), (0x140B632D8, "1:1"), (0x140B6DBE0, "6:5"), (0x140B6DBDC, "3:2"),
                         (0x140B6DBE8, "9:5"), (0x140B6DBE4, "2:1"), (0x140B6DBF0, "5:2"), (0x140B6DBEC, "3:1"))]
@@ -2723,28 +2898,76 @@ def transmission(B, E):
                     "For torque_component_type 1 the update returns early, keeping the old ratio, when electrical availability is zero (unless infinite_batteries is on); a ratio change draws electricity.")
     types = [E.attr(b, "torque_component_type", "Value 1 selects the gearbox code path.") for b in
              ("modular_engine_gearbox_1x1", "torque_gearbox", "torque_gearbox_2")]
+    ports = [E.port("modular_engine_gearbox_1x1", "RPS A"), E.port("modular_engine_gearbox_1x1", "RPS B")]
     inv = E.derived("Reverse option", "1:-1 → multiplier -1", "Index 0 returns -1, reversing direction across the gearbox.", [sel[0], vals[0]])
-    body = [section("Operating conditions",
-                    "Gearboxes use torque_component_type 1. Gear Switch off applies the Ratio Off selection, on applies Ratio On. The gearbox only changes ratio while it has electrical availability; without power it keeps the last ratio. Each change draws electricity."),
-            section("Variant tradeoffs",
-                    "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Internally they become the multipliers -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334; the coupling stores the reciprocal. 1:-1 reverses direction without changing speed."),
-            section("Open measurement questions",
-                    "Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test.")]
-    common = sel + vals + names + [field, power, inv]
+    forces = dict(zip(GEARBOXES, f["forces"]))
+    fv = {b: forces[b]["value"] for b in GEARBOXES}
+    meters = [meter["meter_rps"], meter["meter_torque"], meter["shaft_pub"]]
+    orientation = section("Ratio orientation",
+                          "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Each option is a multiplier q: -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334. "
+                          "The gearbox stores q on its RPS A connection and 1 ÷ q on RPS B, and the shaft solver pulls RPS B toward q × RPS A. "
+                          "For an N:1 option RPS A is therefore the fast side: at 3:1 with RPS A at 30, RPS B is pulled toward 10. At 6:5 RPS A turns 6/5 as fast as RPS B. 1:-1 targets the same speed with the opposite sign.")
+    coupling = section("Coupling",
+                       "RPS A and RPS B stay two separate shaft groups joined by a bridge. Each update every group first mixes its own parts: weight I = 1 + Σ F and speed v = (previous speed + Σ F × submitted speed) ÷ I, with F each part's submitted solver weight. "
+                       "The bridge then adds the other group's speed with path weight h = 0.95 × c, where c is the bridge fraction, 1 for an intact gearbox. A path from A adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight; paths with h at or below 0.001 add nothing. "
+                       "For two groups this gives B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|) and A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|).",
+                       "Two groups already at the ratio stay there, so 0.95 weakens the coupling weight and is not a 95%% power efficiency or a 5%% speed loss. There is no slip threshold: under load the two sides settle where the weights balance. "
+                       "Example from rest, A with one part of weight 200 at 30 RPS (v_A %.4g, I_A 201) and B with one part of weight 100 at 0 RPS (I_B 101): one pass at 3:1 gives A %.4g and B %.4g RPS." % (
+                           (nums["vA"],) + nums["third"]))
+    switching = section("Switching and power",
+                        "Gear Switch off applies Ratio Off and on applies Ratio On. When the selected q differs from the stored one by more than 0.001, both stored ratios are replaced in the same update, with no interpolation or delay, and the gearbox requests 0.001 electricity. "
+                        "This only happens while max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0, or with infinite electricity. Without power the gearbox keeps its last ratio and stays coupled: the bridge fraction is set to 1 every update before the power test.")
+    damage = section("Damage",
+                     "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50.")
+    meter_sec = section("Torque meter readings",
+                        "A torque meter's RPS output copies the group speed. Its Torque output is the group's effective solver weight I + D, not newton-metres, so meters on both sides of a gearbox or clutch do not measure the torque it transmits.")
+    clutch_sec = section("Standalone clutch",
+                         "The standalone clutch uses the same bridge at ratio 1 with c = e × clamp(Clutch Pressure, 0, 1)^6, set directly each update. e = min(1, availability ÷ 0.01), so 1%% supply already gives full strength. "
+                         "Input 0.5 gives c = 1/64; an isolated clutch couples nothing below input %.4g. The modular engine clutch is a different part with a cubed target and a 0.1 per update slew." % nums["onset"])
+    sizes = section("Size variants",
+                    "The 1x1, 3x3 and 5x5 gearboxes share the eight ratios, the bridge and the power gate. Their force_emitter_max_force values %s, %s and %s are copied to the RPS A connection at binding. The gearbox does not submit them as a solver weight and the decoded update and shaft solve compare that copy with nothing, so in those paths size does not change the coupling." % (
+                        fv["modular_engine_gearbox_1x1"], fv["modular_engine_gearbox_3x3"], fv["modular_engine_gearbox_5x5"]))
+    common = sel + vals + names + [field, power, inv] + ports + T["bind"] + T["solve"] + T["switch"] + T["damage"] + meters
     B.category("Transmission",
-               "Gearboxes switch between two ratios picked from a fixed list of eight, including a 1:-1 reverse, and need electricity to change ratio.",
-               body, common + types,
-               ["Ratio orientation (which port is the faster side) was not established.", "Static analysis only."])
+               "Gearboxes pull RPS B toward the selected ratio × RPS A, so for an N:1 option RPS A is the fast side. Ratio changes apply at once while the gearbox has power, and a bridge mixes the two shaft groups' speeds by solver weight with no slip threshold.",
+               [orientation, coupling, switching, damage, meter_sec, clutch_sec],
+               common + types + list(forces.values()) + T["clutch"] + [f["force"]],
+               ["SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
+                "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
+                "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
+                "The bridge equations are decoded for two groups joined by one bridge. Arbitrary loops, both ports on one group and graph rebuild order were not decoded.",
+                "Static analysis only.", TICK])
+    shared = "Shaft speed is RPS and the bridge weights are solver units. Open items shared by all transmission parts, including SI torque, losses and breakage, are listed under Transmission on the parts index."
     B.family("gearbox",
-             "Two selectable ratios from a fixed list of eight; switching requires power.",
-             body, common + [types[0], E.tooltip("modular_engine_gearbox_1x1")],
-             ["Ratio orientation and slip behaviour were not recovered."])
+             "Two ratios from a fixed list of eight; RPS B is pulled toward the ratio × RPS A, so for N:1 the A side is fast. Switching is immediate and needs power.",
+             [orientation, coupling, switching, damage, sizes, meter_sec],
+             common + [types[0], E.tooltip("modular_engine_gearbox_1x1")] + [forces[b] for b in GEARBOXES[:3]] + [f["force"]],
+             [shared, TICK])
     B.family("legacy-gearbox",
-             "Uses the same eight-option ratio list and power gate as the modular gearboxes; torque_gearbox_2 states a 4000 torque-difference limit.",
-             body + [section("Legacy definitions",
-                             "Both legacy definitions carry torque_component_type 1 and so share the modular gearbox code path; only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference.")],
-             common + types[1:] + [E.tooltip("torque_gearbox_2")],
-             ["The 4000 limit is tooltip text; the enforcing code was not located."])
+             "Same eight ratios, A-to-B orientation, bridge and power gate as the modular gearboxes; torque_gearbox_2's tooltip states a 4000 torque-difference limit.",
+             [orientation, coupling, switching, damage,
+              section("Legacy definitions",
+                      "Both legacy definitions carry torque_component_type 1 and run the gearbox code above. Their force_emitter_max_force values, %s for torque_gearbox and %s for torque_gearbox_2, are copied to the RPS A connection at binding and not submitted as a solver weight. "
+                      "Only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference, without a unit. The gearbox update, ratio helper and shaft solve hold no 4000 and compare the copied value with nothing, so the limit is not enforced in those paths. Where it is enforced is an open item under Transmission on the parts index." % (
+                          fv["torque_gearbox"], fv["torque_gearbox_2"])),
+              meter_sec],
+             common + types[1:] + [E.tooltip("torque_gearbox_2")] + [forces[b] for b in GEARBOXES[3:]] + [f["force"]],
+             [shared, TICK])
+    c_force = E.attr("torque_clutch", "force_emitter_max_force", "No read in the clutch branch, which submits no solver weight.")
+    B.family("part-torque-clutch",
+             "Couples RPS A and RPS B at ratio 1 with strength e × clamp(Clutch Pressure, 0, 1)^6, set directly each update with no slew.",
+             [section("Engagement",
+                      "Each update the clutch clamps Clutch Pressure to 0 to 1 as u and sets both bridge fractions to c = e × u^6, where e = min(1, a ÷ 0.01) and a = max(0, (300 - EMP count) ÷ 300) × charge fraction, or 1 with infinite electricity. "
+                      "Input 0.5 gives c = 1/64 and input 1 gives 1. There is no slew: a new input takes effect in the same update. It also requests 0.001 × |previous c - e × u³| electricity."),
+               section("Coupling",
+                       "The shaft solver crosses the clutch with path weight h = 0.95 × c and ratio 1, and adds nothing while h is at or below 0.001. An isolated clutch therefore transfers nothing below input %.4g. "
+                       "Above that, the two sides' speeds mix by solver weight as at a gearbox; there is no slip threshold. Example from rest at input 0.5, A with one part of weight 200 at 30 RPS and B with one part of weight 100 at 0 RPS: one pass gives A %.4g and B %.4g RPS." % (
+                           (nums["onset"],) + nums["half"]),
+                       "Any nonzero damage sets c to 0. The modular engine clutch is a different component with a cubed target and a 0.1 per update slew."),
+              meter_sec],
+             T["clutch"] + T["solve"] + T["damage"] + [f["link_a"], f["link_b"], c_force, E.attr("torque_clutch", "torque_component_type", "Value 0 selects the clutch branch."),
+                                                      E.tooltip("torque_clutch"), E.port("torque_clutch", "Clutch Pressure")] + meters,
+             [shared, TICK])
 
 
 # mechanical-joint pass; files under investigation/native/mechanical-joints/, report investigation/mechanical-joints.md.

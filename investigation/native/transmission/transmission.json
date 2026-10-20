@@ -1,0 +1,590 @@
+{
+  "exe_sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+  "definitions": {
+    "modular_engine_gearbox_1x1": {
+      "resource": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+      "attributes": {
+        "name": "Gearbox 1x1",
+        "type": 33,
+        "torque_component_type": 1,
+        "force_emitter_max_force": 200,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "ratio_enum_options": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "force_parameter_destination": "A mechanical node +0x48, set by 0x1403faddd",
+      "force_parameter_is_proven_torque_cap": false,
+      "bridge_fraction_intact": 1,
+      "per_edge_path_multiplier": 0.95,
+      "legacy_4000_tooltip": null,
+      "mechanical_ports": [
+        {
+          "line": 66,
+          "orientation": "3",
+          "label": "RPS A",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection A.",
+          "flags": "0"
+        },
+        {
+          "line": 69,
+          "orientation": "2",
+          "label": "RPS B",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection B.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 72,
+          "orientation": "0",
+          "label": "Gear Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Toggle between the two gear ratios.",
+          "flags": "0"
+        },
+        {
+          "line": 75,
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "The electric connection to power the component.",
+          "flags": "0"
+        }
+      ]
+    },
+    "modular_engine_gearbox_3x3": {
+      "resource": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+      "attributes": {
+        "name": "Gearbox 3x3",
+        "type": 33,
+        "torque_component_type": 1,
+        "force_emitter_max_force": 1200,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "ratio_enum_options": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "force_parameter_destination": "A mechanical node +0x48, set by 0x1403faddd",
+      "force_parameter_is_proven_torque_cap": false,
+      "bridge_fraction_intact": 1,
+      "per_edge_path_multiplier": 0.95,
+      "legacy_4000_tooltip": null,
+      "mechanical_ports": [
+        {
+          "line": 282,
+          "orientation": "3",
+          "label": "RPS A",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection A.",
+          "flags": "0"
+        },
+        {
+          "line": 285,
+          "orientation": "2",
+          "label": "RPS B",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection B.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 288,
+          "orientation": "0",
+          "label": "Gear Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Toggle between the two gear ratios.",
+          "flags": "0"
+        },
+        {
+          "line": 291,
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "The electric connection to power the component.",
+          "flags": "0"
+        }
+      ]
+    },
+    "modular_engine_gearbox_5x5": {
+      "resource": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+      "attributes": {
+        "name": "Gearbox 5x5",
+        "type": 33,
+        "torque_component_type": 1,
+        "force_emitter_max_force": 5000,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "ratio_enum_options": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "force_parameter_destination": "A mechanical node +0x48, set by 0x1403faddd",
+      "force_parameter_is_proven_torque_cap": false,
+      "bridge_fraction_intact": 1,
+      "per_edge_path_multiplier": 0.95,
+      "legacy_4000_tooltip": null,
+      "mechanical_ports": [
+        {
+          "line": 690,
+          "orientation": "3",
+          "label": "RPS A",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection A.",
+          "flags": "0"
+        },
+        {
+          "line": 693,
+          "orientation": "2",
+          "label": "RPS B",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection B.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 696,
+          "orientation": "0",
+          "label": "Gear Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Toggle between the two gear ratios.",
+          "flags": "0"
+        },
+        {
+          "line": 699,
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "The electric connection to power the component.",
+          "flags": "0"
+        }
+      ]
+    },
+    "torque_gearbox": {
+      "resource": "rom/data/definitions/torque_gearbox.xml",
+      "attributes": {
+        "name": "Gearbox",
+        "type": 33,
+        "torque_component_type": 1,
+        "force_emitter_max_force": 1000,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "ratio_enum_options": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "force_parameter_destination": "A mechanical node +0x48, set by 0x1403faddd",
+      "force_parameter_is_proven_torque_cap": false,
+      "bridge_fraction_intact": 1,
+      "per_edge_path_multiplier": 0.95,
+      "legacy_4000_tooltip": null,
+      "mechanical_ports": [
+        {
+          "line": 84,
+          "orientation": "3",
+          "label": "RPS A",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection A.",
+          "flags": "0"
+        },
+        {
+          "line": 87,
+          "orientation": "2",
+          "label": "RPS B",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection B.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 90,
+          "orientation": "0",
+          "label": "Gear Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Toggle between the two gear ratios.",
+          "flags": "0"
+        },
+        {
+          "line": 93,
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "The electric connection to power the component.",
+          "flags": "0"
+        }
+      ]
+    },
+    "torque_gearbox_2": {
+      "resource": "rom/data/definitions/torque_gearbox_2.xml",
+      "attributes": {
+        "name": "Gearbox",
+        "type": 33,
+        "torque_component_type": 1,
+        "force_emitter_max_force": 9999999,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "ratio_enum_options": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "force_parameter_destination": "A mechanical node +0x48, set by 0x1403faddd",
+      "force_parameter_is_proven_torque_cap": false,
+      "bridge_fraction_intact": 1,
+      "per_edge_path_multiplier": 0.95,
+      "legacy_4000_tooltip": 4000,
+      "mechanical_ports": [
+        {
+          "line": 126,
+          "orientation": "3",
+          "label": "RPS A",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection A.",
+          "flags": "0"
+        },
+        {
+          "line": 129,
+          "orientation": "2",
+          "label": "RPS B",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection B.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 132,
+          "orientation": "0",
+          "label": "Gear Switch",
+          "mode": "1",
+          "type": "0",
+          "description": "Toggle between the two gear ratios.",
+          "flags": "0"
+        },
+        {
+          "line": 135,
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "The electric connection to power the component.",
+          "flags": "0"
+        }
+      ]
+    },
+    "modular_engine_clutch": {
+      "resource": "rom/data/definitions/modular_engine_clutch.xml",
+      "attributes": {
+        "name": "Modular Engine Clutch 1x1",
+        "type": 52,
+        "torque_component_type": 0,
+        "force_emitter_max_force": 200,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "mechanism": "Prior modular-engines.md cubic target, 0.1 slew per update. Not re-decoded here.",
+      "mechanical_ports": [
+        {
+          "line": 16,
+          "orientation": "2",
+          "label": "RPS",
+          "mode": "1",
+          "type": "2",
+          "description": "The power supplied by the engine for inputting to other components.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 13,
+          "orientation": "0",
+          "label": "Clutch Pressure",
+          "mode": "1",
+          "type": "1",
+          "description": "",
+          "flags": "0"
+        }
+      ]
+    },
+    "modular_engine_clutch_3x3": {
+      "resource": "rom/data/definitions/modular_engine_clutch_3x3.xml",
+      "attributes": {
+        "name": "Modular Engine Clutch 3x3",
+        "type": 52,
+        "torque_component_type": 0,
+        "force_emitter_max_force": 2000,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "mechanism": "Prior modular-engines.md cubic target, 0.1 slew per update. Not re-decoded here.",
+      "mechanical_ports": [
+        {
+          "line": 108,
+          "orientation": "2",
+          "label": "RPS",
+          "mode": "1",
+          "type": "2",
+          "description": "The power supplied by the engine for inputting to other components.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 105,
+          "orientation": "0",
+          "label": "Clutch Pressure",
+          "mode": "1",
+          "type": "1",
+          "description": "",
+          "flags": "0"
+        }
+      ]
+    },
+    "modular_engine_clutch_5x5": {
+      "resource": "rom/data/definitions/modular_engine_clutch_5x5.xml",
+      "attributes": {
+        "name": "Modular Engine Clutch 5x5",
+        "type": 52,
+        "torque_component_type": 0,
+        "force_emitter_max_force": 20000,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "mechanism": "Prior modular-engines.md cubic target, 0.1 slew per update. Not re-decoded here.",
+      "mechanical_ports": [
+        {
+          "line": 228,
+          "orientation": "2",
+          "label": "RPS",
+          "mode": "1",
+          "type": "2",
+          "description": "The power supplied by the engine for inputting to other components.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 225,
+          "orientation": "0",
+          "label": "Clutch Pressure",
+          "mode": "1",
+          "type": "1",
+          "description": "",
+          "flags": "0"
+        }
+      ]
+    },
+    "torque_clutch": {
+      "resource": "rom/data/definitions/torque_clutch.xml",
+      "attributes": {
+        "name": "Clutch",
+        "type": 33,
+        "torque_component_type": 0,
+        "force_emitter_max_force": 2000,
+        "electric_type": "0",
+        "trans_conn_type": "0"
+      },
+      "definition_line": 2,
+      "mechanism": "standalone_clutch",
+      "mechanical_ports": [
+        {
+          "line": 68,
+          "orientation": "2",
+          "label": "RPS B",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection B.",
+          "flags": "0"
+        },
+        {
+          "line": 71,
+          "orientation": "3",
+          "label": "RPS A",
+          "mode": "1",
+          "type": "2",
+          "description": "Power connection A.",
+          "flags": "0"
+        }
+      ],
+      "logic_inputs": [
+        {
+          "line": 74,
+          "orientation": "0",
+          "label": "Clutch Pressure",
+          "mode": "1",
+          "type": "1",
+          "description": "A number between 0 and 1 representing the clutch engagement factor.",
+          "flags": "0"
+        },
+        {
+          "line": 77,
+          "orientation": "0",
+          "label": "Electric",
+          "mode": "1",
+          "type": "4",
+          "description": "The electric connection to power the component.",
+          "flags": "0"
+        }
+      ]
+    }
+  },
+  "image_base": "0x140000000",
+  "static_only": true,
+  "gearbox": {
+    "component_update": "0x1403fae40",
+    "bind": "0x1403facc0",
+    "ratio_helper": "0x1403fb870",
+    "port_A_offset": "0x1f8",
+    "port_B_offset": "0x248",
+    "orientation": "r_B = q * r_A is the coupling target, not instantaneous equality",
+    "ratios": [
+      {
+        "enum": 0,
+        "label": "1:-1",
+        "q_A_to_B": -1,
+        "q_B_to_A": -1.0
+      },
+      {
+        "enum": 1,
+        "label": "1:1",
+        "q_A_to_B": 1,
+        "q_B_to_A": 1.0
+      },
+      {
+        "enum": 2,
+        "label": "6:5",
+        "q_A_to_B": 0.8333333333333334,
+        "q_B_to_A": 1.2
+      },
+      {
+        "enum": 3,
+        "label": "3:2",
+        "q_A_to_B": 0.6666666666666666,
+        "q_B_to_A": 1.5
+      },
+      {
+        "enum": 4,
+        "label": "9:5",
+        "q_A_to_B": 0.5555555555555556,
+        "q_B_to_A": 1.7999999999999998
+      },
+      {
+        "enum": 5,
+        "label": "2:1",
+        "q_A_to_B": 0.5,
+        "q_B_to_A": 2.0
+      },
+      {
+        "enum": 6,
+        "label": "5:2",
+        "q_A_to_B": 0.4,
+        "q_B_to_A": 2.5
+      },
+      {
+        "enum": 7,
+        "label": "3:1",
+        "q_A_to_B": 0.3333333333333333,
+        "q_B_to_A": 3.0
+      }
+    ],
+    "gear_switch_off_field": "0x2e0",
+    "gear_switch_on_field": "0x2e4",
+    "ratio_change_minimum_absolute_delta": 0.001,
+    "switch_electric_draw_request": 0.001,
+    "switch_requires_positive_EMP_adjusted_charge": true,
+    "no_power_behavior": "Keep last ratio; intact gearbox still sets both bridge fractions to 1",
+    "damage_behavior": "Any nonzero component damage clears both bridge fractions",
+    "bridge_fraction_intact": 1,
+    "per_edge_path_multiplier": 0.95,
+    "path_strict_minimum_fraction": 0.001,
+    "finite_slip_threshold": "Not found in component update or traced collection/publication solver",
+    "SI_torque_units": "Not established",
+    "fixed_power_loss_fraction": null
+  },
+  "standalone_clutch": {
+    "definition": "torque_clutch",
+    "component_update_branch": "0x1403fb467",
+    "u": "clamp(input,0,1)",
+    "electrical_availability": "a=max(0,(300-EMP)/300)*published_charge_fraction, or 1 with infinite electricity",
+    "coupling": "min(1,a/0.01)*u^6; zero for nonzero damage",
+    "change_draw_request": "0.001*abs(previous_coupling-min(1,a/0.01)*u^3)",
+    "ratio": 1,
+    "slew_limit": null,
+    "half_input_full_availability_coupling": 0.015625,
+    "isolated_edge_full_availability_input_cutoff_approx": 0.31894274849745385,
+    "power_helper_identity": "powf inferred from static algorithm; exponent is float32 3 at 0x140bb0390"
+  },
+  "open": {
+    "legacy_4000": "Tooltip only. No enforcing comparison found in traced update, helper, shaft collect/publish, or direct RIP references to 4000 in those functions. Computed/indirect thresholds and unidentified callers remain open.",
+    "torque_calibration": "No conversion from solver weight to Nm established.",
+    "failure_triggers": "Damage disables coupling. Complete damage/repair callers and any torque-triggered damage equation not recovered.",
+    "physical_loss": "0.95 is path-weight attenuation; no SI power-loss percentage established."
+  }
+}

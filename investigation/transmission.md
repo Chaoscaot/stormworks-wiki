@@ -1,0 +1,178 @@
+# Transmission decode
+
+Target `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`, verified locally. Image base `0x140000000`. Static analysis only. The game was not executed.
+
+Scope: GitHub issues #15, #31, #37 and #157. Their `gh issue view` snapshots are retained. No wiki files or GitHub issues were changed. The prior electricity, modular engine, propulsion, mechanical joint and update-rate investigations supply the known shaft-group model, modular clutch comparison and 60 component updates per simulated second. This report resolves the gearbox setters and standalone clutch that those reports left open.
+
+## Component identity and ports
+
+All five gearbox definitions have `type=33`, `torque_component_type=1`. The standalone `torque_clutch` has `type=33`, `torque_component_type=0`. RTTI names the shared class `c_scene_vehicle_component_torque` at `0x140ccdc08`. Its locator is `0x140bdcb60`, vtable `0x140b66710`. Vtable+0x18 selects binding `0x1403facc0`; +0x358 selects update `0x1403fae40`. `tools/tables.json` retains their bytes and pointers.
+
+The binder calls port finder `0x1403224f0` for the first and second type-2 definition nodes. The finder decrements the requested ordinal only after matching the node type, at `0x140322669` onward. In each gearbox resource these nodes are labelled RPS A, then RPS B. For example, `torque_gearbox_2.xml:126` and `:129`; every definition's exact lines are retained in its `.resource.txt` file.
+
+A's mechanical node is component+0x1f8, B's is +0x248. Node+0x18 is its definition-port pointer, +0x20 the shaft-group pointer, +0x28 the submitted weight, +0x2c submitted RPS, +0x30 published RPS, +0x34 published effective weight, +0x38 a bridge pointer, +0x40 the bridge fraction and +0x44 its signed ratio. These node offsets share the layout decoded in electricity.md.
+
+Binding establishes reciprocal bridges only when both definition ports exist. `0x1403fadec`, bytes `48 89 4a 38`, writes A's pointer to B; `0x1403fadf0`, `48 89 51 38`, writes B's pointer to A. These are links between distinct shaft groups, not an instruction to merge both ports into one speed state.
+
+## Ratios and orientation
+
+`0x1403fb870` maps the saved enum to a float32 multiplier q. The eight choices, common to every gearbox here, are:
+
+- Enum 0, 1:-1, q = -1.
+- Enum 1, 1:1, q = 1.
+- Enum 2, 6:5, q = 5/6, stored as `55 55 55 3f` at `0x140bafdf8`.
+- Enum 3, 3:2, q = 2/3, `ab aa 2a 3f` at `0x140bafd68`.
+- Enum 4, 9:5, q = 5/9, `e4 38 0e 3f` at `0x140bafcf0`.
+- Enum 5, 2:1, q = 1/2, `00 00 00 3f` at `0x140bafcbc`.
+- Enum 6, 5:2, q = 2/5, `cd cc cc 3e` at `0x140bafc54`.
+- Enum 7, 3:1, q = 1/3, `ab aa aa 3e` at `0x140bafc14`.
+
+The bounds check is `0x1403fb870`, `83 fa 07`. The table dispatch is `0x1403fb87f`, `8b 8c 82 d4 b8 3f 00`, followed by `ff e1` at `0x1403fb889`. Out-of-range enums return 1. The menu builder `0x1403fbd70` inserts all eight labels for subtype 1 without a size test. `tools/tables.json` retains the jump table, destinations, float constants and label bytes.
+
+`0x1403fae06`, `f3 0f 11 87 3c 02 00 00`, stores q at component+0x23c, which is A node+0x44. `0x1403fae1b`, `f3 0f 5e c8`, computes 1/q; `0x1403fae1f`, `f3 0f 11 48 44`, writes it to B node+0x44. Switching repeats these writes at `0x1403fb28c` and `0x1403fb2af`.
+
+Derived from these setters and the solver below, the target relation is:
+
+```
+r_B = q * r_A
+```
+
+For an N:1 menu option, A is the faster side and B targets A/N. For 6:5, A/B targets 6/5. Reverse targets equal magnitude with opposite signs. This establishes the meaning of the A/B labels. Mapping the result to a painted arrow or a particular vehicle placement was not attempted.
+
+The relation is a coupling target. Loaded groups and transient cached submissions need not have this exact speed ratio after one update.
+
+## Gear selection and power
+
+The cached Gear Switch bool is component+0x180. Off selects saved enum +0x2e0, on selects +0x2e4. `0x1403fb200`, bytes `0f b6 9f 80 01 00 00`, reads the switch. `0x1403fb252`, `8b 97 e4 02 00 00`, loads the on setting; `0x1403fb25a`, `8b 97 e0 02 00 00`, loads the off setting. Serialization names them `gear_ratio_1` and `gear_ratio_2` at `0x140b6db80` and `0x140b6dbb8`. Its omitted-field defaults are enums 1 and 5. The constructor itself starts both at enum 1, so constructor state and serialized defaults are distinct.
+
+At `0x1403fb207..0x1403fb248`, the update gates changing ratios on positive EMP-adjusted published charge, unless the world infinite-electricity setting is enabled. The quantity is `max(0,(300-EMP)/300)*charge_fraction`. The electrical node is +0x298, its EMP counter is component+0x2c0 and its published charge fraction is +0x2d4. The known electrical-node layout confirms those names.
+
+A difference `abs(old_q-new_q) > 0.001` triggers a direct ratio replacement at `0x1403fb283..0x1403fb2af` and an electrical draw request of 0.001 through `0x1402eeca0` at `0x1403fb2be`, bytes `e8 dd 39 ef ff`. There is no ratio interpolation or gear-change timer in this branch. Sound-effect work follows the replacement.
+
+An intact gearbox sets both bridge fractions to 1 before the power gate. `0x1403faea9`, `c7 87 38 02 00 00 00 00 80 3f`, writes A's fraction; `0x1403faebf`, `c7 42 40 00 00 80 3f`, writes B's. Loss of electrical availability therefore freezes the last ratio in this code; it does not disconnect an otherwise intact gearbox. The draw helper's result is not used to undo the ratio change.
+
+## Coupling, losses and slip
+
+The retained `shaft-collect.asm` and `shaft-publish.asm` reproduce the prior electricity model. For each shaft group g, cached local submissions produce:
+
+```
+I_g = 1 + sum(F_i)
+v_g = (previous_RPS_g + sum(F_i * submitted_RPS_i)) / I_g
+```
+
+The initial weight of 1 is explicit at `0x1404ca113`, `c7 42 04 00 00 80 3f`. At `0x1404ca171`, `f3 0f 59 42 2c`, the solver multiplies member speed by its submitted weight. It divides by total local weight at `0x1404ca1c3`, `f3 44 0f 5e 59 04`.
+
+For a traversed path from source s to destination g, cumulative signed ratio r and fraction h accumulate as follows:
+
+```
+h_next = h * node_fraction * 0.95
+r_next = r * node_ratio
+N_g += sign(r) * v_s * I_s * h
+D_g += I_s * h / abs(r)
+V_g = (I_g*v_g + N_g) / (I_g+D_g)
+```
+
+The constant 0.95 is float32 `33 33 73 3f` at `0x140bafe68`. For continued traversal, `0x1404ca657`, `f3 0f 59 46 40`, multiplies by node fraction; `0x1404ca65c`, `f3 41 0f 59 c0`, applies the edge factor; `0x1404ca669`, `f3 0f 59 46 44`, multiplies the ratio. Accumulator stores are `0x1404ca592`, `f3 41 0f 11 40 28`, and `0x1404ca5ad`, `f3 41 0f 11 48 2c`. The ratio denominator is explicit at `0x1404ca5a3`, `f3 0f 5e c8`.
+
+Paths contribute only while h > 0.001. Revisits whose relative ratios fall outside approximately [0.9,1.1] take the conflict branch at `0x1404caa02`; it removes affected remote speed contributions and adds weight, acting as a brake. This is a network consistency response, not a recovered broken-gear state. The small model covers two distinct groups joined by one bridge, excluding contradictory loops and graph rebuilds.
+
+For that two-group case, h = 0.95*c and q is A's outgoing multiplier:
+
+```
+A_next = (I_A*v_A + sign(q)*I_B*v_B*h) / (I_A + I_B*h*abs(q))
+B_next = (I_B*v_B + sign(q)*I_A*v_A*h) / (I_B + I_A*h/abs(q))
+```
+
+These are speed/weight equations. The 0.95 factor attenuates coupling weight. It does not establish 95% SI power efficiency or a 5% loss of shaft speed every update. A ratio-matched state remains unchanged by this isolated exchange. Coupling can retain a speed mismatch under load without crossing a separately recovered Nm threshold.
+
+The torque meter branch at `0x1403fb1ea..0x1403fb1f5` reads group speed and group+8. Publication writes effective weight `I_g+D_g` to group+8 and node+0x34. Thus the meter's Torque output is a solver weight in this path. There is no recovered conversion to Nm, and subtracting meter readings cannot be asserted to measure the tooltip's torque-difference quantity.
+
+## Per-definition figures and the 4000 claim
+
+Each definition below has the same eight ratios, intact bridge fraction c=1 and per-edge path multiplier 0.95. The figures are the shipped `force_emitter_max_force` values on resource line 2:
+
+- `modular_engine_gearbox_1x1`: 200.
+- `modular_engine_gearbox_3x3`: 1200.
+- `modular_engine_gearbox_5x5`: 5000.
+- `torque_gearbox`: 1000.
+- `torque_gearbox_2`: 9999999. Only this definition's tooltip claims a torque-difference limit of 4000, at line 188.
+
+The binder reads that parameter at `0x1403fadd7`, `8b 83 48 08 00 00`, and writes it to A node+0x48 at `0x1403faddd`, `89 42 48`. This destination differs from submitted solver weight at node+0x28. The gearbox branch does not submit that parameter as F. Neither the traced collection nor publication routine compares node+0x48 against a speed or weight difference. These parameter values are therefore not established torque capacities.
+
+The enforcing 4000 comparison remains open. The retained search found float32 4000 at `0x140bb0894`, bytes `00 00 7a 45`, and float64 4000 at `0x140bb0508`, bytes `00 00 00 00 00 40 af 40`. Direct RIP references found by linear GNU disassembly do not land in the gearbox update, ratio helper or traced shaft collect/publish functions. `tools/4000-search.json` retains all those references, immediate-float-pattern hits and candidate non-stack float accesses at offset +0x48.
+
+What is ruled out: a literal 4000 comparison in the recovered gearbox branch, a ratio-table threshold, treating the five resource force parameters as the 4000 comparison, and a direct node+0x48 limit in the recovered shaft collect/publish functions. What is not ruled out: a computed or indirect limit, an integer-based comparison elsewhere, an unidentified caller, or obsolete tooltip text. No quantity or units for an enforcing comparison were recovered. There is no basis here to replace 4000 with 4000 Nm or to claim this build universally lacks such a limit.
+
+## Standalone clutch
+
+The standalone resource `torque_clutch.xml:2` supplies `force_emitter_max_force=2000`. Its type-2 ports are the first two mechanical nodes and use the same reciprocal bridge, with ratio 1. The input is its first numeric input, component+0x160.
+
+The branch at `0x1403fb467` clamps the input to [0,1]. `0x1403fb48f`, bytes `f3 0f 10 0d f9 4e 7b 00`, loads float32 3 from `0x140bb0390`, bytes `00 00 40 40`. `0x1403fb497`, `e8 74 e7 5b 00`, calls `0x1409b9c10`. Inference: this is the runtime power function, identified from its exponent-zero/one handling, integer-exponent sign handling and logarithm/exponential algorithm. It has no recovered original symbol. Its full instructions and pseudocode are retained.
+
+The code then squares that return value at `0x1403fb519`, `f3 0f 59 ff`, and multiplies it by the availability coefficient at `0x1403fb51d`, `f3 41 0f 59 f8`. Let u be the clamped input and a the same EMP-adjusted published charge fraction used above, or 1 under infinite electricity:
+
+```
+e = min(1, a/0.01)
+c = e * u**6
+```
+
+`0x1403fb522`, `f3 0f 11 bf 38 02 00 00`, stores c to A's fraction. `0x1403fb536`, `f3 0f 11 78 40`, stores c to B's fraction. There is no 0.1 slew in this branch. It reads previous c only to request electrical draw `0.001*abs(previous_c-e*u**3)` at `0x1403fb4ee..0x1403fb514`; the current update writes the newly computed c directly.
+
+Derived examples at full availability: input 0 gives c=0; 0.5 gives c=1/64; 1 gives c=1. With an isolated edge, traversal requires `0.95*u**6 > 0.001`, giving an onset near u=0.318943. This cutoff is a consequence of the solver's path pruning, not an additional clutch-input clamp. At lower availability the onset shifts, and at e <= 0.001/0.95 even full input contributes no accepted path. Float32 rounding affects values at the boundary.
+
+The modular clutches are different components, type 52. Their already decoded target is u**3 with a maximum state change of 0.1 per update. Their resource force values are 200, 2000 and 20000 for 1x1, 3x3 and 5x5. Those facts remain attributed to modular-engines.md; the current report does not redo that update routine.
+
+## Failure behavior and confidence
+
+Nonzero component damage disables either standalone clutch or gearbox bridge. `0x1403fae6d`, `83 79 08 00`, tests the unsigned damage field. `0x1403fae75`, `89 81 38 02 00 00`, clears A's fraction, and `0x1403fae8b`, `89 41 40`, clears the linked B fraction. The base serializer names +8 `damage`: `0x140328728`, `4d 8d 4d 08`, forms the field address and `0x14032872c`, `4c 8d 05 a1 7e 83 00`, selects the name. This class's vtable+0x20 points to base setter `0x140325ab0`, which clamps the unsigned damage argument to 50 and stores it at `0x140325aba`, `89 41 08`.
+
+High confidence covers port order, reciprocal ratios, all menu options, immediate switching, power gating, bridge fraction setters, the shared weighted solver and damage disconnection. The sixth-power clutch law includes the explicitly labelled power-helper identification. The arithmetic model verifies the transcription, not execution of the game.
+
+Still open: the enforcing 4000 comparison and its units; a finite torque capacity or a physical friction law; SI torque and power-loss calibration; complete damage/repair triggers and any torque-triggered breakage. The component update contains no recovered speed-difference-to-damage calculation. That bounded negative result does not exclude a caller elsewhere. The model also does not resolve arbitrary loops, same-group port connections or graph rebuild ordering.
+
+## Worked examples
+
+`tools/model.py` joins two local groups with a reciprocal bridge and retains its output in `tools/examples.json`. A previous speed of zero with an A-side member submitting 30 RPS at weight 200 gives `v_A=6000/201`. A previous speed of zero and a B-side member submitting zero at weight 100 gives `v_B=0`, `I_B=101`.
+
+With q=1/3 and c=1, one pass gives `A=25.7529151`, `B=8.45885583` RPS. With q=-1 it gives `A=20.2054218`, `B=-19.5238911`. At 1:1 with half standalone clutch input, c=1/64 and the pass gives `A=29.6297439`, `B=0.856505308`. Input 0.3 is below the isolated-path cutoff and transfers no accepted contribution. Starting at A=30 and B=10 with q=1/3 leaves both unchanged, demonstrating why 0.95 is not a fixed speed loss.
+
+These are double-precision arithmetic examples with explicit cached inputs. The game uses float32 and phased component submissions. They do not simulate engine controllers, drag updates or all 60 updates of a second.
+
+## Issue dispositions
+
+- #15, partial. Replacement: "For N:1, RPS A is the faster side and RPS B targets A/N. Shaft groups exchange weighted cached speeds through reciprocal ratio bridges with 0.95 path-weight attenuation. A finite slip-torque threshold and Nm calibration remain open."
+- #31, partial. Replacement: "All three current gearbox sizes share eight ratios and the same reciprocal weighted bridge. Gear Switch selects either saved ratio immediately when electrical availability is positive; no power preserves the last ratio. The size force parameters are 200, 1200 and 5000, but an enforcing torque-cap equation and SI power-loss percentage remain unestablished."
+- #37, partial. Replacement: "Legacy gearboxes use the same A-to-B ratio orientation and weighted coupling. torque_gearbox_2 still claims a 4000 torque-difference limit only in its tooltip. No enforcing comparison or units were located in the recovered gearbox and shaft-solver paths; computed or external enforcement remains open."
+- #157, partial. Replacement: "The eight gearbox options target B=q*A. Standalone clutch coupling is availability*clamped_input^6 without a slew, followed by the shared 0.95 edge factor and 0.001 path cutoff. Modular clutches retain their separate cubic target and 0.1/update slew. Damage disconnects the bridge; SI torque, physical power losses, torque-triggered breakage and the legacy 4000 enforcement remain open."
+
+## Reproduction
+
+From the repository root:
+
+```sh
+sha256sum stormworks64.exe
+python investigation/native/transmission/tools/collect.py .
+bash investigation/native/transmission/tools/decompile.sh "$PWD"
+python investigation/native/transmission/tools/model.py > investigation/native/transmission/tools/examples.json
+python investigation/native/transmission/tools/verify.py .
+# After intentionally regenerating evidence, refresh its manifest:
+python investigation/native/transmission/tools/manifest.py .
+sha256sum -c investigation/native/transmission/SHA256SUMS
+```
+
+The collector reads the PE and uses GNU objdump. Whole-image disassembly is temporary under /tmp; focused address/byte ranges are retained. Ghidra uses a fresh no-analysis import under /tmp and local JDK 21. Its script annotates the power and ratio helper signatures before decompiling, because automatic no-analysis signatures otherwise hide float return values. Those signatures are analyst annotations, not recovered symbols. Ghidra paths are explicit in the shell script. No runtime attachment or game execution is involved. Issue snapshots require only the original read-only `gh issue view N --repo Chaoscaot/stormworks-wiki` commands and are retained without needing network access to reproduce the binary analysis.
+
+## Retained files
+
+All paths below are under `investigation/native/transmission/` unless stated otherwise:
+
+- `asm/`: gearbox construction/binding/update, ratio helper, menu, serialization, shaft collection/publication, port finder, power helper and damage field evidence, with executable addresses and bytes.
+- `pseudocode/`: focused Ghidra outputs. Disassembly is authoritative where inferred types or decompiler flow are ambiguous.
+- `transmission.json`: per-definition attributes and port lines, ratio options, coupling equations, switching rules and remaining gaps.
+- `*.resource.txt`: shipped root attributes, complete logic-node sections and tooltips, with original path and line numbers.
+- `issue-15.txt`, `issue-31.txt`, `issue-37.txt`, `issue-157.txt`: initial issue bodies.
+- `tools/pe.py`, `collect.py`, `DecompileAt.java`, `decompile.sh`, `model.py`, `verify.py`, `manifest.py`: static reproduction and arithmetic tools.
+- `tools/tables.json`, `4000-search.json`, `examples.json`, `verification.txt`: data bytes, bounded negative-search evidence, worked examples and validation result.
+- `SHA256SUMS`: evidence, tools, report, executable and cited resource digests, with paths relative to the repository root.
+
+Only this report, its native evidence directory and the two matching .gitignore whitelist lines were written for this task.

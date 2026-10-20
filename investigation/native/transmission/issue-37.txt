@@ -1,0 +1,49 @@
+title:	Legacy Gearbox: decode remaining behavior and formulas
+state:	OPEN
+author:	Chaoscaot (Max)
+labels:	research
+comments:	0
+assignees:	
+projects:	
+milestone:	
+issue-type:	
+parent:	
+sub-issues:	
+sub-issues-completed:	
+blocked-by:	
+blocking:	
+number:	37
+--
+<!-- stormworks-research-gap:family:legacy-gearbox -->
+This issue tracks explicit open questions in the [wiki](https://sw-wiki.maxsp.de/parts/legacy-gearbox).
+
+The quotations below preserve the scope of each source. A resource-only article can lack a formula that a separate native-code investigation has partly recovered. Reconcile those findings before treating every quoted item as wholly undecoded.
+
+## Recorded gaps
+
+**Practical behavior guidance**
+
+> The 4000 limit is tooltip text; the enforcing code was not located.
+
+- [wiki/data/behavior.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/behavior.json), `/families/23/limitations/0`
+
+**Practical behavior guidance**
+
+> Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test.
+
+- [wiki/data/behavior.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/behavior.json), `/families/23/sections/2/body`
+
+**Definition-only extraction**
+
+> The 4000 torque-difference limit applies only to torque_gearbox_2. Torque-difference units, ratio orientation, losses and behavior beyond the stated limit are unknown.
+
+- [wiki/data/families.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/families.json), `/families/250/limitations/4`
+
+## Completion criteria
+
+- Recover the relevant routine or run a reproducible measurement against the identified game build.
+- Record equations, units, bounds, assumptions and executable addresses or measurement inputs.
+- Update the wiki guidance and its extractor, retaining citations and any remaining uncertainty.
+- Add or update an interactive graph when the recovered formula supports one.
+- Re-run the relevant source checks and website checks.
+

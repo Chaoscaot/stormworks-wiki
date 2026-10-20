@@ -4995,29 +4995,69 @@
     },
     {
       "category": "Transmission",
-      "summary": "Gearboxes switch between two ratios picked from a fixed list of eight, including a 1:-1 reverse, and need electricity to change ratio.",
+      "summary": "Gearboxes pull RPS B toward the selected ratio × RPS A, so for an N:1 option RPS A is the fast side. Ratio changes apply at once while the gearbox has power, and a bridge mixes the two shaft groups' speeds by solver weight with no slip threshold.",
       "sections": [
         {
-          "title": "Operating conditions",
-          "body": "Gearboxes use torque_component_type 1. Gear Switch off applies the Ratio Off selection, on applies Ratio On. The gearbox only changes ratio while it has electrical availability; without power it keeps the last ratio. Each change draws electricity."
+          "title": "Ratio orientation",
+          "body": "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Each option is a multiplier q: -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334. The gearbox stores q on its RPS A connection and 1 ÷ q on RPS B, and the shaft solver pulls RPS B toward q × RPS A. For an N:1 option RPS A is therefore the fast side: at 3:1 with RPS A at 30, RPS B is pulled toward 10. At 6:5 RPS A turns 6/5 as fast as RPS B. 1:-1 targets the same speed with the opposite sign."
         },
         {
-          "title": "Variant tradeoffs",
-          "body": "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Internally they become the multipliers -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334; the coupling stores the reciprocal. 1:-1 reverses direction without changing speed."
+          "title": "Coupling",
+          "body": "RPS A and RPS B stay two separate shaft groups joined by a bridge. Each update every group first mixes its own parts: weight I = 1 + Σ F and speed v = (previous speed + Σ F × submitted speed) ÷ I, with F each part's submitted solver weight. The bridge then adds the other group's speed with path weight h = 0.95 × c, where c is the bridge fraction, 1 for an intact gearbox. A path from A adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight; paths with h at or below 0.001 add nothing. For two groups this gives B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|) and A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|).\n\nTwo groups already at the ratio stay there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. There is no slip threshold: under load the two sides settle where the weights balance. Example from rest, A with one part of weight 200 at 30 RPS (v_A 29.85, I_A 201) and B with one part of weight 100 at 0 RPS (I_B 101): one pass at 3:1 gives A 25.75 and B 8.459 RPS."
         },
         {
-          "title": "Open measurement questions",
-          "body": "Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test."
+          "title": "Switching and power",
+          "body": "Gear Switch off applies Ratio Off and on applies Ratio On. When the selected q differs from the stored one by more than 0.001, both stored ratios are replaced in the same update, with no interpolation or delay, and the gearbox requests 0.001 electricity. This only happens while max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0, or with infinite electricity. Without power the gearbox keeps its last ratio and stays coupled: the bridge fraction is set to 1 every update before the power test."
+        },
+        {
+          "title": "Damage",
+          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50."
+        },
+        {
+          "title": "Torque meter readings",
+          "body": "A torque meter's RPS output copies the group speed. Its Torque output is the group's effective solver weight I + D, not newton-metres, so meters on both sides of a gearbox or clutch do not measure the torque it transmits."
+        },
+        {
+          "title": "Standalone clutch",
+          "body": "The standalone clutch uses the same bridge at ratio 1 with c = e × clamp(Clutch Pressure, 0, 1)^6, set directly each update. e = min(1, availability ÷ 0.01), so 1% supply already gives full strength. Input 0.5 gives c = 1/64; an isolated clutch couples nothing below input 0.3189. The modular engine clutch is a different part with a cubed target and a 0.1 per update slew."
         }
       ],
       "limitations": [
-        "Ratio orientation (which port is the faster side) was not established.",
-        "Static analysis only."
+        "SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
+        "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
+        "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
+        "The bridge equations are decoded for two groups joined by one bridge. Arbitrary loops, both ports on one group and graph rebuild order were not decoded.",
+        "Static analysis only.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
           "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
           "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+          "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+          "lineStart": 66,
+          "lineEnd": 66
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+          "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+          "lineStart": 69,
+          "lineEnd": 69
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+          "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+          "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
           "lineStart": 2,
           "lineEnd": 2
         },
@@ -5047,6 +5087,221 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140317cc7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325aba"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadd7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadf0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae06"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae1f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae6d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae75"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae8b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faea9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faebf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faed2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1ec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1f5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb200"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb252"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb25a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb27b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb28c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb2af"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb2be"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb467"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb48f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb497"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb4dd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb4e5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb505"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb519"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb522"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb536"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9c1d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0d1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca437"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca657"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca669"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b605d4"
         },
         {
           "path": "stormworks64.exe",
@@ -16777,19 +17032,31 @@
     },
     {
       "id": "gearbox",
-      "summary": "Two selectable ratios from a fixed list of eight; switching requires power.",
+      "summary": "Two ratios from a fixed list of eight; RPS B is pulled toward the ratio × RPS A, so for N:1 the A side is fast. Switching is immediate and needs power.",
       "sections": [
         {
-          "title": "Operating conditions",
-          "body": "Gearboxes use torque_component_type 1. Gear Switch off applies the Ratio Off selection, on applies Ratio On. The gearbox only changes ratio while it has electrical availability; without power it keeps the last ratio. Each change draws electricity."
+          "title": "Ratio orientation",
+          "body": "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Each option is a multiplier q: -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334. The gearbox stores q on its RPS A connection and 1 ÷ q on RPS B, and the shaft solver pulls RPS B toward q × RPS A. For an N:1 option RPS A is therefore the fast side: at 3:1 with RPS A at 30, RPS B is pulled toward 10. At 6:5 RPS A turns 6/5 as fast as RPS B. 1:-1 targets the same speed with the opposite sign."
         },
         {
-          "title": "Variant tradeoffs",
-          "body": "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Internally they become the multipliers -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334; the coupling stores the reciprocal. 1:-1 reverses direction without changing speed."
+          "title": "Coupling",
+          "body": "RPS A and RPS B stay two separate shaft groups joined by a bridge. Each update every group first mixes its own parts: weight I = 1 + Σ F and speed v = (previous speed + Σ F × submitted speed) ÷ I, with F each part's submitted solver weight. The bridge then adds the other group's speed with path weight h = 0.95 × c, where c is the bridge fraction, 1 for an intact gearbox. A path from A adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight; paths with h at or below 0.001 add nothing. For two groups this gives B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|) and A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|).\n\nTwo groups already at the ratio stay there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. There is no slip threshold: under load the two sides settle where the weights balance. Example from rest, A with one part of weight 200 at 30 RPS (v_A 29.85, I_A 201) and B with one part of weight 100 at 0 RPS (I_B 101): one pass at 3:1 gives A 25.75 and B 8.459 RPS."
         },
         {
-          "title": "Open measurement questions",
-          "body": "Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test."
+          "title": "Switching and power",
+          "body": "Gear Switch off applies Ratio Off and on applies Ratio On. When the selected q differs from the stored one by more than 0.001, both stored ratios are replaced in the same update, with no interpolation or delay, and the gearbox requests 0.001 electricity. This only happens while max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0, or with infinite electricity. Without power the gearbox keeps its last ratio and stays coupled: the bridge fraction is set to 1 every update before the power test."
+        },
+        {
+          "title": "Damage",
+          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50."
+        },
+        {
+          "title": "Size variants",
+          "body": "The 1x1, 3x3 and 5x5 gearboxes share the eight ratios, the bridge and the power gate. Their force_emitter_max_force values 200, 1200 and 5000 are copied to the RPS A connection at binding. The gearbox does not submit them as a solver weight and the decoded update and shaft solve compare that copy with nothing, so in those paths size does not change the coupling."
+        },
+        {
+          "title": "Torque meter readings",
+          "body": "A torque meter's RPS output copies the group speed. Its Torque output is the group's effective solver weight I + D, not newton-metres, so meters on both sides of a gearbox or clutch do not measure the torque it transmits."
         }
       ],
       "findings": [
@@ -17046,6 +17313,380 @@
           }
         },
         {
+          "label": "Gearbox 1x1 · port RPS A",
+          "value": "Power connection A.",
+          "detail": "modular_engine_gearbox_1x1: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_1x1.xml:3ab33bf2e8c2:L66-L66",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+            "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+            "lineStart": 66,
+            "lineEnd": 66
+          }
+        },
+        {
+          "label": "Gearbox 1x1 · port RPS B",
+          "value": "Power connection B.",
+          "detail": "modular_engine_gearbox_1x1: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_1x1.xml:3ab33bf2e8c2:L69-L69",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+            "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+            "lineStart": 69,
+            "lineEnd": 69
+          }
+        },
+        {
+          "label": "Port A bridge link",
+          "value": "A node+0x38 → B node",
+          "detail": "When both definition ports exist the binder points port A's node at port B's node; 0x1403fadf0 writes the reverse link. The two ports stay separate shaft groups joined by a bridge. Port A is the first type-2 (mechanical) logic node of the definition and port B the second; in all five gearbox definitions those are labelled RPS A and RPS B. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 48894a38 at 0x1403fadec. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L79-L80; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadec"
+          }
+        },
+        {
+          "label": "Port B bridge link",
+          "value": "B node+0x38 → A node",
+          "detail": "The reverse link from port B's node to port A's node. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 48895138 at 0x1403fadf0. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L79-L80; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadf0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadf0"
+          }
+        },
+        {
+          "label": "Port A ratio",
+          "value": "q",
+          "detail": "Stores the selected multiplier q from the ratio helper 0x1403fb870 at component+0x23c, which is port A's node+0x44, the ratio the shaft solve applies when it crosses from A to B. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes f30f11873c020000 at 0x1403fae06. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L84-L89; ../transmission/asm/torque-ratios.asm; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae06",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae06"
+          }
+        },
+        {
+          "label": "Port B ratio",
+          "value": "1 ÷ q",
+          "detail": "Computes 1 ÷ q (divss at 0x1403fae1b) and stores it at port B's node+0x44, the ratio applied from B to A. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes f30f114844 at 0x1403fae1f. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L84-L89; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae1f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae1f"
+          }
+        },
+        {
+          "label": "Ratio orientation",
+          "value": "RPS B → q × RPS A; N:1 makes RPS A the fast side",
+          "detail": "With q on port A and 1 ÷ q on port B, a path from A to B carries r = q and adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight. If A dominates, B tends to q × v_A, and A tends to v_B ÷ q. For 3:1, q = 1/3: RPS A at 30 pulls RPS B toward 10. 1:-1 targets equal speed with opposite sign. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae06, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae1f, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadec.",
+          "evidenceId": "derived:015a9f9eb9db",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae06"
+          }
+        },
+        {
+          "label": "Bridge edge factor",
+          "value": "0.95",
+          "detail": "Held in xmm8 for the shaft traversal: crossing a bridge multiplies the path weight h by the node's bridge fraction (0x1404ca657) and by this (0x1404ca65c). Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f1005975d6e00 at 0x1404ca0c8 address binary32 0.95 (bytes 3333733f) at 0x140bafe68. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L232-L233; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Bridge path cutoff",
+          "value": "0.001",
+          "detail": "Held in xmm13; at 0x1404ca437 a queued path with h at or below this is skipped (comiss xmm7,xmm13; jbe). Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f102d1e586e00 at 0x1404ca0d1 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L232-L233; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0d1"
+          }
+        },
+        {
+          "label": "Bridge path test",
+          "value": "h > 0.001",
+          "detail": "Paths contribute and continue only while h is above 0.001. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes 410f2ffd at 0x1404ca437. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L436-L443; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca437"
+          }
+        },
+        {
+          "label": "Bridge fraction in path weight",
+          "value": "h × c × 0.95",
+          "detail": "Multiplies h by the crossed node's bridge fraction (node+0x40), then by the edge factor 0.95. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f594640 at 0x1404ca657. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L566-L576; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca657"
+          }
+        },
+        {
+          "label": "Bridge ratio in path",
+          "value": "r × node ratio",
+          "detail": "Multiplies the path's cumulative ratio r by the crossed node's ratio (node+0x44): q leaving port A, 1 ÷ q leaving port B. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f594644 at 0x1404ca669. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L566-L576; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca669"
+          }
+        },
+        {
+          "label": "Two groups across one bridge",
+          "value": "A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|); B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|)",
+          "detail": "h = 0.95 × c, and no exchange when h is at or below 0.001. A pair already at v_B = q × v_A stays there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. Loops, both ports on one group and graph rebuilds are outside this two-group form. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669.",
+          "evidenceId": "derived:1cf1cf81a747",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Bridge worked example",
+          "value": "3:1: A 25.75, B 8.459 RPS; 1:-1: A 20.21, B -19.52 RPS",
+          "detail": "Group A from rest with one part of weight 200 at 30 RPS: v_A = 6000 ÷ 201 = 29.85 RPS, I_A = 201. Group B from rest with one part of weight 100 at 0 RPS: v_B = 0, I_B = 101. One pass at 3:1 gives A 25.75 and B 8.459 RPS; at 1:-1, A 20.21 and B -19.52. A standalone clutch at input 0.5 (c = 1/64) at 1:1 gives A 29.63 and B 0.8565. Groups already at A 30 and B 10 with 3:1 stay at 30 and 10. Python doubles; the game uses binary32 and phased component submissions. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae06, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae1f, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb519.",
+          "evidenceId": "derived:34ceb32553c2",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Gear Switch read",
+          "value": "component+0x180",
+          "detail": "The gearbox branch reads the cached Gear Switch value, then returns unless max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0 (0x1403fb248), or the world has infinite electricity. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 0fb69f80010000 at 0x1403fb200. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L201-L222; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb200",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb200"
+          }
+        },
+        {
+          "label": "Gear Switch on",
+          "value": "Ratio On (component+0x2e4)",
+          "detail": "With Gear Switch on the saved Ratio On option is passed to the ratio helper. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8b97e4020000 at 0x1403fb252. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L218-L223; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb252",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb252"
+          }
+        },
+        {
+          "label": "Gear Switch off",
+          "value": "Ratio Off (component+0x2e0)",
+          "detail": "With Gear Switch off the saved Ratio Off option is passed to the ratio helper. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8b97e0020000 at 0x1403fb25a. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L218-L223; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb25a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb25a"
+          }
+        },
+        {
+          "label": "Ratio change threshold",
+          "value": "0.001",
+          "detail": "A change happens only when |stored q - new q| is above this; the same value is the electricity request per change. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f101575467b00 at 0x1403fb27b address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L224-L230; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb27b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb27b"
+          }
+        },
+        {
+          "label": "Ratio switch, port A",
+          "value": "new q, same update",
+          "detail": "The new q replaces port A's ratio directly; 0x1403fb2af stores 1 ÷ q to port B. There is no interpolation or timer on this path. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f118f3c020000 at 0x1403fb28c. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L231-L238; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb28c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb28c"
+          }
+        },
+        {
+          "label": "Ratio switch, port B",
+          "value": "1 ÷ new q",
+          "detail": "Port B's ratio replaced in the same update. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f114044 at 0x1403fb2af. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L231-L238; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb2af",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb2af"
+          }
+        },
+        {
+          "label": "Ratio change electricity request",
+          "value": "0.001 through 0x1402eeca0",
+          "detail": "After a change the branch requests 0.001 (xmm1 from the threshold) through the draw helper. Its return value is not used to undo the change. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes e8dd39efff at 0x1403fb2be. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L239-L241; ../electricity/asm/electric-draw.asm; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb2be",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb2be"
+          }
+        },
+        {
+          "label": "Gearbox bridge fraction, port A",
+          "value": "1",
+          "detail": "For an undamaged component whose torque_component_type is neither 0 (clutch) nor 3, the update sets port A's bridge fraction to 1 before any power test; 0x1403faebf does the same for port B. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes c787380200000000803f at 0x1403faea9. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L28-L39; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403faea9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403faea9"
+          }
+        },
+        {
+          "label": "Gearbox bridge fraction, port B",
+          "value": "1",
+          "detail": "Port B's bridge fraction set to 1 each update. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes c742400000803f at 0x1403faebf. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L28-L39; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403faebf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403faebf"
+          }
+        },
+        {
+          "label": "Damage test",
+          "value": "component+8 > 0",
+          "detail": "The update first tests the component's unsigned damage field at +8, before any type branch. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 83790800 at 0x1403fae6d. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae6d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae6d"
+          }
+        },
+        {
+          "label": "Damaged bridge fraction, port A",
+          "value": "0",
+          "detail": "With nonzero damage the update stores 0 to port A's bridge fraction (component+0x238, node+0x40) and to the linked port B fraction at 0x1403fae8b, then returns. This applies to gearboxes and the standalone clutch alike. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 898138020000 at 0x1403fae75. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae75",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae75"
+          }
+        },
+        {
+          "label": "Damaged bridge fraction, port B",
+          "value": "0",
+          "detail": "Port B's bridge fraction set to 0 with nonzero damage. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 894140 at 0x1403fae8b. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae8b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae8b"
+          }
+        },
+        {
+          "label": "Component field +8",
+          "value": "damage",
+          "detail": "The base component serializer binds +8 (lea r9,[r13+0x8] at 0x140328728) to the name damage. Report: investigation/transmission.md. Function 0x1403261d0-0x140328895; it references the string 'damage' at 0x140b605d4. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/damage-label.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403261d0@0x140b605d4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b605d4"
+          }
+        },
+        {
+          "label": "Damage setter",
+          "value": "min(damage, 50)",
+          "detail": "Slot +0x20 of the torque component vtable is the base damage setter: mov eax,0x32; cmp edx,eax; cmovb eax,edx, then this store to +8. Report: investigation/transmission.md. Function 0x140325ab0-0x140325ad0; instruction bytes 894108 at 0x140325aba. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/base-damage-setter.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0@0x140325aba",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325aba"
+          }
+        },
+        {
+          "label": "Torque meter RPS output",
+          "value": "group speed, factor 1",
+          "detail": "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987a0010000 at 0x1403fb1ec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1ec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1ec"
+          }
+        },
+        {
+          "label": "Torque meter Torque output",
+          "value": "effective group weight",
+          "detail": "The Torque output receives group+8, the group's effective weight in this solver, not a torque in newton-metres. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987d8010000 at 0x1403fb1f5. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1f5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1f5"
+          }
+        },
+        {
+          "label": "Published group speed",
+          "value": "(I × v + N) ÷ (I + D)",
+          "detail": "Publication writes V = (I × v + N) ÷ (I + D) to every member's node+0x30, where N and D are the bridge contributions (both 0 without a gearbox or clutch bridge); the effective weight I + D goes to node+0x34 at 0x1404c9c41. Report: investigation/electricity.md. Function 0x1404c9b21-0x1404c9c83; instruction bytes 41894030 at 0x1404c9c1d. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L67-L75; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9b21@0x1404c9c1d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9c1d"
+          }
+        },
+        {
           "label": "Gearbox 1x1 · torque_component_type",
           "value": "1",
           "detail": "modular_engine_gearbox_1x1: definition attribute torque_component_type. Value 1 selects the gearbox code path.",
@@ -17069,6 +17710,57 @@
             "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
             "lineStart": 116,
             "lineEnd": 116
+          }
+        },
+        {
+          "label": "Gearbox 1x1 · force_emitter_max_force",
+          "value": "200",
+          "detail": "modular_engine_gearbox_1x1: definition attribute force_emitter_max_force. Copied to port A's node+0x48 at binding; not a solver weight in the decoded gearbox path.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_1x1.xml:3ab33bf2e8c2:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+            "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Gearbox 3x3 · force_emitter_max_force",
+          "value": "1200",
+          "detail": "modular_engine_gearbox_3x3: definition attribute force_emitter_max_force. Copied to port A's node+0x48 at binding; not a solver weight in the decoded gearbox path.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_3x3.xml:bbafdf4dc359:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+            "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Gearbox 5x5 · force_emitter_max_force",
+          "value": "5000",
+          "detail": "modular_engine_gearbox_5x5: definition attribute force_emitter_max_force. Copied to port A's node+0x48 at binding; not a solver weight in the decoded gearbox path.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_5x5.xml:38114ec872a7:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+            "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Gearbox force_emitter_max_force read",
+          "value": "definition+0x848 → port A node+0x48",
+          "detail": "The binder loads force_emitter_max_force and stores it at port A's node+0x48 (0x1403faddd), not at node+0x28, the weight the shaft solve reads. The gearbox branch does not submit it as a solver weight, the traced shaft collect and publish code does not compare node+0x48 with a speed or weight difference, and the extractor re-checks that the gearbox update, binder, ratio helper and shaft collect and publish code hold no binary32 4000 (0x140bb0894), binary64 4000 (0x140bb0508) or immediate 4000. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 8b8348080000 at 0x1403fadd7. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L73-L74; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadd7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadd7"
           }
         },
         {
@@ -17111,6 +17803,32 @@
           }
         },
         {
+          "label": "Gearbox 3x3 · port RPS A",
+          "value": "Power connection A.",
+          "detail": "modular_engine_gearbox_3x3: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_3x3.xml:bbafdf4dc359:L282-L282",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+            "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+            "lineStart": 282,
+            "lineEnd": 282
+          }
+        },
+        {
+          "label": "Gearbox 3x3 · port RPS B",
+          "value": "Power connection B.",
+          "detail": "modular_engine_gearbox_3x3: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_3x3.xml:bbafdf4dc359:L285-L285",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+            "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+            "lineStart": 285,
+            "lineEnd": 285
+          }
+        },
+        {
           "label": "Gearbox 5x5 · tooltip",
           "value": "The ratio can be toggled between two values which can be set in the properties.",
           "detail": "modular_engine_gearbox_5x5: developer-authored description; intended behaviour, not a measurement.",
@@ -17135,10 +17853,121 @@
             "lineStart": 1036,
             "lineEnd": 1036
           }
+        },
+        {
+          "label": "Gearbox 5x5 · port RPS A",
+          "value": "Power connection A.",
+          "detail": "modular_engine_gearbox_5x5: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_5x5.xml:38114ec872a7:L690-L690",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+            "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
+            "lineStart": 690,
+            "lineEnd": 690
+          }
+        },
+        {
+          "label": "Gearbox 5x5 · port RPS B",
+          "value": "Power connection B.",
+          "detail": "modular_engine_gearbox_5x5: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_5x5.xml:38114ec872a7:L693-L693",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+            "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
+            "lineStart": 693,
+            "lineEnd": 693
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
         }
       ],
       "limitations": [
-        "Ratio orientation and slip behaviour were not recovered."
+        "Shaft speed is RPS and the bridge weights are solver units. Open items shared by all transmission parts, including SI torque, losses and breakage, are listed under Transmission on the parts index.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
         {
@@ -17150,14 +17979,62 @@
         {
           "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
           "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+          "lineStart": 66,
+          "lineEnd": 66
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+          "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+          "lineStart": 69,
+          "lineEnd": 69
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+          "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
           "lineStart": 116,
           "lineEnd": 116
         },
         {
           "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
           "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+          "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+          "lineStart": 282,
+          "lineEnd": 282
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+          "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
+          "lineStart": 285,
+          "lineEnd": 285
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_3x3.xml",
+          "sha256": "bbafdf4dc3591e7b4708318327cf05f928ecb832fec01aae0de42f86035a9b9a",
           "lineStart": 400,
           "lineEnd": 400
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+          "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+          "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
+          "lineStart": 690,
+          "lineEnd": 690
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
+          "sha256": "38114ec872a780d8ae8b6f0cc802c67f39ed65c89402a546f7ae7967852e8488",
+          "lineStart": 693,
+          "lineEnd": 693
         },
         {
           "path": "rom/data/definitions/modular_engine_gearbox_5x5.xml",
@@ -17179,6 +18056,171 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140317cc7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325aba"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadd7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadf0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae06"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae1f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae6d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae75"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae8b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faea9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faebf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1ec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1f5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb200"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb252"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb25a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb27b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb28c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb2af"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb2be"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9c1d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0d1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca437"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca657"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca669"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b605d4"
         },
         {
           "path": "stormworks64.exe",
@@ -23195,23 +24237,31 @@
     },
     {
       "id": "legacy-gearbox",
-      "summary": "Uses the same eight-option ratio list and power gate as the modular gearboxes; torque_gearbox_2 states a 4000 torque-difference limit.",
+      "summary": "Same eight ratios, A-to-B orientation, bridge and power gate as the modular gearboxes; torque_gearbox_2's tooltip states a 4000 torque-difference limit.",
       "sections": [
         {
-          "title": "Operating conditions",
-          "body": "Gearboxes use torque_component_type 1. Gear Switch off applies the Ratio Off selection, on applies Ratio On. The gearbox only changes ratio while it has electrical availability; without power it keeps the last ratio. Each change draws electricity."
+          "title": "Ratio orientation",
+          "body": "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Each option is a multiplier q: -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334. The gearbox stores q on its RPS A connection and 1 ÷ q on RPS B, and the shaft solver pulls RPS B toward q × RPS A. For an N:1 option RPS A is therefore the fast side: at 3:1 with RPS A at 30, RPS B is pulled toward 10. At 6:5 RPS A turns 6/5 as fast as RPS B. 1:-1 targets the same speed with the opposite sign."
         },
         {
-          "title": "Variant tradeoffs",
-          "body": "Both ratios are chosen from eight fixed options, not typed numbers: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1. Internally they become the multipliers -1, 1, 0.8333333, 0.6666667, 0.5555556, 0.5, 0.4 and 0.33333334; the coupling stores the reciprocal. 1:-1 reverses direction without changing speed."
+          "title": "Coupling",
+          "body": "RPS A and RPS B stay two separate shaft groups joined by a bridge. Each update every group first mixes its own parts: weight I = 1 + Σ F and speed v = (previous speed + Σ F × submitted speed) ÷ I, with F each part's submitted solver weight. The bridge then adds the other group's speed with path weight h = 0.95 × c, where c is the bridge fraction, 1 for an intact gearbox. A path from A adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight; paths with h at or below 0.001 add nothing. For two groups this gives B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|) and A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|).\n\nTwo groups already at the ratio stay there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. There is no slip threshold: under load the two sides settle where the weights balance. Example from rest, A with one part of weight 200 at 30 RPS (v_A 29.85, I_A 201) and B with one part of weight 100 at 0 RPS (I_B 101): one pass at 3:1 gives A 25.75 and B 8.459 RPS."
         },
         {
-          "title": "Open measurement questions",
-          "body": "Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test."
+          "title": "Switching and power",
+          "body": "Gear Switch off applies Ratio Off and on applies Ratio On. When the selected q differs from the stored one by more than 0.001, both stored ratios are replaced in the same update, with no interpolation or delay, and the gearbox requests 0.001 electricity. This only happens while max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0, or with infinite electricity. Without power the gearbox keeps its last ratio and stays coupled: the bridge fraction is set to 1 every update before the power test."
+        },
+        {
+          "title": "Damage",
+          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50."
         },
         {
           "title": "Legacy definitions",
-          "body": "Both legacy definitions carry torque_component_type 1 and so share the modular gearbox code path; only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference."
+          "body": "Both legacy definitions carry torque_component_type 1 and run the gearbox code above. Their force_emitter_max_force values, 1000 for torque_gearbox and 9999999 for torque_gearbox_2, are copied to the RPS A connection at binding and not submitted as a solver weight. Only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference, without a unit. The gearbox update, ratio helper and shaft solve hold no 4000 and compare the copied value with nothing, so the limit is not enforced in those paths. Where it is enforced is an open item under Transmission on the parts index."
+        },
+        {
+          "title": "Torque meter readings",
+          "body": "A torque meter's RPS output copies the group speed. Its Torque output is the group's effective solver weight I + D, not newton-metres, so meters on both sides of a gearbox or clutch do not measure the torque it transmits."
         }
       ],
       "findings": [
@@ -23468,6 +24518,380 @@
           }
         },
         {
+          "label": "Gearbox 1x1 · port RPS A",
+          "value": "Power connection A.",
+          "detail": "modular_engine_gearbox_1x1: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_1x1.xml:3ab33bf2e8c2:L66-L66",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+            "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+            "lineStart": 66,
+            "lineEnd": 66
+          }
+        },
+        {
+          "label": "Gearbox 1x1 · port RPS B",
+          "value": "Power connection B.",
+          "detail": "modular_engine_gearbox_1x1: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/modular_engine_gearbox_1x1.xml:3ab33bf2e8c2:L69-L69",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+            "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+            "lineStart": 69,
+            "lineEnd": 69
+          }
+        },
+        {
+          "label": "Port A bridge link",
+          "value": "A node+0x38 → B node",
+          "detail": "When both definition ports exist the binder points port A's node at port B's node; 0x1403fadf0 writes the reverse link. The two ports stay separate shaft groups joined by a bridge. Port A is the first type-2 (mechanical) logic node of the definition and port B the second; in all five gearbox definitions those are labelled RPS A and RPS B. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 48894a38 at 0x1403fadec. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L79-L80; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadec"
+          }
+        },
+        {
+          "label": "Port B bridge link",
+          "value": "B node+0x38 → A node",
+          "detail": "The reverse link from port B's node to port A's node. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 48895138 at 0x1403fadf0. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L79-L80; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadf0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadf0"
+          }
+        },
+        {
+          "label": "Port A ratio",
+          "value": "q",
+          "detail": "Stores the selected multiplier q from the ratio helper 0x1403fb870 at component+0x23c, which is port A's node+0x44, the ratio the shaft solve applies when it crosses from A to B. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes f30f11873c020000 at 0x1403fae06. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L84-L89; ../transmission/asm/torque-ratios.asm; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae06",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae06"
+          }
+        },
+        {
+          "label": "Port B ratio",
+          "value": "1 ÷ q",
+          "detail": "Computes 1 ÷ q (divss at 0x1403fae1b) and stores it at port B's node+0x44, the ratio applied from B to A. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes f30f114844 at 0x1403fae1f. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L84-L89; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae1f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae1f"
+          }
+        },
+        {
+          "label": "Ratio orientation",
+          "value": "RPS B → q × RPS A; N:1 makes RPS A the fast side",
+          "detail": "With q on port A and 1 ÷ q on port B, a path from A to B carries r = q and adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight. If A dominates, B tends to q × v_A, and A tends to v_B ÷ q. For 3:1, q = 1/3: RPS A at 30 pulls RPS B toward 10. 1:-1 targets equal speed with opposite sign. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae06, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae1f, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadec.",
+          "evidenceId": "derived:015a9f9eb9db",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae06"
+          }
+        },
+        {
+          "label": "Bridge edge factor",
+          "value": "0.95",
+          "detail": "Held in xmm8 for the shaft traversal: crossing a bridge multiplies the path weight h by the node's bridge fraction (0x1404ca657) and by this (0x1404ca65c). Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f1005975d6e00 at 0x1404ca0c8 address binary32 0.95 (bytes 3333733f) at 0x140bafe68. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L232-L233; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Bridge path cutoff",
+          "value": "0.001",
+          "detail": "Held in xmm13; at 0x1404ca437 a queued path with h at or below this is skipped (comiss xmm7,xmm13; jbe). Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f102d1e586e00 at 0x1404ca0d1 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L232-L233; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0d1"
+          }
+        },
+        {
+          "label": "Bridge path test",
+          "value": "h > 0.001",
+          "detail": "Paths contribute and continue only while h is above 0.001. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes 410f2ffd at 0x1404ca437. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L436-L443; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca437"
+          }
+        },
+        {
+          "label": "Bridge fraction in path weight",
+          "value": "h × c × 0.95",
+          "detail": "Multiplies h by the crossed node's bridge fraction (node+0x40), then by the edge factor 0.95. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f594640 at 0x1404ca657. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L566-L576; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca657"
+          }
+        },
+        {
+          "label": "Bridge ratio in path",
+          "value": "r × node ratio",
+          "detail": "Multiplies the path's cumulative ratio r by the crossed node's ratio (node+0x44): q leaving port A, 1 ÷ q leaving port B. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f594644 at 0x1404ca669. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L566-L576; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca669"
+          }
+        },
+        {
+          "label": "Two groups across one bridge",
+          "value": "A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|); B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|)",
+          "detail": "h = 0.95 × c, and no exchange when h is at or below 0.001. A pair already at v_B = q × v_A stays there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. Loops, both ports on one group and graph rebuilds are outside this two-group form. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669.",
+          "evidenceId": "derived:1cf1cf81a747",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Bridge worked example",
+          "value": "3:1: A 25.75, B 8.459 RPS; 1:-1: A 20.21, B -19.52 RPS",
+          "detail": "Group A from rest with one part of weight 200 at 30 RPS: v_A = 6000 ÷ 201 = 29.85 RPS, I_A = 201. Group B from rest with one part of weight 100 at 0 RPS: v_B = 0, I_B = 101. One pass at 3:1 gives A 25.75 and B 8.459 RPS; at 1:-1, A 20.21 and B -19.52. A standalone clutch at input 0.5 (c = 1/64) at 1:1 gives A 29.63 and B 0.8565. Groups already at A 30 and B 10 with 3:1 stay at 30 and 10. Python doubles; the game uses binary32 and phased component submissions. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae06, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae1f, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb519.",
+          "evidenceId": "derived:34ceb32553c2",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Gear Switch read",
+          "value": "component+0x180",
+          "detail": "The gearbox branch reads the cached Gear Switch value, then returns unless max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0 (0x1403fb248), or the world has infinite electricity. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 0fb69f80010000 at 0x1403fb200. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L201-L222; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb200",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb200"
+          }
+        },
+        {
+          "label": "Gear Switch on",
+          "value": "Ratio On (component+0x2e4)",
+          "detail": "With Gear Switch on the saved Ratio On option is passed to the ratio helper. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8b97e4020000 at 0x1403fb252. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L218-L223; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb252",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb252"
+          }
+        },
+        {
+          "label": "Gear Switch off",
+          "value": "Ratio Off (component+0x2e0)",
+          "detail": "With Gear Switch off the saved Ratio Off option is passed to the ratio helper. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8b97e0020000 at 0x1403fb25a. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L218-L223; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb25a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb25a"
+          }
+        },
+        {
+          "label": "Ratio change threshold",
+          "value": "0.001",
+          "detail": "A change happens only when |stored q - new q| is above this; the same value is the electricity request per change. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f101575467b00 at 0x1403fb27b address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L224-L230; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb27b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb27b"
+          }
+        },
+        {
+          "label": "Ratio switch, port A",
+          "value": "new q, same update",
+          "detail": "The new q replaces port A's ratio directly; 0x1403fb2af stores 1 ÷ q to port B. There is no interpolation or timer on this path. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f118f3c020000 at 0x1403fb28c. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L231-L238; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb28c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb28c"
+          }
+        },
+        {
+          "label": "Ratio switch, port B",
+          "value": "1 ÷ new q",
+          "detail": "Port B's ratio replaced in the same update. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f114044 at 0x1403fb2af. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L231-L238; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb2af",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb2af"
+          }
+        },
+        {
+          "label": "Ratio change electricity request",
+          "value": "0.001 through 0x1402eeca0",
+          "detail": "After a change the branch requests 0.001 (xmm1 from the threshold) through the draw helper. Its return value is not used to undo the change. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes e8dd39efff at 0x1403fb2be. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L239-L241; ../electricity/asm/electric-draw.asm; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb2be",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb2be"
+          }
+        },
+        {
+          "label": "Gearbox bridge fraction, port A",
+          "value": "1",
+          "detail": "For an undamaged component whose torque_component_type is neither 0 (clutch) nor 3, the update sets port A's bridge fraction to 1 before any power test; 0x1403faebf does the same for port B. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes c787380200000000803f at 0x1403faea9. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L28-L39; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403faea9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403faea9"
+          }
+        },
+        {
+          "label": "Gearbox bridge fraction, port B",
+          "value": "1",
+          "detail": "Port B's bridge fraction set to 1 each update. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes c742400000803f at 0x1403faebf. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L28-L39; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403faebf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403faebf"
+          }
+        },
+        {
+          "label": "Damage test",
+          "value": "component+8 > 0",
+          "detail": "The update first tests the component's unsigned damage field at +8, before any type branch. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 83790800 at 0x1403fae6d. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae6d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae6d"
+          }
+        },
+        {
+          "label": "Damaged bridge fraction, port A",
+          "value": "0",
+          "detail": "With nonzero damage the update stores 0 to port A's bridge fraction (component+0x238, node+0x40) and to the linked port B fraction at 0x1403fae8b, then returns. This applies to gearboxes and the standalone clutch alike. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 898138020000 at 0x1403fae75. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae75",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae75"
+          }
+        },
+        {
+          "label": "Damaged bridge fraction, port B",
+          "value": "0",
+          "detail": "Port B's bridge fraction set to 0 with nonzero damage. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 894140 at 0x1403fae8b. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae8b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae8b"
+          }
+        },
+        {
+          "label": "Component field +8",
+          "value": "damage",
+          "detail": "The base component serializer binds +8 (lea r9,[r13+0x8] at 0x140328728) to the name damage. Report: investigation/transmission.md. Function 0x1403261d0-0x140328895; it references the string 'damage' at 0x140b605d4. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/damage-label.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403261d0@0x140b605d4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b605d4"
+          }
+        },
+        {
+          "label": "Damage setter",
+          "value": "min(damage, 50)",
+          "detail": "Slot +0x20 of the torque component vtable is the base damage setter: mov eax,0x32; cmp edx,eax; cmovb eax,edx, then this store to +8. Report: investigation/transmission.md. Function 0x140325ab0-0x140325ad0; instruction bytes 894108 at 0x140325aba. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/base-damage-setter.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0@0x140325aba",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325aba"
+          }
+        },
+        {
+          "label": "Torque meter RPS output",
+          "value": "group speed, factor 1",
+          "detail": "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987a0010000 at 0x1403fb1ec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1ec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1ec"
+          }
+        },
+        {
+          "label": "Torque meter Torque output",
+          "value": "effective group weight",
+          "detail": "The Torque output receives group+8, the group's effective weight in this solver, not a torque in newton-metres. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987d8010000 at 0x1403fb1f5. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1f5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1f5"
+          }
+        },
+        {
+          "label": "Published group speed",
+          "value": "(I × v + N) ÷ (I + D)",
+          "detail": "Publication writes V = (I × v + N) ÷ (I + D) to every member's node+0x30, where N and D are the bridge contributions (both 0 without a gearbox or clutch bridge); the effective weight I + D goes to node+0x34 at 0x1404c9c41. Report: investigation/electricity.md. Function 0x1404c9b21-0x1404c9c83; instruction bytes 41894030 at 0x1404c9c1d. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L67-L75; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9b21@0x1404c9c1d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9c1d"
+          }
+        },
+        {
           "label": "Gearbox · torque_component_type",
           "value": "1",
           "detail": "torque_gearbox: definition attribute torque_component_type. Value 1 selects the gearbox code path.",
@@ -23504,6 +24928,44 @@
             "sha256": "bab4e652ac7561f130067fa68b3e98f08eb4c0e0877da46ca6af6874418f28f0",
             "lineStart": 188,
             "lineEnd": 188
+          }
+        },
+        {
+          "label": "Gearbox · force_emitter_max_force",
+          "value": "1000",
+          "detail": "torque_gearbox: definition attribute force_emitter_max_force. Copied to port A's node+0x48 at binding; not a solver weight in the decoded gearbox path.",
+          "evidenceId": "resource:rom/data/definitions/torque_gearbox.xml:8d673af04a2a:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/torque_gearbox.xml",
+            "sha256": "8d673af04a2a223622205627966e68c8d6223e66d82bec58705a82dceafb3df6",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Gearbox · force_emitter_max_force",
+          "value": "9999999",
+          "detail": "torque_gearbox_2: definition attribute force_emitter_max_force. Copied to port A's node+0x48 at binding; not a solver weight in the decoded gearbox path.",
+          "evidenceId": "resource:rom/data/definitions/torque_gearbox_2.xml:bab4e652ac75:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/torque_gearbox_2.xml",
+            "sha256": "bab4e652ac7561f130067fa68b3e98f08eb4c0e0877da46ca6af6874418f28f0",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Gearbox force_emitter_max_force read",
+          "value": "definition+0x848 → port A node+0x48",
+          "detail": "The binder loads force_emitter_max_force and stores it at port A's node+0x48 (0x1403faddd), not at node+0x28, the weight the shaft solve reads. The gearbox branch does not submit it as a solver weight, the traced shaft collect and publish code does not compare node+0x48 with a speed or weight difference, and the extractor re-checks that the gearbox update, binder, ratio helper and shaft collect and publish code hold no binary32 4000 (0x140bb0894), binary64 4000 (0x140bb0508) or immediate 4000. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 8b8348080000 at 0x1403fadd7. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L73-L74; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadd7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadd7"
           }
         },
         {
@@ -23544,12 +25006,109 @@
             "lineStart": 188,
             "lineEnd": 188
           }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
         }
       ],
       "limitations": [
-        "The 4000 limit is tooltip text; the enforcing code was not located."
+        "Shaft speed is RPS and the bridge weights are solver units. Open items shared by all transmission parts, including SI torque, losses and breakage, are listed under Transmission on the parts index.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+          "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+          "lineStart": 66,
+          "lineEnd": 66
+        },
+        {
+          "path": "rom/data/definitions/modular_engine_gearbox_1x1.xml",
+          "sha256": "3ab33bf2e8c2ff3b8eb648bb86b0e6e3b44b234d29b7af96231d2ae2187cb81a",
+          "lineStart": 69,
+          "lineEnd": 69
+        },
         {
           "path": "rom/data/definitions/torque_gearbox.xml",
           "sha256": "8d673af04a2a223622205627966e68c8d6223e66d82bec58705a82dceafb3df6",
@@ -23588,6 +25147,171 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140317cc7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325aba"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadd7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadf0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae06"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae1f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae6d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae75"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae8b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faea9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faebf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1ec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1f5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb200"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb252"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb25a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb27b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb28c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb2af"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb2be"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9c1d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0d1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca437"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca657"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca669"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b605d4"
         },
         {
           "path": "stormworks64.exe",
@@ -25957,6 +27681,10 @@
         {
           "title": "Output",
           "body": "Each update the clutch gives its output shaft group the weight engagement × I and the crank RPS, then moves the crank RPS toward the output group's speed by the engagement. At engagement 1 the crank takes the output's speed. Clutches are not part of the crank weight sum, and the clutch weight is a solver weight, not a torque in N m."
+        },
+        {
+          "title": "Standalone clutch",
+          "body": "The standalone clutch part runs different code. It sets its coupling directly to e × clamp(input, 0, 1)^6 each update with no slew, so input 0.5 gives 1/64 there against a target of 0.125 here, and it joins two shaft groups through the 0.95 bridge rather than a crank."
         }
       ],
       "findings": [
@@ -26205,6 +27933,42 @@
           }
         },
         {
+          "label": "Clutch coupling",
+          "value": "c = e × (u³)² = e × u⁶",
+          "detail": "Squares the power result and multiplies by e at 0x1403fb51d. No slew or previous value enters c. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f59ff at 0x1403fb519. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L368-L374; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb519",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb519"
+          }
+        },
+        {
+          "label": "Clutch coupling examples",
+          "value": "input 0.5 → c = 1/64; no coupling below input 0.3189",
+          "detail": "At full availability c = u⁶: input 0.5 gives 0.015625 = 1/64 and input 1 gives 1. The path weight 0.95 × c must exceed 0.001, so with an isolated clutch input below (0.001 ÷ 0.95)^(1/6) = 0.3189 transfers nothing. That threshold comes from the solver's path cutoff, not from a clamp on the input. The modular clutch instead targets u³ and moves by at most 0.1 per update. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb467, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb48f, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb497, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb519, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb4e5, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669.",
+          "evidenceId": "derived:e321e2d8015f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb467"
+          }
+        },
+        {
+          "label": "Bridge edge factor",
+          "value": "0.95",
+          "detail": "Held in xmm8 for the shaft traversal: crossing a bridge multiplies the path weight h by the node's bridge fraction (0x1404ca657) and by this (0x1404ca65c). Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f1005975d6e00 at 0x1404ca0c8 address binary32 0.95 (bytes 3333733f) at 0x140bafe68. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L232-L233; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
           "label": "Modular Engine Clutch 1x1 · tooltip",
           "value": "A modular engine clutch.",
           "detail": "modular_engine_clutch: developer-authored short description; intended behaviour, not a measurement.",
@@ -26313,6 +28077,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb467"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb519"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14044a200"
         },
         {
@@ -26334,6 +28108,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b40fc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0c8"
         },
         {
           "path": "stormworks64.exe",
@@ -28159,7 +29938,7 @@
         {
           "label": "damage save name",
           "value": "damage",
-          "detail": "The base serializer saves component+8 (address formed at 0x140328728) under this name, so the field the cylinder and alternator test is the component's damage. Report: investigation/modular-engines.md. Function 0x1403261d0-0x140328895; it references the string 'damage' at 0x140b605d4. Interpretation rests on retained output investigation/native/behavior/../modular-engines/asm/damage-serialization.asm:L19-L20,L97; ../modular-engines/pseudocode/0x1403261d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The base serializer saves component+8 (address formed at 0x140328728) under this name, so the field the cylinder and alternator test is the component's damage. Report: investigation/modular-engines.md. Function 0x1403261d0-0x140328895; it references the string 'damage' at 0x140b605d4. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/damage-label.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403261d0@0x140b605d4",
           "status": "observed",
           "source": {
@@ -98275,6 +100054,677 @@
       ]
     },
     {
+      "id": "part-torque-clutch",
+      "summary": "Couples RPS A and RPS B at ratio 1 with strength e × clamp(Clutch Pressure, 0, 1)^6, set directly each update with no slew.",
+      "sections": [
+        {
+          "title": "Engagement",
+          "body": "Each update the clutch clamps Clutch Pressure to 0 to 1 as u and sets both bridge fractions to c = e × u^6, where e = min(1, a ÷ 0.01) and a = max(0, (300 - EMP count) ÷ 300) × charge fraction, or 1 with infinite electricity. Input 0.5 gives c = 1/64 and input 1 gives 1. There is no slew: a new input takes effect in the same update. It also requests 0.001 × |previous c - e × u³| electricity."
+        },
+        {
+          "title": "Coupling",
+          "body": "The shaft solver crosses the clutch with path weight h = 0.95 × c and ratio 1, and adds nothing while h is at or below 0.001. An isolated clutch therefore transfers nothing below input 0.3189. Above that, the two sides' speeds mix by solver weight as at a gearbox; there is no slip threshold. Example from rest at input 0.5, A with one part of weight 200 at 30 RPS and B with one part of weight 100 at 0 RPS: one pass gives A 29.63 and B 0.8565 RPS.\n\nAny nonzero damage sets c to 0. The modular engine clutch is a different component with a cubed target and a 0.1 per update slew."
+        },
+        {
+          "title": "Torque meter readings",
+          "body": "A torque meter's RPS output copies the group speed. Its Torque output is the group's effective solver weight I + D, not newton-metres, so meters on both sides of a gearbox or clutch do not measure the torque it transmits."
+        }
+      ],
+      "findings": [
+        {
+          "label": "Clutch branch",
+          "value": "torque_component_type 0 → 0x1403fb467",
+          "detail": "torque_component_type 0 (torque_clutch) jumps to the clutch branch; type 1 goes to the gearbox branch at 0x1403fb200 and type 2 to the torque meter at 0x1403fb1da. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 0f848f050000 at 0x1403faed2. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L40-L49; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403faed2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403faed2"
+          }
+        },
+        {
+          "label": "Clutch input",
+          "value": "clamp(component+0x160, 0, 1)",
+          "detail": "The clutch branch reads its first number input (Clutch Pressure) and clamps it to 0 to 1. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f108760010000 at 0x1403fb467. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L331-L340; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb467",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb467"
+          }
+        },
+        {
+          "label": "Clutch input exponent",
+          "value": "3",
+          "detail": "Passed with the clamped input u to the power helper. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f100df94e7b00 at 0x1403fb48f address binary32 3 (bytes 00004040) at 0x140bb0390. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L341-L343; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb48f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb48f"
+          }
+        },
+        {
+          "label": "Clutch power call",
+          "value": "u³ via 0x1409b9c10",
+          "detail": "Inference: 0x1409b9c10 is the runtime power function x^y, identified from its exponent 0 and 1 handling, integer-exponent sign handling and logarithm/exponential algorithm; it has no recovered symbol. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes e874e75b00 at 0x1403fb497. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L341-L343; ../transmission/asm/power-helper.asm; ../transmission/pseudocode/0x1409b9c10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb497",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb497"
+          }
+        },
+        {
+          "label": "Clutch availability divisor",
+          "value": "0.01",
+          "detail": "The clutch forms a = max(0, (300 - EMP count) ÷ 300) × charge fraction (1 with infinite electricity) and divides it by this. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f5e3573447b00 at 0x1403fb4dd address binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L344-L359; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb4dd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb4dd"
+          }
+        },
+        {
+          "label": "Clutch availability factor",
+          "value": "e = min(1, a ÷ 0.01)",
+          "detail": "minss with 1 caps the factor, so 1% availability already gives full engagement strength. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f3440f5dc6 at 0x1403fb4e5. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L344-L359; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb4e5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb4e5"
+          }
+        },
+        {
+          "label": "Clutch electricity request factor",
+          "value": "0.001",
+          "detail": "Requests this × |previous c - e × u³| through the draw helper before the new value is stored. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f590deb437b00 at 0x1403fb505 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L360-L367; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb505",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb505"
+          }
+        },
+        {
+          "label": "Clutch coupling",
+          "value": "c = e × (u³)² = e × u⁶",
+          "detail": "Squares the power result and multiplies by e at 0x1403fb51d. No slew or previous value enters c. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f59ff at 0x1403fb519. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L368-L374; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb519",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb519"
+          }
+        },
+        {
+          "label": "Clutch bridge fraction, port A",
+          "value": "c",
+          "detail": "Stores c as port A's bridge fraction; 0x1403fb536 stores the same c to port B. The clutch ratio stays 1. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f11bf38020000 at 0x1403fb522. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L368-L374; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb522",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb522"
+          }
+        },
+        {
+          "label": "Clutch bridge fraction, port B",
+          "value": "c",
+          "detail": "Port B's bridge fraction set to c in the same update. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes f30f117840 at 0x1403fb536. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L368-L374; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb536",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb536"
+          }
+        },
+        {
+          "label": "Clutch coupling examples",
+          "value": "input 0.5 → c = 1/64; no coupling below input 0.3189",
+          "detail": "At full availability c = u⁶: input 0.5 gives 0.015625 = 1/64 and input 1 gives 1. The path weight 0.95 × c must exceed 0.001, so with an isolated clutch input below (0.001 ÷ 0.95)^(1/6) = 0.3189 transfers nothing. That threshold comes from the solver's path cutoff, not from a clamp on the input. The modular clutch instead targets u³ and moves by at most 0.1 per update. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb467, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb48f, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb497, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb519, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb4e5, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669.",
+          "evidenceId": "derived:e321e2d8015f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb467"
+          }
+        },
+        {
+          "label": "Bridge edge factor",
+          "value": "0.95",
+          "detail": "Held in xmm8 for the shaft traversal: crossing a bridge multiplies the path weight h by the node's bridge fraction (0x1404ca657) and by this (0x1404ca65c). Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f1005975d6e00 at 0x1404ca0c8 address binary32 0.95 (bytes 3333733f) at 0x140bafe68. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L232-L233; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Bridge path cutoff",
+          "value": "0.001",
+          "detail": "Held in xmm13; at 0x1404ca437 a queued path with h at or below this is skipped (comiss xmm7,xmm13; jbe). Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f102d1e586e00 at 0x1404ca0d1 address binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L232-L233; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0d1"
+          }
+        },
+        {
+          "label": "Bridge path test",
+          "value": "h > 0.001",
+          "detail": "Paths contribute and continue only while h is above 0.001. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes 410f2ffd at 0x1404ca437. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L436-L443; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca437"
+          }
+        },
+        {
+          "label": "Bridge fraction in path weight",
+          "value": "h × c × 0.95",
+          "detail": "Multiplies h by the crossed node's bridge fraction (node+0x40), then by the edge factor 0.95. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f594640 at 0x1404ca657. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L566-L576; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca657"
+          }
+        },
+        {
+          "label": "Bridge ratio in path",
+          "value": "r × node ratio",
+          "detail": "Multiplies the path's cumulative ratio r by the crossed node's ratio (node+0x44): q leaving port A, 1 ÷ q leaving port B. Report: investigation/transmission.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f594644 at 0x1404ca669. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/shaft-collect.asm:L566-L576; ../transmission/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca669"
+          }
+        },
+        {
+          "label": "Two groups across one bridge",
+          "value": "A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|); B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|)",
+          "detail": "h = 0.95 × c, and no exchange when h is at or below 0.001. A pair already at v_B = q × v_A stays there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. Loops, both ports on one group and graph rebuilds are outside this two-group form. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669.",
+          "evidenceId": "derived:1cf1cf81a747",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Bridge worked example",
+          "value": "3:1: A 25.75, B 8.459 RPS; 1:-1: A 20.21, B -19.52 RPS",
+          "detail": "Group A from rest with one part of weight 200 at 30 RPS: v_A = 6000 ÷ 201 = 29.85 RPS, I_A = 201. Group B from rest with one part of weight 100 at 0 RPS: v_B = 0, I_B = 101. One pass at 3:1 gives A 25.75 and B 8.459 RPS; at 1:-1, A 20.21 and B -19.52. A standalone clutch at input 0.5 (c = 1/64) at 1:1 gives A 29.63 and B 0.8565. Groups already at A 30 and B 10 with 3:1 stay at 30 and 10. Python doubles; the game uses binary32 and phased component submissions. Report: investigation/transmission.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0c8, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0d1, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca437, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca657, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca669, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae06, native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fae1f, native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb519.",
+          "evidenceId": "derived:34ceb32553c2",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0c8"
+          }
+        },
+        {
+          "label": "Damage test",
+          "value": "component+8 > 0",
+          "detail": "The update first tests the component's unsigned damage field at +8, before any type branch. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 83790800 at 0x1403fae6d. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae6d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae6d"
+          }
+        },
+        {
+          "label": "Damaged bridge fraction, port A",
+          "value": "0",
+          "detail": "With nonzero damage the update stores 0 to port A's bridge fraction (component+0x238, node+0x40) and to the linked port B fraction at 0x1403fae8b, then returns. This applies to gearboxes and the standalone clutch alike. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 898138020000 at 0x1403fae75. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae75",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae75"
+          }
+        },
+        {
+          "label": "Damaged bridge fraction, port B",
+          "value": "0",
+          "detail": "Port B's bridge fraction set to 0 with nonzero damage. Report: investigation/transmission.md. Function 0x1403fae40-0x1403fb569; instruction bytes 894140 at 0x1403fae8b. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-update.asm:L19-L27; ../transmission/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fae8b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fae8b"
+          }
+        },
+        {
+          "label": "Component field +8",
+          "value": "damage",
+          "detail": "The base component serializer binds +8 (lea r9,[r13+0x8] at 0x140328728) to the name damage. Report: investigation/transmission.md. Function 0x1403261d0-0x140328895; it references the string 'damage' at 0x140b605d4. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/damage-label.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403261d0@0x140b605d4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b605d4"
+          }
+        },
+        {
+          "label": "Damage setter",
+          "value": "min(damage, 50)",
+          "detail": "Slot +0x20 of the torque component vtable is the base damage setter: mov eax,0x32; cmp edx,eax; cmovb eax,edx, then this store to +8. Report: investigation/transmission.md. Function 0x140325ab0-0x140325ad0; instruction bytes 894108 at 0x140325aba. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/base-damage-setter.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0@0x140325aba",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325aba"
+          }
+        },
+        {
+          "label": "Port A bridge link",
+          "value": "A node+0x38 → B node",
+          "detail": "When both definition ports exist the binder points port A's node at port B's node; 0x1403fadf0 writes the reverse link. The two ports stay separate shaft groups joined by a bridge. Port A is the first type-2 (mechanical) logic node of the definition and port B the second; in all five gearbox definitions those are labelled RPS A and RPS B. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 48894a38 at 0x1403fadec. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L79-L80; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadec"
+          }
+        },
+        {
+          "label": "Port B bridge link",
+          "value": "B node+0x38 → A node",
+          "detail": "The reverse link from port B's node to port A's node. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 48895138 at 0x1403fadf0. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L79-L80; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403facc0@0x1403fadf0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fadf0"
+          }
+        },
+        {
+          "label": "Clutch · force_emitter_max_force",
+          "value": "2000",
+          "detail": "torque_clutch: definition attribute force_emitter_max_force. No read in the clutch branch, which submits no solver weight.",
+          "evidenceId": "resource:rom/data/definitions/torque_clutch.xml:efbe0becd282:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/torque_clutch.xml",
+            "sha256": "efbe0becd282bd285e7ec69218d3d8ce25e1d1533af53150b5b986e74a120403",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Clutch · torque_component_type",
+          "value": "0",
+          "detail": "torque_clutch: definition attribute torque_component_type. Value 0 selects the clutch branch.",
+          "evidenceId": "resource:rom/data/definitions/torque_clutch.xml:efbe0becd282:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/torque_clutch.xml",
+            "sha256": "efbe0becd282bd285e7ec69218d3d8ce25e1d1533af53150b5b986e74a120403",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Clutch · tooltip",
+          "value": "The number input controls the amount of power transmitted.",
+          "detail": "torque_clutch: developer-authored description; intended behaviour, not a measurement.",
+          "evidenceId": "resource:rom/data/definitions/torque_clutch.xml:efbe0becd282:L122-L122",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/torque_clutch.xml",
+            "sha256": "efbe0becd282bd285e7ec69218d3d8ce25e1d1533af53150b5b986e74a120403",
+            "lineStart": 122,
+            "lineEnd": 122
+          }
+        },
+        {
+          "label": "Clutch · port Clutch Pressure",
+          "value": "A number between 0 and 1 representing the clutch engagement factor.",
+          "detail": "torque_clutch: input port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/torque_clutch.xml:efbe0becd282:L74-L74",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/torque_clutch.xml",
+            "sha256": "efbe0becd282bd285e7ec69218d3d8ce25e1d1533af53150b5b986e74a120403",
+            "lineStart": 74,
+            "lineEnd": 74
+          }
+        },
+        {
+          "label": "Torque meter RPS output",
+          "value": "group speed, factor 1",
+          "detail": "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987a0010000 at 0x1403fb1ec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1ec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1ec"
+          }
+        },
+        {
+          "label": "Torque meter Torque output",
+          "value": "effective group weight",
+          "detail": "The Torque output receives group+8, the group's effective weight in this solver, not a torque in newton-metres. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987d8010000 at 0x1403fb1f5. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403fae40@0x1403fb1f5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403fb1f5"
+          }
+        },
+        {
+          "label": "Published group speed",
+          "value": "(I × v + N) ÷ (I + D)",
+          "detail": "Publication writes V = (I × v + N) ÷ (I + D) to every member's node+0x30, where N and D are the bridge contributions (both 0 without a gearbox or clutch bridge); the effective weight I + D goes to node+0x34 at 0x1404c9c41. Report: investigation/electricity.md. Function 0x1404c9b21-0x1404c9c83; instruction bytes 41894030 at 0x1404c9c1d. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/network-publish.asm:L67-L75; ../electricity/pseudocode/0x1404c9b00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9b21@0x1404c9c1d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c9c1d"
+          }
+        },
+        {
+          "label": "Component updates per simulated second",
+          "value": 60,
+          "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
+          "evidenceId": "derived:7d3ff454a23f",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Scene update call",
+          "value": "call 0x1405e8fb0",
+          "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407435bb"
+          }
+        },
+        {
+          "label": "Component dispatcher call",
+          "value": "call 0x140549240",
+          "detail": "The scene update calls the vehicle/component dispatcher for vehicles with a physics body. Report: investigation/update-rate.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8dfd4f5ff at 0x1405ebd5c. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-scene-dispatch.asm:L31. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebd5c"
+          }
+        },
+        {
+          "label": "Component update call",
+          "value": "one call per component",
+          "detail": "The dispatcher clears its component index at 0x1405497be, makes one call through vtable slot +0x358 per iteration and increments the index at 0x1405498dd. Slot +0x358 holds 0x1403ef860 in the water component vtable (0x140b09270), 0x1404008a0 in the electric one (0x140b81428) and 0x140449670 in the modular-engine one (0x140b9cc08); the extractor re-reads those three pointers. Report: investigation/update-rate.md. Function 0x140549240-0x140549ef6; instruction bytes 41ff9258030000 at 0x1405498d6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-component-dispatch.asm:L55-L110; ../update-rate/tables.txt:L7-L12. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Physics ticks per component pass",
+          "value": "1",
+          "detail": "After the component pass the coordinator stores 1 at scene+0x6788 (worker+0xd0) and submits the scene physics worker (update_thread_task@c_scene) at 0x1407439df. One component pass therefore corresponds to one physics tick. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes b801000000898288670000 at 0x1407439c6. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L139-L148; ../update-rate/asm/stormworks64-physics-construction.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407439c6"
+          }
+        },
+        {
+          "label": "Ticks per simulated second",
+          "value": "60",
+          "detail": "The worker converts its tick count (worker+0xd0, loaded at 0x1405e3ad7) to binary32 and divides it by this, then passes the widened result as the elapsed time to the physics world's stepSimulation slot +0x60 at 0x1405e3b16, with at most 1000 solver substeps. With tick count 1 the elapsed simulated time is 1/60 s. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e0d6ecc5c00 at 0x1405e3aea address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L19-L31; ../update-rate/pseudocode/0x1405e3a80.c; ../update-rate/tables.txt:L4,L13-L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3aea"
+          }
+        },
+        {
+          "label": "Solver substep",
+          "value": "1 ÷ solver rate",
+          "detail": "The substep is 1 ÷ the worker's solver rate (worker+0xb8), or binary32 1/60 from 0x140baf98c in the fallback branch at 0x1405e3af4. The accumulator 0x140133ea0 runs whole substeps of that length. The component dispatch is outside that loop, so the solver rates 60, 120 and 180 chosen by the coordinator do not multiply component updates. Report: investigation/update-rate.md. Function 0x1405e3a80-0x1405e3b4d; instruction bytes f30f5e83b8000000 at 0x1405e3add. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-worker.asm:L20-L31; ../update-rate/asm/stormworks64-physics-accumulator.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3add"
+          }
+        }
+      ],
+      "limitations": [
+        "Shaft speed is RPS and the bridge weights are solver units. Open items shared by all transmission parts, including SI torque, losses and breakage, are listed under Transmission on the parts index.",
+        "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
+      ],
+      "sources": [
+        {
+          "path": "rom/data/definitions/torque_clutch.xml",
+          "sha256": "efbe0becd282bd285e7ec69218d3d8ce25e1d1533af53150b5b986e74a120403",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/torque_clutch.xml",
+          "sha256": "efbe0becd282bd285e7ec69218d3d8ce25e1d1533af53150b5b986e74a120403",
+          "lineStart": 74,
+          "lineEnd": 74
+        },
+        {
+          "path": "rom/data/definitions/torque_clutch.xml",
+          "sha256": "efbe0becd282bd285e7ec69218d3d8ce25e1d1533af53150b5b986e74a120403",
+          "lineStart": 122,
+          "lineEnd": 122
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325aba"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fadf0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae6d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae75"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fae8b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403faed2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1ec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb1f5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb467"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb48f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb497"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb4dd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb4e5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb505"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb519"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb522"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403fb536"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c9c1d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0c8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0d1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca437"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca657"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca669"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3add"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e3aea"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ebd5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b605d4"
+        }
+      ]
+    },
+    {
       "id": "part-train-wheels",
       "summary": "Powered train bogie that can draw electricity from the rails and reports wheel slip.",
       "sections": [
@@ -109524,7 +111974,7 @@
     "schemaVersion": 1,
     "categoryCount": 21,
     "categoriesInFamilies": 21,
-    "familyCount": 240,
+    "familyCount": 241,
     "familyTotal": 536,
     "familiesByCategory": {
       "Control surfaces": {
@@ -109576,7 +112026,7 @@
         "total": 16
       },
       "Other components": {
-        "withBehavior": 97,
+        "withBehavior": 98,
         "total": 269
       },
       "Propulsion": {
@@ -109841,7 +112291,6 @@
       "part-steam-nuclear-fuel-rod",
       "part-steam-turbine",
       "part-steam-whistle",
-      "part-torque-clutch",
       "part-torque-crank",
       "part-torque-meter",
       "part-train-wheels-dynamic-flanged",
@@ -109910,12 +112359,12 @@
       "weapon-xxl-barrel",
       "wheel-with-suspension"
     ],
-    "findingCount": 5943,
+    "findingCount": 6072,
     "findingsByStatus": {
-      "derived": 426,
-      "observed": 5517
+      "derived": 439,
+      "observed": 5633
     },
-    "nativeFindingCount": 4220,
+    "nativeFindingCount": 4332,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -109958,7 +112407,7 @@
       },
       {
         "path": "wiki/data/families.json",
-        "sha256": "f01eae703edb831c9b800f0a749ea234de30c7fdcd59c578d1d24479dd5c74fc"
+        "sha256": "f49b661e87ead82c3a518eb6715934df18658d73e55c2ffb988b94160d5ba47f"
       },
       {
         "path": "stormworks64.exe",
@@ -109966,9 +112415,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 253,
-      "native": 807,
-      "resource": 1984
+      "derived": 257,
+      "native": 841,
+      "resource": 2001
     }
   }
 }

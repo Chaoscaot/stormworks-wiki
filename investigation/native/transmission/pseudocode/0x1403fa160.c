@@ -1,0 +1,85 @@
+
+undefined8 * FUN_1403fa160(undefined8 *param_1)
+
+{
+  FUN_14033b2a0();
+  *param_1 = &UNK_140b66710;
+  *(undefined4 *)(param_1 + 0x2a) = 0;
+  param_1[0x2b] = 0;
+  *(undefined4 *)(param_1 + 0x2c) = 0;
+  param_1[0x29] = &UNK_140b45f08;
+  *(undefined4 *)(param_1 + 0x2e) = 0;
+  param_1[0x2f] = 0;
+  *(undefined1 *)(param_1 + 0x30) = 0;
+  param_1[0x2d] = &UNK_140b74c10;
+  *(undefined4 *)(param_1 + 0x32) = 0;
+  param_1[0x33] = 0;
+  param_1[0x31] = &UNK_140b4b370;
+  *(undefined4 *)(param_1 + 0x34) = 0;
+  param_1[0x35] = 0;
+  param_1[0x36] = 0;
+  *(undefined4 *)(param_1 + 0x37) = 0;
+  param_1[0x31] = &UNK_140b7b250;
+  *(undefined4 *)(param_1 + 0x39) = 0;
+  param_1[0x3a] = 0;
+  param_1[0x38] = &UNK_140b4b370;
+  *(undefined4 *)(param_1 + 0x3b) = 0;
+  param_1[0x3c] = 0;
+  param_1[0x3d] = 0;
+  *(undefined4 *)(param_1 + 0x3e) = 0;
+  param_1[0x38] = &UNK_140b7b250;
+  *(undefined4 *)(param_1 + 0x40) = 0;
+  param_1[0x3f] = &UNK_140b60890;
+  param_1[0x41] = 0;
+  param_1[0x42] = 0;
+  param_1[0x43] = 0;
+  param_1[0x44] = 0;
+  param_1[0x45] = 0;
+  param_1[0x46] = 0;
+  *(undefined4 *)(param_1 + 0x47) = 0x3f800000;
+  *(undefined4 *)((longlong)param_1 + 0x23c) = 0x3f800000;
+  *(undefined4 *)(param_1 + 0x48) = 0x3f800000;
+  *(undefined4 *)(param_1 + 0x4a) = 0;
+  param_1[0x49] = &UNK_140b60890;
+  param_1[0x4b] = 0;
+  param_1[0x4c] = 0;
+  param_1[0x4d] = 0;
+  param_1[0x4e] = 0;
+  param_1[0x4f] = 0;
+  param_1[0x50] = 0;
+  *(undefined4 *)(param_1 + 0x51) = 0x3f800000;
+  *(undefined4 *)((longlong)param_1 + 0x28c) = 0x3f800000;
+  *(undefined4 *)(param_1 + 0x52) = 0x3f800000;
+  *(undefined4 *)(param_1 + 0x54) = 0;
+  param_1[0x53] = &UNK_140b7d658;
+  param_1[0x55] = 0;
+  param_1[0x56] = 0;
+  param_1[0x57] = 0;
+  *(undefined4 *)(param_1 + 0x58) = 0;
+  param_1[0x59] = 0;
+  *(undefined1 *)(param_1 + 0x5a) = 0;
+  *(undefined8 *)((longlong)param_1 + 0x2d4) = 0;
+  *(undefined4 *)((longlong)param_1 + 0x2dc) = 0;
+  *(undefined4 *)(param_1 + 0x5c) = 1;
+  *(undefined4 *)((longlong)param_1 + 0x2e4) = 1;
+  param_1[0x5d] = 0;
+  param_1[0x5e] = 0;
+  param_1[0x5f] = 0;
+  param_1[0x60] = &UNK_140b93d90;
+  param_1[0x61] = 3;
+  param_1[0x62] = 0;
+  *(undefined8 *)((longlong)param_1 + 0x31c) = 0x42700000;
+  *(undefined4 *)(param_1 + 0x65) = 0x3fd9999a;
+  *(undefined1 *)((longlong)param_1 + 0x32c) = 2;
+  *(undefined4 *)((longlong)param_1 + 0x324) = 0;
+  *(undefined4 *)(param_1 + 99) = 0;
+  *(undefined1 *)(param_1 + 0x66) = 0;
+  *(undefined8 *)((longlong)param_1 + 0x334) = 0;
+  *(undefined4 *)((longlong)param_1 + 0x33c) = 0;
+  param_1[0x68] = 0;
+  param_1[0x69] = 0;
+  *(undefined4 *)(param_1 + 0x6a) = 0;
+  return param_1;
+}
+
+

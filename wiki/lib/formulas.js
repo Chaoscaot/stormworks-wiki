@@ -897,7 +897,40 @@ export function propellerForce({ variant, rps, pitch = 1, flow = 0, blades = PRO
 // Force after the application cap for a chosen scale S: raw × min(1, 100 × S ÷ |raw|).
 export const propellerCapped = (force, scale) => Math.sign(force) * Math.min(Math.abs(force), PROPULSION.capLimit * scale);
 
+// Gearbox and standalone clutch bridge (investigation/transmission.md). Crossing a bridge weights a path by 0.95 × the bridge
+// fraction c; paths at or below 0.001 add nothing. The standalone clutch sets c = e × clamp(input, 0, 1)^6 each update, no slew.
+export const TRANSMISSION = { edge: 0.95, cutoff: 0.001, clutchExponent: 3, availabilityScale: 0.01 };
+
+export function standaloneClutch({ input, availability = 1 }) {
+  finite([input, availability]);
+  const u = clamp(input, 0, 1);
+  const e = Math.min(1, Math.max(0, availability) / TRANSMISSION.availabilityScale);
+  const coupling = e * (u ** TRANSMISSION.clutchExponent) ** 2;
+  const pathWeight = TRANSMISSION.edge * coupling;
+  return { u, e, coupling, pathWeight, couples: pathWeight > TRANSMISSION.cutoff };
+}
+
+// Lowest input whose path weight passes the cutoff for an isolated clutch, or null when none does.
+export function standaloneClutchOnset(availability = 1) {
+  const e = Math.min(1, Math.max(0, availability) / TRANSMISSION.availabilityScale);
+  const u = (TRANSMISSION.cutoff / (TRANSMISSION.edge * e)) ** (1 / 6);
+  return e > 0 && u <= 1 ? u : null;
+}
+
+// One pass for two shaft groups [speed, weight] joined by one bridge: q is the ratio leaving A (1/q leaves B), c the bridge fraction.
+export function shaftBridge(a, b, q, c = 1) {
+  finite([...a, ...b, q, c]);
+  const [va, ia] = a;
+  const [vb, ib] = b;
+  const h = TRANSMISSION.edge * c;
+  if (h <= TRANSMISSION.cutoff) return { A: va, B: vb, h };
+  const s = Math.sign(q);
+  return { A: (ia * va + s * vb * ib * h) / (ia + ib * h * Math.abs(q)), B: (ib * vb + s * va * ia * h) / (ib + ia * h / Math.abs(q)), h };
+}
+
 const FAMILY_GRAPHS = {
+  'part-torque-clutch': ['clutch'],
+  'modular-engine-clutch': ['clutch'],
   'modular-engine-cylinder': ['engine'],
   'electric-fluid-radiator': ['radiator'],
   'passive-fluid-radiator': ['radiator'],

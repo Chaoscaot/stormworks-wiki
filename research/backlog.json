@@ -296,13 +296,25 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/17/limitations/0",
-        "text": "Ratio orientation (which port is the faster side) was not established.",
+        "text": "SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/17/sections/2/body",
-        "text": "Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test.",
+        "pointer": "/categories/17/limitations/1",
+        "text": "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/categories/17/limitations/2",
+        "text": "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
+        "scope": "Practical behavior guidance"
+      },
+      {
+        "file": "wiki/data/behavior.json",
+        "pointer": "/categories/17/limitations/3",
+        "text": "The bridge equations are decoded for two groups joined by one bridge. Arbitrary loops, both ports on one group and graph rebuild order were not decoded.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -628,31 +640,6 @@
     ]
   },
   {
-    "key": "family:gearbox",
-    "title": "Gearbox: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/gearbox",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/17/limitations/0",
-        "text": "Ratio orientation and slip behaviour were not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/17/sections/2/body",
-        "text": "Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/191/limitations/4",
-        "text": "Ratio orientation, transmission losses, switching behavior and torque limits are unknown for these size variants.",
-        "scope": "Definition-only extraction"
-      }
-    ]
-  },
-  {
     "key": "family:generator",
     "title": "Generator: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/generator",
@@ -778,31 +765,6 @@
         "pointer": "/families/25/findings/5/detail",
         "text": "Shipped realtime configuration value. Keel tuning name. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
         "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
-    "key": "family:legacy-gearbox",
-    "title": "Legacy Gearbox: decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/legacy-gearbox",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/27/limitations/0",
-        "text": "The 4000 limit is tooltip text; the enforcing code was not located.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/27/sections/2/body",
-        "text": "Which side (RPS A or RPS B) turns faster for an N:1 option, and how much torque the coupling transmits before slipping, need an in-game torque meter test.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/250/limitations/4",
-        "text": "The 4000 torque-difference limit applies only to torque_gearbox_2. Torque-difference units, ratio orientation, losses and behavior beyond the stated limit are unknown.",
-        "scope": "Definition-only extraction"
       }
     ]
   },
@@ -1124,13 +1086,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/212/limitations/0",
+        "pointer": "/families/213/limitations/0",
         "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/212/findings/2/detail",
+        "pointer": "/families/213/findings/2/detail",
         "text": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
         "scope": "Practical behavior guidance"
       }
@@ -1143,13 +1105,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/213/limitations/0",
+        "pointer": "/families/214/limitations/0",
         "text": "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, and whether any other state writer or world mechanism fills its compartments, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/213/limitations/1",
+        "pointer": "/families/214/limitations/1",
         "text": "Part availability in current game modes was not established.",
         "scope": "Practical behavior guidance"
       }
@@ -1162,7 +1124,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/214/limitations/0",
+        "pointer": "/families/215/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1188,7 +1150,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/215/limitations/0",
+        "pointer": "/families/216/limitations/0",
         "text": "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure.",
         "scope": "Practical behavior guidance"
       }
@@ -1201,7 +1163,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/216/limitations/0",
+        "pointer": "/families/217/limitations/0",
         "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1214,7 +1176,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/217/limitations/0",
+        "pointer": "/families/218/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1240,7 +1202,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/218/limitations/0",
+        "pointer": "/families/219/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1266,7 +1228,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/219/limitations/0",
+        "pointer": "/families/220/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1292,7 +1254,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/220/limitations/0",
+        "pointer": "/families/221/limitations/0",
         "text": "Reel speed and tension limits were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1318,7 +1280,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/221/limitations/0",
+        "pointer": "/families/222/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1331,7 +1293,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/222/limitations/0",
+        "pointer": "/families/223/limitations/0",
         "text": "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced.",
         "scope": "Practical behavior guidance"
       }
@@ -1363,7 +1325,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/230/limitations/0",
+        "pointer": "/families/231/limitations/0",
         "text": "Thrust and burn time per segment were not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1376,7 +1338,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/231/limitations/0",
+        "pointer": "/families/232/limitations/0",
         "text": "Heat per coal not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1389,7 +1351,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/232/limitations/0",
+        "pointer": "/families/233/limitations/0",
         "text": "Torque per pressure was not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -1402,7 +1364,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/233/limitations/0",
+        "pointer": "/families/234/limitations/0",
         "text": "Track physics was not decoded.",
         "scope": "Practical behavior guidance"
       }
@@ -1415,7 +1377,7 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/237/limitations/0",
+        "pointer": "/families/238/limitations/0",
         "text": "Whether the wording difference reflects different mechanics is unknown.",
         "scope": "Practical behavior guidance"
       }
@@ -1428,13 +1390,13 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/238/limitations/0",
+        "pointer": "/families/239/limitations/0",
         "text": "The metre interpretation is unverified.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/238/sections/1/body",
+        "pointer": "/families/239/sections/1/body",
         "text": "Verify speed per RPS with a linear speed sensor.",
         "scope": "Practical behavior guidance"
       }
@@ -1725,7 +1687,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/20/limitations/2",
-        "text": "Ratio orientation, available ratios, torque units, losses, clutch slip curves and failure behavior are not established. No ideal gearbox equation or linear engagement-to-power relationship is assumed.",
+        "text": "The ratio, coupling and clutch laws come from that native decode, not from these definitions alone. Not recovered: SI torque and physical power losses, a finite slip torque or friction law, where and in what unit torque_gearbox_2's 4000 limit is enforced, and the events that damage a gearbox or clutch, including any torque-triggered breakage.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
