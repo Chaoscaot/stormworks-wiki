@@ -48,6 +48,7 @@ export default async function MechanicsArticle({ params }) {
   const related = sections.filter((s) => s.block);
   const idx = articles.indexOf(a);
   const native = a.origin === 'native';
+  const exe = native || a.findings.some((f) => f.evidenceType === 'native-static');
 
   return (
     <article className="wiki-article">
@@ -74,7 +75,7 @@ export default async function MechanicsArticle({ params }) {
         <Section id="findings" title="Findings">
           <p className="hint">
             Each row is one finding with its evidence label. "Observed in file" means the value was read in the cited file
-            {native ? ' or executable' : ''}, never that someone measured it in the running game.
+            {exe ? ' or executable' : ''}, never that someone measured it in the running game.
           </p>
           {sections.map((s) => (
             <Section key={s.id} id={s.id} title={s.title} level={3}>

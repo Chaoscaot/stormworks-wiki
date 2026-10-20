@@ -206,6 +206,9 @@ function load() {
     blocksSummary: isObj(blocksRaw?.summary) ? blocksRaw.summary : {},
     mechanicsSummary: isObj(mechanicsRaw?.summary) ? mechanicsRaw.summary : {},
     nativeSummary: isObj(nativeRaw?.summary) ? nativeRaw.summary : null,
+    // Built-in game_constants table and the realtime_values inventory, both from static analysis.
+    gameConstants: (Array.isArray(nativeRaw?.gameConstants) ? nativeRaw.gameConstants : []).filter((c) => isObj(c) && c.name),
+    realtime: isObj(nativeRaw?.realtime) ? nativeRaw.realtime : null,
     build: isObj(build) ? build : null,
     missing: [['blocks.json', blocksRaw], ['mechanics.json', mechanicsRaw], ['build.json', build]].filter(([, v]) => !v).map(([f]) => f),
     bySource,

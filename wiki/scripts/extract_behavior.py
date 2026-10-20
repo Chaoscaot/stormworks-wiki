@@ -39,6 +39,8 @@ EXE_SHA256 = "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699"
 DEFS = "rom/data/definitions/"
 REALTIME = "rom/data/realtime_values/general_debug.txt"
 SDK = "sdk/data/game_constants.xml"
+REALTIME_REGISTRY = ("The release parses data/realtime_values/ into a registry, but no gameplay code that reads it was found "
+                     "(investigation/config.md), so this file's values are shipped tuning, not values the game is shown to use.")
 NUMBER = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)")
 TICK = ("For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. "
         "Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves "
@@ -207,8 +209,10 @@ class Evidence:
 
     def realtime(self, name, meaning):
         m, line, _ = self.at(REALTIME, r"^[ \t]*(?:f32|s32|vec3|vec2|color8)[ \t]+%s[ \t]+(\S[^\r\n]*?)\s*$" % re.escape(name))
+        where = ("The name also occurs in the executable, but a matching string is not a realtime read." if name.encode() in self.native.data else
+                 "The release executable contains no plaintext copy of this name (see coverage.realtimeNames).")
         return self.located(REALTIME, line, line, "realtime " + name, m.group(1),
-                            "Shipped realtime configuration value. %s The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved." % meaning)
+                            "Shipped realtime configuration value. %s %s %s" % (meaning, where, REALTIME_REGISTRY))
 
     def sdk(self, name, meaning):
         m, line, _ = self.at(SDK, r'\s%s\s*=\s*"([^"]*)"' % re.escape(name))
@@ -9267,7 +9271,7 @@ def build(root):
         "findingsByStatus": dict(sorted(Counter(f["status"] for f in findings).items())),
         "nativeFindingCount": sum(f["source"]["path"] == EXE for f in findings),
         "realtimeNames": {"inFile": len(set(names)), "plaintextInExecutable": present,
-                          "note": "Only these realtime_values names occur as NUL-terminated strings in the analysed executable; the others are not stored in plaintext, so the shipped realtime file is configuration of unconfirmed effect."},
+                          "note": "Only these realtime_values names occur as NUL-terminated strings in the analysed executable; the others are not stored in plaintext. " + REALTIME_REGISTRY},
         "statusPolicy": "observed: present in a cited file or byte-verified at a cited executable address (static, not gameplay). derived: arithmetic on cited inputs listed in detail.",
         "variantEvidencePolicy": "In multi-variant families, every variant's own tooltip and the same-labelled ports cited for any variant are included; match findings to variants by source.path (rom/data/definitions/<variant id>.xml).",
         "nativeProvenance": PROVENANCE + " Retained pseudocode and assembly: " + RETAINED + ".",

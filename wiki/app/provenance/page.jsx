@@ -63,6 +63,8 @@ export default function Provenance() {
         { id: 'labels', title: 'Evidence labels' },
         { id: 'coverage', title: 'Coverage' },
         d.imagesFromFile && { id: 'images', title: 'Component images' },
+        d.realtime && { id: 'realtime', title: 'Realtime settings' },
+        d.gameConstants.length && { id: 'game-constants', title: 'Game constants' },
         diffs.length && { id: 'disagreements', title: 'Where sources disagree' },
         limitGroups.length && { id: 'limitations', title: 'Limitations and unknowns' },
       ]} />
@@ -195,9 +197,43 @@ export default function Provenance() {
         </Section>
       ) : null}
 
+      {d.realtime ? (
+        <Section id="realtime" title="Realtime settings">
+          <p>
+            The files in <code>rom/data/realtime_values/</code> are not the game's active settings. The release parses every file in that
+            directory at start-up (<SourcePath source={d.realtime.loader} />) into one registry at {d.realtime.registry}, but no gameplay code
+            that reads that registry was found. A realtime value on this wiki is shipped tuning, not the value the game uses, unless an article
+            cites the code that reads it. The method is in <code>{d.realtime.report}</code>.
+          </p>
+          <WikiTable id="rt-t" caption="Realtime names that occur in the executable" cols={['File', 'Names', 'In the executable', 'Which']} rows={d.realtime.files.map((f) => [
+            <SourcePath source={f} />, fmtNum(f.names), fmtNum(f.inExecutable.length),
+            f.inExecutable.length ? <code>{f.inExecutable.join(', ')}</code> : <span className="muted">none</span>,
+          ])} cards />
+          <p className="hint">A name in the executable is not a realtime read. In general_debug.txt most matches are names the game_constants loader also uses.</p>
+        </Section>
+      ) : null}
+
+      {d.gameConstants.length ? (
+        <Section id="game-constants" title="Game constants">
+          <p>
+            The game builds these {d.gameConstants.length} values in code and overrides them only from <code>rom/data/game_constants.xml</code> or a
+            registered resource root. This installation ships no such file, so the built-in default is the value in use. The SDK file{' '}
+            <code>sdk/data/game_constants.xml</code> is a template and is not on that path. "Read at" lists every recovered read of the field; a read
+            does not mean every vehicle or branch uses it.
+          </p>
+          <WikiTable id="gc-t" caption="Built-in game_constants values and their readers" cols={['Name', 'Built-in default', 'SDK file', 'Realtime file', 'Read at']} rows={d.gameConstants.map((c) => [
+            <code>{c.name}</code>,
+            <span className="num">{String(c.nativeDefault)}</span>,
+            c.sdkSource ? <>{String(c.sdkValue)} <SourcePath source={c.sdkSource} /></> : <span className="muted">Not in file</span>,
+            c.realtimeSource ? <>{String(c.realtimeValue)} <SourcePath source={c.realtimeSource} /></> : <span className="muted">Not in file</span>,
+            <code className="addr">{c.reads.map((r) => r.address).join(', ')}</code>,
+          ])} cards />
+        </Section>
+      ) : null}
+
       {diffs.length ? (
         <Section id="disagreements" title="Where sources disagree">
-          <p>The same name holds different values in two shipped files. Which one the game uses is not established.</p>
+          <p>The same name holds different values in two shipped files. The note says what the executable shows about which value is in use.</p>
           <WikiTable id="diff-t" caption="SDK and realtime values that differ" cols={['Name', 'SDK value', 'Realtime value', 'Sources', 'Note']} rows={diffs.map((x) => [
             <code>{x.name}</code>, String(x.sdkValue), String(x.realtimeValue),
             <><SourcePath source={x.sdkSource} /><br /><SourcePath source={x.realtimeSource} /></>, x.limitation || '',

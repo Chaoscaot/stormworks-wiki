@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import html
 import json
+import math
 from pathlib import Path
 import re
 import sys
@@ -26,7 +27,17 @@ TRADE = 'rom/data/missions/default_resource_trading/script.lua'
 STORAGE = 'rom/data/missions/default_resource_storage/script.lua'
 OIL = 'rom/data/missions/default_oil_survey/script.lua'
 CARGO = 'rom/data/missions/default_cargo/script.lua'
+EXE = 'stormworks64.exe'
+EXE_SHA256 = 'f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699'
+CONFIG = 'investigation/config.md'
+CONSUMERS = 'investigation/native/config/constant-consumers.json'
+NATIVE_DEFAULTS = 'investigation/native/config/constants.json'
+EXAMPLES = 'investigation/native/config/worked-examples.json'
+# Articles whose body numbers must all occur in their findings, as in extract_behavior.py.
+CHECKED = ('aerodynamics', 'buoyancy-water-drag')
+NUMBER = re.compile(r'(?<![\w.])-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w]|\.\d)')
 CACHE: dict[str, tuple[str, str]] = {}
+BINARY: dict = {}
 CONSTANTS: list[dict] = []
 ARTICLES: list[dict] = []
 
@@ -101,8 +112,101 @@ def cite(path, needle, end=None):
 
 
 def article(id, title, category, summary, body, findings, limitations):
+    if id in CHECKED:
+        evidence = {float(n) for n in NUMBER.findall(json.dumps(findings, ensure_ascii=False))}
+        missing = sorted({n for n in NUMBER.findall(body) if float(n) not in evidence})
+        if missing:
+            raise ValueError(f'{id}: body numbers without evidence: {missing}')
     ARTICLES.append(dict(id=id, title=title, category=category, summary=summary,
                          body=body, findings=findings, limitations=limitations))
+
+
+def binary():
+    """The analysed executable, its section map and its ASCII/UTF-16LE text search."""
+    if not BINARY:
+        data = (ROOT / EXE).read_bytes()
+        if hashlib.sha256(data).hexdigest() != EXE_SHA256:
+            raise ValueError(f'{EXE} differs from the analysed build; native findings must be redone')
+        pe = int.from_bytes(data[0x3c:0x40], 'little')
+        count = int.from_bytes(data[pe + 6:pe + 8], 'little')
+        opt = pe + 24
+        size = int.from_bytes(data[pe + 20:pe + 22], 'little')
+        sections = []
+        for i in range(count):
+            o = opt + size + 40 * i
+            vsize, va, rsize, raw = (int.from_bytes(data[o + k:o + k + 4], 'little') for k in (8, 12, 16, 20))
+            sections.append((va, max(vsize, rsize), raw))
+        BINARY.update(data=data, base=int.from_bytes(data[opt + 24:opt + 32], 'little'), sections=sections)
+    return BINARY
+
+
+def exe_bytes(address, n):
+    b = binary()
+    rva = address - b['base']
+    for start, size, raw in b['sections']:
+        if start <= rva < start + size:
+            return b['data'][raw + rva - start:raw + rva - start + n]
+    raise ValueError(f'Address outside image: {address:#x}')
+
+
+def in_exe(name):
+    data = binary()['data']
+    return name.encode() in data, name.encode('utf-16-le') in data
+
+
+def native(label, val, detail, address, expected, status='observed', report=CONFIG, literals=None):
+    """Executable finding. The cited instruction bytes, and any literal operands, are re-read on every run."""
+    for where, want in [(address, expected), *(literals or {}).items()]:
+        if exe_bytes(int(where, 16), len(bytes.fromhex(want))) != bytes.fromhex(want):
+            raise ValueError(f'{label}: bytes at {where} are not {want}')
+    extra = ''.join(f', literal {want} at {where}' for where, want in (literals or {}).items())
+    return dict(label=label, value=val, detail=f'{detail} Bytes {expected} at {address}{extra}. Report: {report}.',
+                evidenceId=f'native:{EXE}:{EXE_SHA256[:12]}:{address}',
+                source=dict(path=EXE, sha256=EXE_SHA256, address=address), status=status, evidenceType='native-static')
+
+
+def absent(names, label, detail):
+    """Executable finding for names that occur neither as ASCII nor as UTF-16LE text."""
+    for name in names:
+        if any(in_exe(name)):
+            raise ValueError(f'{name} now occurs in {EXE}')
+    return dict(label=label, value='no ASCII or UTF-16LE occurrence', detail=f'{detail} Searched: {", ".join(names)}. Report: {CONFIG}.',
+                evidenceId=f'native:{EXE}:{EXE_SHA256[:12]}:string-search',
+                source=dict(path=EXE, sha256=EXE_SHA256), status='observed', evidenceType='native-static')
+
+
+def consumer(name, detail, nth=0):
+    """Native read of one game_constants field, from the retained consumer table, with its built-in default."""
+    reads = [c for c in json.loads((ROOT / CONSUMERS).read_text()) if c['name'] == name]
+    default = next(c for c in json.loads((ROOT / NATIVE_DEFAULTS).read_text()) if c['name'] == name)
+    m = re.match(r'([0-9a-f]+):\t((?:[0-9a-f]{2} )+)', reads[nth]['instruction'])
+    value = float(f"{default['fallback']:.7g}")
+    return native(f'{name} read', int(value) if value.is_integer() else value,
+                  f"Function {reads[nth]['function']} reads {name} from the native constants block. Built-in default {value:g}; "
+                  'the unmodified install loads no game_constants.xml, so the default is what this code uses. ' + detail,
+                  '0x' + m[1], m[2].strip())
+
+
+def realtime_loader():
+    return native('Realtime directory loader', 'data/realtime_values/',
+                  'Called unconditionally at start-up through 0x1401f12e0, which enumerates the directory and parses each file into a registry at 0x140cebbb0. '
+                  'All 32 references to that registry are initialization, parsing and destruction; no gameplay reader was found.',
+                  '0x1401f1346', '48 8d 15 db 79 99 00', literals={'0x140b88d28': '64 61 74 61 2f 72 65 61 6c 74 69 6d 65 5f 76 61 6c 75 65 73 2f 00'})
+
+
+def realtime_presence(rel):
+    names = sorted({m[1] for m in re.finditer(r'^\s*(?:s32|f32|vec2|vec3|vec4|color8)\s+(\w+)', read(rel), re.M)})
+    return names, [n for n in names if in_exe(n)[0]]
+
+
+def realtime_note(rel):
+    names, present = realtime_presence(rel)
+    if any(in_exe(n)[1] for n in names):
+        raise ValueError(f'{rel}: a realtime name now occurs as UTF-16LE')
+    return (f'The release parses data/realtime_values/ into a registry, but no gameplay code that reads that registry was found ({CONFIG}). ' +
+            (f'{len(present)} of the {len(names)} names in this file occur in the executable, and a matching string is not a realtime read. ' if present else
+             f'None of the {len(names)} names in this file occurs in the executable. ') +
+            'Treat the value as shipped tuning, not as the value the game uses.')
 
 
 def extract_constants():
@@ -125,6 +229,7 @@ def extract_constants():
         constant(name, raw, description, span(SDK, m), 'sdk-configuration', category=group)
     for path in sorted((ROOT / 'rom/data/realtime_values').glob('*.txt')):
         rel = path.relative_to(ROOT).as_posix()
+        note = realtime_note(rel)
         for number, line in enumerate(read(rel).splitlines(), 1):
             m = re.fullmatch(r'\s*(s32|f32|vec2|vec3|vec4|color8)\s+(\w+)\s+(.+?)\s*', line)
             if not m:
@@ -132,7 +237,7 @@ def extract_constants():
                     raise ValueError(f'Unparsed realtime record {rel}:{number}: {line!r}')
                 continue
             typ, name, raw = m.groups()
-            item = constant(name, raw, 'Named value in the shipped realtime configuration; runtime loading and units require separate confirmation.', source(rel, number, number), 'realtime-configuration', declaredType=typ)
+            item = constant(name, raw, f'Named value in the shipped realtime configuration. {note}', source(rel, number, number), 'realtime-configuration', declaredType=typ)
             if typ.startswith('vec') or typ == 'color8':
                 item['value'] = [value(s.strip()) for s in raw.split(',')]
 
@@ -194,18 +299,87 @@ def build_articles():
             'Contact friction combines the two bodies\' coefficients as clamp(μA × μB, -10, 10) and restitution as their product, so vehicle on vehicle at the default 0.8 gives 0.64. Bullet\'s own construction default is 0.5. '
             'Wheels add a sphere body with friction 0.001 but take their grip from a separate ray request (see Wheels, grip and suspension).',
             [config(n, 'sdk-documented-default') for n in ['gravity','vehicle_linear_damping','vehicle_angular_damping','vehicle_friction']], [sdk_limit, static_limit, 'The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: the solver\'s normal and tangent impulse iterations, its friction-row bounds, collision-shape coverage and restitution threshold, and the rule by which mass redistribution rewrites a vehicle\'s gravity.'])
+    env_names, env_present = realtime_presence(ENV)
+    native_limit = 'Native findings are static readings of this executable build. No game process was executed, and no value here was checked in play.'
+    hull_air = 'Read in the hull air callback 0x14048e2d0.'
     article('aerodynamics', 'Air drag and lift tuning', 'Physics',
-            'Pressure, suction, lift and speed thresholds have separate configuration fields.',
-            'The SDK describes linear and quadratic speed factors for pressure and suction drag. The realtime file independently contains matching named values. The SDK labels 15 m/s as the aerodynamic-force threshold and 50 m/s as the high-speed scaling threshold. A scale of 8 is described as additive. The files do not expose the complete drag or lift equation. A separate native decode of the wing, control-surface and fin air routine (investigation/control-surfaces.md, shown on the Control surfaces parts page) found that it multiplies by its own constant 24 and never reads lift_force, so the SDK description of lift_force as surface lift scaling does not hold for those parts. That routine applies an altitude pressure ratio without checking calculate_air_density.',
-            [config(n, 'sdk-documented-default') for n in ['air_drag_factor_linear_pressure','air_drag_factor_quadratic_pressure','air_drag_factor_linear_suction','air_drag_factor_quadratic_suction','air_speed_threshold','air_high_speed_threshold','air_high_speed_factor_scale','air_density','lift_force']] + [config(n) for n in ['air_speed_threshold','air_high_speed_threshold','apply_lift','calculate_air_density']],
-            [sdk_limit, static_limit, 'The calculate_air_density setting is 0, but its name alone does not establish which density calculation it disables. No SI interpretation is assigned to internal force factors.'])
+            'Hull air drag and lift read built-in game_constants defaults, including air density 1.225. The executable never reads calculate_air_density, so the realtime 0 switches nothing off.',
+            'The SDK describes linear and quadratic speed factors for pressure and suction drag. The SDK labels 15 m/s as the aerodynamic-force threshold and 50 m/s as the high-speed scaling threshold. A scale of 8 is described as additive. '
+            'A native decode (investigation/config.md) found where the hull air path reads these values. The vehicle buoyancy and drag routine 0x14048ad30 reads the pressure and suction drag factors 0.05, 0.1, 0.025 and 0.05, the falloff powers 0.6 and 0.4, air_drag_factor 0.2, the three speed settings and air_density from the native constants block. '
+            'The hull air callback 0x14048e2d0 reads viscous_air_resistance 0.25 and lift_force 0.25. '
+            'The game sets these constants itself and overrides them only from rom/data/game_constants.xml, which this installation does not ship, so the built-in values apply: air density 1.225, and the same drag and threshold numbers as the SDK. '
+            'The name calculate_air_density does not occur in the executable as ASCII or UTF-16LE text. The realtime file that sets it to 0 is parsed into a registry that no recovered gameplay code reads. So the 0 does not set a vacuum, switch off air density or disable altitude effects. '
+            'The realtime file also lists matching drag and threshold values; the hull path reads the native block, not those entries. '
+            'A separate native decode of the wing, control-surface and fin air routine (investigation/control-surfaces.md, shown on the Control surfaces parts page) found that it multiplies by its own constant 24 and never reads lift_force, so the SDK description of lift_force as surface lift scaling does not hold for those parts. That routine applies an altitude pressure ratio without checking calculate_air_density. The only recovered lift_force read is in the hull air callback.',
+            [config(n, 'sdk-documented-default') for n in ['air_drag_factor_linear_pressure','air_drag_factor_quadratic_pressure','air_drag_factor_linear_suction','air_drag_factor_quadratic_suction','air_speed_threshold','air_high_speed_threshold','air_high_speed_factor_scale','air_density','lift_force']] + [config(n) for n in ['air_speed_threshold','air_high_speed_threshold','apply_lift','calculate_air_density']] +
+            [consumer('air_density', 'The hull air callback 0x14048e2d0 uses this copy.'),
+             consumer('air_falloff_power_pressure', 'Pressure-side falloff power.'),
+             consumer('air_falloff_power_suction', 'Suction-side falloff power.'),
+             consumer('air_drag_factor', 'Copied into the hull air context.'),
+             consumer('viscous_air_resistance', hull_air),
+             consumer('lift_force', hull_air + ' No other lift_force read was recovered.'),
+             absent(['calculate_air_density', 'apply_lift'], 'Realtime air switches', 'The hull air path has no branch controlled by these names. The realtime registry that holds them has no recovered gameplay reader.'),
+             native('Control surface force constant', 24, 'The wing, control-surface and fin routine 0x1403dfd20 multiplies its air vector by this literal and loads no lift_force value.',
+                    '0x1403e1120', 'f3 0f 59 0d b4 f5 7c 00', report='investigation/control-surfaces.md', literals={'0x140bb06dc': '00 00 c0 41'})],
+            [sdk_limit, native_limit, 'Still not recovered for the hull air callback: its term-by-term force equation, the surface weights and normals it receives, and an SI meaning for its tuned factors. No calibration or runtime experiment was performed.'])
+    examples = json.loads((ROOT / EXAMPLES).read_text())
+    for x in examples:
+        d = 10 + 10 * min(max((x['mass'] - 2000) / 23000, 0), 1)
+        assert math.isclose(d, x['divisor']) and math.isclose(1000 * 10 * x['native_submerged_volume'] / d, x['upward_force']) and math.isclose(x['mass'] * d / 1000, x['neutral_native_volume']), x
     article('buoyancy-water-drag', 'Buoyancy and water drag', 'Physics',
-            'The supplied SDK and realtime files disagree on one buoyancy mass multiplier.',
-            'The SDK documents water density as 1000 and exposes separate pressure, suction, viscous and wave-slamming terms. The realtime file enables named drag and slamming switches. SDK buoyancy_mass_multiplier is 10, while realtime buoyancy_mass_multiplier is 12. Keep both sources visible: their loading order and runtime authority have not been established.',
+            'Buoyancy pushes up with water_density × g × V ÷ D, where D rises from 10 to 20 as body mass goes from 2000 to 25000. The unmodified game uses the built-in multiplier 10; the realtime file\'s 12 has no recovered reader.',
+            'The SDK documents water density as 1000 and exposes separate pressure, suction, viscous and wave-slamming terms. A native decode (investigation/config.md) recovered the buoyancy routine 0x14048ad30 and its water surface callback 0x14048d4d0. '
+            'Buoyancy: each body gets an upward force water_density × g × V ÷ D. m is the body mass, g its gravity scalar and V a submerged weight summed over an eight-child spatial tree of the body; a partly submerged leaf counts clamp((h - y + r) ÷ 2r, 0, 1) of its weight, h being the sampled water height, y the node centre and r its half-size. '
+            'D = buoyancy_mass_multiplier + buoyancy_mass_modifier × clamp((m - buoyancy_mass_modifier_lower) ÷ buoyancy_mass_modifier_upper, 0, 1)^buoyancy_mass_modifier_pow. With the defaults 10, 10, 2000, 23000 and 1 this is D = 10 + 10 × clamp((m - 2000) ÷ 23000, 0, 1): D is 10 up to mass 2000 and reaches 20 at 25000, not at 23000. '
+            'For V = 1 and g = 10 the upward force is 1000 at mass 100, 666.6667 at 13500 and 500 from 25000 on, in internal units. A larger buoyancy_mass_multiplier lowers the force. '
+            'The force acts at the submerged centroid, so it also makes a torque, and the game adds it to the Bullet force accumulator; it does not set a velocity. '
+            'Which multiplier applies: the game sets 10 itself and overrides it only from rom/data/game_constants.xml, which this installation does not ship. The SDK copy, also 10, is not on that path. The realtime file\'s 12 sits in a registry that the release parses but no recovered gameplay code reads, so this build does not use 12. '
+            'Compartments: a separate loop adds a downward term -g × water_density × 0.01 × (water_compartment_force_factor × W + gas_compartment_force_factor × G) ÷ D. Both factors default to 1 and are missing from the SDK file. W and G are values returned by two fluid compartment getters; G has a stored field ÷ 60 subtracted and is floored at 0. '
+            'Water drag: the surface callback subtracts 0.5 × the sampled wave velocity from the point velocity, and the vertical part of that term is scaled by 0.3 when it points down (inference: the sampled vector is the wave velocity). '
+            'With s the relative speed and d the cosine between the flow and the surface normal, a face with d > 0 gets a pressure force A × d^2.5 × (15 s + 17 s²) against its normal and any other face a suction force A × (-d)^0.3 × (12 s + 5 s²) along it, A being the surface weight. Water density does not multiply these two terms. '
+            'A viscous term opposes motion with viscous_resistance_factor 0.5 × K × 0.00075 × (20 ÷ (s L × 1000000 + 10) + 1.5) × A × water_density × s², L being a body length scalar. K rises from water_drag_factor 1 at mass 2000 to 5 at 25000 (multiplier 4); those two mass thresholds are built into the code and do not follow the buoyancy settings. '
+            'Partly submerged faces add a slamming term scaled by slamming_force_multiplier 100 and body mass. The sum of the three terms is capped at s × m × 0.5 ÷ 60. '
+            'The realtime switches apply_drag, apply_viscous_resistance, apply_slamming_force and use_accurate_buoyancy do not occur in the executable; the callback gates its terms by speed and geometry instead.',
             [config('buoyancy_mass_multiplier', 'sdk-configuration'), config('buoyancy_mass_multiplier')] +
             [config(n, 'sdk-documented-default') for n in ['water_density','wave_velocity_factor','wave_velocity_factor_reverse','buoyancy_damping','buoyancy_damping_submerged','buoyancy_mass_modifier_lower','buoyancy_mass_modifier_upper']] +
-            [config(n) for n in ['apply_drag','apply_slamming_force','slamming_force_multiplier','use_accurate_buoyancy']],
-            [sdk_limit, static_limit, 'A multiplier is not enough to derive displacement, buoyancy force or a mass-to-volume formula. No claim about watertight compartment simulation follows from these settings.'])
+            [config(n) for n in ['apply_drag','apply_slamming_force','slamming_force_multiplier','use_accurate_buoyancy']] +
+            [consumer('buoyancy_mass_multiplier', 'Loaded as the base of the divisor D. The realtime 12 has no recovered path to this field.'),
+             consumer('buoyancy_mass_modifier', 'Multiplies the mass factor in D.'),
+             consumer('buoyancy_mass_modifier_lower', 'Subtracted from body mass in D.'),
+             consumer('buoyancy_mass_modifier_upper', 'Divides the mass difference in D directly, so saturation is at lower + upper.'),
+             consumer('buoyancy_mass_modifier_pow', 'Exponent of the clamped mass factor.'),
+             native('Divisor', 'V ÷ D', 'Function 0x14048ad30 divides the submerged weight V by D.', '0x14048b004', 'f3 41 0f 5e c7'),
+             consumer('water_density', 'Multiplied by the body gravity scalar g and by V ÷ D.'),
+             native('Upward force', 'water_density × g × V ÷ D', 'The product goes into the y component; x and z are zero. The force is applied at the weighted submerged centroid and submitted to the Bullet total-force accumulator.', '0x14048b054', 'f2 0f 59 f9'),
+             native('Partly submerged node', 'clamp((h - y + r) ÷ 2r, 0, 1) × weight', 'Function 0x1409424c0 walks an eight-child tree, rejects nodes above the water and loads the node weight at +0x98 for this fraction. Reading the weights as displaced volume is an inference.', '0x1409425c2', 'f3 41 0f 10 90 98 00 00 00', status='inferred'),
+             native('Worked examples', {str(int(x['mass'])): {'D': round(x['divisor'], 7), 'upwardForce': round(x['upward_force'], 4)} for x in examples},
+                    f'Arithmetic on the decoded equation with V = 1, g = 10 and the defaults, checked against {EXAMPLES}. Internal units, not newtons. Saturation at 25000.', '0x14048ae37', 'f3 0f 5e c6', status='inferred'),
+             consumer('water_compartment_force_factor', 'Multiplies the compartment value W. Absent from the SDK XML attributes.'),
+             consumer('gas_compartment_force_factor', 'Multiplies the compartment value G. Absent from the SDK XML attributes.'),
+             native('Compartment scale', 0.01, 'Binary64 literal in -g × water_density × 0.01 × (water factor × W + gas factor × G) ÷ D; the term is queued only when negative. W and G come from getters 0x1402eb5e0 and 0x1402eb660, G less a stored field ÷ 60 and floored at 0.', '0x140bafee0', '00 00 00 40 e1 7a 84 3f'),
+             consumer('wave_velocity_factor', 'Scales the sampled wave vector subtracted from the point velocity.'),
+             consumer('wave_velocity_factor_reverse', 'Extra factor on the vertical wave term when it points down.'),
+             consumer('drag_factor_linear_pressure', 'Linear pressure coefficient.'),
+             consumer('drag_factor_quadratic_pressure', 'Quadratic pressure coefficient.'),
+             consumer('falloff_power_pressure', 'Exponent of d on the pressure side.'),
+             consumer('drag_factor_linear_suction', 'Linear suction coefficient.'),
+             consumer('drag_factor_quadratic_suction', 'Quadratic suction coefficient.'),
+             consumer('falloff_power_suction', 'Exponent of -d on the suction side.'),
+             native('Pressure coefficients', 'A × d^2.5 × (15 s + 17 s²)', 'The surface callback multiplies speed by the linear and quadratic pressure coefficients from its context.', '0x14048d92b', 'f3 0f 59 4b 40'),
+             consumer('viscous_resistance_factor', 'Multiplies the viscous term.'),
+             native('Viscous coefficient', 'C = 0.00075 × (20 ÷ (s L × 1000000 + 10) + 1.5)', 'Built-in literals of the viscous term. L is the context scalar at +0x94.', '0x14048d897', 'f3 0f 10 88 e0 00 00 00',
+                    literals={'0x140baf8e8': 'a6 9b 44 3a', '0x140bb06c8': '00 00 a0 41', '0x140bb0990': '00 24 74 49', '0x140bb064c': '00 00 20 41', '0x140bb0030': '00 00 c0 3f'}),
+             consumer('water_drag_factor', 'Base of the drag factor K.'),
+             consumer('water_drag_weight_factor_multiplier', 'Adds this times clamp((m - 2000) ÷ 23000, 0, 1) to K, so K runs from 1 to 5.'),
+             native('Drag mass thresholds', {'lower': 2000, 'upper': 23000}, 'Built-in literals for K, independent of buoyancy_mass_modifier_lower and _upper.', '0x14048b399', 'f3 44 0f 5c 15 d2 54 72 00',
+                    literals={'0x140bb0874': '00 00 fa 44', '0x140bb08f8': '00 b0 b3 46'}),
+             consumer('slamming_force_multiplier', 'Scales the slamming term, which also multiplies by body mass.'),
+             native('Water force cap', 's × m × 0.5 ÷ 60', 'Speed × body mass × 0.5 ÷ 60. A larger combined vector is scaled down to this length.', '0x14048df4c', 'f3 0f 5e 3d 0c 28 72 00', literals={'0x140bb0760': '00 00 70 42'}),
+             absent(['apply_drag', 'apply_viscous_resistance', 'apply_slamming_force', 'use_accurate_buoyancy'], 'Realtime water switches', 'The water surface callback gates its terms by speed and geometry; no read of these switches exists.'),
+             realtime_loader()],
+            [sdk_limit, native_limit,
+             'Buoyancy is decoded in internal units of the native submerged weight V. Still not recovered: how component geometry builds the tree weights and whether one cubic metre of hull gives V = 1, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So no displacement or mass-to-volume rule for a whole vessel follows yet.',
+             'The surface normal, lever arm, surface weight A, length L, the slamming scalar and the sampled wave vectors come from a surface traversal whose construction was not recovered. No SI meaning is assigned to the drag factors.'])
     article('wheels-suspension', 'Wheels, grip and suspension', 'Physics',
             'Realtime configuration separates tire damping, suspension stiffness and wheel torque scaling, but the executable contains none of these names; the wheel code uses its own constants.',
             'The shipped tuning includes suspension stiffness 0.2 and damping 1, tire stiffness 1 and damping 4, tire_max_friction 100, tire_grip_multiplier 50 and wheel drive torque multiplier 0.0004. '
@@ -236,7 +410,7 @@ def build_articles():
             [block_limit, static_limit, 'The air:fuel window, efficiency, speed impulse and channel scaling come from that native decode. Composite value 1 is not established as litres of atmospheric air: it is 6000 × admitted oxygen, ten times the gas-litre factor the fluid tooltips use. An SI conversion from fuel to torque, power or energy was not recovered.'])
     article('electric-storage-generation', 'Batteries and generators', 'Electricity',
             'Battery capacities and charge output ranges are explicit in component definitions.',
-            'The small, medium and large battery definitions assign charge capacities 1600, 12800 and 256000. Battery Charge outputs run from 0 to 1. Generators take mechanical input and expose electrical output plus a generation data output. Their electric_magnitude values are internal configuration fields. The storage, draw and generation equations come from native code and are in the Electric Battery, Generator and Electric Motor part articles. The realtime electric consumption scale is 0.01.',
+            'The small, medium and large battery definitions assign charge capacities 1600, 12800 and 256000. Battery Charge outputs run from 0 to 1. Generators take mechanical input and expose electrical output plus a generation data output. Their electric_magnitude values are internal configuration fields. The storage, draw and generation equations come from native code and are in the Electric Battery, Generator and Electric Motor part articles. The realtime file sets electric_consumption_scale to 0.01; the name does not occur in the executable, so nothing shows that this build reads it.',
             definition('battery_small', ['electric_charge_capacity']) + definition('battery_medium', ['electric_charge_capacity'], nodes=False) + definition('battery_large', ['electric_charge_capacity'], nodes=False) + definition('generator_small', ['electric_magnitude']) + definition('generator_medium', ['electric_magnitude'], nodes=False) + definition('generator_large', ['electric_magnitude'], nodes=False) + [config('electric_consumption_scale')],
             [block_limit, static_limit, 'Capacity units, voltage and conversion to joules or watts remain unknown. Consumption of components outside the traced native updates and the effect of electric_consumption_scale were not recovered.'])
     article('fluids-pressure-flow', 'Fluid tanks, pumps and damping', 'Fluids',
@@ -305,10 +479,14 @@ def build_articles():
              lua('Expiration', {'loaded':'timer > life','unloaded':'timer / life > 0.5'}, 'Timer increments by delta_worldtime for STATE_DEFAULT packages.', CARGO, 'cargo_package_object.timer = cargo_package_object.timer + delta_worldtime', 'if cargo_package_object.timer / cargo_package_object.life > 0.5 then')],
             [lua_limit, 'Package probability and terminal eligibility are configured elsewhere. No claim is made that every cargo addon uses these rules or that source expressions prove wall-clock timing.'])
     article('environment-hazards', 'Environment and hazard tuning', 'Environment',
-            'Realtime files configure lighting hours, tornado components and whirlpool force terms.',
-            'The environment file places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19. Tornado and whirlpool tuning separate vertical, radial and tangential terms. These names expose independent settings, but do not establish damage, safe distances or the force falloff formula.',
-            [config(n) for n in ['sunrise_start_hour','sunrise_hour','sunrise_end_hour','sunset_start_hour','sunset_hour','sunset_end_hour','tornado_base_radius_inner','tornado_base_radius_outer','tornado_wind_component_vertical','tornado_wind_component_radial','tornado_wind_component_tangential','whirlpool_vertical_force','whirlpool_radial_force','whirlpool_tangent_force']],
-            [static_limit, 'Lighting markers are not proof of mission schedules or latitude-dependent astronomical sunrise. Hazard spawning and damage behavior require separate addon and native analysis.'])
+            'The realtime environment file lists lighting hours, tornado components and whirlpool force terms, but none of these names occurs in the executable.',
+            'The environment file places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19. Tornado and whirlpool tuning separate vertical, radial and tangential terms. '
+            f'A native search (investigation/config.md) found {len(env_present)} of the file\'s {len(env_names)} names in the executable, all atmosphere settings ({", ".join(env_present)}). None of the sunrise, sunset, tornado or whirlpool names occurs, as ASCII or UTF-16LE text. '
+            'The release parses the realtime_values directory into a registry, but no code that passes those entries to lighting or hazard simulation was found. These numbers are shipped tuning that nothing shows the simulation reads, and they say nothing about mission schedules or astronomical latitude.',
+            [config(n) for n in ['sunrise_start_hour','sunrise_hour','sunrise_end_hour','sunset_start_hour','sunset_hour','sunset_end_hour','tornado_base_radius_inner','tornado_base_radius_outer','tornado_wind_component_vertical','tornado_wind_component_radial','tornado_wind_component_tangential','whirlpool_vertical_force','whirlpool_radial_force','whirlpool_tangent_force']] +
+            [absent([n for n in env_names if n.startswith(('sunrise_', 'sunset_', 'tornado_', 'whirlpool_'))], 'Lighting and hazard names', 'None of the sunrise, sunset, tornado or whirlpool names in the environment file occurs in the executable.'),
+             realtime_loader()],
+            [static_limit, 'Still not decoded: the release lighting interpolator and its actual hour boundaries, the native tornado and whirlpool force equations and falloff, hazard spawning, damage and safe distances. The realtime entries and their names give no basis for those mechanics.'])
     article('jet-engines', 'Jet startup, turbines and afterburners', 'Engines',
             'Jet component descriptions separate electrical startup, combustion and exhaust controls.',
             'The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × a per-vehicle scale. RPS reaches the exhaust only through the pressure the chamber adds. The exhaust branch never subtracts jet fuel; its Fuel port exchanges with the pipe network separately.',
@@ -388,9 +566,12 @@ def build_articles():
             [block_limit, static_limit, 'The velocity, flight, spread, impact, loading and fuse figures come from that native decode, not from these definitions alone. Still not decoded: a throughput model for arbitrary belt networks, the fastest firing schedule for cannons whose breech is opened and loaded by external control, and the final voxel damage, armour incidence and blast occlusion applied to a target. The firing rates above are state-machine inferences, not measurements.'])
     article('composite-cable-interfaces', 'Composite data over electrical cables', 'Control',
             'Electrical cable anchors document separate data send and receive interfaces.',
-            'The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports describe composite, on/off, video and audio send and receive paths. This establishes the documented transport interface. It does not establish a composite channel count, packet format or microcontroller execution model.',
-            definition('rope_hook_composite', tooltip=True),
-            [block_limit, static_limit, 'Channel numbering, boolean and numeric channel layout, update order, transport latency, microcontroller limits and Lua scheduling require further evidence. The inspected microprocessor definition has empty tooltip descriptions and supplies no basis for those claims.'])
+            'The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports describe composite, on/off, video and audio send and receive paths. These are port types, not channel counts. '
+            'A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph. It does not show when that cache is refreshed.',
+            definition('rope_hook_composite', tooltip=True) +
+            [native('Scalar input getter', 'returns the cached value at input + 0x18', 'Load, copy to the result, return. No recursive evaluation of upstream components.', '0x1408cacf0', '8b 41 18 89 02 c3')],
+            [block_limit, static_limit, 'Still not decoded: the type-48 anchor\'s composite payload storage and copy routine, numeric and on/off channel layout and numbering, video and audio ownership, endpoint update order, transfer from producer to cache, cross-vehicle latency, microcontroller limits and Lua scheduling. '
+             'The XML port types, the one-link tooltip, the empty microprocessor tooltips and the cached getter give no basis for those claims, and no composite packet format or fixed one-update latency was recovered.'])
     article('winches-hose-coils', 'Winch controls, length and hose connections', 'Fluids',
             'Winch descriptions document electrical operation, length telemetry and hose-coil ports. Rope-node winches reel at 0.012 × cable_length × Speed m/s; legacy winches and the Hose reel at 0.24 × Speed m/s at full electricity.',
             'The selected mechanical winch raises its cable on Up and lowers it on Down. Length reports the current cable length in metres. The selected large variant documents the same controls and units. Their short tooltips describe 20m and 100m mechanical winches respectively. Both expose electrical and hose-coil fluid connections. '
@@ -428,6 +609,9 @@ def build_articles():
              'how the Mag All\'s contact records are produced and filtered; and any ordnance activation beyond the Launched latch and the vehicle\'s own wiring, since the Launch branch calls no firing, ignition or projectile routine.'])
 
 
+DISAGREEMENT = {'buoyancy_mass_multiplier': 'Neither file wins. The game uses its built-in 10: it overrides game_constants only from rom/data/game_constants.xml, which this installation does not ship, and the realtime 12 sits in a registry with no recovered gameplay reader (investigation/config.md).'}
+
+
 def build():
     CACHE.clear(); CONSTANTS.clear(); ARTICLES.clear()
     extract_constants()
@@ -436,17 +620,19 @@ def build():
     sdk = {c['name']:c for c in CONSTANTS if c['evidenceType'] == 'sdk-configuration'}
     for c in CONSTANTS:
         if c['evidenceType'] == 'realtime-configuration' and c['name'] in sdk and c['value'] != sdk[c['name']]['value']:
-            comparisons.append(dict(name=c['name'], sdkValue=sdk[c['name']]['value'], realtimeValue=c['value'], sdkSource=sdk[c['name']]['source'], realtimeSource=c['source'], status='observed', limitation='File disagreement only; runtime precedence unknown.'))
+            note = DISAGREEMENT.get(c['name'], 'File disagreement only; runtime precedence unknown.')
+            comparisons.append(dict(name=c['name'], sdkValue=sdk[c['name']]['value'], realtimeValue=c['value'], sdkSource=sdk[c['name']]['source'], realtimeSource=c['source'], status='observed', limitation=note))
     return dict(articles=ARTICLES, constants=CONSTANTS, summary=dict(
         schemaVersion=1, articleCount=len(ARTICLES), constantCount=len(CONSTANTS),
         findingCount=sum(len(a['findings']) for a in ARTICLES),
         sourceCount=len(CACHE), categories=sorted({a['category'] for a in ARTICLES}),
         sourceManifest=[dict(path=p, sha256=CACHE[p][1], lineCount=len(read(p).splitlines())) for p in sorted(CACHE)],
-        evidenceTypes=['sdk-documented-default','sdk-configuration','realtime-configuration','component-configuration','static-addon-lua','component-interface-description'],
+        evidenceTypes=['sdk-documented-default','sdk-configuration','realtime-configuration','component-configuration','static-addon-lua','component-interface-description','native-static'],
+        binary=dict(path=EXE, sha256=EXE_SHA256),
         evidenceIdFormat='resource:<relative path>:<first 12 SHA-256 hex>:L<start>-L<end>; local resource references, not REA session IDs',
         reproduction='python wiki/scripts/extract_mechanics.py --check',
         sdkRealtimeDifferences=comparisons,
-        limitations=['No runtime execution or native binary analysis is included.', 'Observed means text or configuration observed in a supplied file, never observed execution.', 'Constants retain source scope. SDK defaults, SDK attributes and realtime settings are separate records.', 'No copyrighted game files are copied wholesale; output contains selected facts, interface descriptions and short evidence expressions.', 'Component fields are selected for relevance; common serialized defaults on unrelated components are not interpreted.', 'Realtime records are an inventory, including presentation and debug tuning. Names alone do not establish semantics, units or active loading.']))
+        limitations=['No game process was executed. Native-static findings cite byte-verified addresses in the executable; all other findings cite shipped files.', 'Observed means text or configuration observed in a supplied file, never observed execution.', 'Constants retain source scope. SDK defaults, SDK attributes and realtime settings are separate records.', 'No copyrighted game files are copied wholesale; output contains selected facts, interface descriptions and short evidence expressions.', 'Component fields are selected for relevance; common serialized defaults on unrelated components are not interpreted.', 'Realtime records are an inventory, including presentation and debug tuning. The release parses the realtime_values directory, but no gameplay reader of the parsed values was found, so a realtime record is not the value the game uses unless an article cites a reader.']))
 
 
 def main():

@@ -1,0 +1,49 @@
+title:	Configuration loading and native defaults: resolve missing mechanics
+state:	OPEN
+author:	Chaoscaot (Max)
+labels:	research
+comments:	0
+assignees:	
+projects:	
+milestone:	
+issue-type:	
+parent:	
+sub-issues:	
+sub-issues-completed:	
+blocked-by:	
+blocking:	
+number:	150
+--
+<!-- stormworks-research-gap:mechanics:native-configuration-loading -->
+This issue tracks explicit open questions in the [wiki](https://sw-wiki.maxsp.de/mechanics/native-configuration-loading).
+
+The quotations below preserve the scope of each source. A resource-only article can lack a formula that a separate native-code investigation has partly recovered. Reconcile those findings before treating every quoted item as wholly undecoded.
+
+## Recorded gaps
+
+**Native-code supplement**
+
+> The native constants serializer also supplies 10.0 for buoyancy_mass_multiplier. The SDK says 10 and the shipped realtime settings say 12. This trace does not establish which value wins during gameplay.
+
+- [wiki/data/native.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/native.json), `/articles/0/findings/2/detail`
+
+**Native-code supplement**
+
+> Both named fields and fallback values are present in the recovered serializer but absent from the supplied SDK XML attributes. The force equation and effective runtime values are unresolved.
+
+- [wiki/data/native.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/native.json), `/articles/0/findings/3/detail`
+
+**Native-code supplement**
+
+> The native component serializer passes these literal names and destination offsets to the float helper. A serialized field does not establish that every component uses it or define its physical units.
+
+- [wiki/data/native.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/native.json), `/articles/0/findings/5/detail`
+
+## Completion criteria
+
+- Recover the relevant routine or run a reproducible measurement against the identified game build.
+- Record equations, units, bounds, assumptions and executable addresses or measurement inputs.
+- Update the wiki guidance and its extractor, retaining citations and any remaining uncertainty.
+- Add or update an interactive graph when the recovered formula supports one.
+- Re-run the relevant source checks and website checks.
+

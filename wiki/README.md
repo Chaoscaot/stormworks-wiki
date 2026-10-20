@@ -14,7 +14,7 @@ A read-only wiki for Stormworks: Build and Rescue, built with Next.js (App Route
 | `/mechanics`, `/mechanics/[id]` | Mechanics articles from `mechanics.json` and `native.json`. Findings are grouped by the file they cite |
 | `/constants` | Every constant, filterable by text, evidence source and data set |
 | `/tools/cooling` | Cooling capacity calculator with two methods. The ideal-flow estimate (default) sizes radiators for a modular engine from the heat, coolant and radiator terms recovered from the executable, and compares the four radiator types. The measured calibration sizes any engine from the user's paired readings and draws a temperature-time curve. Inputs can be shared as a URL |
-| `/provenance` | Game build, data sets, decoded numeric codes with their executable addresses, evidence labels, coverage, source disagreements, limitations |
+| `/provenance` | Game build, data sets, decoded numeric codes with their executable addresses, evidence labels, coverage, realtime settings (which names occur in the executable, and that no gameplay reader of the parsed files was found), the 42 built-in game constants with SDK and realtime values and their reads, source disagreements, limitations |
 | `/search?q=` | Server-side search across parts, components, mechanics and constants. `&show=<group>` lists every match in one group |
 
 ## Data
@@ -24,7 +24,7 @@ A read-only wiki for Stormworks: Build and Rescue, built with Next.js (App Route
 - `blocks.json` (required): component definitions
 - `families.json` (optional): part families. Definitions it does not cover become one-member articles
 - `mechanics.json` (optional): articles and constants read from shipped files
-- `native.json` (optional): same schema as `mechanics.json`, from static analysis of the executable. Records keep `origin: 'native'`
+- `native.json` (optional): same schema as `mechanics.json`, from static analysis of the executable. Records keep `origin: 'native'`. It also carries `gameConstants` (the 42 built-in game_constants values, their SDK and realtime counterparts and byte-verified reads) and `realtime` (the realtime_values loader and per-file name counts)
 - `build.json` (optional): Steam build identity
 - `images.json` (optional): one image per component ID, `{src, alt, kind, width, height, source}`. Only site-relative `src` paths whose file exists in `public/` are shown, so a missing file never renders as a broken image. Renders cite every mesh in `source.meshes`
 - `codes.json` (optional): names for the numeric category, logic and coupling codes, written by `scripts/extract_codes.py` from the numeric component codes investigation (`investigation/numeric-codes.md`). Each name cites the executable address it was read from. Without the file, codes show as raw numbers

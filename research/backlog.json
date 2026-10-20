@@ -891,12 +891,6 @@
         "pointer": "/families/232/limitations/0",
         "text": "The noise term's input mapping and exact bound were not reproduced, and which transponders count (disabled, unloaded or remote) was not traced.",
         "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/232/findings/2/detail",
-        "text": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
-        "scope": "Practical behavior guidance"
       }
     ]
   },
@@ -998,7 +992,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/1/limitations/2",
-        "text": "The calculate_air_density setting is 0, but its name alone does not establish which density calculation it disables. No SI interpretation is assigned to internal force factors.",
+        "text": "Still not recovered for the hull air callback: its term-by-term force equation, the surface weights and normals it receives, and an SI meaning for its tuned factors. No calibration or runtime experiment was performed.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1023,14 +1017,14 @@
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/2/body",
-        "text": "The SDK documents water density as 1000 and exposes separate pressure, suction, viscous and wave-slamming terms. The realtime file enables named drag and slamming switches. SDK buoyancy_mass_multiplier is 10, while realtime buoyancy_mass_multiplier is 12. Keep both sources visible: their loading order and runtime authority have not been established.",
+        "pointer": "/articles/2/limitations/2",
+        "text": "Buoyancy is decoded in internal units of the native submerged weight V. Still not recovered: how component geometry builds the tree weights and whether one cubic metre of hull gives V = 1, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So no displacement or mass-to-volume rule for a whole vessel follows yet.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/2/limitations/2",
-        "text": "A multiplier is not enough to derive displacement, buoyancy force or a mass-to-volume formula. No claim about watertight compartment simulation follows from these settings.",
+        "pointer": "/articles/2/limitations/3",
+        "text": "The surface normal, lever arm, surface weight A, length L, the slamming scalar and the sampled wave vectors come from a surface traversal whose construction was not recovered. No SI meaning is assigned to the drag factors.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1042,14 +1036,8 @@
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/24/body",
-        "text": "The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports describe composite, on/off, video and audio send and receive paths. This establishes the documented transport interface. It does not establish a composite channel count, packet format or microcontroller execution model.",
-        "scope": "Shipped-resource mechanics article"
-      },
-      {
-        "file": "wiki/data/mechanics.json",
         "pointer": "/articles/24/limitations/2",
-        "text": "Channel numbering, boolean and numeric channel layout, update order, transport latency, microcontroller limits and Lua scheduling require further evidence. The inspected microprocessor definition has empty tooltip descriptions and supplies no basis for those claims.",
+        "text": "Still not decoded: the type-48 anchor's composite payload storage and copy routine, numeric and on/off channel layout and numbering, video and audio ownership, endpoint update order, transfer from producer to cache, cross-vehicle latency, microcontroller limits and Lua scheduling. The XML port types, the one-link tooltip, the empty microprocessor tooltips and the cached getter give no basis for those claims, and no composite packet format or fixed one-update latency was recovered.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1100,14 +1088,8 @@
     "locations": [
       {
         "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/15/body",
-        "text": "The environment file places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19. Tornado and whirlpool tuning separate vertical, radial and tangential terms. These names expose independent settings, but do not establish damage, safe distances or the force falloff formula.",
-        "scope": "Shipped-resource mechanics article"
-      },
-      {
-        "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/1",
-        "text": "Lighting markers are not proof of mission schedules or latitude-dependent astronomical sunrise. Hazard spawning and damage behavior require separate addon and native analysis.",
+        "text": "Still not decoded: the release lighting interpolator and its actual hour boundaries, the native tornado and whirlpool force equations and falloff, hazard spawning, damage and safe distances. The realtime entries and their names give no basis for those mechanics.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1161,31 +1143,6 @@
         "pointer": "/articles/5/limitations/2",
         "text": "The air:fuel window, efficiency, speed impulse and channel scaling come from that native decode. Composite value 1 is not established as litres of atmospheric air: it is 6000 × admitted oxygen, ten times the gas-litre factor the fluid tooltips use. An SI conversion from fuel to torque, power or energy was not recovered.",
         "scope": "Shipped-resource mechanics article"
-      }
-    ]
-  },
-  {
-    "key": "mechanics:native-configuration-loading",
-    "title": "Configuration loading and native defaults: resolve missing mechanics",
-    "wiki": "https://sw-wiki.maxsp.de/mechanics/native-configuration-loading",
-    "locations": [
-      {
-        "file": "wiki/data/native.json",
-        "pointer": "/articles/0/findings/2/detail",
-        "text": "The native constants serializer also supplies 10.0 for buoyancy_mass_multiplier. The SDK says 10 and the shipped realtime settings say 12. This trace does not establish which value wins during gameplay.",
-        "scope": "Native-code supplement"
-      },
-      {
-        "file": "wiki/data/native.json",
-        "pointer": "/articles/0/findings/3/detail",
-        "text": "Both named fields and fallback values are present in the recovered serializer but absent from the supplied SDK XML attributes. The force equation and effective runtime values are unresolved.",
-        "scope": "Native-code supplement"
-      },
-      {
-        "file": "wiki/data/native.json",
-        "pointer": "/articles/0/findings/5/detail",
-        "text": "The native component serializer passes these literal names and destination offsets to the float helper. A serialized field does not establish that every component uses it or define its physical units.",
-        "scope": "Native-code supplement"
       }
     ]
   },

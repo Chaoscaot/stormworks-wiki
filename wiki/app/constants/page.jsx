@@ -34,8 +34,9 @@ export default async function ConstantsPage({ searchParams }) {
         <p>
           {fmtNum(d.constants.length)} named values, each with the file it came from. {fmtNum(d.constants.length - nativeCount)} come from shipped
           SDK, realtime-configuration and component files.
-          {nativeCount ? ` ${nativeCount} are fallback values found by static analysis of the game executable.` : ''} A value in a file is not proof
-          that the game uses it during play, and when two sources disagree the wiki does not know which one wins.
+          {nativeCount ? ` ${nativeCount} are built-in game_constants values found by static analysis of the game executable; this installation reads no game_constants.xml, so those are the values in use.` : ''} A value
+          in a file is not proof that the game uses it during play. Realtime-configuration values have no recovered reader in the game; see{' '}
+          <Link href="/provenance#realtime">About the sources</Link>.
         </p>
       </div>
       <form className="filters" method="get" action="/constants" role="search" aria-label="Filter constants">

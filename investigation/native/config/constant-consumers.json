@@ -1,0 +1,331 @@
+[
+  {
+    "name": "gravity",
+    "function": "0x1402b6960",
+    "address": "0x1402b6aa2",
+    "access": "read",
+    "instruction": "1402b6aa2:\tf3 44 0f 10 47 5c    \tmovss  xmm8,DWORD PTR [rdi+0x5c]"
+  },
+  {
+    "name": "gravity",
+    "function": "0x1402b6960",
+    "address": "0x1402b6af2",
+    "access": "read",
+    "instruction": "1402b6af2:\tf3 0f 10 45 5c       \tmovss  xmm0,DWORD PTR [rbp+0x5c]"
+  },
+  {
+    "name": "radar_noise",
+    "function": "0x1403ba040",
+    "address": "0x1403bcaa0",
+    "access": "read",
+    "instruction": "1403bcaa0:\tf3 0f 10 b8 fc 00 00 00 \tmovss  xmm7,DWORD PTR [rax+0xfc]"
+  },
+  {
+    "name": "radar_distance_noise",
+    "function": "0x1403ba040",
+    "address": "0x1403bcaad",
+    "access": "read",
+    "instruction": "1403bcaad:\tf3 44 0f 10 88 00 01 00 00 \tmovss  xmm9,DWORD PTR [rax+0x100]"
+  },
+  {
+    "name": "sonar_noise",
+    "function": "0x1403bf8e0",
+    "address": "0x1403c2175",
+    "access": "read",
+    "instruction": "1403c2175:\tf3 0f 10 b8 f8 00 00 00 \tmovss  xmm7,DWORD PTR [rax+0xf8]"
+  },
+  {
+    "name": "water_density",
+    "function": "0x14048ad30",
+    "address": "0x14048add2",
+    "access": "read",
+    "instruction": "14048add2:\tf3 44 0f 10 a8 c8 00 00 00 \tmovss  xmm13,DWORD PTR [rax+0xc8]"
+  },
+  {
+    "name": "buoyancy_mass_multiplier",
+    "function": "0x14048ad30",
+    "address": "0x14048ade0",
+    "access": "read",
+    "instruction": "14048ade0:\tf3 44 0f 10 b8 a4 00 00 00 \tmovss  xmm15,DWORD PTR [rax+0xa4]"
+  },
+  {
+    "name": "buoyancy_mass_modifier",
+    "function": "0x14048ad30",
+    "address": "0x14048adee",
+    "access": "read",
+    "instruction": "14048adee:\tf3 44 0f 10 80 a8 00 00 00 \tmovss  xmm8,DWORD PTR [rax+0xa8]"
+  },
+  {
+    "name": "buoyancy_mass_modifier_lower",
+    "function": "0x14048ad30",
+    "address": "0x14048adfc",
+    "access": "read",
+    "instruction": "14048adfc:\tf3 0f 10 b8 ac 00 00 00 \tmovss  xmm7,DWORD PTR [rax+0xac]"
+  },
+  {
+    "name": "buoyancy_mass_modifier_upper",
+    "function": "0x14048ad30",
+    "address": "0x14048ae09",
+    "access": "read",
+    "instruction": "14048ae09:\tf3 0f 10 b0 b0 00 00 00 \tmovss  xmm6,DWORD PTR [rax+0xb0]"
+  },
+  {
+    "name": "buoyancy_mass_modifier_pow",
+    "function": "0x14048ad30",
+    "address": "0x14048ae2f",
+    "access": "read",
+    "instruction": "14048ae2f:\tf3 0f 10 88 b4 00 00 00 \tmovss  xmm1,DWORD PTR [rax+0xb4]"
+  },
+  {
+    "name": "air_drag_factor_linear_pressure",
+    "function": "0x14048ad30",
+    "address": "0x14048b168",
+    "access": "read",
+    "instruction": "14048b168:\tf3 0f 10 40 60       \tmovss  xmm0,DWORD PTR [rax+0x60]"
+  },
+  {
+    "name": "air_drag_factor_quadratic_pressure",
+    "function": "0x14048ad30",
+    "address": "0x14048b17a",
+    "access": "read",
+    "instruction": "14048b17a:\tf3 0f 10 40 64       \tmovss  xmm0,DWORD PTR [rax+0x64]"
+  },
+  {
+    "name": "air_falloff_power_pressure",
+    "function": "0x14048ad30",
+    "address": "0x14048b18c",
+    "access": "read",
+    "instruction": "14048b18c:\tf3 0f 10 40 70       \tmovss  xmm0,DWORD PTR [rax+0x70]"
+  },
+  {
+    "name": "air_drag_factor_linear_suction",
+    "function": "0x14048ad30",
+    "address": "0x14048b19e",
+    "access": "read",
+    "instruction": "14048b19e:\tf3 0f 10 40 68       \tmovss  xmm0,DWORD PTR [rax+0x68]"
+  },
+  {
+    "name": "air_drag_factor_quadratic_suction",
+    "function": "0x14048ad30",
+    "address": "0x14048b1b0",
+    "access": "read",
+    "instruction": "14048b1b0:\tf3 0f 10 40 6c       \tmovss  xmm0,DWORD PTR [rax+0x6c]"
+  },
+  {
+    "name": "air_falloff_power_suction",
+    "function": "0x14048ad30",
+    "address": "0x14048b1c2",
+    "access": "read",
+    "instruction": "14048b1c2:\tf3 0f 10 40 74       \tmovss  xmm0,DWORD PTR [rax+0x74]"
+  },
+  {
+    "name": "air_density",
+    "function": "0x14048ad30",
+    "address": "0x14048b1d4",
+    "access": "read",
+    "instruction": "14048b1d4:\tf3 0f 10 80 c4 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0xc4]"
+  },
+  {
+    "name": "air_drag_factor",
+    "function": "0x14048ad30",
+    "address": "0x14048b1e9",
+    "access": "read",
+    "instruction": "14048b1e9:\tf3 0f 10 80 94 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x94]"
+  },
+  {
+    "name": "drag_factor_linear_pressure",
+    "function": "0x14048ad30",
+    "address": "0x14048b1fe",
+    "access": "read",
+    "instruction": "14048b1fe:\tf3 0f 10 40 78       \tmovss  xmm0,DWORD PTR [rax+0x78]"
+  },
+  {
+    "name": "drag_factor_quadratic_pressure",
+    "function": "0x14048ad30",
+    "address": "0x14048b210",
+    "access": "read",
+    "instruction": "14048b210:\tf3 0f 10 40 7c       \tmovss  xmm0,DWORD PTR [rax+0x7c]"
+  },
+  {
+    "name": "falloff_power_pressure",
+    "function": "0x14048ad30",
+    "address": "0x14048b222",
+    "access": "read",
+    "instruction": "14048b222:\tf3 0f 10 80 88 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x88]"
+  },
+  {
+    "name": "drag_factor_linear_suction",
+    "function": "0x14048ad30",
+    "address": "0x14048b237",
+    "access": "read",
+    "instruction": "14048b237:\tf3 0f 10 80 80 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x80]"
+  },
+  {
+    "name": "drag_factor_quadratic_suction",
+    "function": "0x14048ad30",
+    "address": "0x14048b24c",
+    "access": "read",
+    "instruction": "14048b24c:\tf3 0f 10 80 84 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x84]"
+  },
+  {
+    "name": "falloff_power_suction",
+    "function": "0x14048ad30",
+    "address": "0x14048b261",
+    "access": "read",
+    "instruction": "14048b261:\tf3 0f 10 80 8c 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x8c]"
+  },
+  {
+    "name": "water_drag_factor",
+    "function": "0x14048ad30",
+    "address": "0x14048b276",
+    "access": "read",
+    "instruction": "14048b276:\tf3 0f 10 80 90 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x90]"
+  },
+  {
+    "name": "water_density",
+    "function": "0x14048ad30",
+    "address": "0x14048b28b",
+    "access": "read",
+    "instruction": "14048b28b:\tf3 0f 10 80 c8 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0xc8]"
+  },
+  {
+    "name": "air_speed_threshold",
+    "function": "0x14048ad30",
+    "address": "0x14048b2a0",
+    "access": "read",
+    "instruction": "14048b2a0:\tf3 0f 10 80 98 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x98]"
+  },
+  {
+    "name": "air_high_speed_threshold",
+    "function": "0x14048ad30",
+    "address": "0x14048b2c1",
+    "access": "read",
+    "instruction": "14048b2c1:\tf3 0f 10 80 9c 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0x9c]"
+  },
+  {
+    "name": "air_high_speed_factor_scale",
+    "function": "0x14048ad30",
+    "address": "0x14048b2d6",
+    "access": "read",
+    "instruction": "14048b2d6:\tf3 0f 10 80 a0 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0xa0]"
+  },
+  {
+    "name": "water_drag_weight_factor_multiplier",
+    "function": "0x14048ad30",
+    "address": "0x14048b3bd",
+    "access": "read",
+    "instruction": "14048b3bd:\tf3 44 0f 59 90 d4 00 00 00 \tmulss  xmm10,DWORD PTR [rax+0xd4]"
+  },
+  {
+    "name": "buoyancy_damping",
+    "function": "0x14048ad30",
+    "address": "0x14048b4de",
+    "access": "read",
+    "instruction": "14048b4de:\t8b 88 f0 00 00 00    \tmov    ecx,DWORD PTR [rax+0xf0]"
+  },
+  {
+    "name": "buoyancy_damping_submerged",
+    "function": "0x14048ad30",
+    "address": "0x14048b502",
+    "access": "read",
+    "instruction": "14048b502:\tf3 0f 59 b0 f4 00 00 00 \tmulss  xmm6,DWORD PTR [rax+0xf4]"
+  },
+  {
+    "name": "buoyancy_damping",
+    "function": "0x14048ad30",
+    "address": "0x14048b50a",
+    "access": "read",
+    "instruction": "14048b50a:\tf3 0f 58 b3 f0 00 00 00 \taddss  xmm6,DWORD PTR [rbx+0xf0]"
+  },
+  {
+    "name": "water_compartment_force_factor",
+    "function": "0x14048ad30",
+    "address": "0x14048b6ad",
+    "access": "read",
+    "instruction": "14048b6ad:\tf3 0f 10 b8 cc 00 00 00 \tmovss  xmm7,DWORD PTR [rax+0xcc]"
+  },
+  {
+    "name": "gas_compartment_force_factor",
+    "function": "0x14048ad30",
+    "address": "0x14048b711",
+    "access": "read",
+    "instruction": "14048b711:\tf3 0f 59 88 d0 00 00 00 \tmulss  xmm1,DWORD PTR [rax+0xd0]"
+  },
+  {
+    "name": "wave_velocity_factor",
+    "function": "0x14048d4d0",
+    "address": "0x14048d61b",
+    "access": "read",
+    "instruction": "14048d61b:\tf3 0f 10 80 d8 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0xd8]"
+  },
+  {
+    "name": "wave_velocity_factor_reverse",
+    "function": "0x14048d4d0",
+    "address": "0x14048d65e",
+    "access": "read",
+    "instruction": "14048d65e:\tf3 0f 59 b8 dc 00 00 00 \tmulss  xmm7,DWORD PTR [rax+0xdc]"
+  },
+  {
+    "name": "viscous_resistance_factor",
+    "function": "0x14048d4d0",
+    "address": "0x14048d897",
+    "access": "read",
+    "instruction": "14048d897:\tf3 0f 10 88 e0 00 00 00 \tmovss  xmm1,DWORD PTR [rax+0xe0]"
+  },
+  {
+    "name": "slamming_force_multiplier",
+    "function": "0x14048d4d0",
+    "address": "0x14048da7f",
+    "access": "read",
+    "instruction": "14048da7f:\tf3 0f 10 80 e4 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0xe4]"
+  },
+  {
+    "name": "viscous_air_resistance",
+    "function": "0x14048e2d0",
+    "address": "0x14048e4c5",
+    "access": "read",
+    "instruction": "14048e4c5:\tf3 0f 10 88 e8 00 00 00 \tmovss  xmm1,DWORD PTR [rax+0xe8]"
+  },
+  {
+    "name": "lift_force",
+    "function": "0x14048e2d0",
+    "address": "0x14048e666",
+    "access": "read",
+    "instruction": "14048e666:\tf3 0f 10 80 ec 00 00 00 \tmovss  xmm0,DWORD PTR [rax+0xec]"
+  },
+  {
+    "name": "gravity",
+    "function": "0x140497b10",
+    "address": "0x140497f87",
+    "access": "read",
+    "instruction": "140497f87:\t8b 48 5c             \tmov    ecx,DWORD PTR [rax+0x5c]"
+  },
+  {
+    "name": "vehicle_angular_damping",
+    "function": "0x1404a8b50",
+    "address": "0x1404a950d",
+    "access": "read",
+    "instruction": "1404a950d:\tf3 0f 10 b0 bc 00 00 00 \tmovss  xmm6,DWORD PTR [rax+0xbc]"
+  },
+  {
+    "name": "vehicle_linear_damping",
+    "function": "0x1404a8b50",
+    "address": "0x1404a9558",
+    "access": "read",
+    "instruction": "1404a9558:\tf3 0f 59 83 b8 00 00 00 \tmulss  xmm0,DWORD PTR [rbx+0xb8]"
+  },
+  {
+    "name": "vehicle_friction",
+    "function": "0x1404a8b50",
+    "address": "0x1404a957e",
+    "access": "read",
+    "instruction": "1404a957e:\tf3 0f 10 90 c0 00 00 00 \tmovss  xmm2,DWORD PTR [rax+0xc0]"
+  },
+  {
+    "name": "gravity",
+    "function": "0x1405e4db0",
+    "address": "0x1405e4eba",
+    "access": "read",
+    "instruction": "1405e4eba:\tf3 0f 10 40 5c       \tmovss  xmm0,DWORD PTR [rax+0x5c]"
+  }
+]

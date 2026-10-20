@@ -1,0 +1,618 @@
+sdk/data/game_constants.xml:1:<?xml version="1.0" encoding="UTF-8"?>
+sdk/data/game_constants.xml:2:<!-- World
+sdk/data/game_constants.xml:3:    gravity - World gravity - Default: 10.0
+sdk/data/game_constants.xml:4:    vehicle_linear_damping - Base vehicle linear damping, tends toward 0 with atmospheric height - Default: 0.1
+sdk/data/game_constants.xml:5:    vehicle_angular_damping - Base vehicle angular damping - Default: 0.1
+sdk/data/game_constants.xml:6:    vehicle_friction - Base vehicle physics surface friction - Default: 0.8
+sdk/data/game_constants.xml:7:    sonar_noise - Positive and negative range of small discrepancies in reported sonar positions - Default: 0.001
+sdk/data/game_constants.xml:8:    radar_noise - Positive and negative range of small discrepancies in reported radar positions - Default: 0.001
+sdk/data/game_constants.xml:9:    radar_distance_noise - Max percentage discrepancy in reported radar distance - Default: 0.01
+sdk/data/game_constants.xml:10:-->
+sdk/data/game_constants.xml:11:<!-- Aerodynamics
+sdk/data/game_constants.xml:12:    air_drag_factor_linear_pressure - linear factor of speed on pressure drag forces - Default: 0.05
+sdk/data/game_constants.xml:13:    air_drag_factor_quadratic_pressure - quadratic factor of speed on pressure drag forces - Default: 0.1
+sdk/data/game_constants.xml:14:    air_falloff_power_pressure - falloff scaling of pressure drag relative to the surface in the direction of movement - Default: 0.6
+sdk/data/game_constants.xml:15:    air_drag_factor_linear_suction - linear factor of speed on suction drag forces - Default: 0.025
+sdk/data/game_constants.xml:16:    air_drag_factor_quadratic_suction - quadratic factor of speed on suction drag forces - Default: 0.05
+sdk/data/game_constants.xml:17:    air_falloff_power_suction - falloff scaling of suction drag relative to the surface in the direction of movement - Default: 0.4
+sdk/data/game_constants.xml:18:    air_drag_factor - vehicle body base factor for applied air drag - Default: 0.2
+sdk/data/game_constants.xml:19:    air_speed_threshold - speed threshold (m/s) for a surface to reach before applying aerodynamic forces - Default: 15.0
+sdk/data/game_constants.xml:20:    air_high_speed_threshold - speed threshold (m/s) for a surface to reach before applying high speed scaling to aerodynamic forces - Default: 50.0
+sdk/data/game_constants.xml:21:    air_high_speed_factor_scale - additive(0.1 equates to 1.1) scaling to apply to vehicles at high air speed - Default: 8.0
+sdk/data/game_constants.xml:22:    air_density - density of air - Default: 1.225
+sdk/data/game_constants.xml:23:    viscous_air_resistance- viscous resistance force factor - Default: 0.25
+sdk/data/game_constants.xml:24:    lift_force - lift force scaling applied to surfaces - Default: 0.25
+sdk/data/game_constants.xml:25:-->
+sdk/data/game_constants.xml:26:<!-- Hydrodynamics
+sdk/data/game_constants.xml:27:    drag_factor_linear_pressure - linear factor of speed on pressure drag forces - Default: 15.0
+sdk/data/game_constants.xml:28:    drag_factor_quadratic_pressure - quadratic factor of speed on pressure drag forces - Default: 17.0
+sdk/data/game_constants.xml:29:    falloff_power_pressure - falloff scaling of pressure drag relative to the surface in the direction of movement - Default: 2.5
+sdk/data/game_constants.xml:30:    drag_factor_linear_suction - linear factor of speed on suction drag forces - Default: 12.0
+sdk/data/game_constants.xml:31:    drag_factor_quadratic_suction - quadratic factor of speed on suction drag forces - Default: 5.0
+sdk/data/game_constants.xml:32:    falloff_power_suction - falloff scaling of suction drag relative to the surface in the direction of movement - Default: 0.3
+sdk/data/game_constants.xml:33:    water_drag_factor - vehicle body base factor for applied water drag - Default: 1.0
+sdk/data/game_constants.xml:34:    water_drag_weight_factor_multiplier - vehicle body additional mass water drag factor multiplier - Default: 4.0 
+sdk/data/game_constants.xml:35:    water_density - density of water - Default: 1000.0
+sdk/data/game_constants.xml:36:    wave_velocity_factor - effectiveness of rising waves on buoyant bodies - Default: 0.5
+sdk/data/game_constants.xml:37:    wave_velocity_factor_reverse - effectiveness of falling waves on buoyant bodies - Default: 0.3
+sdk/data/game_constants.xml:38:    viscous_resistance_factor - viscous resistance force factor - Default: 0.5
+sdk/data/game_constants.xml:39:    slamming_force_multiplier - scaling for wave slamming forces against surfaces - Default: 100.0
+sdk/data/game_constants.xml:40:    buoyancy_damping - base angular damping applied to vehicles based on submergence - Default: 0.05
+sdk/data/game_constants.xml:41:    buoyancy_damping_submerged - additive angular damping applied to vehicles based on submergence - Default: 0.92
+sdk/data/game_constants.xml:42:    buoyancy_mass_multiplier - base vehicle mass multiplier - Default: 10.0
+sdk/data/game_constants.xml:43:    buoyancy_mass_modifier - additive mass multiplier based on factor derived from buoyancy_mass_modifier_lower and buoyancy_mass_modifier_upper - Default: 10.0
+sdk/data/game_constants.xml:44:    buoyancy_mass_modifier_lower - Lower bounds for mass modifier scaling to apply - Default: 2000.0
+sdk/data/game_constants.xml:45:    buoyancy_mass_modifier_upper - Upper bounds for mass modifier scaling to apply - Default: 23000.0
+sdk/data/game_constants.xml:46:    buoyancy_mass_modifier_pow - Number to power the mass factor before multiplying the mass modifier - Default: 1.0
+sdk/data/game_constants.xml:47:-->
+sdk/data/game_constants.xml:48:<game_constants
+sdk/data/game_constants.xml:49:    gravity="10.0"
+sdk/data/game_constants.xml:50:    air_drag_factor_linear_pressure="0.05"
+sdk/data/game_constants.xml:51:    air_drag_factor_quadratic_pressure="0.1"
+sdk/data/game_constants.xml:52:    air_drag_factor_linear_suction="0.025"
+sdk/data/game_constants.xml:53:    air_drag_factor_quadratic_suction="0.05"
+sdk/data/game_constants.xml:54:    air_falloff_power_pressure="0.6"
+sdk/data/game_constants.xml:55:    air_falloff_power_suction="0.4"
+sdk/data/game_constants.xml:56:    drag_factor_linear_pressure="15.0"
+sdk/data/game_constants.xml:57:    drag_factor_quadratic_pressure="17.0"
+sdk/data/game_constants.xml:58:    drag_factor_linear_suction="12.0"
+sdk/data/game_constants.xml:59:    drag_factor_quadratic_suction="5.0"
+sdk/data/game_constants.xml:60:    falloff_power_pressure="2.5"
+sdk/data/game_constants.xml:61:    falloff_power_suction="0.3"
+sdk/data/game_constants.xml:62:    water_drag_factor="1.0"
+sdk/data/game_constants.xml:63:    air_drag_factor="0.2"
+sdk/data/game_constants.xml:64:    air_speed_threshold="15.0"
+sdk/data/game_constants.xml:65:    air_high_speed_threshold="50.0"
+sdk/data/game_constants.xml:66:    air_high_speed_factor_scale="8.0"
+sdk/data/game_constants.xml:67:    buoyancy_mass_multiplier="10.0"
+sdk/data/game_constants.xml:68:    buoyancy_mass_modifier="10.0"
+sdk/data/game_constants.xml:69:    buoyancy_mass_modifier_lower="2000.0"
+sdk/data/game_constants.xml:70:    buoyancy_mass_modifier_upper="23000.0"
+sdk/data/game_constants.xml:71:    buoyancy_mass_modifier_pow="1.0"
+sdk/data/game_constants.xml:72:    vehicle_linear_damping="0.1"
+sdk/data/game_constants.xml:73:    vehicle_angular_damping="0.1"
+sdk/data/game_constants.xml:74:    vehicle_friction="0.8"
+sdk/data/game_constants.xml:75:    air_density="1.225"
+sdk/data/game_constants.xml:76:    water_density="1000.0"
+sdk/data/game_constants.xml:77:    water_drag_weight_factor_multiplier="4.0"
+sdk/data/game_constants.xml:78:    wave_velocity_factor="0.5"
+sdk/data/game_constants.xml:79:    wave_velocity_factor_reverse="0.3"
+sdk/data/game_constants.xml:80:    viscous_resistance_factor="0.5"
+sdk/data/game_constants.xml:81:    slamming_force_multiplier="100.0"
+sdk/data/game_constants.xml:82:    viscous_air_resistance="0.25"
+sdk/data/game_constants.xml:83:    lift_force="0.25"
+sdk/data/game_constants.xml:84:    buoyancy_damping="0.05"
+sdk/data/game_constants.xml:85:    buoyancy_damping_submerged="0.92"
+sdk/data/game_constants.xml:86:    sonar_noise = "0.001"
+sdk/data/game_constants.xml:87:    radar_noise = "0.001"
+sdk/data/game_constants.xml:88:    radar_distance_noise = "0.01"
+sdk/data/game_constants.xml:89:/>
+rom/data/realtime_values/general_debug.txt:1:s32 buoyancy_step_target -1
+rom/data/realtime_values/general_debug.txt:2:s32 buoyancy_timer_interval 1
+rom/data/realtime_values/general_debug.txt:3:
+rom/data/realtime_values/general_debug.txt:4:s32 use_accurate_buoyancy 1
+rom/data/realtime_values/general_debug.txt:5:s32 render_buoyancy_normals 1
+rom/data/realtime_values/general_debug.txt:6:
+rom/data/realtime_values/general_debug.txt:7:s32 buoyancy_min_recursion_surface 7
+rom/data/realtime_values/general_debug.txt:8:s32 buoyancy_max_recursion_surface 10
+rom/data/realtime_values/general_debug.txt:9:f32 tree_subdivision_scale 8.0
+rom/data/realtime_values/general_debug.txt:10:
+rom/data/realtime_values/general_debug.txt:11:f32 buoyancy_min_radius 1.8
+rom/data/realtime_values/general_debug.txt:12:f32 buoyancy_max_radius 30.0
+rom/data/realtime_values/general_debug.txt:13:
+rom/data/realtime_values/general_debug.txt:14:f32 air_drag_factor_linear_pressure 0.05
+rom/data/realtime_values/general_debug.txt:15:f32 air_drag_factor_quadratic_pressure 0.1
+rom/data/realtime_values/general_debug.txt:16:f32 air_drag_factor_linear_suction 0.025 
+rom/data/realtime_values/general_debug.txt:17:f32 air_drag_factor_quadratic_suction 0.05
+rom/data/realtime_values/general_debug.txt:18:f32 air_falloff_power_pressure 0.6
+rom/data/realtime_values/general_debug.txt:19:f32 air_falloff_power_suction 0.4
+rom/data/realtime_values/general_debug.txt:20:f32 air_drag_factor 0.2
+rom/data/realtime_values/general_debug.txt:21:f32 lift_force 0.25
+rom/data/realtime_values/general_debug.txt:22:s32 apply_lift 1
+rom/data/realtime_values/general_debug.txt:23:f32 air_speed_threshold 15.0
+rom/data/realtime_values/general_debug.txt:24:f32 air_high_speed_threshold 50.0
+rom/data/realtime_values/general_debug.txt:25:f32 air_high_speed_factor_scale 8.0
+rom/data/realtime_values/general_debug.txt:26:
+rom/data/realtime_values/general_debug.txt:27:f32 buoyancy_damping_multiplier_linear 0.0
+rom/data/realtime_values/general_debug.txt:28:f32 buoyancy_damping_multiplier_angular 0.1
+rom/data/realtime_values/general_debug.txt:29:f32 drag_factor_linear_pressure 15.0
+rom/data/realtime_values/general_debug.txt:30:f32 drag_factor_quadratic_pressure 17.0
+rom/data/realtime_values/general_debug.txt:31:f32 drag_factor_linear_suction 12.0
+rom/data/realtime_values/general_debug.txt:32:f32 drag_factor_quadratic_suction 5.0
+rom/data/realtime_values/general_debug.txt:33:f32 falloff_power_pressure 2.5
+rom/data/realtime_values/general_debug.txt:34:f32 falloff_power_suction 0.3
+rom/data/realtime_values/general_debug.txt:35:f32 water_drag_factor 1.0
+rom/data/realtime_values/general_debug.txt:36:
+rom/data/realtime_values/general_debug.txt:37:f32 buoyancy_mass_multiplier 12
+rom/data/realtime_values/general_debug.txt:38:f32 buoyancy_mass_modifier 10
+rom/data/realtime_values/general_debug.txt:39:f32 buoyancy_mass_modifier_lower 2000
+rom/data/realtime_values/general_debug.txt:40:f32 buoyancy_mass_modifier_upper 23000
+rom/data/realtime_values/general_debug.txt:41:f32 buoyancy_mass_modifier_pow 1
+rom/data/realtime_values/general_debug.txt:42:
+rom/data/realtime_values/general_debug.txt:43:f32 reference_speed 1.0
+rom/data/realtime_values/general_debug.txt:44:s32 use_speed_as_reference 0
+rom/data/realtime_values/general_debug.txt:45:
+rom/data/realtime_values/general_debug.txt:46:s32 apply_viscous_resistance 1
+rom/data/realtime_values/general_debug.txt:47:s32 apply_drag 1
+rom/data/realtime_values/general_debug.txt:48:s32 apply_slamming_force 1
+rom/data/realtime_values/general_debug.txt:49:f32 slamming_force_multiplier 100.0
+rom/data/realtime_values/general_debug.txt:50:s32 calculate_air_density 0
+rom/data/realtime_values/general_debug.txt:51:s32 apply_viscous_air_resistance 1
+rom/data/realtime_values/general_debug.txt:52:
+rom/data/realtime_values/general_debug.txt:53:f32 character_water_drag_scalar 2.0
+rom/data/realtime_values/general_debug.txt:54:
+rom/data/realtime_values/general_debug.txt:55:f32 underwater_draw_distance 120.0
+rom/data/realtime_values/general_debug.txt:56:
+rom/data/realtime_values/general_debug.txt:57:s32 regular_particle_rate_denominator 200
+rom/data/realtime_values/general_debug.txt:58:s32 suction_particle_rate_denominator 40	
+rom/data/realtime_values/general_debug.txt:59:
+rom/data/realtime_values/general_debug.txt:60:f32 regular_particle_speed_min 0.04
+rom/data/realtime_values/general_debug.txt:61:f32 regular_particle_speed_max 0.2
+rom/data/realtime_values/general_debug.txt:62:
+rom/data/realtime_values/general_debug.txt:63:f32 suction_particle_speed_min 0.005
+rom/data/realtime_values/general_debug.txt:64:f32 suction_particle_speed_max 0.02
+rom/data/realtime_values/general_debug.txt:65:
+rom/data/realtime_values/general_debug.txt:66:f32 slam_particle_speed_min 0.05
+rom/data/realtime_values/general_debug.txt:67:f32 slam_particle_speed_max 0.3
+rom/data/realtime_values/general_debug.txt:68:
+rom/data/realtime_values/general_debug.txt:69:f32 slam_particle_count 2.0
+rom/data/realtime_values/general_debug.txt:70:f32 slam_particle_normal_factor 0.1
+rom/data/realtime_values/general_debug.txt:71:f32 splash_particle_count 20.0
+rom/data/realtime_values/general_debug.txt:72:f32 splash_bubble_particle_count 2.0
+rom/data/realtime_values/general_debug.txt:73:f32 particle_velocity_y_scale 0.2
+rom/data/realtime_values/general_debug.txt:74:f32 particle_water_scale 2.0
+rom/data/realtime_values/general_debug.txt:75:f32 bubble_scale 0.002
+rom/data/realtime_values/general_debug.txt:76:f32 splash_bubble_velocity 0.004
+rom/data/realtime_values/general_debug.txt:77:f32 stream_bubble_particle_count 5.0
+rom/data/realtime_values/general_debug.txt:78:f32 stream_bubble_velocity 0.004
+rom/data/realtime_values/general_debug.txt:79:f32 stream_particle_water_scale 0.04
+rom/data/realtime_values/general_debug.txt:80:f32 particle_water_stream_spacing 3.0
+rom/data/realtime_values/general_debug.txt:81:f32 particle_water_stream_scale 8.0
+rom/data/realtime_values/general_debug.txt:82:
+rom/data/realtime_values/general_debug.txt:83:f32 fire_particle_count 5.0
+rom/data/realtime_values/general_debug.txt:84:f32 fire_velocity 0.01
+rom/data/realtime_values/general_debug.txt:85:f32 fire_velocity_vertical 0.0005
+rom/data/realtime_values/general_debug.txt:86:f32 fire_particle_scale 0.15
+rom/data/realtime_values/general_debug.txt:87:s32 fire_life 80
+rom/data/realtime_values/general_debug.txt:88:f32 fire_heat_rate 0.95
+rom/data/realtime_values/general_debug.txt:89:f32 fire_color_r 20.0
+rom/data/realtime_values/general_debug.txt:90:f32 fire_color_g 4.0
+rom/data/realtime_values/general_debug.txt:91:f32 fire_color_b 0.0
+rom/data/realtime_values/general_debug.txt:92:f32 fire_light_range 10.0
+rom/data/realtime_values/general_debug.txt:93:
+rom/data/realtime_values/general_debug.txt:94:f32 forest_fire_particle_count 0.5
+rom/data/realtime_values/general_debug.txt:95:f32 forest_fire_velocity 0.05
+rom/data/realtime_values/general_debug.txt:96:f32 forest_fire_velocity_vertical 0.0015
+rom/data/realtime_values/general_debug.txt:97:f32 forest_fire_particle_scale 0.3
+rom/data/realtime_values/general_debug.txt:98:s32 forest_fire_life 80
+rom/data/realtime_values/general_debug.txt:99:f32 forest_fire_heat_rate 0.97
+rom/data/realtime_values/general_debug.txt:100:
+rom/data/realtime_values/general_debug.txt:101:f32 flare_particle_count 0.2
+rom/data/realtime_values/general_debug.txt:102:f32 flare_velocity 0.03
+rom/data/realtime_values/general_debug.txt:103:s32 flare_min_life 550
+rom/data/realtime_values/general_debug.txt:104:s32 flare_max_life 570
+rom/data/realtime_values/general_debug.txt:105:f32 flare_velocity_vertical 0.02
+rom/data/realtime_values/general_debug.txt:106:f32 flare_max_velocity_vertical 0.2
+rom/data/realtime_values/general_debug.txt:107:f32 flare_color_blend 0.5
+rom/data/realtime_values/general_debug.txt:108:f32 flare_light_radius 70.0
+rom/data/realtime_values/general_debug.txt:109:f32 flare_light_flicker_randomness 0.2
+rom/data/realtime_values/general_debug.txt:110:f32 flare_light_flicker_effect_radius 0.0
+rom/data/realtime_values/general_debug.txt:111:f32 flare_light_flicker_effect_color 10.0
+rom/data/realtime_values/general_debug.txt:112:f32 flare_light_flicker_blend_color 0.05
+rom/data/realtime_values/general_debug.txt:113:f32 flare_light_flicker_blend_radius 0.05
+rom/data/realtime_values/general_debug.txt:114:f32 flare_min_scale 20.0
+rom/data/realtime_values/general_debug.txt:115:f32 flare_max_scale 20.0
+rom/data/realtime_values/general_debug.txt:116:f32 flare_size_increase_life 0.3
+rom/data/realtime_values/general_debug.txt:117:f32 flare_light_intensity 100.0
+rom/data/realtime_values/general_debug.txt:118:f32 flare_light_whiteness 0.05
+rom/data/realtime_values/general_debug.txt:119:f32 flare_color_brightness 0.2
+rom/data/realtime_values/general_debug.txt:120:f32 flare_color_whiteness 0.25
+rom/data/realtime_values/general_debug.txt:121:
+rom/data/realtime_values/general_debug.txt:122:f32 microprocessor_text_offset_x 0.175
+rom/data/realtime_values/general_debug.txt:123:f32 microprocessor_text_offset_y -0.18
+rom/data/realtime_values/general_debug.txt:124:f32 microprocessor_text_spacing -0.01
+rom/data/realtime_values/general_debug.txt:125:f32 microprocessor_text_width 0.65
+rom/data/realtime_values/general_debug.txt:126:f32 microprocessor_text_name_size 0.0007
+rom/data/realtime_values/general_debug.txt:127:f32 microprocessor_text_prop_size 0.00065
+rom/data/realtime_values/general_debug.txt:128:f32 microprocessor_icon_size 0.1
+rom/data/realtime_values/general_debug.txt:129:f32 microprocessor_icon_offset_x 0.1
+rom/data/realtime_values/general_debug.txt:130:f32 microprocessor_icon_offset_y -0.1
+rom/data/realtime_values/general_debug.txt:131:
+rom/data/realtime_values/general_debug.txt:132:color8 map_ocean_color 40, 100, 110, 255
+rom/data/realtime_values/general_debug.txt:133:color8 map_color_contour_solid 32, 32, 32, 255
+rom/data/realtime_values/general_debug.txt:134:color8 map_color_contour_dash 32, 32, 32, 255
+rom/data/realtime_values/general_debug.txt:135:color8 map_color_shallow_0 83, 185, 209, 255
+rom/data/realtime_values/general_debug.txt:136:color8 map_color_land 208, 208, 198, 255
+rom/data/realtime_values/general_debug.txt:137:color8 map_color_sand 227, 208, 141, 255
+rom/data/realtime_values/general_debug.txt:138:color8 map_color_grass 164, 184, 117, 255
+rom/data/realtime_values/general_debug.txt:139:s32 map_dash_frequency 2
+rom/data/realtime_values/general_debug.txt:140:
+rom/data/realtime_values/general_debug.txt:141:f32 wheel_gain_max 25.0
+rom/data/realtime_values/general_debug.txt:142:f32 wheel_gain_min 0.5
+rom/data/realtime_values/general_debug.txt:143:f32 wheel_pitch_max 25.0
+rom/data/realtime_values/general_debug.txt:144:f32 wheel_pitch_min 0.5
+rom/data/realtime_values/general_debug.txt:145:f32 wheel_on_threshold 24.0
+rom/data/realtime_values/general_debug.txt:146:
+rom/data/realtime_values/general_debug.txt:147:f32 suspension_offset 0.5
+rom/data/realtime_values/general_debug.txt:148:f32 suspension_stiffness_factor 0.2
+rom/data/realtime_values/general_debug.txt:149:f32 suspension_damping_factor 1.0
+rom/data/realtime_values/general_debug.txt:150:f32 suspension_radius_factor 1.0
+rom/data/realtime_values/general_debug.txt:151:
+rom/data/realtime_values/general_debug.txt:152:f32 tire_offset 0.5
+rom/data/realtime_values/general_debug.txt:153:f32 tire_stiffness_factor 1.0
+rom/data/realtime_values/general_debug.txt:154:f32 tire_damping_factor 4.0
+rom/data/realtime_values/general_debug.txt:155:f32 tire_radius_factor 0.2
+rom/data/realtime_values/general_debug.txt:156:
+rom/data/realtime_values/general_debug.txt:157:f32 tire_max_friction 100.0
+rom/data/realtime_values/general_debug.txt:158:f32 tire_grip_body_factor 0.5
+rom/data/realtime_values/general_debug.txt:159:f32 tire_grip_multiplier 50.0
+rom/data/realtime_values/general_debug.txt:160:f32 wheel_render_offset_factor 0.0
+rom/data/realtime_values/general_debug.txt:161:f32 wheel_max_drag_distance 0.1
+rom/data/realtime_values/general_debug.txt:162:f32 wheel_elastic_memory_force 2000.0
+rom/data/realtime_values/general_debug.txt:163:f32 wheel_drag_velocity_factor 30.0
+rom/data/realtime_values/general_debug.txt:164:f32 wheel_drive_torque_multiplier 0.0004
+rom/data/realtime_values/general_debug.txt:165:f32 wheel_damping_factor 0.0
+rom/data/realtime_values/general_debug.txt:166:
+rom/data/realtime_values/general_debug.txt:167:f32 electric_consumption_scale 0.01
+rom/data/realtime_values/general_debug.txt:168:
+rom/data/realtime_values/general_debug.txt:169:f32 mp_physics_pos_threshold 0.01
+rom/data/realtime_values/general_debug.txt:170:f32 mp_physics_ang_threshold 0.01
+rom/data/realtime_values/general_debug.txt:171:f32 mp_physics_pos_vel_threshold 0.01
+rom/data/realtime_values/general_debug.txt:172:f32 mp_physics_ang_vel_threshold 0.01
+rom/data/realtime_values/general_debug.txt:173:s32 mp_physics_update_tick_limit 6
+rom/data/realtime_values/general_debug.txt:174:
+rom/data/realtime_values/general_debug.txt:175:s32 ocean_lod_size_bias -6
+rom/data/realtime_values/general_debug.txt:176:f32 ocean_lod_tesellation_factor 0.4
+rom/data/realtime_values/general_debug.txt:177:f32 ocean_lod_size_height_offset 1000.0
+rom/data/realtime_values/general_debug.txt:178:f32 ocean_lod_size_height_step 50.0
+rom/data/realtime_values/general_debug.txt:179:
+rom/data/realtime_values/general_debug.txt:180:f32 fog_intensity_pow 2.0
+rom/data/realtime_values/general_debug.txt:181:
+rom/data/realtime_values/general_debug.txt:182:s32 tree_fire_tick_period 30
+rom/data/realtime_values/general_debug.txt:183:f32 tree_fire_size 4.0f
+rom/data/realtime_values/general_debug.txt:184:s32 tree_fire_spread_threshold 100
+rom/data/realtime_values/general_debug.txt:185:s32 tree_fire_spread_threshold_rain 200
+rom/data/realtime_values/general_debug.txt:186:s32 tree_fire_spread_chance 25
+rom/data/realtime_values/general_debug.txt:187:s32 world_fire_spread_chance 50
+rom/data/realtime_values/general_debug.txt:188:s32 tree_fire_collapse_chance 750
+rom/data/realtime_values/general_debug.txt:189:f32 tree_fire_extinguish_range_sq 16.0
+rom/data/realtime_values/general_debug.txt:190:s32 tree_fire_extinguish_value 5
+rom/data/realtime_values/general_debug.txt:191:
+rom/data/realtime_values/general_debug.txt:192:s32 random_noise_value_min 2048
+rom/data/realtime_values/general_debug.txt:193:s32 random_noise_value_max 4096
+rom/data/realtime_values/general_debug.txt:194:f32 rounding_value 128
+rom/data/realtime_values/general_debug.txt:195:f32 repeat_value 2
+rom/data/realtime_values/general_debug.txt:196:f32 quiet_factor 6
+rom/data/realtime_values/general_debug.txt:197:f32 temp_interference_threshhold 0
+rom/data/realtime_values/general_debug.txt:198:
+rom/data/realtime_values/general_debug.txt:199:f32 binocular_vignette_strength 5.0
+rom/data/realtime_values/general_debug.txt:200:f32 binocular_vignette_threshold 1.5
+rom/data/realtime_values/general_debug.txt:201:
+rom/data/realtime_values/general_debug.txt:202:f32 transponder_variance 0.1
+rom/data/realtime_values/general_debug.txt:203:
+rom/data/realtime_values/general_debug.txt:204:f32 friction_block_drag_stiffness 800.0
+rom/data/realtime_values/general_debug.txt:205:f32 friction_block_damping -16.0
+rom/data/realtime_values/general_debug.txt:206:f32 friction_block_velocity_damping -80.0
+rom/data/realtime_values/general_debug.txt:207:
+rom/data/realtime_values/general_debug.txt:208:f32 vehicle_ai_wing_roll_scale 1.0
+rom/data/realtime_values/general_debug.txt:209:f32 vehicle_ai_wing_pitch_scale 1.5
+rom/data/realtime_values/general_debug.txt:210:f32 vehicle_ai_wing_yaw_scale 5.0
+rom/data/realtime_values/general_debug.txt:211:
+rom/data/realtime_values/general_debug.txt:212:f32 radar_coord_delta_stiffness 10000.0
+rom/data/realtime_values/general_debug.txt:213:f32 radar_coord_delta_damping 1000.0
+rom/data/realtime_values/general_debug.txt:214:
+rom/data/realtime_values/general_debug.txt:215:f32 pulley_stiffness 0.001
+rom/data/realtime_values/general_debug.txt:216:f32 pulley_force 100.0
+rom/data/realtime_values/general_debug.txt:217:f32 pulley_velocity 0.5
+rom/data/realtime_values/general_debug.txt:218:f32 pulley_damping 0.96
+rom/data/realtime_values/general_debug.txt:219:f32 fluid_target_delta_max 0.1
+rom/data/realtime_values/general_debug.txt:220:f32 fluid_flow_delta_max 0.0005
+rom/data/realtime_values/general_debug.txt:221:f32 fluid_flow_damping_gas 0.0005
+rom/data/realtime_values/general_debug.txt:222:f32 fluid_flow_damping_liquid 0.0005
+rom/data/realtime_values/general_debug.txt:223:f32 fluid_base_damping_gas 0.99
+rom/data/realtime_values/general_debug.txt:224:f32 fluid_base_damping_liquid 0.9999
+rom/data/realtime_values/general_debug.txt:225:
+rom/data/realtime_values/general_debug.txt:226:f32 keel_upright_force_scale 200.0
+rom/data/realtime_values/general_debug.txt:227:f32 keel_upright_force_offset 2.0
+rom/data/realtime_values/general_debug.txt:228:f32 keel_upright_max_acc_scale 100.0
+rom/data/realtime_values/general_debug.txt:229:f32 keel_lateral_force_scale 40.0
+rom/data/realtime_values/general_debug.txt:230:f32 keel_lateral_max_acc_scale 20.0
+rom/data/realtime_values/general_debug.txt:231:f32 keel_mass_scale 1000.0
+rom/data/realtime_values/general_debug.txt:232:f32 keel_memory_inv 0.002
+rom/data/realtime_values/general_debug.txt:233:f32 keel_momentum_scale 4.0
+rom/data/realtime_values/general_debug.txt:234:f32 sail_force_scale 1.0
+rom/data/realtime_values/general_debug.txt:235:f32 sail_wing_scale 1.0
+rom/data/realtime_values/general_debug.txt:236:f32 sail_drag_scale 1.0
+rom/data/realtime_values/environment.txt:1:s32 fast_time_multiplier 100
+rom/data/realtime_values/environment.txt:2:f32 foam_threshold 0.3
+rom/data/realtime_values/environment.txt:3:f32 foam_increment 0.2
+rom/data/realtime_values/environment.txt:4:f32 foam_falloff 0.98
+rom/data/realtime_values/environment.txt:5:
+rom/data/realtime_values/environment.txt:6:f32 movable_damping 0.2
+rom/data/realtime_values/environment.txt:7:
+rom/data/realtime_values/environment.txt:8:vec3 night_col_sky_up 0.02, 0.05, 0.077
+rom/data/realtime_values/environment.txt:9:vec3 night_col_sky_down 0.01, 0.12, 0.16
+rom/data/realtime_values/environment.txt:10:vec3 night_col_light 0.12, 0.12, 0.12
+rom/data/realtime_values/environment.txt:11:vec3 night_col_water_base 0.00, 0.05, 0.07
+rom/data/realtime_values/environment.txt:12:vec3 night_col_water_shadow 0.00, 0.05, 0.07
+rom/data/realtime_values/environment.txt:13:
+rom/data/realtime_values/environment.txt:14:f32 sunrise_start_hour 6.0
+rom/data/realtime_values/environment.txt:15:f32 sunrise_hour 7.5
+rom/data/realtime_values/environment.txt:16:f32 sunrise_end_hour 9.0
+rom/data/realtime_values/environment.txt:17:
+rom/data/realtime_values/environment.txt:18:vec3 sunrise_col_sky_up 0.01, 0.12, 0.16
+rom/data/realtime_values/environment.txt:19:vec3 sunrise_col_sky_down 0.84, 0.51, 0.40
+rom/data/realtime_values/environment.txt:20:vec3 sunrise_col_light 0.84, 0.51, 0.00
+rom/data/realtime_values/environment.txt:21:vec3 sunrise_col_water_base 0.00, 0.15, 0.21
+rom/data/realtime_values/environment.txt:22:vec3 sunrise_col_water_shadow 0.00, 0.15, 0.21
+rom/data/realtime_values/environment.txt:23:
+rom/data/realtime_values/environment.txt:24:vec3 day_col_sky_up 0.00, 0.17, 0.50
+rom/data/realtime_values/environment.txt:25:vec3 day_col_sky_down 0.73, 0.93, 1.00
+rom/data/realtime_values/environment.txt:26:vec3 day_col_light 1.00, 0.99, 0.89
+rom/data/realtime_values/environment.txt:27:vec3 day_col_water_base 0.00, 0.19, 0.27
+rom/data/realtime_values/environment.txt:28:vec3 day_col_water_shadow 0.00, 0.19, 0.27
+rom/data/realtime_values/environment.txt:29:
+rom/data/realtime_values/environment.txt:30:f32 sunset_start_hour 16.0
+rom/data/realtime_values/environment.txt:31:f32 sunset_hour 17.5
+rom/data/realtime_values/environment.txt:32:f32 sunset_end_hour 19.0
+rom/data/realtime_values/environment.txt:33:
+rom/data/realtime_values/environment.txt:34:vec3 sunset_col_sky_up 0.00, 0.18, 0.42
+rom/data/realtime_values/environment.txt:35:vec3 sunset_col_sky_down 0.84, 0.51, 0.00
+rom/data/realtime_values/environment.txt:36:vec3 sunset_col_light 0.84, 0.51, 0.00
+rom/data/realtime_values/environment.txt:37:vec3 sunset_col_water_base 0.00, 0.15, 0.21
+rom/data/realtime_values/environment.txt:38:vec3 sunset_col_water_shadow 0.00, 0.15, 0.21
+rom/data/realtime_values/environment.txt:39:
+rom/data/realtime_values/environment.txt:40:s32 star_count 10000 
+rom/data/realtime_values/environment.txt:41:f32 star_distance 0.95
+rom/data/realtime_values/environment.txt:42:f32 star_size 20.0 
+rom/data/realtime_values/environment.txt:43:f32 sun_power 3.0
+rom/data/realtime_values/environment.txt:44:f32 moon_power 5.0
+rom/data/realtime_values/environment.txt:45:f32 moon_radius 0.24
+rom/data/realtime_values/environment.txt:46:f32 sun_radius 0.32
+rom/data/realtime_values/environment.txt:47:
+rom/data/realtime_values/environment.txt:48:f32 tornado_intensity 1.0
+rom/data/realtime_values/environment.txt:49:f32 tornado_velocity 0.0
+rom/data/realtime_values/environment.txt:50:f32 tornado_base_radius_inner 10.0
+rom/data/realtime_values/environment.txt:51:f32 tornado_base_radius_outer 30.0
+rom/data/realtime_values/environment.txt:52:
+rom/data/realtime_values/environment.txt:53:f32 tornado_wind_component_vertical 100.0
+rom/data/realtime_values/environment.txt:54:f32 tornado_wind_component_radial 200.0
+rom/data/realtime_values/environment.txt:55:f32 tornado_wind_component_tangential 100.0
+rom/data/realtime_values/environment.txt:56:
+rom/data/realtime_values/environment.txt:57:f32 tornado_weather_wind_radial 100.0
+rom/data/realtime_values/environment.txt:58:f32 tornado_weather_wind_tangential 50.0
+rom/data/realtime_values/environment.txt:59:
+rom/data/realtime_values/environment.txt:60:s32 tornado_particle_spawn_delay 5
+rom/data/realtime_values/environment.txt:61:
+rom/data/realtime_values/environment.txt:62:f32 volcano_height_min 0.0
+rom/data/realtime_values/environment.txt:63:f32 volcano_height_max 400.0
+rom/data/realtime_values/environment.txt:64:f32 volcano_animation_speed 0.01
+rom/data/realtime_values/environment.txt:65:f32 volcano_particle_magnitude 75.0
+rom/data/realtime_values/environment.txt:66:f32 volcano_lava_heat 1.0
+rom/data/realtime_values/environment.txt:67:f32 volcano_rock_explosion_threshold 10.0
+rom/data/realtime_values/environment.txt:68:f32 volcano_ash_factor_pow 10.0
+rom/data/realtime_values/environment.txt:69:f32 volcano_ash_flow_impulse 400.0
+rom/data/realtime_values/environment.txt:70:
+rom/data/realtime_values/environment.txt:71:f32 whirlpool_vertical_force 400.0
+rom/data/realtime_values/environment.txt:72:f32 whirlpool_radial_force 60.0
+rom/data/realtime_values/environment.txt:73:f32 whirlpool_tangent_force 50.0
+rom/data/realtime_values/environment.txt:74:
+rom/data/realtime_values/environment.txt:75:f32 glowstick_light_radius 15.0
+rom/data/realtime_values/environment.txt:76:f32 glowstick_light_intensity 5.0
+rom/data/realtime_values/environment.txt:77:
+rom/data/realtime_values/environment.txt:78:f32 atmosphere_factor 1.0
+rom/data/realtime_values/environment.txt:79:f32 mesh_moon_distance 500.0
+rom/data/realtime_values/environment.txt:80:f32 mesh_moon_scale 0.05
+rom/data/realtime_values/environment.txt:81:f32 mesh_moon_dither 1.0
+rom/data/realtime_values/environment.txt:82:
+rom/data/realtime_values/environment.txt:83:vec3 atmosphere_pos 0.0, 0.0, 0.0
+rom/data/realtime_values/environment.txt:84:vec2 atmosphere_radius_inner_outer 1.0, 1.2
+rom/data/realtime_values/environment.txt:85:f32 atmosphere_density_falloff 8.0
+rom/data/realtime_values/environment.txt:86:vec3 atmosphere_light_direction 0.0, 0.0, 1.0
+rom/data/realtime_values/environment.txt:87:vec3 atmosphere_light_coefficients 1.0, 2.0, 4.0
+rom/data/realtime_values/environment.txt:88:vec3 atmosphere_color_adjust 0.4, 0.6, 0.8
+rom/data/realtime_values/environment.txt:89:
+rom/data/realtime_values/environment.txt:90:f32 fishing_net_opacity 1.9
+rom/data/realtime_values/environment.txt:91:f32 fishing_net_bias -1.0
+rom/data/realtime_values/environment.txt:92:f32 fishing_net_impulse_vel_scale 1.0
+rom/data/realtime_values/environment.txt:93:f32 fishing_net_impulse_max 500.0
+rom/data/realtime_values/environment.txt:94:
+rom/data/realtime_values/environment.txt:95:f32 fishing_cast_force 60.0
+rom/data/realtime_values/environment.txt:96:f32 fishing_rope_force 60.0
+rom/data/realtime_values/environment.txt:97:f32 fishing_line_mass 1.0
+rom/data/realtime_values/environment.txt:98:f32 fishing_line_default 1.0
+rom/data/realtime_values/environment.txt:99:f32 cast_line_length 30.0
+rom/data/realtime_values/environment.txt:100:f32 cast_spool_speed 0.01
+rom/data/realtime_values/environment.txt:101:
+rom/data/realtime_values/environment.txt:102:f32 fishing_catch_force_easy 0.5
+rom/data/realtime_values/environment.txt:103:f32 fishing_catch_force_hard 1.2
+rom/data/realtime_values/environment.txt:104:f32 fishing_catch_force_blend_easy 0.01
+rom/data/realtime_values/environment.txt:105:f32 fishing_catch_force_blend_hard 0.05
+rom/data/realtime_values/environment.txt:106:s32 fishing_catch_ticks_easy 3600
+rom/data/realtime_values/environment.txt:107:s32 fishing_catch_ticks_hard 1800
+rom/data/realtime_values/environment.txt:108:
+rom/data/definitions/rope_hook_composite.xml:1:<?xml version="1.0" encoding="UTF-8"?>
+rom/data/definitions/rope_hook_composite.xml:2:<definition name="Electrical Cable Anchor" category="4" type="48" mass="1" value="15" flags="532481" tags="basic" audio_gain="1" mesh_data_name="meshes/component_electric_hook.mesh" constraint_axis="1" max_motor_force="100" cable_radius="0.03" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="10000" force_emitter_max_vector="1" force_emitter_default_pitch="1" force_emitter_blade_physics_length="4.1" engine_max_force="1000" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" door_lower_limit="-1" door_upper_limit="1" dynamic_max_rotation="3.141593" logic_gate_subtype="2" magnet_force="1">
+rom/data/definitions/rope_hook_composite.xml:3:	<tooltip_properties description="Draw a rope logic link between two Electrical Cable Anchors to form a cable. Limited to only one link but can transfer Data and Electric across the link." short_description="An anchor point for a basic data/electric cable."/>
+rom/data/definitions/rope_hook_composite.xml:4:	<sfx_datas>
+rom/data/definitions/rope_hook_composite.xml:5:		<sfx_data sfx_name="winch" sfx_range_inner="2" sfx_range_outer="20">
+rom/data/definitions/rope_hook_composite.xml:6:			<sfx_layers>
+rom/data/definitions/rope_hook_composite.xml:7:				<sfx_layer sfx_filename_loop="audio/fx/servo_medium_loop.ogg" sfx_volume_fade_speed="0.1" sfx_pitch_fade_speed="0.1"/>
+rom/data/definitions/rope_hook_composite.xml:8:			</sfx_layers>
+rom/data/definitions/rope_hook_composite.xml:9:		</sfx_data>
+rom/data/definitions/rope_hook_composite.xml:10:		<sfx_data sfx_name="snap" sfx_range_inner="2" sfx_range_outer="20">
+rom/data/definitions/rope_hook_composite.xml:11:			<sfx_layers>
+rom/data/definitions/rope_hook_composite.xml:12:				<sfx_layer sfx_filename_start="audio/fx5/ropesnap_03.ogg" sfx_volume_fade_speed="0.1" sfx_pitch_fade_speed="0.1"/>
+rom/data/definitions/rope_hook_composite.xml:13:			</sfx_layers>
+rom/data/definitions/rope_hook_composite.xml:14:		</sfx_data>
+rom/data/definitions/rope_hook_composite.xml:15:	</sfx_datas>
+rom/data/definitions/rope_hook_composite.xml:16:	<surfaces>
+rom/data/definitions/rope_hook_composite.xml:17:		<surface orientation="3" shape="1">
+rom/data/definitions/rope_hook_composite.xml:18:			<position/>
+rom/data/definitions/rope_hook_composite.xml:19:		</surface>
+rom/data/definitions/rope_hook_composite.xml:20:		<surface orientation="5" shape="1">
+rom/data/definitions/rope_hook_composite.xml:21:			<position/>
+rom/data/definitions/rope_hook_composite.xml:22:		</surface>
+rom/data/definitions/rope_hook_composite.xml:23:		<surface shape="1">
+rom/data/definitions/rope_hook_composite.xml:24:			<position/>
+rom/data/definitions/rope_hook_composite.xml:25:		</surface>
+rom/data/definitions/rope_hook_composite.xml:26:		<surface orientation="1" shape="1">
+rom/data/definitions/rope_hook_composite.xml:27:			<position/>
+rom/data/definitions/rope_hook_composite.xml:28:		</surface>
+rom/data/definitions/rope_hook_composite.xml:29:		<surface orientation="4" shape="1">
+rom/data/definitions/rope_hook_composite.xml:30:			<position/>
+rom/data/definitions/rope_hook_composite.xml:31:		</surface>
+rom/data/definitions/rope_hook_composite.xml:32:		<surface orientation="2">
+rom/data/definitions/rope_hook_composite.xml:33:			<position/>
+rom/data/definitions/rope_hook_composite.xml:34:		</surface>
+rom/data/definitions/rope_hook_composite.xml:35:	</surfaces>
+rom/data/definitions/rope_hook_composite.xml:36:	<buoyancy_surfaces>
+rom/data/definitions/rope_hook_composite.xml:37:		<surface orientation="4" shape="1">
+rom/data/definitions/rope_hook_composite.xml:38:			<position/>
+rom/data/definitions/rope_hook_composite.xml:39:		</surface>
+rom/data/definitions/rope_hook_composite.xml:40:		<surface orientation="1" shape="1">
+rom/data/definitions/rope_hook_composite.xml:41:			<position/>
+rom/data/definitions/rope_hook_composite.xml:42:		</surface>
+rom/data/definitions/rope_hook_composite.xml:43:		<surface orientation="2" shape="1">
+rom/data/definitions/rope_hook_composite.xml:44:			<position/>
+rom/data/definitions/rope_hook_composite.xml:45:		</surface>
+rom/data/definitions/rope_hook_composite.xml:46:		<surface shape="1">
+rom/data/definitions/rope_hook_composite.xml:47:			<position/>
+rom/data/definitions/rope_hook_composite.xml:48:		</surface>
+rom/data/definitions/rope_hook_composite.xml:49:		<surface orientation="5" shape="1">
+rom/data/definitions/rope_hook_composite.xml:50:			<position/>
+rom/data/definitions/rope_hook_composite.xml:51:		</surface>
+rom/data/definitions/rope_hook_composite.xml:52:		<surface orientation="3" shape="1">
+rom/data/definitions/rope_hook_composite.xml:53:			<position/>
+rom/data/definitions/rope_hook_composite.xml:54:		</surface>
+rom/data/definitions/rope_hook_composite.xml:55:	</buoyancy_surfaces>
+rom/data/definitions/rope_hook_composite.xml:56:	<logic_nodes>
+rom/data/definitions/rope_hook_composite.xml:57:		<logic_node label="Rope Node" mode="1" type="8">
+rom/data/definitions/rope_hook_composite.xml:58:			<position y="1"/>
+rom/data/definitions/rope_hook_composite.xml:59:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:60:		<logic_node label="Electric Node" mode="1" type="4">
+rom/data/definitions/rope_hook_composite.xml:61:			<position/>
+rom/data/definitions/rope_hook_composite.xml:62:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:63:		<logic_node label="Composite Input" mode="1" type="5" description="Composite data to send to the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:64:			<position/>
+rom/data/definitions/rope_hook_composite.xml:65:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:66:		<logic_node label="Composite Output" type="5" description="Composite data to receive from the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:67:			<position y="1"/>
+rom/data/definitions/rope_hook_composite.xml:68:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:69:		<logic_node label="On/Off Input" mode="1" description="On/Off data to send to the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:70:			<position/>
+rom/data/definitions/rope_hook_composite.xml:71:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:72:		<logic_node label="On/Off Output" description="On/Off data to receive from the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:73:			<position y="1"/>
+rom/data/definitions/rope_hook_composite.xml:74:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:75:		<logic_node label="Video Data Send" mode="1" type="6" description="Video data to send to the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:76:			<position/>
+rom/data/definitions/rope_hook_composite.xml:77:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:78:		<logic_node label="Video Data Receive" type="6" description="Video data to receive from the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:79:			<position y="1"/>
+rom/data/definitions/rope_hook_composite.xml:80:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:81:		<logic_node label="Audio Data Send" mode="1" type="7" description="Audio data to send to the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:82:			<position/>
+rom/data/definitions/rope_hook_composite.xml:83:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:84:		<logic_node label="Audio Data Receive" type="7" description="Audio data to receive from the connected anchor.">
+rom/data/definitions/rope_hook_composite.xml:85:			<position y="1"/>
+rom/data/definitions/rope_hook_composite.xml:86:		</logic_node>
+rom/data/definitions/rope_hook_composite.xml:87:	</logic_nodes>
+rom/data/definitions/rope_hook_composite.xml:88:	<couplings/>
+rom/data/definitions/rope_hook_composite.xml:89:	<voxels>
+rom/data/definitions/rope_hook_composite.xml:90:		<voxel flags="1">
+rom/data/definitions/rope_hook_composite.xml:91:			<position/>
+rom/data/definitions/rope_hook_composite.xml:92:			<physics_shape_rotation/>
+rom/data/definitions/rope_hook_composite.xml:93:		</voxel>
+rom/data/definitions/rope_hook_composite.xml:94:		<voxel>
+rom/data/definitions/rope_hook_composite.xml:95:			<position y="1"/>
+rom/data/definitions/rope_hook_composite.xml:96:			<physics_shape_rotation/>
+rom/data/definitions/rope_hook_composite.xml:97:		</voxel>
+rom/data/definitions/rope_hook_composite.xml:98:	</voxels>
+rom/data/definitions/rope_hook_composite.xml:99:	<voxel_min/>
+rom/data/definitions/rope_hook_composite.xml:100:	<voxel_max y="1"/>
+rom/data/definitions/rope_hook_composite.xml:101:	<voxel_physics_min/>
+rom/data/definitions/rope_hook_composite.xml:102:	<voxel_physics_max/>
+rom/data/definitions/rope_hook_composite.xml:103:	<bb_physics_min/>
+rom/data/definitions/rope_hook_composite.xml:104:	<bb_physics_max/>
+rom/data/definitions/rope_hook_composite.xml:105:	<compartment_sample_pos/>
+rom/data/definitions/rope_hook_composite.xml:106:	<constraint_pos_parent/>
+rom/data/definitions/rope_hook_composite.xml:107:	<constraint_pos_child/>
+rom/data/definitions/rope_hook_composite.xml:108:	<voxel_location_child/>
+rom/data/definitions/rope_hook_composite.xml:109:	<seat_offset/>
+rom/data/definitions/rope_hook_composite.xml:110:	<seat_front/>
+rom/data/definitions/rope_hook_composite.xml:111:	<seat_up/>
+rom/data/definitions/rope_hook_composite.xml:112:	<seat_camera/>
+rom/data/definitions/rope_hook_composite.xml:113:	<seat_render/>
+rom/data/definitions/rope_hook_composite.xml:114:	<force_dir y="1"/>
+rom/data/definitions/rope_hook_composite.xml:115:	<light_position/>
+rom/data/definitions/rope_hook_composite.xml:116:	<light_color x="1" y="1" z="1"/>
+rom/data/definitions/rope_hook_composite.xml:117:	<light_forward/>
+rom/data/definitions/rope_hook_composite.xml:118:	<door_size x="1" y="1" z="1"/>
+rom/data/definitions/rope_hook_composite.xml:119:	<door_normal/>
+rom/data/definitions/rope_hook_composite.xml:120:	<door_side/>
+rom/data/definitions/rope_hook_composite.xml:121:	<door_up/>
+rom/data/definitions/rope_hook_composite.xml:122:	<door_base_pos/>
+rom/data/definitions/rope_hook_composite.xml:123:	<dynamic_body_position/>
+rom/data/definitions/rope_hook_composite.xml:124:	<dynamic_rotation_axes y="1"/>
+rom/data/definitions/rope_hook_composite.xml:125:	<dynamic_side_axis x="1"/>
+rom/data/definitions/rope_hook_composite.xml:126:	<magnet_offset/>
+rom/data/definitions/rope_hook_composite.xml:127:	<connector_axis/>
+rom/data/definitions/rope_hook_composite.xml:128:	<connector_up/>
+rom/data/definitions/rope_hook_composite.xml:129:	<jet_engine_connections_prev/>
+rom/data/definitions/rope_hook_composite.xml:130:	<jet_engine_connections_next/>
+rom/data/definitions/rope_hook_composite.xml:131:	<particle_direction/>
+rom/data/definitions/rope_hook_composite.xml:132:	<particle_offset/>
+rom/data/definitions/rope_hook_composite.xml:133:	<particle_bounds/>
+rom/data/definitions/rope_hook_composite.xml:134:	<rope_hook_offset y="-0.05"/>
+rom/data/definitions/rope_hook_composite.xml:135:</definition>
+rom/data/definitions/rope_hook_composite.xml:136:
+rom/data/definitions/microprocessor.xml:1:<?xml version="1.0" encoding="UTF-8"?>
+rom/data/definitions/microprocessor.xml:2:<definition name="Microprocessor" category="5" type="37" mass="1" value="100" flags="0" tags="" phys_collision_dampen="0" audio_filename_start="" audio_filename_loop="" audio_filename_end="" audio_filename_start_b="" audio_filename_loop_b="" audio_filename_end_b="" audio_gain="0" mesh_data_name="" mesh_0_name="" mesh_1_name="" mesh_editor_only_name="" block_type="0" child_name="" extender_name="" constraint_type="0" constraint_axis="1" constraint_range_of_motion="0" max_motor_force="100" max_motor_speed="10" cable_radius="16" cable_length="-431602080" seat_pose="0" seat_health_per_sec="0" buoy_radius="1" buoy_factor="1" buoy_force="100" force_emitter_max_force="1000" force_emitter_max_vector="1" force_emitter_default_pitch="0" force_emitter_blade_height="0" force_emitter_rotation_speed="1" force_emitter_blade_physics_length="4" force_emitter_blade_efficiency="0.01" force_emitter_efficiency="1" engine_max_force="1000" trans_conn_type="0" wheel_radius="0.25" button_type="1" light_intensity="1" light_range="1" light_ies_map="graphics/ies/ies_default.txtr" light_fov="1" light_type="0" door_lower_limit="-1" door_upper_limit="1" door_flipped="false" custom_door_type="0" door_side_dist="1" door_up_dist="1" dynamic_min_rotation="0" dynamic_max_rotation="3.141593" logic_gate_type="0" indicator_type="0" connector_type="0" magnet_force="1" gyro_type="0" rudder_surface_area="1" pump_pressure="0.01" water_component_type="0" torque_component_type="0" jet_engine_component_type="0" particle_speed="0.05" inventory_type="0" inventory_default_outfit="0" electric_type="0" electric_charge_capacity="0" electric_magnitude="0">
+rom/data/definitions/microprocessor.xml:3:	<surfaces/>
+rom/data/definitions/microprocessor.xml:4:	<buoyancy_surfaces/>
+rom/data/definitions/microprocessor.xml:5:	<logic_nodes/>
+rom/data/definitions/microprocessor.xml:6:	<voxels>
+rom/data/definitions/microprocessor.xml:7:		<voxel flags="1" physics_shape="0" buoy_pipes="0">
+rom/data/definitions/microprocessor.xml:8:			<position x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:9:			<physics_shape_rotation 00="1" 01="0" 02="0" 10="0" 11="1" 12="0" 20="0" 21="0" 22="1"/>
+rom/data/definitions/microprocessor.xml:10:		</voxel>
+rom/data/definitions/microprocessor.xml:11:	</voxels>
+rom/data/definitions/microprocessor.xml:12:	<voxel_min x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:13:	<voxel_max x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:14:	<voxel_physics_min x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:15:	<voxel_physics_max x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:16:	<bb_physics_min x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:17:	<bb_physics_max x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:18:	<compartment_sample_pos x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:19:	<constraint_pos_parent x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:20:	<constraint_pos_child x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:21:	<voxel_location_child x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:22:	<seat_offset x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:23:	<seat_front x="0" y="0" z="1"/>
+rom/data/definitions/microprocessor.xml:24:	<seat_up x="0" y="1" z="0"/>
+rom/data/definitions/microprocessor.xml:25:	<seat_camera x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:26:	<seat_render x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:27:	<force_dir x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:28:	<light_position x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:29:	<light_color x="1" y="1" z="1"/>
+rom/data/definitions/microprocessor.xml:30:	<door_size x="1" y="1" z="1"/>
+rom/data/definitions/microprocessor.xml:31:	<door_normal x="0" y="0" z="1"/>
+rom/data/definitions/microprocessor.xml:32:	<door_side x="1" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:33:	<door_up x="0" y="1" z="0"/>
+rom/data/definitions/microprocessor.xml:34:	<door_base_pos x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:35:	<dynamic_body_position x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:36:	<dynamic_rotation_axes x="0" y="1" z="0"/>
+rom/data/definitions/microprocessor.xml:37:	<dynamic_side_axis x="1" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:38:	<magnet_offset x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:39:	<connector_axis x="0" y="1" z="0"/>
+rom/data/definitions/microprocessor.xml:40:	<connector_up x="1" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:41:	<tooltip_properties description="" short_description=""/>
+rom/data/definitions/microprocessor.xml:42:	<reward_properties number_rewarded="1"/>
+rom/data/definitions/microprocessor.xml:43:	<jet_engine_connections_prev/>
+rom/data/definitions/microprocessor.xml:44:	<jet_engine_connections_next/>
+rom/data/definitions/microprocessor.xml:45:	<particle_direction x="0" y="1" z="0"/>
+rom/data/definitions/microprocessor.xml:46:	<particle_offset x="0" y="0" z="0"/>
+rom/data/definitions/microprocessor.xml:47:	<particle_bounds x="0.2" y="0.2" z="0.2"/>
+rom/data/definitions/microprocessor.xml:48:</definition>
+rom/data/definitions/microprocessor.xml:49:

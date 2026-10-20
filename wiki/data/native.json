@@ -4,8 +4,8 @@
       "id": "native-configuration-loading",
       "title": "Configuration loading and native defaults",
       "category": "Research methods",
-      "summary": "The executable contains the float-reading helper, constants fallback table and component field serialization path.",
-      "body": "Static analysis connects several shipped configuration names to executable code. The float helper reads named attributes and applies a caller-supplied fallback when an attribute is absent. The game-constants routine supplies 42 such fallbacks.\n\nThese are code observations. They do not measure the simulation or establish when a particular resource override takes effect. The buoyancy multiplier remains a useful example: the native fallback and SDK value are 10, while the shipped realtime file stores 12.",
+      "summary": "The game builds its 42 game_constants values in code and overrides them only from rom/data/game_constants.xml, which this installation does not ship. The realtime_values files are parsed but have no recovered gameplay reader.",
+      "body": "Static analysis connects the shipped configuration files to executable code. The game creates its 42 game_constants values itself, in an initializer that stores the same numbers the float serializer uses as fallbacks. It then tries to read data/game_constants.xml from rom/ or a registered resource root and, if the file exists, overrides the values named in it. This installation ships no rom/data/game_constants.xml, so the built-in values are the ones in use. sdk/data/game_constants.xml is a template: it is not on that path, although its numbers equal the built-in ones.\n\nThe realtime_values directory is separate. The release parses it at start-up into a registry, but no gameplay code that reads that registry was found, and only 25 of the 199 names in general_debug.txt occur in the executable. The buoyancy multiplier shows the difference: the game uses its built-in 10, and the realtime file's 12 is not used. A realtime value on this wiki is shipped tuning unless an article cites the code that reads it.\n\nAbout the sources lists all 42 constants with their built-in default, SDK value, realtime value and the code that reads them.",
       "findings": [
         {
           "label": "Missing float attributes use a fallback",
@@ -36,46 +36,59 @@
           ]
         },
         {
-          "label": "Native buoyancy mass multiplier fallback",
+          "label": "Buoyancy mass multiplier in use",
           "value": 10,
-          "detail": "The native constants serializer also supplies 10.0 for buoyancy_mass_multiplier. The SDK says 10 and the shipped realtime settings say 12. This trace does not establish which value wins during gameplay.",
-          "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+          "detail": "The serializer fallback and the initializer both give 10.0 for buoyancy_mass_multiplier, stored at 0x140d02ac4. The buoyancy routine 0x14048ad30 loads it at 0x14048ade0. The SDK file says 10 and the shipped realtime file says 12. This installation ships no rom/data/game_constants.xml, so the game keeps 10. The realtime registry has no recovered gameplay reader, so 12 is not used. This is not the SDK value winning over 12: the SDK file is not on the load path. Bytes 4c 8d 05 af f6 8b 00 at 0x140293d02. Bytes f3 44 0f 10 b8 a4 00 00 00 at 0x14048ade0. Report: investigation/config.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048ade0",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
-            "address": "0x140293a40"
+            "address": "0x14048ade0"
           },
-          "status": "observed"
+          "status": "observed",
+          "evidenceType": "native-static"
         },
         {
-          "label": "Additional compartment force fields",
+          "label": "Compartment force factors in use",
           "value": {
             "water_compartment_force_factor": 1,
             "gas_compartment_force_factor": 1
           },
-          "detail": "Both named fields and fallback values are present in the recovered serializer but absent from the supplied SDK XML attributes. The force equation and effective runtime values are unresolved.",
-          "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
+          "detail": "Both fields are absent from the SDK XML attributes, so their built-in 1 applies. The buoyancy routine reads them in its downward compartment term -g × water_density × 0.01 × (water factor × W + gas factor × G) ÷ D; the Buoyancy and water drag article covers that term and its open inputs W and G. Bytes 4c 8d 05 3c fb 8b 00 at 0x140293e45. Bytes f3 0f 10 b8 cc 00 00 00 at 0x14048b6ad. Bytes 4c 8d 05 00 fb 8b 00 at 0x140293e61. Bytes f3 0f 59 88 d0 00 00 00 at 0x14048b711. Report: investigation/config.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048b711",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
-            "address": "0x140293a40"
+            "address": "0x14048b711"
           },
-          "status": "observed"
+          "status": "observed",
+          "evidenceType": "native-static"
         },
         {
           "label": "Constants resource path",
           "value": "data/game_constants.xml",
-          "detail": "A recovered initialization routine references this relative resource path and conditionally invokes the game_constants serializer wrapper. The wrapper dispatches to the constants field routine. Resource mount selection and gameplay loading were not observed.",
-          "evidenceId": "ev_c6f0aaa627a81c3259e36c920893f94d6dfb628c4f1c2908b09c15b61991aeed",
+          "detail": "Start-up routine 0x140846920 references this path and selects resource category 5. The resolver 0x140182f70 prefixes category 5 with rom/, then tries registered resource roots; there is no sdk/ prefix. A failed read skips the parser. On success the routine passes the constants block (singleton + 0x5c) to the section binder 0x140929950, which calls the constants routine 0x140293a40. This installation has sdk/data/game_constants.xml but no rom/data/game_constants.xml, so no override is read. Bytes 48 8d 15 65 69 2c 00 at 0x140846bfc. Bytes b2 05 at 0x140846c17. Bytes 48 8d 15 53 98 9f 00 at 0x140182ff6. Bytes 48 83 c0 5c at 0x140846c47. Bytes e8 f3 2c 0e 00 at 0x140846c58. Bytes e8 5e 9f 96 ff at 0x140929add. Report: investigation/config.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140846bfc",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
-            "address": "0x140846920"
+            "address": "0x140846bfc"
           },
           "status": "observed",
-          "corroboratingEvidenceIds": [
-            "ev_945b4f13ae7180403e9ac3a574c9068be2f0991b7942d1b77f391b2a84c26566"
-          ]
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Built-in constants initializer",
+          "value": 42,
+          "detail": "The singleton accessor 0x140294520 returns 0x140d02a20 and on first use calls the initializer 0x140294050, which stores all 42 values at singleton + 0x5c (0x140d02a7c) before any XML is read. Every initial value equals the serializer fallback; the extractor re-reads each store and its source literal. Bytes 48 8d 05 a6 e4 a6 00 at 0x140294573. Report: investigation/config.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140294573",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140294573"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         },
         {
           "label": "Component fields have a native serialization path",
@@ -84,7 +97,7 @@
             "pump_pressure": "object + 0xec8",
             "electric_charge_capacity": "object + 0x141c"
           },
-          "detail": "The native component serializer passes these literal names and destination offsets to the float helper. A serialized field does not establish that every component uses it or define its physical units.",
+          "detail": "The native component serializer passes these literal names and destination offsets to the float helper. This shows where each value is stored. Whether a component reads the field, and in which units, is answered by that component's own update; the part pages cite those reads.",
           "evidenceId": "ev_b27f0136800573e499f6000cb03fd38bb44a03a0543d8bcb7282143d6fd22762",
           "source": {
             "path": "stormworks64.exe",
@@ -92,10 +105,45 @@
             "address": "0x1403168d0"
           },
           "status": "observed"
+        },
+        {
+          "label": "Realtime directory loader",
+          "value": "data/realtime_values/",
+          "detail": "Start-up routine 0x140892b80 calls the loader 0x1401f12e0 on entry. The loader forms this path, enumerates the directory and parses each file into typed name and value records in a registry at 0x140cebbb0. All 32 code references to that registry are initialization, parsing and destruction, and no absolute pointer to it exists. No code that passes a parsed value to physics or other gameplay was found. general_debug.txt is not named in the executable; the loader reads whatever files the directory holds. Bytes e8 48 e7 95 ff at 0x140892b93. Bytes 48 8d 15 db 79 99 00 at 0x1401f1346. Report: investigation/config.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f1346",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401f1346"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Realtime names in the executable",
+          "value": {
+            "audio.txt": "0 of 7",
+            "camera.txt": "0 of 58",
+            "characters.txt": "0 of 12",
+            "emote_wheel.txt": "0 of 11",
+            "environment.txt": "4 of 87",
+            "general_debug.txt": "25 of 199",
+            "narrative.txt": "0 of 6",
+            "network.txt": "0 of 7"
+          },
+          "detail": "Distinct names per realtime file that occur as ASCII text in the executable; none occurs as UTF-16LE. 24 of the 25 matches for general_debug.txt are game_constants binder names, so a matching string is not a realtime read. Report: investigation/config.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:string-search",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
-        "No Windows game process was executed. Effective values, override precedence and simulation equations remain unverified.",
+        "No Windows game process was executed. The built-in values apply to the unmodified installation; an added rom/data/game_constants.xml or a registered resource override can replace them.",
+        "The realtime registry conclusion rests on the full list of direct references, a scan for absolute pointers and a reading of the remaining paths. It covers this build, not other builds or external patches.",
         "Ghidra 12.1.4 produced recovered pseudocode, not original source. Original function names were unavailable.",
         "The successful profile disabled x86 Constant Reference Analyzer, Decompiler Parameter ID and Stack after the default analysis exhausted its heap. Reference and type recovery may therefore be incomplete.",
         "Object offsets belong only to this executable hash and are not a stable modding API.",
@@ -108,7 +156,7 @@
       "name": "gravity",
       "value": 10.0,
       "rawValue": "0x41200000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -125,7 +173,7 @@
       "name": "air_drag_factor_linear_pressure",
       "value": 0.05000000074505806,
       "rawValue": "0x3d4ccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -142,7 +190,7 @@
       "name": "air_drag_factor_quadratic_pressure",
       "value": 0.10000000149011612,
       "rawValue": "0x3dcccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -159,7 +207,7 @@
       "name": "air_drag_factor_linear_suction",
       "value": 0.02500000037252903,
       "rawValue": "0x3ccccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -176,7 +224,7 @@
       "name": "air_drag_factor_quadratic_suction",
       "value": 0.05000000074505806,
       "rawValue": "0x3d4ccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -193,7 +241,7 @@
       "name": "air_falloff_power_pressure",
       "value": 0.6000000238418579,
       "rawValue": "0x3f19999a",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -210,7 +258,7 @@
       "name": "air_falloff_power_suction",
       "value": 0.4000000059604645,
       "rawValue": "0x3ecccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -227,7 +275,7 @@
       "name": "drag_factor_linear_pressure",
       "value": 15.0,
       "rawValue": "0x41700000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -244,7 +292,7 @@
       "name": "drag_factor_quadratic_pressure",
       "value": 17.0,
       "rawValue": "0x41880000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -261,7 +309,7 @@
       "name": "drag_factor_linear_suction",
       "value": 12.0,
       "rawValue": "0x41400000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -278,7 +326,7 @@
       "name": "drag_factor_quadratic_suction",
       "value": 5.0,
       "rawValue": "0x40a00000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -295,7 +343,7 @@
       "name": "falloff_power_pressure",
       "value": 2.5,
       "rawValue": "0x40200000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -312,7 +360,7 @@
       "name": "falloff_power_suction",
       "value": 0.30000001192092896,
       "rawValue": "0x3e99999a",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -329,7 +377,7 @@
       "name": "water_drag_factor",
       "value": 1.0,
       "rawValue": "0x3f800000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -346,7 +394,7 @@
       "name": "air_drag_factor",
       "value": 0.20000000298023224,
       "rawValue": "0x3e4ccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -363,7 +411,7 @@
       "name": "air_speed_threshold",
       "value": 15.0,
       "rawValue": "0x41700000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -380,7 +428,7 @@
       "name": "air_high_speed_threshold",
       "value": 50.0,
       "rawValue": "0x42480000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -397,7 +445,7 @@
       "name": "air_high_speed_factor_scale",
       "value": 8.0,
       "rawValue": "0x41000000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -414,7 +462,7 @@
       "name": "buoyancy_mass_multiplier",
       "value": 10.0,
       "rawValue": "0x41200000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -431,7 +479,7 @@
       "name": "buoyancy_mass_modifier",
       "value": 10.0,
       "rawValue": "0x41200000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -448,7 +496,7 @@
       "name": "buoyancy_mass_modifier_lower",
       "value": 2000.0,
       "rawValue": "0x44fa0000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -465,7 +513,7 @@
       "name": "buoyancy_mass_modifier_upper",
       "value": 23000.0,
       "rawValue": "0x46b3b000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -482,7 +530,7 @@
       "name": "buoyancy_mass_modifier_pow",
       "value": 1.0,
       "rawValue": "0x3f800000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -499,7 +547,7 @@
       "name": "vehicle_linear_damping",
       "value": 0.10000000149011612,
       "rawValue": "0x3dcccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -516,7 +564,7 @@
       "name": "vehicle_angular_damping",
       "value": 0.10000000149011612,
       "rawValue": "0x3dcccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -533,7 +581,7 @@
       "name": "vehicle_friction",
       "value": 0.800000011920929,
       "rawValue": "0x3f4ccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -550,7 +598,7 @@
       "name": "air_density",
       "value": 1.225000023841858,
       "rawValue": "0x3f9ccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -567,7 +615,7 @@
       "name": "water_density",
       "value": 1000.0,
       "rawValue": "0x447a0000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -584,7 +632,7 @@
       "name": "water_compartment_force_factor",
       "value": 1.0,
       "rawValue": "0x3f800000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -601,7 +649,7 @@
       "name": "gas_compartment_force_factor",
       "value": 1.0,
       "rawValue": "0x3f800000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -618,7 +666,7 @@
       "name": "water_drag_weight_factor_multiplier",
       "value": 4.0,
       "rawValue": "0x40800000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -635,7 +683,7 @@
       "name": "wave_velocity_factor",
       "value": 0.5,
       "rawValue": "0x3f000000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -652,7 +700,7 @@
       "name": "wave_velocity_factor_reverse",
       "value": 0.30000001192092896,
       "rawValue": "0x3e99999a",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -669,7 +717,7 @@
       "name": "viscous_resistance_factor",
       "value": 0.5,
       "rawValue": "0x3f000000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -686,7 +734,7 @@
       "name": "slamming_force_multiplier",
       "value": 100.0,
       "rawValue": "0x42c80000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -703,7 +751,7 @@
       "name": "viscous_air_resistance",
       "value": 0.25,
       "rawValue": "0x3e800000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -720,7 +768,7 @@
       "name": "lift_force",
       "value": 0.25,
       "rawValue": "0x3e800000",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -737,7 +785,7 @@
       "name": "buoyancy_damping",
       "value": 0.05000000074505806,
       "rawValue": "0x3d4ccccd",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -754,7 +802,7 @@
       "name": "buoyancy_damping_submerged",
       "value": 0.9200000166893005,
       "rawValue": "0x3f6b851f",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -771,7 +819,7 @@
       "name": "sonar_noise",
       "value": 0.0010000000474974513,
       "rawValue": "0x3a83126f",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -788,7 +836,7 @@
       "name": "radar_noise",
       "value": 0.0010000000474974513,
       "rawValue": "0x3a83126f",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -805,7 +853,7 @@
       "name": "radar_distance_noise",
       "value": 0.009999999776482582,
       "rawValue": "0x3c23d70a",
-      "description": "Fallback argument in the native game-constants serializer. Decoded as IEEE-754 binary32; not a gameplay measurement.",
+      "description": "Built-in game_constants value: the serializer fallback, also stored by the initializer. The unmodified installation reads no game_constants.xml, so this is the value its code uses. Decoded as IEEE-754 binary32; not a gameplay measurement.",
       "evidenceId": "ev_2efcceeb161a5e8362baa53c753b87d6a02c376967aebcbd12f9d7959ebbc89b",
       "source": {
         "path": "stormworks64.exe",
@@ -819,10 +867,1446 @@
       "derivation": "IEEE-754 binary32 interpretation of the recovered fallback bits"
     }
   ],
+  "gameConstants": [
+    {
+      "name": "gravity",
+      "blockOffset": "0x0",
+      "field": "0x140d02a7c",
+      "nativeDefault": 10.0,
+      "sdkValue": 10.0,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940a5"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402b6aa2",
+          "function": "0x1402b6960",
+          "bytes": "f3 44 0f 10 47 5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402b6af2",
+          "function": "0x1402b6960",
+          "bytes": "f3 0f 10 45 5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140497f87",
+          "function": "0x140497b10",
+          "bytes": "8b 48 5c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e4eba",
+          "function": "0x1405e4db0",
+          "bytes": "f3 0f 10 40 5c"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 49,
+        "lineEnd": 49
+      }
+    },
+    {
+      "name": "air_drag_factor_linear_pressure",
+      "blockOffset": "0x4",
+      "field": "0x140d02a80",
+      "nativeDefault": 0.05,
+      "sdkValue": 0.05,
+      "realtimeValue": "0.05",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940b4"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b168",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 60"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 50,
+        "lineEnd": 50
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 14,
+        "lineEnd": 14
+      }
+    },
+    {
+      "name": "air_drag_factor_quadratic_pressure",
+      "blockOffset": "0x8",
+      "field": "0x140d02a84",
+      "nativeDefault": 0.1,
+      "sdkValue": 0.1,
+      "realtimeValue": "0.1",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940b4"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b17a",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 64"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 51,
+        "lineEnd": 51
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 15,
+        "lineEnd": 15
+      }
+    },
+    {
+      "name": "air_drag_factor_linear_suction",
+      "blockOffset": "0xc",
+      "field": "0x140d02a88",
+      "nativeDefault": 0.025,
+      "sdkValue": 0.025,
+      "realtimeValue": "0.025",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940b4"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b19e",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 68"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 52,
+        "lineEnd": 52
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 16,
+        "lineEnd": 16
+      }
+    },
+    {
+      "name": "air_drag_factor_quadratic_suction",
+      "blockOffset": "0x10",
+      "field": "0x140d02a8c",
+      "nativeDefault": 0.05,
+      "sdkValue": 0.05,
+      "realtimeValue": "0.05",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940b4"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b1b0",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 6c"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 53,
+        "lineEnd": 53
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 17,
+        "lineEnd": 17
+      }
+    },
+    {
+      "name": "air_falloff_power_pressure",
+      "blockOffset": "0x14",
+      "field": "0x140d02a90",
+      "nativeDefault": 0.6,
+      "sdkValue": 0.6,
+      "realtimeValue": "0.6",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940c2"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b18c",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 70"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 54,
+        "lineEnd": 54
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 18,
+        "lineEnd": 18
+      }
+    },
+    {
+      "name": "air_falloff_power_suction",
+      "blockOffset": "0x18",
+      "field": "0x140d02a94",
+      "nativeDefault": 0.4,
+      "sdkValue": 0.4,
+      "realtimeValue": "0.4",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940c2"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b1c2",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 74"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 55,
+        "lineEnd": 55
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 19,
+        "lineEnd": 19
+      }
+    },
+    {
+      "name": "drag_factor_linear_pressure",
+      "blockOffset": "0x1c",
+      "field": "0x140d02a98",
+      "nativeDefault": 15.0,
+      "sdkValue": 15.0,
+      "realtimeValue": "15.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940c2"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b1fe",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 78"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 56,
+        "lineEnd": 56
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 29,
+        "lineEnd": 29
+      }
+    },
+    {
+      "name": "drag_factor_quadratic_pressure",
+      "blockOffset": "0x20",
+      "field": "0x140d02a9c",
+      "nativeDefault": 17.0,
+      "sdkValue": 17.0,
+      "realtimeValue": "17.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940c2"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b210",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 40 7c"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 57,
+        "lineEnd": 57
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 30,
+        "lineEnd": 30
+      }
+    },
+    {
+      "name": "drag_factor_linear_suction",
+      "blockOffset": "0x24",
+      "field": "0x140d02aa0",
+      "nativeDefault": 12.0,
+      "sdkValue": 12.0,
+      "realtimeValue": "12.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940d0"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b237",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 80 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 58,
+        "lineEnd": 58
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 31,
+        "lineEnd": 31
+      }
+    },
+    {
+      "name": "drag_factor_quadratic_suction",
+      "blockOffset": "0x28",
+      "field": "0x140d02aa4",
+      "nativeDefault": 5.0,
+      "sdkValue": 5.0,
+      "realtimeValue": "5.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940d0"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b24c",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 84 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 59,
+        "lineEnd": 59
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 32,
+        "lineEnd": 32
+      }
+    },
+    {
+      "name": "falloff_power_pressure",
+      "blockOffset": "0x2c",
+      "field": "0x140d02aa8",
+      "nativeDefault": 2.5,
+      "sdkValue": 2.5,
+      "realtimeValue": "2.5",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940d0"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b222",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 88 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 60,
+        "lineEnd": 60
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 33,
+        "lineEnd": 33
+      }
+    },
+    {
+      "name": "falloff_power_suction",
+      "blockOffset": "0x30",
+      "field": "0x140d02aac",
+      "nativeDefault": 0.3,
+      "sdkValue": 0.3,
+      "realtimeValue": "0.3",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940d0"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b261",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 8c 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 61,
+        "lineEnd": 61
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 34,
+        "lineEnd": 34
+      }
+    },
+    {
+      "name": "water_drag_factor",
+      "blockOffset": "0x34",
+      "field": "0x140d02ab0",
+      "nativeDefault": 1.0,
+      "sdkValue": 1.0,
+      "realtimeValue": "1.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940de"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b276",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 90 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 62,
+        "lineEnd": 62
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 35,
+        "lineEnd": 35
+      }
+    },
+    {
+      "name": "air_drag_factor",
+      "blockOffset": "0x38",
+      "field": "0x140d02ab4",
+      "nativeDefault": 0.2,
+      "sdkValue": 0.2,
+      "realtimeValue": "0.2",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940de"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b1e9",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 94 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 63,
+        "lineEnd": 63
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 20,
+        "lineEnd": 20
+      }
+    },
+    {
+      "name": "air_speed_threshold",
+      "blockOffset": "0x3c",
+      "field": "0x140d02ab8",
+      "nativeDefault": 15.0,
+      "sdkValue": 15.0,
+      "realtimeValue": "15.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940de"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b2a0",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 98 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 64,
+        "lineEnd": 64
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 23,
+        "lineEnd": 23
+      }
+    },
+    {
+      "name": "air_high_speed_threshold",
+      "blockOffset": "0x40",
+      "field": "0x140d02abc",
+      "nativeDefault": 50.0,
+      "sdkValue": 50.0,
+      "realtimeValue": "50.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940de"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b2c1",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 9c 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 65,
+        "lineEnd": 65
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 24,
+        "lineEnd": 24
+      }
+    },
+    {
+      "name": "air_high_speed_factor_scale",
+      "blockOffset": "0x44",
+      "field": "0x140d02ac0",
+      "nativeDefault": 8.0,
+      "sdkValue": 8.0,
+      "realtimeValue": "8.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940ec"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b2d6",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 a0 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 66,
+        "lineEnd": 66
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 25,
+        "lineEnd": 25
+      }
+    },
+    {
+      "name": "buoyancy_mass_multiplier",
+      "blockOffset": "0x48",
+      "field": "0x140d02ac4",
+      "nativeDefault": 10.0,
+      "sdkValue": 10.0,
+      "realtimeValue": "12",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940ec"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048ade0",
+          "function": "0x14048ad30",
+          "bytes": "f3 44 0f 10 b8 a4 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 67,
+        "lineEnd": 67
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 37,
+        "lineEnd": 37
+      }
+    },
+    {
+      "name": "buoyancy_mass_modifier",
+      "blockOffset": "0x4c",
+      "field": "0x140d02ac8",
+      "nativeDefault": 10.0,
+      "sdkValue": 10.0,
+      "realtimeValue": "10",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940ec"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048adee",
+          "function": "0x14048ad30",
+          "bytes": "f3 44 0f 10 80 a8 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 68,
+        "lineEnd": 68
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 38,
+        "lineEnd": 38
+      }
+    },
+    {
+      "name": "buoyancy_mass_modifier_lower",
+      "blockOffset": "0x50",
+      "field": "0x140d02acc",
+      "nativeDefault": 2000.0,
+      "sdkValue": 2000.0,
+      "realtimeValue": "2000",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940ec"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048adfc",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 b8 ac 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 69,
+        "lineEnd": 69
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 39,
+        "lineEnd": 39
+      }
+    },
+    {
+      "name": "buoyancy_mass_modifier_upper",
+      "blockOffset": "0x54",
+      "field": "0x140d02ad0",
+      "nativeDefault": 23000.0,
+      "sdkValue": 23000.0,
+      "realtimeValue": "23000",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940fa"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048ae09",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 b0 b0 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 70,
+        "lineEnd": 70
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 40,
+        "lineEnd": 40
+      }
+    },
+    {
+      "name": "buoyancy_mass_modifier_pow",
+      "blockOffset": "0x58",
+      "field": "0x140d02ad4",
+      "nativeDefault": 1.0,
+      "sdkValue": 1.0,
+      "realtimeValue": "1",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940fa"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048ae2f",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 88 b4 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 71,
+        "lineEnd": 71
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 41,
+        "lineEnd": 41
+      }
+    },
+    {
+      "name": "vehicle_linear_damping",
+      "blockOffset": "0x5c",
+      "field": "0x140d02ad8",
+      "nativeDefault": 0.1,
+      "sdkValue": 0.1,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940fa"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a9558",
+          "function": "0x1404a8b50",
+          "bytes": "f3 0f 59 83 b8 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 72,
+        "lineEnd": 72
+      }
+    },
+    {
+      "name": "vehicle_angular_damping",
+      "blockOffset": "0x60",
+      "field": "0x140d02adc",
+      "nativeDefault": 0.1,
+      "sdkValue": 0.1,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x1402940fa"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a950d",
+          "function": "0x1404a8b50",
+          "bytes": "f3 0f 10 b0 bc 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 73,
+        "lineEnd": 73
+      }
+    },
+    {
+      "name": "vehicle_friction",
+      "blockOffset": "0x64",
+      "field": "0x140d02ae0",
+      "nativeDefault": 0.8,
+      "sdkValue": 0.8,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294108"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a957e",
+          "function": "0x1404a8b50",
+          "bytes": "f3 0f 10 90 c0 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 74,
+        "lineEnd": 74
+      }
+    },
+    {
+      "name": "air_density",
+      "blockOffset": "0x68",
+      "field": "0x140d02ae4",
+      "nativeDefault": 1.225,
+      "sdkValue": 1.225,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294108"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b1d4",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 c4 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 75,
+        "lineEnd": 75
+      }
+    },
+    {
+      "name": "water_density",
+      "blockOffset": "0x6c",
+      "field": "0x140d02ae8",
+      "nativeDefault": 1000.0,
+      "sdkValue": 1000.0,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294108"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048add2",
+          "function": "0x14048ad30",
+          "bytes": "f3 44 0f 10 a8 c8 00 00 00"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b28b",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 80 c8 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 76,
+        "lineEnd": 76
+      }
+    },
+    {
+      "name": "water_compartment_force_factor",
+      "blockOffset": "0x70",
+      "field": "0x140d02aec",
+      "nativeDefault": 1.0,
+      "sdkValue": null,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294108"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b6ad",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 10 b8 cc 00 00 00"
+        }
+      ]
+    },
+    {
+      "name": "gas_compartment_force_factor",
+      "blockOffset": "0x74",
+      "field": "0x140d02af0",
+      "nativeDefault": 1.0,
+      "sdkValue": null,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294116"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b711",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 59 88 d0 00 00 00"
+        }
+      ]
+    },
+    {
+      "name": "water_drag_weight_factor_multiplier",
+      "blockOffset": "0x78",
+      "field": "0x140d02af4",
+      "nativeDefault": 4.0,
+      "sdkValue": 4.0,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294116"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b3bd",
+          "function": "0x14048ad30",
+          "bytes": "f3 44 0f 59 90 d4 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 77,
+        "lineEnd": 77
+      }
+    },
+    {
+      "name": "wave_velocity_factor",
+      "blockOffset": "0x7c",
+      "field": "0x140d02af8",
+      "nativeDefault": 0.5,
+      "sdkValue": 0.5,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294116"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048d61b",
+          "function": "0x14048d4d0",
+          "bytes": "f3 0f 10 80 d8 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 78,
+        "lineEnd": 78
+      }
+    },
+    {
+      "name": "wave_velocity_factor_reverse",
+      "blockOffset": "0x80",
+      "field": "0x140d02afc",
+      "nativeDefault": 0.3,
+      "sdkValue": 0.3,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294116"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048d65e",
+          "function": "0x14048d4d0",
+          "bytes": "f3 0f 59 b8 dc 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 79,
+        "lineEnd": 79
+      }
+    },
+    {
+      "name": "viscous_resistance_factor",
+      "blockOffset": "0x84",
+      "field": "0x140d02b00",
+      "nativeDefault": 0.5,
+      "sdkValue": 0.5,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294124"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048d897",
+          "function": "0x14048d4d0",
+          "bytes": "f3 0f 10 88 e0 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 80,
+        "lineEnd": 80
+      }
+    },
+    {
+      "name": "slamming_force_multiplier",
+      "blockOffset": "0x88",
+      "field": "0x140d02b04",
+      "nativeDefault": 100.0,
+      "sdkValue": 100.0,
+      "realtimeValue": "100.0",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294124"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048da7f",
+          "function": "0x14048d4d0",
+          "bytes": "f3 0f 10 80 e4 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 81,
+        "lineEnd": 81
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 49,
+        "lineEnd": 49
+      }
+    },
+    {
+      "name": "viscous_air_resistance",
+      "blockOffset": "0x8c",
+      "field": "0x140d02b08",
+      "nativeDefault": 0.25,
+      "sdkValue": 0.25,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294124"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048e4c5",
+          "function": "0x14048e2d0",
+          "bytes": "f3 0f 10 88 e8 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 82,
+        "lineEnd": 82
+      }
+    },
+    {
+      "name": "lift_force",
+      "blockOffset": "0x90",
+      "field": "0x140d02b0c",
+      "nativeDefault": 0.25,
+      "sdkValue": 0.25,
+      "realtimeValue": "0.25",
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294124"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048e666",
+          "function": "0x14048e2d0",
+          "bytes": "f3 0f 10 80 ec 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 83,
+        "lineEnd": 83
+      },
+      "realtimeSource": {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "lineStart": 21,
+        "lineEnd": 21
+      }
+    },
+    {
+      "name": "buoyancy_damping",
+      "blockOffset": "0x94",
+      "field": "0x140d02b10",
+      "nativeDefault": 0.05,
+      "sdkValue": 0.05,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294132"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b4de",
+          "function": "0x14048ad30",
+          "bytes": "8b 88 f0 00 00 00"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b50a",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 58 b3 f0 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 84,
+        "lineEnd": 84
+      }
+    },
+    {
+      "name": "buoyancy_damping_submerged",
+      "blockOffset": "0x98",
+      "field": "0x140d02b14",
+      "nativeDefault": 0.92,
+      "sdkValue": 0.92,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294132"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14048b502",
+          "function": "0x14048ad30",
+          "bytes": "f3 0f 59 b0 f4 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 85,
+        "lineEnd": 85
+      }
+    },
+    {
+      "name": "sonar_noise",
+      "blockOffset": "0x9c",
+      "field": "0x140d02b18",
+      "nativeDefault": 0.001,
+      "sdkValue": 0.001,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294132"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c2175",
+          "function": "0x1403bf8e0",
+          "bytes": "f3 0f 10 b8 f8 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 86,
+        "lineEnd": 86
+      }
+    },
+    {
+      "name": "radar_noise",
+      "blockOffset": "0xa0",
+      "field": "0x140d02b1c",
+      "nativeDefault": 0.001,
+      "sdkValue": 0.001,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294132"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bcaa0",
+          "function": "0x1403ba040",
+          "bytes": "f3 0f 10 b8 fc 00 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 87,
+        "lineEnd": 87
+      }
+    },
+    {
+      "name": "radar_distance_noise",
+      "blockOffset": "0xa4",
+      "field": "0x140d02b20",
+      "nativeDefault": 0.01,
+      "sdkValue": 0.01,
+      "realtimeValue": null,
+      "initializer": {
+        "path": "stormworks64.exe",
+        "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+        "address": "0x140294141"
+      },
+      "reads": [
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bcaad",
+          "function": "0x1403ba040",
+          "bytes": "f3 44 0f 10 88 00 01 00 00"
+        }
+      ],
+      "sdkSource": {
+        "path": "sdk/data/game_constants.xml",
+        "sha256": "adc43687a3391fc17855275411b9c9fee629f7daad1b389ecacc870cf8e10ea3",
+        "lineStart": 88,
+        "lineEnd": 88
+      }
+    }
+  ],
+  "realtime": {
+    "loader": {
+      "path": "stormworks64.exe",
+      "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+      "address": "0x1401f1346"
+    },
+    "registry": "0x140cebbb0",
+    "files": [
+      {
+        "path": "rom/data/realtime_values/audio.txt",
+        "sha256": "a479f208c2d40e0b35fd6a479ef3594dffe076725c26b241761fb62ddfc20e37",
+        "names": 7,
+        "inExecutable": []
+      },
+      {
+        "path": "rom/data/realtime_values/camera.txt",
+        "sha256": "a377d26d842b55f3eca11e7204ec7f0c6dde0761536dd562070cb53ec7165e9b",
+        "names": 58,
+        "inExecutable": []
+      },
+      {
+        "path": "rom/data/realtime_values/characters.txt",
+        "sha256": "a2f309978b3b8a468508b3444aedf04601199d2759fef885cc158f9ce68c990a",
+        "names": 12,
+        "inExecutable": []
+      },
+      {
+        "path": "rom/data/realtime_values/emote_wheel.txt",
+        "sha256": "c13efb748a9963f00a9384358fd20a95ded587bfbb849aa933dc1534dfd352db",
+        "names": 11,
+        "inExecutable": []
+      },
+      {
+        "path": "rom/data/realtime_values/environment.txt",
+        "sha256": "da9453c89f3ef9bfdd1c1f429bfb3b264b574bf0456e8bdc3185adb77b0549eb",
+        "names": 87,
+        "inExecutable": [
+          "atmosphere_color_adjust",
+          "atmosphere_density_falloff",
+          "atmosphere_pos",
+          "atmosphere_radius_inner_outer"
+        ]
+      },
+      {
+        "path": "rom/data/realtime_values/general_debug.txt",
+        "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
+        "names": 199,
+        "inExecutable": [
+          "air_drag_factor",
+          "air_drag_factor_linear_pressure",
+          "air_drag_factor_linear_suction",
+          "air_drag_factor_quadratic_pressure",
+          "air_drag_factor_quadratic_suction",
+          "air_falloff_power_pressure",
+          "air_falloff_power_suction",
+          "air_high_speed_factor_scale",
+          "air_high_speed_threshold",
+          "air_speed_threshold",
+          "buoyancy_mass_modifier",
+          "buoyancy_mass_modifier_lower",
+          "buoyancy_mass_modifier_pow",
+          "buoyancy_mass_modifier_upper",
+          "buoyancy_mass_multiplier",
+          "drag_factor_linear_pressure",
+          "drag_factor_linear_suction",
+          "drag_factor_quadratic_pressure",
+          "drag_factor_quadratic_suction",
+          "falloff_power_pressure",
+          "falloff_power_suction",
+          "lift_force",
+          "slamming_force_multiplier",
+          "suspension_offset",
+          "water_drag_factor"
+        ]
+      },
+      {
+        "path": "rom/data/realtime_values/narrative.txt",
+        "sha256": "57da2b10f4d326431c44b8aeba4598699302f1c339aa2e07dae803e11071e4df",
+        "names": 6,
+        "inExecutable": []
+      },
+      {
+        "path": "rom/data/realtime_values/network.txt",
+        "sha256": "1a18d2093f6c6a531625c1c8899ffe465dbb3f2b409352866c709e18551494e7",
+        "names": 7,
+        "inExecutable": []
+      }
+    ],
+    "report": "investigation/config.md",
+    "note": "The release parses every file in data/realtime_values/ at start-up into one registry. No gameplay code that reads that registry was found, so a realtime value is shipped tuning, not the value the game uses, unless an article cites a reader."
+  },
   "summary": {
     "articleCount": 1,
     "constantCount": 42,
-    "findingCount": 6,
+    "findingCount": 9,
     "binary": {
       "path": "stormworks64.exe",
       "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",

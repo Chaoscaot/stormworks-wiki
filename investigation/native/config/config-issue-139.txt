@@ -1,0 +1,43 @@
+title:	Buoyancy and water drag: resolve missing mechanics
+state:	OPEN
+author:	Chaoscaot (Max)
+labels:	research
+comments:	0
+assignees:	
+projects:	
+milestone:	
+issue-type:	
+parent:	
+sub-issues:	
+sub-issues-completed:	
+blocked-by:	
+blocking:	
+number:	139
+--
+<!-- stormworks-research-gap:mechanics:buoyancy-water-drag -->
+This issue tracks explicit open questions in the [wiki](https://sw-wiki.maxsp.de/mechanics/buoyancy-water-drag).
+
+The quotations below preserve the scope of each source. A resource-only article can lack a formula that a separate native-code investigation has partly recovered. Reconcile those findings before treating every quoted item as wholly undecoded.
+
+## Recorded gaps
+
+**Shipped-resource mechanics article**
+
+> The SDK documents water density as 1000 and exposes separate pressure, suction, viscous and wave-slamming terms. The realtime file enables named drag and slamming switches. SDK buoyancy_mass_multiplier is 10, while realtime buoyancy_mass_multiplier is 12. Keep both sources visible: their loading order and runtime authority have not been established.
+
+- [wiki/data/mechanics.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/mechanics.json), `/articles/2/body`
+
+**Shipped-resource mechanics article**
+
+> A multiplier is not enough to derive displacement, buoyancy force or a mass-to-volume formula. No claim about watertight compartment simulation follows from these settings.
+
+- [wiki/data/mechanics.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/mechanics.json), `/articles/2/limitations/2`
+
+## Completion criteria
+
+- Recover the relevant routine or run a reproducible measurement against the identified game build.
+- Record equations, units, bounds, assumptions and executable addresses or measurement inputs.
+- Update the wiki guidance and its extractor, retaining citations and any remaining uncertainty.
+- Add or update an interactive graph when the recovered formula supports one.
+- Re-run the relevant source checks and website checks.
+

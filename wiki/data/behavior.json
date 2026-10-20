@@ -123252,7 +123252,7 @@
         {
           "label": "realtime transponder_variance",
           "value": "0.1",
-          "detail": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames), so whether this build applies the file is unresolved.",
+          "detail": "Shipped realtime configuration value. Name suggests transponder noise. The release executable contains no plaintext copy of this name (see coverage.realtimeNames). The release parses data/realtime_values/ into a registry, but no gameplay code that reads it was found (investigation/config.md), so this file's values are shipped tuning, not values the game is shown to use.",
           "evidenceId": "resource:rom/data/realtime_values/general_debug.txt:8f8f446407db:L202-L202",
           "status": "observed",
           "source": {
@@ -150637,7 +150637,7 @@
         "suspension_offset",
         "water_drag_factor"
       ],
-      "note": "Only these realtime_values names occur as NUL-terminated strings in the analysed executable; the others are not stored in plaintext, so the shipped realtime file is configuration of unconfirmed effect."
+      "note": "Only these realtime_values names occur as NUL-terminated strings in the analysed executable; the others are not stored in plaintext. The release parses data/realtime_values/ into a registry, but no gameplay code that reads it was found (investigation/config.md), so this file's values are shipped tuning, not values the game is shown to use."
     },
     "statusPolicy": "observed: present in a cited file or byte-verified at a cited executable address (static, not gameplay). derived: arithmetic on cited inputs listed in detail.",
     "variantEvidencePolicy": "In multi-variant families, every variant's own tooltip and the same-labelled ports cited for any variant are included; match findings to variants by source.path (rom/data/definitions/<variant id>.xml).",
