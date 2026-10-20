@@ -2114,8 +2114,8 @@
       "id": "sensor-noise",
       "title": "Radar and sonar output noise",
       "category": "Sensors",
-      "summary": "The SDK noise settings bound the random error on advanced radar distance and on radar and sonar angles.",
-      "body": "The SDK documents sonar_noise and radar_noise as positive and negative ranges of small discrepancies in reported positions. Both defaults are 0.001. It separately describes radar_distance_noise, default 0.01, as a maximum percentage discrepancy in reported distance. A native decode of the advanced radar and sonar (investigation/sensors-radio.md, shown on the Other components parts page) found that the game reads all three names from data/game_constants.xml, with built-in fallbacks 0.001, 0.001 and 0.01, and applies them to each output value with a fresh random U from 0 to 1. Radar distance becomes distance × (1 - D + 2D U) with D = radar_distance_noise, so ±1% at the default. Each radar and sonar angle, in turns, gets -A + 2A U with A = radar_noise or sonar_noise, so ±0.001 turn (±0.36 degrees). Sonar outputs get no distance noise. U = (random integer & 32767) ÷ 32767, so the error stays inside that band whatever the generator's distribution.",
+      "summary": "The SDK noise settings bound a uniform random error on advanced radar distance and on advanced radar and sonar angles; legacy radars and sonars add none.",
+      "body": "The SDK documents sonar_noise and radar_noise as positive and negative ranges of small discrepancies in reported positions. Both defaults are 0.001. It separately describes radar_distance_noise, default 0.01, as a maximum percentage discrepancy in reported distance. A native decode of the advanced radar and sonar (investigation/sensors-radio.md, shown on the Other components parts page) found that the game reads all three names from data/game_constants.xml, with built-in fallbacks 0.001, 0.001 and 0.01, and applies them to each output value with a fresh random U from 0 to 1. Radar distance becomes distance × (1 - D + 2D U) with D = radar_distance_noise, so ±1% at the default. Each radar and sonar angle, in turns, gets -A + 2A U with A = radar_noise or sonar_noise, so ±0.001 turn (±0.36 degrees). Sonar outputs get no distance noise. U = (random integer & 32767) ÷ 32767, so the error stays inside that band.\n\nA later decode (investigation/leftovers.md) recovered the random routine: state = 214013 × state + 2531011 modulo 2^32, returning (state >> 16) & 32767. The noise variable 2U - 1 therefore takes 32768 equally spaced values from -1 to 1. The generator runs through all 2^32 states before repeating, so over one cycle each value occurs equally often. The error is uniform across the band, not Gaussian, and the draws are a fixed sequence from the seed, not independent samples. The same decode found that the legacy radars and sonars (definition type 16, logic case 50) add no SDK noise: they write the geometric distance and angles straight to their outputs and never read these settings.",
       "findings": [
         {
           "label": "sonar_noise",
@@ -2200,12 +2200,64 @@
           },
           "status": "observed",
           "evidenceType": "sdk-configuration"
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": 214013,
+          "detail": "The shared random routine 0x1409afa20 multiplies its state by 0x343fd, then adds 2531011 (0x1409afa30) modulo 2^32. Bytes 69 48 28 fd 43 03 00 at 0x1409afa29. Report: investigation/leftovers.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa29",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Random routine increment",
+          "value": 2531011,
+          "detail": "Adds 0x269ec3 to the multiplied state. Bytes 81 c1 c3 9e 26 00 at 0x1409afa30. Report: investigation/leftovers.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa30",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the state right by 16 (0x1409afa39) and keeps 15 bits, so each call returns 0 to 32767; the sensors divide by 32767 and use 2U - 1, 32768 values from -1 to 1. Bytes 81 e1 ff 7f 00 00 at 0x1409afa3c. Report: investigation/leftovers.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa3c",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa3c"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Legacy radar distance output",
+          "value": "distance, no noise",
+          "detail": "Logic case 50 of 0x1403c4d20 stores the computed distance straight to the eight-target output block; neither the settings getter 0x140294520 nor the random routine is called in that case. Bytes f3 41 0f 11 84 9e fc 04 00 00 at 0x1403c7be8. Report: investigation/leftovers.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c7be8",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7be8"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "SDK comments describe defaults and editable SDK attributes. Neither proves the active binary uses that value.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The noise arithmetic comes from that native decode and covers the advanced radars and sonars only. The legacy radars and sonars (definition type 16) were not decoded, so their noise handling is open. The random generator's distribution was not verified."
+        "The noise arithmetic and the legacy outputs come from those native decodes."
       ]
     },
     {
@@ -3396,7 +3448,7 @@
       "title": "Jet startup, turbines and afterburners",
       "category": "Engines",
       "summary": "Jet component descriptions separate electrical startup, combustion and exhaust controls.",
-      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. The exhaust branch never subtracts jet fuel; its Fuel port exchanges with the pipe network separately.",
+      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. A later decode (investigation/leftovers.md) found no jet-fuel debit in the afterburner: its Fuel port exchange fills the buffer or returns fuel, and its purge of other liquids skips jet fuel, so with the buffer level steady the afterburner draws 0 L/s. The tooltip's increased fuel consumption has no counterpart in that code; more stored fuel raises thrust, not burn.",
       "findings": [
         {
           "label": "Jet Compressor: Compressor",
@@ -3817,12 +3869,51 @@
           },
           "status": "observed",
           "evidenceType": "component-interface-description"
+        },
+        {
+          "label": "Afterburner purge call",
+          "value": "kept index 2, fraction 0.001",
+          "detail": "The exhaust update calls the purge helper 0x1402ebdc0, which removes other liquids into a discarded container. Bytes e8 bf 9f f9 ff at 0x140351dfc. Report: investigation/leftovers.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140351dfc",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140351dfc"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Purge skips jet fuel",
+          "value": "index 2 kept",
+          "detail": "cmp r8d,2 followed by je at 0x1402ebe35 jumps over the debit block 0x1402ebe37-0x1402ebe60 for jet fuel. Bytes 41 83 f8 02 at 0x1402ebe31. Report: investigation/leftovers.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ebe31",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ebe31"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Port exchange moves jet fuel both ways",
+          "value": "one side - q, other side + q",
+          "detail": "The port exchange helper 0x1402ec710 subtracts moved jet fuel (container +0x14) from one side and adds it to the other (0x1402ecb61); it is transport, not combustion. Bytes f3 0f 11 41 14 at 0x1402ecb4a. Report: investigation/leftovers.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ecb4a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ecb4a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced, because how ducts and branches connect the parts was not reconstructed. The afterburner's steady fuel draw through its Fuel port was not recovered. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m."
+        "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced, because how ducts and branches connect the parts was not reconstructed. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m."
       ]
     },
     {
@@ -14720,7 +14811,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 461,
+    "findingCount": 468,
     "sourceCount": 73,
     "categories": [
       "Control",

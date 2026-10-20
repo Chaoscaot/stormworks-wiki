@@ -687,7 +687,7 @@
         },
         {
           "title": "Shaft speed",
-          "body": "The motor and generator speed state is RPS: the save field is named rotations_per_second, the parts exchange it with the shaft unchanged, and a torque meter copies the same group speed to its RPS output. Each update a part submits its speed and its force_emitter_max_force as weight F to its shaft group. The group's new speed is (previous group speed + Σ F × submitted speed) ÷ (1 + Σ F), so the shaft itself carries weight 1, and each part takes that speed back.\n\nExample: from rest, a part of weight 2 at 20 RPS and a part of weight 1 at 0 give (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."
+          "body": "The motor and generator speed state is RPS: the save field is named rotations_per_second, the parts exchange it with the shaft unchanged, and a torque meter copies the same group speed to its RPS output. Each update a part submits its speed and its force_emitter_max_force as weight F to its shaft group. The group's new speed is (previous group speed + Σ F × submitted speed) ÷ (1 + Σ F), so the shaft itself carries weight 1, and each part takes that speed back.\n\nExample: from rest, a part of weight 2 at 20 RPS and a part of weight 1 at 0 give (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. With several bridges or loops each group's speed reaches the others once, along the first path, and contradicting ratios brake the groups involved; Transmission gives the rule. The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."
         },
         {
           "title": "Other components that reuse the field",
@@ -698,13 +698,18 @@
           "body": "Motors and both starters draw through the same helper. With infinite_batteries on it returns 1 and removes nothing. A part with no electric network gets 0. Otherwise, for a request R it removes T = min(a × R, E) from the pool and returns T ÷ R, where a = max(0, (300 − n) ÷ 300) × q. Here n is the part's EMP countdown and q the pool charge fraction. A motor's step is scaled by the returned fraction, so starving it slows acceleration without changing the cost per unit of step. Generators deposit regardless of infinite_batteries.\n\nLow charge, an exhausted pool or consumers that drew first each cut supply on their own. q is fixed when the pool is built, so generation later in the same update raises E but not q until the next update. Which consumer draws first depends on the vehicle's component order.\n\nAn EMP pulse adds to n, and n counts down by 1 every update whether or not the part has power. At n = 300 or more the part gets nothing. Below 300 supply recovers linearly and is full again when n reaches 0, 300 updates (5 simulated seconds) later. A pulse also switches circuit breakers off. Inspecting an electric port shows max(0, 1 − n ÷ 300) × q as a bare number, or 1 with infinite electricity."
         },
         {
+          "title": "EMP sources",
+          "body": "An EMP is scene event 116 with a position, a strength and an inner and outer radius. Every electric part of a vehicle body in reach gets trunc(strength × (1 − clamp((d − inner) ÷ (outer − inner), 0, 1))) added to its countdown n. d is the distance from the pulse to the body's origin, the same for all of the body's parts.\n\nThe weather update sends 800 with a 100 m inner and a 300 m outer radius; reading it as the lightning strike is an inference. Within 100 m that cuts supply to 0 for 500 updates and restores it fully after 800 updates, 13.33 simulated seconds. At 200 m it adds 400, and from 300 m on nothing. Two object updates send 30 with the same radii, which lowers supply to 0.9 and recovers within 0.5 s, and a queue sends pulses with their own strength and an inner radius of half the outer."
+        },
+        {
           "title": "Rates and units",
           "body": "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. Generator Output already includes that factor. The shaft solver weights speed changes by force_emitter_max_force and has no torque or inertia in SI units, so it gives no charge-per-joule figure for mechanical work. The shipped realtime file sets electric_consumption_scale to 0.01, but the executable contains that name neither as ASCII nor as UTF-16LE text, and its effect was not recovered."
         }
       ],
       "limitations": [
         "Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. A conversion of internal charge to joules or watts was not recovered.",
-        "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges pass speed and weight between groups as described under Transmission; how loops, two ports on the same group and connector rebuilds combine groups in arbitrary networks was not decoded, and the model gives no SI torque or inertia.",
+        "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges, loops and links back into one group pass speed and weight as described under Transmission. The model gives no SI torque or inertia.",
+        "Which code fills the queued EMP pulses, which gameplay objects the object kinds 0 and 4 that send 30-count pulses are, and what handles the spawn_emp request were not traced. So EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
         "Static analysis only.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -810,6 +815,11 @@
           "sha256": "8f8f446407db6ddf9b049f3e1a863f7d0d05cf78d8ff2d43025d58227907ec58",
           "lineStart": 167,
           "lineEnd": 167
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14022d0d8"
         },
         {
           "path": "stormworks64.exe",
@@ -969,6 +979,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca113"
         },
         {
@@ -980,6 +1000,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca1c3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca470"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca481"
         },
         {
           "path": "stormworks64.exe",
@@ -1004,6 +1034,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa17"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa44"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404caca0"
         },
         {
@@ -1024,6 +1064,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e26d9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e26e2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e2728"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405e3add"
         },
         {
@@ -1039,6 +1094,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ec2e4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407435bb"
         },
         {
@@ -1049,7 +1109,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140758f57"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14077e04e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14077e085"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14085fa4d"
         },
         {
           "path": "stormworks64.exe",
@@ -2490,7 +2565,7 @@
         },
         {
           "title": "Fuel",
-          "body": "The chamber burns 0.12 × u × RPS L/s, 2.4 L/s at 20 RPS and full throttle, from a 4 L buffer fed by its Fuel port; a short buffer lowers u. An enabled afterburner multiplies thrust by 1 + 500 × the jet fuel amount in its own buffer, 1.5 at 0.01 L. Its branch never subtracts that fuel."
+          "body": "The chamber burns 0.12 × u × RPS L/s, 2.4 L/s at 20 RPS and full throttle, from a 4 L buffer fed by its Fuel port; a short buffer lowers u. An enabled afterburner multiplies thrust by 1 + 500 × the jet fuel amount in its own buffer, 1.5 at 0.01 L. It burns none of that fuel: its Fuel port only fills the buffer or returns fuel, so with the buffer level steady it draws 0 L/s."
         },
         {
           "title": "Units",
@@ -2563,7 +2638,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ebe31"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402ec242"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ecb4a"
         },
         {
           "path": "stormworks64.exe",
@@ -2574,6 +2659,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140350ba3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140351d81"
         },
         {
           "path": "stormworks64.exe",
@@ -3981,7 +4071,7 @@
         },
         {
           "title": "Output noise",
-          "body": "The game reads radar_noise, radar_distance_noise and sonar_noise from the SDK game_constants file. Radar distances are multiplied by 1 − D + 2D U, and radar and sonar angles get −A + 2A U, with a fresh random U from 0 to 1 per value. At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise."
+          "body": "The game reads radar_noise, radar_distance_noise and sonar_noise from the SDK game_constants file. On the advanced radars and sonars, radar distances are multiplied by 1 − D + 2D U, and radar and sonar angles get −A + 2A U, with a fresh random U from 0 to 1 per value. At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise.\n\nU comes from the shared random routine: state = 214013 × state + 2531011 modulo 2^32, which returns (state >> 16) & 32767, divided by 32767. So 2U − 1 takes 32768 equally spaced values from −1 to 1. Over the generator's full cycle each value occurs equally often, so the error is spread evenly across the band, not bell-shaped, and the draws follow a fixed sequence from the seed rather than being independent. The legacy radars and sonars add no noise: logic case 50 writes the geometric distance and angles straight to its outputs."
         },
         {
           "title": "Open questions",
@@ -4242,6 +4332,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea270"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140328ea4"
         },
         {
@@ -4458,6 +4553,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c7bbb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7be8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7d52"
         },
         {
           "path": "stormworks64.exe",
@@ -4708,6 +4813,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14090a470"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
         },
         {
           "path": "stormworks64.exe",
@@ -5843,6 +5963,10 @@
           "body": "RPS A and RPS B stay two separate shaft groups joined by a bridge. Each update every group first mixes its own parts: weight I = 1 + Σ F and speed v = (previous speed + Σ F × submitted speed) ÷ I, with F each part's submitted solver weight. The bridge then adds the other group's speed with path weight h = 0.95 × c, where c is the bridge fraction, 1 for an intact gearbox. A path from A adds sign(q) × v_A × I_A × h to B's numerator and I_A × h ÷ |q| to B's weight; paths with h at or below 0.001 add nothing. For two groups this gives B' = (I_B v_B + sign(q) I_A v_A h) ÷ (I_B + I_A h ÷ |q|) and A' = (I_A v_A + sign(q) I_B v_B h) ÷ (I_A + I_B h |q|).\n\nTwo groups already at the ratio stay there, so 0.95 weakens the coupling weight and is not a 95% power efficiency or a 5% speed loss. There is no slip threshold: under load the two sides settle where the weights balance. Example from rest, A with one part of weight 200 at 30 RPS (v_A 29.85, I_A 201) and B with one part of weight 100 at 0 RPS (I_B 101): one pass at 3:1 gives A 25.75 and B 8.459 RPS."
         },
         {
+          "title": "Several bridges and loops",
+          "body": "Each update every group first mixes its own parts. Then every group in turn acts as a source s and sends its speed through the bridges once. A queue starts with its bridge partners in member order. Each entry carries the path weight h, multiplied by 0.95 × bridge fraction per link, and the cumulative ratio r; entries with h at or below 0.001 stop. The first time a group is reached it gets sign(r) × v_s × I_s × h on its numerator and I_s × h ÷ |r| on its weight, and its own bridges join the queue.\n\nA group reached again by another path compares the recorded ratio with the new one. If recorded ÷ new lies within 0.9 to 1.1 the path is skipped, so a consistent loop passes each source's speed once, along the first path in queue order. Otherwise the ratios contradict. Every group this source has reached loses all bridge shares gathered so far, including those from earlier sources, gains I_s of weight with no speed, and the source stops. Later sources can add shares again, so the outcome depends on the group order, and a contradicting loop acts as a brake rather than settling on one speed.\n\nA bridge with both ports on one group is checked against ratio 1. A 1:1 link adds nothing. Inference from the comparison: any other option, such as 2:1, brakes the group, and an otherwise isolated group then publishes v ÷ 2, 5 RPS from 10. After all sources each group publishes once; there is no iteration toward a converged speed. The source order is the order of the group container, not component IDs."
+        },
+        {
           "title": "Switching and power",
           "body": "Gear Switch off applies Ratio Off and on applies Ratio On. When the selected q differs from the stored one by more than 0.001, both stored ratios are replaced in the same update, with no interpolation or delay, and the gearbox requests 0.001 electricity. This only happens while max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0, or with infinite electricity. Without power the gearbox keeps its last ratio and stays coupled: the bridge fraction is set to 1 every update before the power test."
         },
@@ -5863,7 +5987,7 @@
         "SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
         "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
         "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
-        "The bridge equations are decoded for two groups joined by one bridge. Arbitrary loops, both ports on one group and graph rebuild order were not decoded.",
+        "Which connector changes rebuild the shaft groups, when old group membership is dropped, how the rebuilt group and member order is chosen and whether an update can run on stale membership were not traced. The traversal under Several bridges and loops follows that order, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
         "Static analysis only.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -6093,7 +6217,27 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca437"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca470"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca481"
         },
         {
           "path": "stormworks64.exe",
@@ -6104,6 +6248,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca669"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa17"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa44"
         },
         {
           "path": "stormworks64.exe",
@@ -19132,7 +19286,11 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Throttle limits the step, not the target speed: the target is always 20 RPS. Without a shaft link the update settles at 19.9 RPS at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge. An EMP pulse cuts the motor's supply while its countdown is 300 or more; supply then returns linearly over the next 300 updates, 5 simulated seconds."
+          "body": "Throttle limits the step, not the target speed: the target is always 20 RPS. Without a shaft link the update settles at 19.9 RPS at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge. An EMP pulse cuts the motor's supply while its countdown is 300 or more; supply then returns linearly over the next 300 updates, 5 simulated seconds. A weather strike within 100 m (inference: lightning) adds 800, so the motor gets no charge for 500 updates and full charge again after 800, 13.33 simulated seconds. Electricity lists the other EMP sources."
+        },
+        {
+          "title": "Several bridges and loops",
+          "body": "When gearboxes or clutches join several shaft groups, each group passes its speed to every group it reaches once, along the first path in queue order, scaled by 0.95 × engagement per link. A loop whose ratios agree within 0.9 to 1.1 adds nothing more. A loop whose ratios disagree brakes every group that source reached: their bridge shares are cleared and the source's weight is added with no speed, so the result depends on group order. A link back into the same group at any ratio other than about 1 brakes that group; with nothing else attached it then publishes half its mixed speed each update (Transmission, inference from the decoded rule)."
         }
       ],
       "findings": [
@@ -19864,7 +20022,7 @@
         {
           "label": "EMP pulse application",
           "value": "slot +0x3f0 per component",
-          "detail": "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Its event discriminator was not traced; the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading. Report: investigation/electricity.md. Function 0x14077dd80-0x14077e224; instruction bytes ff90f0030000 at 0x14077e085. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-pulse.asm:L156-L170; ../electricity/asm/emp-event-call.asm; ../electricity/pseudocode/0x14077dd80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Scene event 116 reaches it (investigation/leftovers.md); the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading. Report: investigation/electricity.md. Function 0x14077dd80-0x14077e224; instruction bytes ff90f0030000 at 0x14077e085. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-pulse.asm:L156-L170; ../electricity/asm/emp-event-call.asm; ../electricity/pseudocode/0x14077dd80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14077dd80@0x14077e085",
           "status": "observed",
           "source": {
@@ -19907,6 +20065,198 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "EMP scene event type",
+          "value": "116",
+          "detail": "The event constructor 0x14022d0a0 writes type 116 into the new scene event. Its payload holds the world position at +0x10, an integer strength at +0x28, the inner radius at +0x2c and the outer radius at +0x30. Report: investigation/leftovers.md. Function 0x14022d0a0-0x14022d189; instruction bytes 48c7400874000000 at 0x14022d0d8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/emp-event-constructor.asm:L22-L23; ../leftovers/pseudocode/0x14022d0a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14022d0a0@0x14022d0d8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14022d0d8"
+          }
+        },
+        {
+          "label": "EMP event dispatch",
+          "value": "call 0x14077dd80",
+          "detail": "The scene event dispatcher reads the event type (0x14085aff7) and subtracts 1 (0x14085affa); jump-table entry 0x140863ba8 sends type 116 to 0x14085fa2a, which passes position, strength and both radii (0x14085fa39-0x14085fa49) to the spatial pulse routine 0x14077dd80. Report: investigation/leftovers.md. Function 0x14085aeb0-0x140863ce8; instruction bytes e82ee3f1ff at 0x14085fa4d. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/scene-event.asm:L549. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14085aeb0@0x14085fa4d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14085fa4d"
+          }
+        },
+        {
+          "label": "EMP pulse falloff",
+          "value": "trunc(strength × (1 − clamp((d − inner) ÷ (outer − inner), 0, 1)))",
+          "detail": "The pulse routine scales the strength by this falloff and truncates it to an integer here, then calls slot +0x3f0 of each component (0x14077e085). d is the distance from the pulse to the vehicle body's transform origin, one value for all its components, not a distance per component. Report: investigation/leftovers.md. Function 0x14077dd80-0x14077e224; instruction bytes f34c0f2cf2 at 0x14077e04e. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/emp-pulse.asm:L182; ../leftovers/pseudocode/0x14077dd80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14077dd80@0x14077e04e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14077e04e"
+          }
+        },
+        {
+          "label": "Weather EMP strength",
+          "value": "800",
+          "detail": "The weather update 0x1405e1e30 passes 800 as the strength to the event constructor (call at 0x1405e2732). Inference from the owning routine and its strike-point selection: this is the lightning strike's pulse. Report: investigation/leftovers.md. Function 0x1405e1e30-0x1405e2a2f; instruction bytes 41b820030000 at 0x1405e2728. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/weather-pulse.asm:L89; ../leftovers/pseudocode/0x1405e1e30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e1e30@0x1405e2728",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e2728"
+          }
+        },
+        {
+          "label": "Weather EMP inner radius",
+          "value": "100",
+          "detail": "Loaded into xmm11 and passed as the inner radius, in metres, of the strike pulse; inside it the full 800 applies. Report: investigation/leftovers.md. Function 0x1405e1e30-0x1405e2a2f; instruction bytes f3440f101da5e05c00 at 0x1405e26e2 address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/weather-pulse.asm:L74-L75; ../leftovers/pseudocode/0x1405e1e30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e1e30@0x1405e26e2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e26e2"
+          }
+        },
+        {
+          "label": "Weather EMP outer radius",
+          "value": "300",
+          "detail": "Loaded into xmm10 and passed as the outer radius of the strike pulse. At 200 m the pulse gives 800 × (1 − 100 ÷ 200) = 400; at 300 m and beyond it gives 0. Report: investigation/leftovers.md. Function 0x1405e1e30-0x1405e2a2f; instruction bytes f3440f101516e15c00 at 0x1405e26d9 address binary32 300 (bytes 00009643) at 0x140bb07f8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/weather-pulse.asm:L72-L73; ../leftovers/pseudocode/0x1405e1e30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e1e30@0x1405e26d9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e26d9"
+          }
+        },
+        {
+          "label": "Object update EMP strength",
+          "value": "30",
+          "detail": "Two object updates, 0x140757ef0 and 0x14075a190 (strength also at 0x14075aec1), send pulses of 30 with the same 100 m inner and 300 m outer radius (0x140758ee2, 0x140758eea). The dispatcher 0x14074347e-0x1407434bb selects them for object kinds 4 and 0 at object +0x208. Electricity lists the gameplay identity of those kinds as open. Report: investigation/leftovers.md. Function 0x140757ef0-0x140759d70; instruction bytes 41b81e000000 at 0x140758f57. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/other-pulse-a.asm:L121; ../leftovers/pseudocode/0x140757ef0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140757ef0@0x140758f57",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140758f57"
+          }
+        },
+        {
+          "label": "Queued EMP pulses",
+          "value": "variable strength and outer radius; inner = outer ÷ 2",
+          "detail": "0x1405e8fb0 drains 40-byte records from a queue at object +0x5f00 (count at +0x5f10) and sends each as an EMP with its own strength and outer radius and half that as the inner radius. Electricity lists the code that fills the queue as open. 0x140851630 (call at 0x140856002) forwards a received payload and is not a separate physical source. Report: investigation/leftovers.md. Function 0x1405e8fb0-0x1405ec4a4; instruction bytes e8b70dc4ff at 0x1405ec2e4. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/queued-pulse.asm:L57; ../leftovers/pseudocode/0x1405e8fb0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ec2e4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ec2e4"
+          }
+        },
+        {
+          "label": "Lightning EMP at the strike point",
+          "value": "no supply for 500 updates, full again after 800 updates (13.33 s)",
+          "detail": "Inference: within 100 m the strike adds 800 to each electric part's countdown n. Supply max(0, (300 − n) ÷ 300) stays 0 until n falls below 300 after 500 updates (8.33 s at 60 updates per second) and is full again at n = 0, 800 updates or 13.33 s after the strike. A 30-count pulse lowers supply to 0.9 and recovers in 30 updates, 0.5 s. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1405e1e30@0x1405e2728, native:stormworks64.exe:f9206d85c82f:0x1405e1e30@0x1405e26e2, native:stormworks64.exe:f9206d85c82f:0x140757ef0@0x140758f57, derived:7d3ff454a23f.",
+          "evidenceId": "derived:f66508220f7c",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e2728"
+          }
+        },
+        {
+          "label": "Shaft traversal visited test",
+          "value": "group already visited by this source",
+          "detail": "Each source group runs one breadth-first pass over the bridges: a FIFO starts with its bridge partners in member order, and each entry carries the partner group, the path weight h and the cumulative ratio r. Before a group takes a contribution the solve looks it up in this source's visited list, which starts with the source itself at ratio 1. A first visit records the group and r, adds the source's share and queues the group's own bridges. Sources run in the order of the group container, not by component ID. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes 4d3954c500 at 0x1404ca470. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L479; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca470",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca470"
+          }
+        },
+        {
+          "label": "Shaft revisit ratio",
+          "value": "recorded ratio ÷ current ratio",
+          "detail": "For a group already visited, the solve divides the recorded ratio by the ratio of the new path and compares the quotient with 0.9 (0x1404ca485) and 1.1 (0x1404ca48f). Inside that band the path is skipped without adding a second share or expanding the group again; outside it the solve jumps to the conflict path (0x1404ca9e9). Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f5ec6 at 0x1404ca481. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L483; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca481",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca481"
+          }
+        },
+        {
+          "label": "Shaft revisit lower bound",
+          "value": "0.9",
+          "detail": "Held in xmm10: a quotient below this is a ratio conflict. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f1015515d6e00 at 0x1404ca0da address binary32 0.9 (bytes 6666663f) at 0x140bafe34. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L253-L254; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0da",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0da"
+          }
+        },
+        {
+          "label": "Shaft revisit upper bound",
+          "value": "1.1",
+          "detail": "Held in xmm9: a quotient above this is a ratio conflict. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f100d185e6e00 at 0x1404ca0e3 address binary32 1.1 (bytes cdcc8c3f) at 0x140baff04. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L255-L256; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0e3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0e3"
+          }
+        },
+        {
+          "label": "Shaft conflict clears contributions",
+          "value": "N = 0 for every group this source visited",
+          "detail": "On a conflict the solve walks every group in this source's visited list and sets its remote numerator to 0, dropping what earlier sources added too, then abandons the rest of this source's queue. Each group's own I × v term is kept. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes 44897828 at 0x1404caa17. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L833; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa17",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404caa17"
+          }
+        },
+        {
+          "label": "Shaft conflict braking weight",
+          "value": "D + I_s",
+          "detail": "In the same walk the source's weight I_s is added to each visited group's remote denominator. With the numerator at 0 this pulls the published speed toward 0. Later sources can add shares again. A bridge with both ports on one group is checked against the source's own ratio 1, so a self-link at a ratio outside 0.9 to 1.1 brakes the group itself. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f58402c at 0x1404caa44. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L843; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa44",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404caa44"
+          }
+        },
+        {
+          "label": "Self-linked group at a conflicting ratio",
+          "value": "v ÷ 2",
+          "detail": "Inference from the decoded rule: an otherwise isolated group of weight I and speed v whose own ports are linked at 2:1 keeps I × v in the numerator and gets I + I in the denominator, so it publishes v ÷ 2, 5 RPS from 10. At ratio 1 the revisit passes and adds nothing. These are deductions, not measurements. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca481, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa17, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa44.",
+          "evidenceId": "derived:c9c9e1a4fe0e",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca481"
           }
         },
         {
@@ -20043,7 +20393,7 @@
       "limitations": [
         "Static analysis only; charge is in the internal unit. A conversion of internal charge to joules or watts was not recovered.",
         "Reading component offset 0x160 as the Throttle input is an inference from how the update uses it.",
-        "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
+        "The force-weighted comparisons hold within one shaft group. Across gearbox and clutch bridges, loops and links back into the same group, speeds combine by the traversal rule under Transmission. When connector changes rebuild the groups is an open item listed there.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -20136,6 +20486,11 @@
           "sha256": "77b2b5ef91f22d2548a42e7d976ade4f48f30d26d9ebb233cc1da22e706fe56f",
           "lineStart": 98,
           "lineEnd": 98
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14022d0d8"
         },
         {
           "path": "stormworks64.exe",
@@ -20245,6 +20600,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca113"
         },
         {
@@ -20260,12 +20625,47 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca470"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca481"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca5a3"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa17"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa44"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e26d9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e26e2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405e2728"
         },
         {
           "path": "stormworks64.exe",
@@ -20285,6 +20685,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405ec2e4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407435bb"
         },
         {
@@ -20295,7 +20700,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140758f57"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14077e04e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14077e085"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14085fa4d"
         },
         {
           "path": "stormworks64.exe",
@@ -26142,6 +26562,10 @@
         {
           "title": "Units",
           "body": "Output has no unit label. It reads internal charge per simulated second, the unit battery capacity is counted in. The generator's own buffer of 0.1 per listed voxel is a source in the pool like a battery, so it takes its share of each deposit until it is full."
+        },
+        {
+          "title": "Several bridges and loops",
+          "body": "When gearboxes or clutches join several shaft groups, each group passes its speed to every group it reaches once, along the first path in queue order, scaled by 0.95 × engagement per link. A loop whose ratios agree within 0.9 to 1.1 adds nothing more. A loop whose ratios disagree brakes every group that source reached: their bridge shares are cleared and the source's weight is added with no speed, so the result depends on group order. A link back into the same group at any ratio other than about 1 brakes that group; with nothing else attached it then publishes half its mixed speed each update (Transmission, inference from the decoded rule)."
         }
       ],
       "findings": [
@@ -26858,6 +27282,90 @@
           }
         },
         {
+          "label": "Shaft traversal visited test",
+          "value": "group already visited by this source",
+          "detail": "Each source group runs one breadth-first pass over the bridges: a FIFO starts with its bridge partners in member order, and each entry carries the partner group, the path weight h and the cumulative ratio r. Before a group takes a contribution the solve looks it up in this source's visited list, which starts with the source itself at ratio 1. A first visit records the group and r, adds the source's share and queues the group's own bridges. Sources run in the order of the group container, not by component ID. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes 4d3954c500 at 0x1404ca470. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L479; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca470",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca470"
+          }
+        },
+        {
+          "label": "Shaft revisit ratio",
+          "value": "recorded ratio ÷ current ratio",
+          "detail": "For a group already visited, the solve divides the recorded ratio by the ratio of the new path and compares the quotient with 0.9 (0x1404ca485) and 1.1 (0x1404ca48f). Inside that band the path is skipped without adding a second share or expanding the group again; outside it the solve jumps to the conflict path (0x1404ca9e9). Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f5ec6 at 0x1404ca481. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L483; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca481",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca481"
+          }
+        },
+        {
+          "label": "Shaft revisit lower bound",
+          "value": "0.9",
+          "detail": "Held in xmm10: a quotient below this is a ratio conflict. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f1015515d6e00 at 0x1404ca0da address binary32 0.9 (bytes 6666663f) at 0x140bafe34. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L253-L254; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0da",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0da"
+          }
+        },
+        {
+          "label": "Shaft revisit upper bound",
+          "value": "1.1",
+          "detail": "Held in xmm9: a quotient above this is a ratio conflict. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f3440f100d185e6e00 at 0x1404ca0e3 address binary32 1.1 (bytes cdcc8c3f) at 0x140baff04. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L255-L256; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca0e3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca0e3"
+          }
+        },
+        {
+          "label": "Shaft conflict clears contributions",
+          "value": "N = 0 for every group this source visited",
+          "detail": "On a conflict the solve walks every group in this source's visited list and sets its remote numerator to 0, dropping what earlier sources added too, then abandons the rest of this source's queue. Each group's own I × v term is kept. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes 44897828 at 0x1404caa17. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L833; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa17",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404caa17"
+          }
+        },
+        {
+          "label": "Shaft conflict braking weight",
+          "value": "D + I_s",
+          "detail": "In the same walk the source's weight I_s is added to each visited group's remote denominator. With the numerator at 0 this pulls the published speed toward 0. Later sources can add shares again. A bridge with both ports on one group is checked against the source's own ratio 1, so a self-link at a ratio outside 0.9 to 1.1 brakes the group itself. Report: investigation/leftovers.md. Function 0x1404c9d20-0x1404caba9; instruction bytes f30f58402c at 0x1404caa44. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/shaft-collect.asm:L843; ../leftovers/pseudocode/0x1404c9d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa44",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404caa44"
+          }
+        },
+        {
+          "label": "Self-linked group at a conflicting ratio",
+          "value": "v ÷ 2",
+          "detail": "Inference from the decoded rule: an otherwise isolated group of weight I and speed v whose own ports are linked at 2:1 keeps I × v in the numerator and gets I + I in the denominator, so it publishes v ÷ 2, 5 RPS from 10. At ratio 1 the revisit passes and adds nothing. These are deductions, not measurements. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404ca481, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa17, native:stormworks64.exe:f9206d85c82f:0x1404c9d20@0x1404caa44.",
+          "evidenceId": "derived:c9c9e1a4fe0e",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404ca481"
+          }
+        },
+        {
           "label": "Small Generator · tooltip",
           "value": "A small generator unit for converting mechanical power to electricity.",
           "detail": "generator_small: developer-authored short description; intended behaviour, not a measurement.",
@@ -26951,7 +27459,7 @@
       ],
       "limitations": [
         "Static analysis only; Q is in the internal charge unit. A conversion of internal charge to joules or watts was not recovered.",
-        "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
+        "The force-weighted comparisons hold within one shaft group. Across gearbox and clutch bridges, loops and links back into the same group, speeds combine by the traversal rule under Transmission. When connector changes rebuild the groups is an open item listed there.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -27118,6 +27626,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0da"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca0e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca113"
         },
         {
@@ -27129,6 +27647,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca1c3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca470"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404ca481"
         },
         {
           "path": "stormworks64.exe",
@@ -27149,6 +27677,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca972"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa17"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404caa44"
         },
         {
           "path": "stormworks64.exe",
@@ -66424,7 +66962,7 @@
         },
         {
           "title": "Fuel",
-          "body": "Jet fuel reaches the buffer through the Fuel port, which exchanges with the pipe network each update. The exhaust branch reads the stored amount but never subtracts it; only other liquids are purged. How much the port then draws from the tank depends on the network, which was not modelled."
+          "body": "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.\n\nSo the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn."
         },
         {
           "title": "Force units and limit",
@@ -66845,6 +67383,54 @@
           }
         },
         {
+          "label": "Exhaust fuel port bias",
+          "value": "-10",
+          "detail": "Loaded as the pressure bias for the exchange between the Fuel port (component+0x330) and the exhaust's buffer at component+0x3b8 (call 0x1402ec710 at 0x140351d90). Report: investigation/leftovers.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f10150bf28500 at 0x140351d81 address binary32 -10 (bytes 000020c1) at 0x140bb0f94. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/jet-update.asm:L867-L868; ../leftovers/pseudocode/0x140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351d81",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140351d81"
+          }
+        },
+        {
+          "label": "Port exchange moves jet fuel both ways",
+          "value": "one side − q, other side + q",
+          "detail": "The exchange helper subtracts the moved jet fuel (container +0x14) from one side and adds it to the other: 0x1402ecb4a and 0x1402ecb61 for one direction, matching stores for the reverse. It can fill the buffer or return fuel to the network; clamps and the 0.4 capacity bound the amount. It is transport, not combustion. Report: investigation/leftovers.md. Function 0x1402eca04-0x1402ed308; instruction bytes f30f114114 at 0x1402ecb4a. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/fluid-exchange.asm:L292; ../leftovers/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ecb4a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ecb4a"
+          }
+        },
+        {
+          "label": "Purge skips jet fuel",
+          "value": "index 2 kept",
+          "detail": "The exhaust calls the purge helper 0x1402ebdc0 with kept index 2 and fraction 0.001 (call at 0x140351dfc). For index 2 the je at 0x1402ebe35 jumps over the debit block 0x1402ebe37-0x1402ebe60, so other liquids go to a temporary container that is discarded and jet fuel stays. Report: investigation/leftovers.md. Function 0x1402ebdc0-0x1402ebec0; instruction bytes 4183f802 at 0x1402ebe31. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/fluid-purge.asm:L36; ../leftovers/pseudocode/0x1402ebdc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ebdc0@0x1402ebe31",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ebe31"
+          }
+        },
+        {
+          "label": "Afterburner fuel burn",
+          "value": "0 L per update, 0 L/s",
+          "detail": "The afterburner update reads the stored jet fuel for 1 + 500 × amount and subtracts none. Its port exchange moves fuel in or out and the purge keeps jet fuel. The only jet-fuel debit in the jet update, at 0x1403533f8, belongs to the combustion chamber, and the pre-update 0x140350d90 queues effects only. So buffer_next = buffer + net port exchange, and with the buffer level steady the port draws 0 L/s. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351d81, native:stormworks64.exe:f9206d85c82f:0x1402eca04@0x1402ecb4a, native:stormworks64.exe:f9206d85c82f:0x1402ebdc0@0x1402ebe31.",
+          "evidenceId": "derived:b188d1c94f3e",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140351d81"
+          }
+        },
+        {
           "label": "Jet Exhaust Afterburner · jet_engine_component_type",
           "value": "4",
           "detail": "jet_engine_exhaust_afterburner: definition attribute jet_engine_component_type. Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).",
@@ -66972,7 +67558,7 @@
       "limitations": [
         "Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its duct network; the Jet engines category lists that and the unit questions as open.",
         "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons.",
-        "The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws depends on the external fluid network, which was not modelled.",
+        "Writes to the exhaust's fuel buffer from code outside its update, initializer, pre-update and the two liquid helpers were not traced; the zero fuel burn covers those paths. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -67023,12 +67609,27 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ebe31"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ecb4a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034fc29"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140350ba3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140351d81"
         },
         {
           "path": "stormworks64.exe",
@@ -101626,7 +102227,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Outputs give distance in metres and angles in turns."
+          "body": "Outputs give distance in metres and angles in turns. They carry no SDK noise: radar_noise, radar_distance_noise and sonar_noise do not reach this logic case."
         }
       ],
       "findings": [
@@ -102020,6 +102621,42 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Legacy radar distance output",
+          "value": "distance, no noise",
+          "detail": "Logic case 50 stores the computed distance straight into the eight-target output block; its angle stores at 0x1403c7c34 and 0x1403c7c69 follow dot-product and acos arithmetic with no random value between. The case calls neither the settings getter 0x140294520 nor the random routine 0x1409afa20. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f11849efc040000 at 0x1403c7be8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L35-L36; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7be8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7be8"
+          }
+        },
+        {
+          "label": "Legacy radar output call",
+          "value": "call 0x1402ea270",
+          "detail": "The other legacy subtypes write their outputs through the direct setter 0x1402ea270. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e81925f2ff at 0x1403c7d52. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L115; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7d52",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7d52"
+          }
+        },
+        {
+          "label": "Direct output setter",
+          "value": "output +0x18 = argument",
+          "detail": "The setter stores its argument to the output's value at +0x18 and returns; it adds nothing. Report: investigation/leftovers.md. Function 0x1402ea270-0x1402ea290; instruction bytes f30f114918 at 0x1402ea270. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/direct-output-setter.asm:L8; ../leftovers/pseudocode/0x1402ea270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea270@0x1402ea270",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea270"
+          }
         }
       ],
       "limitations": [
@@ -102054,6 +102691,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea270"
         },
         {
           "path": "stormworks64.exe",
@@ -102138,6 +102780,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7be8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7d52"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404be439"
         },
         {
@@ -102182,7 +102834,7 @@
         },
         {
           "title": "Outputs",
-          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."
+          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees). The error is spread evenly over 32768 steps across that band, not bell-shaped."
         },
         {
           "title": "Variant tradeoffs",
@@ -102675,6 +103327,54 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
           }
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
         }
       ],
       "limitations": [
@@ -102858,6 +103558,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d5f0"
         },
         {
@@ -102877,7 +103592,7 @@
         },
         {
           "title": "Outputs",
-          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."
+          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees). The error is spread evenly over 32768 steps across that band, not bell-shaped."
         },
         {
           "title": "Variant tradeoffs",
@@ -103370,6 +104085,54 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
           }
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
         }
       ],
       "limitations": [
@@ -103553,6 +104316,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d5f0"
         },
         {
@@ -103572,7 +104350,7 @@
         },
         {
           "title": "Outputs",
-          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."
+          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees). The error is spread evenly over 32768 steps across that band, not bell-shaped."
         },
         {
           "title": "Variant tradeoffs",
@@ -104065,6 +104843,54 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
           }
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
         }
       ],
       "limitations": [
@@ -104248,6 +105074,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d5f0"
         },
         {
@@ -104267,15 +105108,19 @@
         },
         {
           "title": "Outputs",
-          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."
+          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees). The error is spread evenly over 32768 steps across that band, not bell-shaped."
         },
         {
           "title": "Variant tradeoffs",
           "body": "The tooltip gives no range, but radar_range is 20000. On the basic radars and sonars this field equals the stated range."
         },
         {
-          "title": "Missile orientation",
-          "body": "radar_type 1 sends the Missile radar down its own orientation branches in two places of the radar update. Its scan matrix turns in a different plane from the other radars' and with the opposite sign, and its scan planes start from a different basis of the part's axes. At zero angles the matrices are the identity, so they alone do not show which way the missile radar looks at rest."
+          "title": "Scan frame and planes",
+          "body": "Let R0, R1 and R2 be the rows of the part's world transform as the game stores them, and O its position. radar_type 1 sweeps them into M = A × B × R: B turns the first two rows by the negated sweep field at +0x468, then A turns the second and third rows by −2π × the field at +0x420. With X, Y and Z the rows of M, the radar looks along Y. The other advanced radars build their sweep in a different plane.\n\nA target must lie strictly inside five planes: a far plane facing −Y at O + range × Y, and four side planes through O with normals ±cos(hy) X + sin(hy) Y and sin(hx) Y ∓ cos(hx) Z, where hy = π × FOV y and hx = π × FOV x. A target exactly on a plane fails. A separate check keeps it within range of O; it is a sphere, not a sixth plane. From the plane normals, FOV y sets the spread toward ±X and FOV x the spread toward ±Z, each a full width of FOV turns."
+        },
+        {
+          "title": "Angles",
+          "body": "Reported angles do not use the swept frame. They use right R0, forward R1 and up −R2 of the unswept transform: azimuth = atan2(u · R0, u · R1) ÷ 2π and elevation = asin(−u · R2) ÷ 2π, in turns, for the unit direction u to the target. Positive azimuth points toward R0 and positive elevation toward −R2. At zero scan angles the radar looks along R1. Because right × forward = −up, the output axes are mirrored relative to the R basis. A target straight behind reads +0.5 turn."
         }
       ],
       "findings": [
@@ -104766,6 +105611,54 @@
           }
         },
         {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
           "label": "Radar (Missile) · radar_type",
           "value": "1",
           "detail": "radar_advanced_missile: definition attribute radar_type. radar_type 1 selects the missile orientation branches in the radar update.",
@@ -104805,7 +105698,7 @@
         {
           "label": "Missile radar plane basis selector",
           "value": "radar_type 1",
-          "detail": "The second radar_type test jumps to 0x1403bb16e (je at 0x1403bac56). That branch starts the scan-plane construction from -R2, R0 and R1 of the component's world rows instead of the ordinary radar's basis. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 83b8c42c000001 at 0x1403bac4f. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L583-L584; ../force-cap/pseudocode/0x1403ba040.c:L503. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "The second radar_type test jumps to 0x1403bb16e (je at 0x1403bac56). That branch first takes R0, R1 and -R2 of the unswept world rows as the axes for the reported angles (investigation/leftovers.md), then builds its scan planes from the swept frame. Report: investigation/force-cap.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 83b8c42c000001 at 0x1403bac4f. Interpretation rests on retained output investigation/native/behavior/../force-cap/asm/advanced-radar.asm:L583-L584; ../force-cap/pseudocode/0x1403ba040.c:L503. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bac4f",
           "status": "observed",
           "source": {
@@ -104813,11 +105706,95 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403bac4f"
           }
+        },
+        {
+          "label": "Missile radar scan frame",
+          "value": "M = A × B × R",
+          "detail": "With R the part's world transform as stored (rows R0, R1, R2, position O), the first call to 0x14017a380 at 0x1403bab0a forms B × R and this one A × B × R, in row-indexed notation. B turns the first two rows by b = −component+0x468, then A turns the second and third rows by a = −2π × component+0x420. The radar looks along Y, the second row of M. Report: investigation/leftovers.md. Function 0x1403ba040-0x1403bccdb; instruction bytes e85bf8dbff at 0x1403bab20. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/advanced-radar.asm:L649; ../leftovers/pseudocode/0x1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bab20",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bab20"
+          }
+        },
+        {
+          "label": "Missile side planes, FOV y",
+          "value": "hy = π × FOV y",
+          "detail": "Loads FOV y (+0x41c) for the planes cos(hy) X + sin(hy) Y and −cos(hy) X + sin(hy) Y, built with the sine and cosine calls at 0x1403bb404 and 0x1403bb501. X is the first row of M. Report: investigation/leftovers.md. Function 0x1403ba040-0x1403bccdb; instruction bytes f3450f10861c040000 at 0x1403bb3e0. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/advanced-radar.asm:L1179-L1180; ../leftovers/pseudocode/0x1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bb3e0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bb3e0"
+          }
+        },
+        {
+          "label": "Missile side planes, FOV x",
+          "value": "hx = π × FOV x",
+          "detail": "Loads FOV x (+0x418) for the planes sin(hx) Y − cos(hx) Z and sin(hx) Y + cos(hx) Z (0x1403bb633, 0x1403bb74d), Z being the third row of M. The far plane −Y sits at O + range × Y (0x1403bb338-0x1403bb3d8). Report: investigation/leftovers.md. Function 0x1403ba040-0x1403bccdb; instruction bytes f3450f108618040000 at 0x1403bb60f. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/advanced-radar.asm:L1320-L1321; ../leftovers/pseudocode/0x1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bb60f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bb60f"
+          }
+        },
+        {
+          "label": "Missile radar plane count",
+          "value": "5",
+          "detail": "The candidate collector steps through 24-byte plane records and stops after 5. A target must satisfy n · target > threshold for every plane; jbe at 0x140909fe5 rejects equality. Its range check is a separate sphere |target − O| ≤ range, not a sixth plane. Report: investigation/leftovers.md. Function 0x140909e67-0x14090a1af; instruction bytes 83f905 at 0x140909fed. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/radar-collector.asm:L118; ../leftovers/pseudocode/0x140909e40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140909e67@0x140909fed",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140909fed"
+          }
+        },
+        {
+          "label": "Radar azimuth sign",
+          "value": "negated signed angle",
+          "detail": "The azimuth is the signed angle from forward to the target's horizontal direction (helper 0x1401753d0), negated here and divided by 2π at 0x1403bc3dc. A zero horizontal direction is replaced by (1, 0); at the exact rear tie the helper returns −π, so the output is +0.5 turn. Report: investigation/leftovers.md. Function 0x1403ba040-0x1403bccdb; instruction bytes 0f5705b45b7f00 at 0x1403bc3d5. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/advanced-radar.asm:L2178; ../leftovers/pseudocode/0x1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc3d5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc3d5"
+          }
+        },
+        {
+          "label": "Radar elevation",
+          "value": "0.25 − acos(z) ÷ 2π",
+          "detail": "acos of the up component (0x1403bc426) is divided by 2π (0x1403bc42b) and subtracted from 0.25, which equals asin(z) ÷ 2π. Report: investigation/leftovers.md. Function 0x1403ba040-0x1403bccdb; instruction bytes f30f5cc8 at 0x1403bc437. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/advanced-radar.asm:L2203; ../leftovers/pseudocode/0x1403ba040.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc437",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bc437"
+          }
+        },
+        {
+          "label": "Missile radar output axes",
+          "value": "right R0, forward R1, up −R2",
+          "detail": "The radar_type 1 branch at 0x1403bb16e takes its output axes from the unswept transform: right R0, forward R1, up −R2. For a unit direction u the azimuth is atan2(u · R0, u · R1) ÷ 2π and the elevation asin(−u · R2) ÷ 2π, in turns. Positive azimuth points toward R0 and positive elevation toward −R2. right × forward = −up, so these axes have the opposite handedness to the R basis. Algebra from the decoded instructions, not a runtime check. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bab20, native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc3d5, native:stormworks64.exe:f9206d85c82f:0x1403ba040@0x1403bc437.",
+          "evidenceId": "derived:f96bd8faae4e",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403bab20"
+          }
         }
       ],
       "limitations": [
         "S is the target's physics-body mass, read per physics body; how vehicle mass accounting and the environment shape it are open questions listed under Other components.",
-        "Range, score, scan interval and FOV slider limits match the other advanced radars. The radar_type 1 selectors and their scan matrices are decoded; the complete scan frame, its six plane normals and the handedness of the reported azimuth and elevation were not established.",
+        "Range, score, scan interval and FOV slider limits match the other advanced radars. Which of R0, R1 and R2 the editor shows as the part's front, side and top was not established, so the rest direction R1 is not tied to a visible face of the model, and no angle was checked in a running game.",
         "20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."
       ],
       "sources": [
@@ -104923,7 +105900,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bab20"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bac4f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bb3e0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bb60f"
         },
         {
           "path": "stormworks64.exe",
@@ -104943,7 +105935,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc3d5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403bc3dc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403bc437"
         },
         {
           "path": "stormworks64.exe",
@@ -105003,12 +106005,32 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140909fed"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14090a031"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14090a060"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
         },
         {
           "path": "stormworks64.exe",
@@ -105032,7 +106054,7 @@
         },
         {
           "title": "Outputs",
-          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."
+          "body": "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees). The error is spread evenly over 32768 steps across that band, not bell-shaped."
         },
         {
           "title": "Variant tradeoffs",
@@ -105525,6 +106547,54 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
           }
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
         }
       ],
       "limitations": [
@@ -105708,6 +106778,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d5f0"
         },
         {
@@ -105735,7 +106820,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Outputs give distance in metres and angles in turns."
+          "body": "Outputs give distance in metres and angles in turns. They carry no SDK noise: radar_noise, radar_distance_noise and sonar_noise do not reach this logic case."
         }
       ],
       "findings": [
@@ -106116,6 +107201,42 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Legacy radar distance output",
+          "value": "distance, no noise",
+          "detail": "Logic case 50 stores the computed distance straight into the eight-target output block; its angle stores at 0x1403c7c34 and 0x1403c7c69 follow dot-product and acos arithmetic with no random value between. The case calls neither the settings getter 0x140294520 nor the random routine 0x1409afa20. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f11849efc040000 at 0x1403c7be8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L35-L36; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7be8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7be8"
+          }
+        },
+        {
+          "label": "Legacy radar output call",
+          "value": "call 0x1402ea270",
+          "detail": "The other legacy subtypes write their outputs through the direct setter 0x1402ea270. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e81925f2ff at 0x1403c7d52. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L115; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7d52",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7d52"
+          }
+        },
+        {
+          "label": "Direct output setter",
+          "value": "output +0x18 = argument",
+          "detail": "The setter stores its argument to the output's value at +0x18 and returns; it adds nothing. Report: investigation/leftovers.md. Function 0x1402ea270-0x1402ea290; instruction bytes f30f114918 at 0x1402ea270. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/direct-output-setter.asm:L8; ../leftovers/pseudocode/0x1402ea270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea270@0x1402ea270",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea270"
+          }
         }
       ],
       "limitations": [
@@ -106144,6 +107265,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea270"
         },
         {
           "path": "stormworks64.exe",
@@ -106228,6 +107354,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7be8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7d52"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404be439"
         },
         {
@@ -106280,7 +107416,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Outputs give distance in metres and angles in turns. The Radar Data composite carries target 1 to 8 found flags and distance, azimuth, elevation and time since detection per target."
+          "body": "Outputs give distance in metres and angles in turns. They carry no SDK noise: radar_noise, radar_distance_noise and sonar_noise do not reach this logic case. The Radar Data composite carries target 1 to 8 found flags and distance, azimuth, elevation and time since detection per target."
         }
       ],
       "findings": [
@@ -106687,6 +107823,42 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Legacy radar distance output",
+          "value": "distance, no noise",
+          "detail": "Logic case 50 stores the computed distance straight into the eight-target output block; its angle stores at 0x1403c7c34 and 0x1403c7c69 follow dot-product and acos arithmetic with no random value between. The case calls neither the settings getter 0x140294520 nor the random routine 0x1409afa20. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f11849efc040000 at 0x1403c7be8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L35-L36; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7be8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7be8"
+          }
+        },
+        {
+          "label": "Legacy radar output call",
+          "value": "call 0x1402ea270",
+          "detail": "The other legacy subtypes write their outputs through the direct setter 0x1402ea270. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e81925f2ff at 0x1403c7d52. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L115; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7d52",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7d52"
+          }
+        },
+        {
+          "label": "Direct output setter",
+          "value": "output +0x18 = argument",
+          "detail": "The setter stores its argument to the output's value at +0x18 and returns; it adds nothing. Report: investigation/leftovers.md. Function 0x1402ea270-0x1402ea290; instruction bytes f30f114918 at 0x1402ea270. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/direct-output-setter.asm:L8; ../leftovers/pseudocode/0x1402ea270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea270@0x1402ea270",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea270"
+          }
         }
       ],
       "limitations": [
@@ -106727,6 +107899,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea270"
         },
         {
           "path": "stormworks64.exe",
@@ -106811,6 +107988,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7be8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7d52"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404be439"
         },
         {
@@ -106863,7 +108050,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Outputs give distance in metres and angles in turns."
+          "body": "Outputs give distance in metres and angles in turns. They carry no SDK noise: radar_noise, radar_distance_noise and sonar_noise do not reach this logic case."
         }
       ],
       "findings": [
@@ -107270,6 +108457,42 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Legacy radar distance output",
+          "value": "distance, no noise",
+          "detail": "Logic case 50 stores the computed distance straight into the eight-target output block; its angle stores at 0x1403c7c34 and 0x1403c7c69 follow dot-product and acos arithmetic with no random value between. The case calls neither the settings getter 0x140294520 nor the random routine 0x1409afa20. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f11849efc040000 at 0x1403c7be8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L35-L36; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7be8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7be8"
+          }
+        },
+        {
+          "label": "Legacy radar output call",
+          "value": "call 0x1402ea270",
+          "detail": "The other legacy subtypes write their outputs through the direct setter 0x1402ea270. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e81925f2ff at 0x1403c7d52. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L115; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7d52",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7d52"
+          }
+        },
+        {
+          "label": "Direct output setter",
+          "value": "output +0x18 = argument",
+          "detail": "The setter stores its argument to the output's value at +0x18 and returns; it adds nothing. Report: investigation/leftovers.md. Function 0x1402ea270-0x1402ea290; instruction bytes f30f114918 at 0x1402ea270. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/direct-output-setter.asm:L8; ../leftovers/pseudocode/0x1402ea270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea270@0x1402ea270",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea270"
+          }
         }
       ],
       "limitations": [
@@ -107310,6 +108533,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea270"
         },
         {
           "path": "stormworks64.exe",
@@ -107394,6 +108622,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7be8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7d52"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404be439"
         },
         {
@@ -107446,7 +108684,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Outputs give distance in metres and angles in turns."
+          "body": "Outputs give distance in metres and angles in turns. They carry no SDK noise: radar_noise, radar_distance_noise and sonar_noise do not reach this logic case."
         }
       ],
       "findings": [
@@ -107840,6 +109078,42 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Legacy radar distance output",
+          "value": "distance, no noise",
+          "detail": "Logic case 50 stores the computed distance straight into the eight-target output block; its angle stores at 0x1403c7c34 and 0x1403c7c69 follow dot-product and acos arithmetic with no random value between. The case calls neither the settings getter 0x140294520 nor the random routine 0x1409afa20. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f11849efc040000 at 0x1403c7be8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L35-L36; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7be8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7be8"
+          }
+        },
+        {
+          "label": "Legacy radar output call",
+          "value": "call 0x1402ea270",
+          "detail": "The other legacy subtypes write their outputs through the direct setter 0x1402ea270. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e81925f2ff at 0x1403c7d52. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L115; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7d52",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7d52"
+          }
+        },
+        {
+          "label": "Direct output setter",
+          "value": "output +0x18 = argument",
+          "detail": "The setter stores its argument to the output's value at +0x18 and returns; it adds nothing. Report: investigation/leftovers.md. Function 0x1402ea270-0x1402ea290; instruction bytes f30f114918 at 0x1402ea270. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/direct-output-setter.asm:L8; ../leftovers/pseudocode/0x1402ea270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea270@0x1402ea270",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea270"
+          }
         }
       ],
       "limitations": [
@@ -107874,6 +109148,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea270"
         },
         {
           "path": "stormworks64.exe",
@@ -107958,6 +109237,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7be8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7d52"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404be439"
         },
         {
@@ -108010,7 +109299,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Outputs give distance in metres and angles in turns."
+          "body": "Outputs give distance in metres and angles in turns. They carry no SDK noise: radar_noise, radar_distance_noise and sonar_noise do not reach this logic case."
         }
       ],
       "findings": [
@@ -108404,6 +109693,42 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Legacy radar distance output",
+          "value": "distance, no noise",
+          "detail": "Logic case 50 stores the computed distance straight into the eight-target output block; its angle stores at 0x1403c7c34 and 0x1403c7c69 follow dot-product and acos arithmetic with no random value between. The case calls neither the settings getter 0x140294520 nor the random routine 0x1409afa20. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f11849efc040000 at 0x1403c7be8. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L35-L36; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7be8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7be8"
+          }
+        },
+        {
+          "label": "Legacy radar output call",
+          "value": "call 0x1402ea270",
+          "detail": "The other legacy subtypes write their outputs through the direct setter 0x1402ea270. Report: investigation/leftovers.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e81925f2ff at 0x1403c7d52. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/legacy-output.asm:L115; ../leftovers/pseudocode/0x1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c7d52",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c7d52"
+          }
+        },
+        {
+          "label": "Direct output setter",
+          "value": "output +0x18 = argument",
+          "detail": "The setter stores its argument to the output's value at +0x18 and returns; it adds nothing. Report: investigation/leftovers.md. Function 0x1402ea270-0x1402ea290; instruction bytes f30f114918 at 0x1402ea270. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/direct-output-setter.asm:L8; ../leftovers/pseudocode/0x1402ea270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea270@0x1402ea270",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea270"
+          }
         }
       ],
       "limitations": [
@@ -108438,6 +109763,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a8082"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea270"
         },
         {
           "path": "stormworks64.exe",
@@ -108518,6 +109848,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c7bbb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7be8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c7d52"
         },
         {
           "path": "stormworks64.exe",
@@ -123849,7 +125189,7 @@
         },
         {
           "title": "Detection",
-          "body": "With P = radar_range = 60000, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < 600 × S m. Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second.\n\nWhile it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within 28200 m, the small advanced sonar's figure. Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default."
+          "body": "With P = radar_range = 60000, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < 600 × S m. Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second.\n\nWhile it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within 28200 m, the small advanced sonar's figure. Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default, spread evenly over 32768 steps."
         }
       ],
       "findings": [
@@ -124169,6 +125509,54 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
         }
       ],
       "limitations": [
@@ -124292,6 +125680,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140baeaf4"
         }
       ]
@@ -124310,7 +125713,7 @@
         },
         {
           "title": "Detection",
-          "body": "With P = radar_range = 100000, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < 1000 × S m. Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second.\n\nWhile it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within 47000 m, the medium advanced sonar's figure. Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default."
+          "body": "With P = radar_range = 100000, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < 1000 × S m. Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second.\n\nWhile it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within 47000 m, the medium advanced sonar's figure. Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default, spread evenly over 32768 steps."
         }
       ],
       "findings": [
@@ -124630,6 +126033,54 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
         }
       ],
       "limitations": [
@@ -124753,6 +126204,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140baeaf4"
         }
       ]
@@ -124771,7 +126237,7 @@
         },
         {
           "title": "Detection",
-          "body": "With P = radar_range = 200000, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < 2000 × S m. Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second.\n\nWhile it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within 94000 m, the large advanced sonar's figure. Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default."
+          "body": "With P = radar_range = 200000, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < 2000 × S m. Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second.\n\nWhile it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within 94000 m, the large advanced sonar's figure. Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default, spread evenly over 32768 steps."
         }
       ],
       "findings": [
@@ -125091,6 +126557,54 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1401a8082"
           }
+        },
+        {
+          "label": "Random routine multiplier",
+          "value": "214013",
+          "detail": "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 694828fd430300 at 0x1409afa29. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L10; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
+        },
+        {
+          "label": "Random routine increment",
+          "value": "2531011",
+          "detail": "Adds 0x269ec3 to the multiplied state and stores it back. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes 81c1c39e2600 at 0x1409afa30. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L11; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa30"
+          }
+        },
+        {
+          "label": "Random routine output",
+          "value": "(state >> 16) & 32767",
+          "detail": "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767. Report: investigation/leftovers.md. Function 0x1409afa20-0x1409afa49; instruction bytes c1e91081e1ff7f0000 at 0x1409afa39. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/random.asm:L13-L14; ../leftovers/pseudocode/0x1409afa20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa39"
+          }
+        },
+        {
+          "label": "Sensor noise distribution",
+          "value": "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+          "detail": "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples. Report: investigation/leftovers.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa29, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa30, native:stormworks64.exe:f9206d85c82f:0x1409afa20@0x1409afa39.",
+          "evidenceId": "derived:52ef877fc34b",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409afa29"
+          }
         }
       ],
       "limitations": [
@@ -125210,6 +126724,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405481fe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa29"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa30"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409afa39"
         },
         {
           "path": "stormworks64.exe",
@@ -158752,12 +160281,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8677,
+    "findingCount": 8761,
     "findingsByStatus": {
-      "derived": 723,
-      "observed": 7954
+      "derived": 736,
+      "observed": 8025
     },
-    "nativeFindingCount": 6283,
+    "nativeFindingCount": 6367,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -158808,8 +160337,8 @@
       }
     ],
     "evidenceUse": {
-      "derived": 419,
-      "native": 1394,
+      "derived": 424,
+      "native": 1423,
       "resource": 2660
     }
   }

@@ -3196,14 +3196,25 @@ def transmission(B, E):
                     "The 1x1, 3x3 and 5x5 gearboxes share the eight ratios, the bridge and the power gate. Their force_emitter_max_force values %s, %s and %s are copied to the RPS A connection at binding. The gearbox does not submit them as a solver weight and the decoded update and shaft solve compare that copy with nothing, so in those paths size does not change the coupling." % (
                         fv["modular_engine_gearbox_1x1"], fv["modular_engine_gearbox_3x3"], fv["modular_engine_gearbox_5x5"]))
     common = sel + vals + names + [field, power, inv] + ports + T["bind"] + T["solve"] + T["switch"] + T["damage"] + meters
+    lo = leftovers_native(E)
+    networks = section("Several bridges and loops",
+                       "Each update every group first mixes its own parts. Then every group in turn acts as a source s and sends its speed through the bridges once. A queue starts with its bridge partners in member order. "
+                       "Each entry carries the path weight h, multiplied by 0.95 × bridge fraction per link, and the cumulative ratio r; entries with h at or below 0.001 stop. "
+                       "The first time a group is reached it gets sign(r) × v_s × I_s × h on its numerator and I_s × h ÷ |r| on its weight, and its own bridges join the queue.",
+                       "A group reached again by another path compares the recorded ratio with the new one. If recorded ÷ new lies within 0.9 to 1.1 the path is skipped, so a consistent loop passes each source's speed once, along the first path in queue order. "
+                       "Otherwise the ratios contradict. Every group this source has reached loses all bridge shares gathered so far, including those from earlier sources, gains I_s of weight with no speed, and the source stops. "
+                       "Later sources can add shares again, so the outcome depends on the group order, and a contradicting loop acts as a brake rather than settling on one speed.",
+                       "A bridge with both ports on one group is checked against ratio 1. A 1:1 link adds nothing. Inference from the comparison: any other option, such as 2:1, brakes the group, and an otherwise isolated group then publishes v ÷ 2, 5 RPS from 10. "
+                       "After all sources each group publishes once; there is no iteration toward a converged speed. The source order is the order of the group container, not component IDs.")
     B.category("Transmission",
                "Gearboxes pull RPS B toward the selected ratio × RPS A, so for an N:1 option RPS A is the fast side. Ratio changes apply at once while the gearbox has power, and a bridge mixes the two shaft groups' speeds by solver weight with no slip threshold.",
-               [orientation, coupling, switching, damage, meter_sec, clutch_sec],
-               common + types + list(forces.values()) + T["clutch"] + [f["force"]],
+               [orientation, coupling, networks, switching, damage, meter_sec, clutch_sec],
+               common + types + list(forces.values()) + T["clutch"] + [f["force"]] + [lo[k] for k in ("sh_visit", "sh_quot", "sh_lo", "sh_hi", "sh_zero", "sh_brake", "sh_self")],
                ["SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
                 "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
                 "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
-                "The bridge equations are decoded for two groups joined by one bridge. Arbitrary loops, both ports on one group and graph rebuild order were not decoded.",
+                "Which connector changes rebuild the shaft groups, when old group membership is dropped, how the rebuilt group and member order is chosen and whether an update can run on stale membership were not traced. "
+                "The traversal under Several bridges and loops follows that order, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
                 "Static analysis only.", TICK])
     shared = "Shaft speed is RPS and the bridge weights are solver units. Open items shared by all transmission parts, including SI torque, losses and breakage, are listed under Transmission on the parts index."
     B.family("gearbox",
@@ -3746,7 +3757,7 @@ def electricity_native(E):
     f["emp_breaker"] = code(F_EMP_ELECTRIC, 0x1404015B7, "c6818001000000", "EMP trips circuit breakers", "on state cleared",
                             "With a nonzero pulse and electric_type 3 (circuit breaker), the override clears the breaker's on state." + rep)
     f["emp_pulse"] = code(F_EMP_PULSE, 0x14077E085, "ff90f0030000", "EMP pulse application", "slot +0x3f0 per component",
-                          "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Its event discriminator was not traced; the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading." + rep)
+                          "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Scene event 116 reaches it (investigation/leftovers.md); the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading." + rep)
     f["emp_zero"] = code(F_ELEC_CTOR, 0x1403FFF7B, "899338020000", "EMP countdown at construction", "0",
                          "The motor/generator constructor stores 0 (edx) to the electric node's countdown at component+0x238." + rep)
     # Charge pool.
@@ -3939,8 +3950,15 @@ def electricity(B, E):
     F = N["f"]
     shared = N["shaft"] + N["emp"] + N["pool"] + N["draw"] + N["display"]
     si = "A conversion of internal charge to joules or watts was not recovered."
-    bridges = ("The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, "
-               "with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.")
+    lo = leftovers_native(E)
+    loops = [lo[k] for k in ("sh_visit", "sh_quot", "sh_lo", "sh_hi", "sh_zero", "sh_brake", "sh_self")]
+    emp_src = [lo[k] for k in ("emp_type", "emp_route", "emp_fall", "emp_800", "emp_in", "emp_out", "emp_obj", "emp_queue", "emp_strike")]
+    bridges = ("The force-weighted comparisons hold within one shaft group. Across gearbox and clutch bridges, loops and links back into the same group, speeds combine by the traversal rule under Transmission. "
+               "When connector changes rebuild the groups is an open item listed there.")
+    loops_s = section("Several bridges and loops",
+                      "When gearboxes or clutches join several shaft groups, each group passes its speed to every group it reaches once, along the first path in queue order, scaled by 0.95 × engagement per link. "
+                      "A loop whose ratios agree within 0.9 to 1.1 adds nothing more. A loop whose ratios disagree brakes every group that source reached: their bridge shares are cleared and the source's weight is added with no speed, "
+                      "so the result depends on group order. A link back into the same group at any ratio other than about 1 brakes that group; with nothing else attached it then publishes half its mixed speed each update (Transmission, inference from the decoded rule).")
     B.category("Electricity",
                "Battery capacity is electric_charge_capacity (1 : 8 : 160 across sizes), and every full source lends at most 10 internal charge per update to the shared pool that consumers draw from. "
                "electric_magnitude is a per-component multiplier on charge: a motor pays electric_magnitude × force_emitter_max_force × 0.1 per RPS of speed step, and a generator earns the same product per RPS it removes.",
@@ -3957,7 +3975,9 @@ def electricity(B, E):
                         "The motor and generator speed state is RPS: the save field is named rotations_per_second, the parts exchange it with the shaft unchanged, and a torque meter copies the same group speed to its RPS output. "
                         "Each update a part submits its speed and its force_emitter_max_force as weight F to its shaft group. The group's new speed is (previous group speed + Σ F × submitted speed) ÷ (1 + Σ F), so the shaft itself carries weight 1, and each part takes that speed back.",
                         "Example: from rest, a part of weight 2 at 20 RPS and a part of weight 1 at 0 give (0 + 2 × 20 + 1 × 0) ÷ (1 + 2 + 1) = 10 RPS. "
-                        "A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."),
+                        "A gearbox or clutch between two groups adds a weighted share of the other group's speed, reduced by the engagement and by 0.95 per link, with the ratio setting its sign and weight. "
+                        "With several bridges or loops each group's speed reaches the others once, along the first path, and contradicting ratios brake the groups involved; Transmission gives the rule. "
+                        "The torque meter's Torque output reads the group's effective weight, not a torque in newton-metres."),
                 section("Other components that reuse the field",
                         "The field is not a global efficiency. The classic diesel engines (field value 1.2) use it as a starter cost factor: max(5 − speed, 0) × engine_max_force × Max Power ÷ 2000 × electric_magnitude × 0.1. The modular starter (0.2) requests max(5 − crank speed, 0) × electric_magnitude × engine_max_force × 0.1. The modular alternator (0.05) uses the generator formula with an extra 0.1. The jet turbine branch (field value 0.025, investigation/jet-engines.md) deposits |ω| × electric_magnitude × min(ω ÷ 10000, 0.02) when that is positive, with no force term. The modular clutch, drive belt and temperature sensor carry values (1, 1, 0.05) that none of the six reads uses; the scan covers only direct +0x1420 operands."),
                 section("Supply and settings",
@@ -3966,14 +3986,21 @@ def electricity(B, E):
                         "Low charge, an exhausted pool or consumers that drew first each cut supply on their own. q is fixed when the pool is built, so generation later in the same update raises E but not q until the next update. Which consumer draws first depends on the vehicle's component order.",
                         "An EMP pulse adds to n, and n counts down by 1 every update whether or not the part has power. At n = 300 or more the part gets nothing. Below 300 supply recovers linearly and is full again when n reaches 0, 300 updates (5 simulated seconds) later. A pulse also switches circuit breakers off. "
                         "Inspecting an electric port shows max(0, 1 − n ÷ 300) × q as a bare number, or 1 with infinite electricity."),
+                section("EMP sources",
+                        "An EMP is scene event 116 with a position, a strength and an inner and outer radius. Every electric part of a vehicle body in reach gets trunc(strength × (1 − clamp((d − inner) ÷ (outer − inner), 0, 1))) added to its countdown n. "
+                        "d is the distance from the pulse to the body's origin, the same for all of the body's parts.",
+                        "The weather update sends 800 with a 100 m inner and a 300 m outer radius; reading it as the lightning strike is an inference. Within 100 m that cuts supply to 0 for 500 updates and restores it fully after 800 updates, 13.33 simulated seconds. "
+                        "At 200 m it adds 400, and from 300 m on nothing. Two object updates send 30 with the same radii, which lowers supply to 0.9 and recovers within 0.5 s, and a queue sends pulses with their own strength and an inner radius of half the outer."),
                 section("Rates and units",
                         "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. Generator Output already includes that factor. "
                         "The shaft solver weights speed changes by force_emitter_max_force and has no torque or inertia in SI units, so it gives no charge-per-joule figure for mechanical work. "
                         "The shipped realtime file sets electric_consumption_scale to 0.01, but the executable contains that name neither as ASCII nor as UTF-16LE text, and its effect was not recovered.")],
                cap + [init, tenth, ratio, consumption] + level + gm + mm + gf + mf + native_em +
-               [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse + R + shared + [share],
+               [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse + R + shared + [share] + emp_src + loops,
                ["Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. " + si,
-                "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges pass speed and weight between groups as described under Transmission; how loops, two ports on the same group and connector rebuilds combine groups in arbitrary networks was not decoded, and the model gives no SI torque or inertia.",
+                "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges, loops and links back into one group pass speed and weight as described under Transmission. The model gives no SI torque or inertia.",
+                "Which code fills the queued EMP pulses, which gameplay objects the object kinds 0 and 4 that send 30-count pulses are, and what handles the spawn_emp request were not traced. "
+                "So EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
                 "Static analysis only.", TICK])
     B.family("electric-battery",
              "Capacity is electric_charge_capacity (1600, 12800, 256000). Each update a battery lends at most 10 × its charge fraction to the network pool, so more batteries supply more per update while a bigger battery lasts longer.",
@@ -4002,9 +4029,10 @@ def electricity(B, E):
               section("Compared with motors and the alternator",
                       "A motor driving a generator of the same size on one shaft group returns 0.5 (small), 0.6818 (medium) or 0.8095 (large) of the motor's charge for an equal force-weighted speed change. At equal |ω| × k the modular alternator's coefficient is 0.05 against the small generator's 0.06."),
               section("Units",
-                      "Output has no unit label. It reads internal charge per simulated second, the unit battery capacity is counted in. The generator's own buffer of 0.1 per listed voxel is a source in the pool like a battery, so it takes its share of each deposit until it is full.")],
+                      "Output has no unit label. It reads internal charge per simulated second, the unit battery capacity is counted in. The generator's own buffer of 0.1 per listed voxel is a source in the pool like a battery, so it takes its share of each deposit until it is full."),
+              loops_s],
              gm + gf + [init, tenth, g_read, g_norm, g_cap, g_tenth, g_out, g_add, dispatch, g_cost, g_per_f, g_rel, g_sat, trip, alt_cmp, o_alt, g_out_s, g_ex] + R + [
-                        E.port("generator_small", "Output"), E.port("generator_small", "RPS")] + mm + N["shaft"] + N["pool"] + [F["g_store"]],
+                        E.port("generator_small", "Output"), E.port("generator_small", "RPS")] + mm + N["shaft"] + N["pool"] + [F["g_store"]] + loops,
              ["Static analysis only; Q is in the internal charge unit. " + si, bridges, TICK])
     B.family("electric-motor",
              "Each update the motor takes a speed step of at most 2 × |Throttle| RPS and requests |step| × electric_magnitude × force_emitter_max_force × 0.1 in charge: 0.24, 6.6 and 26.25 per RPS of step for the small, medium and large motor.",
@@ -4020,9 +4048,11 @@ def electricity(B, E):
                       "Charge scales with the speed step, not with speed × step. A given RPS change costs the same at low and high shaft speed, so equal charge buys equal force-weighted speed change rather than equal mechanical work. The shaft solver is a weighted average with no torque or inertia in SI units, so it gives no charge-per-joule figure."),
               section("Setup and interactions",
                       "Throttle limits the step, not the target speed: the target is always 20 RPS. Without a shaft link the update settles at 19.9 RPS at full throttle. At zero throttle an unlinked motor keeps 0.74 of its speed after one simulated second. Under load, a lower throttle mainly lowers the step and with it the draw. With infinite_batteries on, the draw helper supplies every request and takes no charge. "
-                      "An EMP pulse cuts the motor's supply while its countdown is 300 or more; supply then returns linearly over the next 300 updates, 5 simulated seconds.")],
+                      "An EMP pulse cuts the motor's supply while its countdown is 300 or more; supply then returns linearly over the next 300 updates, 5 simulated seconds. "
+                      "A weather strike within 100 m (inference: lightning) adds 800, so the motor gets no charge for 500 updates and full charge again after 800, 13.33 simulated seconds. Electricity lists the other EMP sources."),
+              loops_s],
              mm + mf + [m_read, m_call, m_target, m_bound, m_tenth, m_keep, r_inf, r_300, dispatch, m_cost, m_full, m_per_f, m_rel, m_free, trip, m_full_s, m_coast, batteries] + R + [
-                        E.port("motor_small", "Throttle"), E.port("motor_small", "RPS")] + gm + N["shaft"] + N["draw"] + N["emp"] + [N["packet_s"]],
+                        E.port("motor_small", "Throttle"), E.port("motor_small", "RPS")] + gm + N["shaft"] + N["draw"] + N["emp"] + [N["packet_s"]] + emp_src + loops,
              ["Static analysis only; charge is in the internal unit. " + si,
               "Reading component offset 0x160 as the Throttle input is an inference from how the update uses it.",
               bridges, TICK])
@@ -5654,8 +5684,10 @@ def jet_engines(B, E):
                 "of an assembled engine and its startup time are not predicted from a parts list.")
     open_units = "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units."
     FC_ = force_cap(E)["refs"]
-    open_ab = ("The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws "
-               "depends on the external fluid network, which was not modelled.")
+    open_ab = ("Writes to the exhaust's fuel buffer from code outside its update, initializer, pre-update and the two liquid helpers were not traced; the zero fuel burn covers those paths. "
+               "Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.")
+    lo = leftovers_native(E)
+    ab_fuel = [lo[k] for k in ("ab_bias", "ab_move", "ab_skip", "ab_zero")]
     static = "Static decompilation of one build; the game was not run."
     local = ("Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its "
              "duct network; the Jet engines category lists that and the unit questions as open.")
@@ -5679,12 +5711,12 @@ def jet_engines(B, E):
                         "The altitude factor 1 - height × 1.5 ÷ 40000 reaches 0 at a height of 26666.67, metres if the height field is in metres, which is an inference. The three exhausts use the same coefficient; the rotating one only changes direction."),
                 section("Fuel",
                         "The chamber burns 0.12 × u × RPS L/s, 2.4 L/s at 20 RPS and full throttle, from a 4 L buffer fed by its Fuel port; a short buffer lowers u. "
-                        "An enabled afterburner multiplies thrust by 1 + 500 × the jet fuel amount in its own buffer, 1.5 at 0.01 L. Its branch never subtracts that fuel."),
+                        "An enabled afterburner multiplies thrust by 1 + 500 × the jet fuel amount in its own buffer, 1.5 at 0.01 L. It burns none of that fuel: its Fuel port only fills the buffer or returns fuel, so with the buffer level steady it draws 0 L/s."),
                 section("Units",
                         "Pressure, temperature, charge and force are the game's internal units. The force is applied once per update and integrated by the physics solver; do not multiply it by 60. "
                         "The medium turbine's shaft weight of 160 is a solver weight, not a torque in N m.")],
                every + FC_ + [kind("jet_engine_compressor"), T("jet_engine_compressor"), T("jet_engine_combustion_chamber"), P("jet_engine_exhaust_basic", "Thrust Spoiler"),
-                        T("jet_engine_exhaust_rotating")],
+                        T("jet_engine_exhaust_rotating")] + ab_fuel,
                [static + " " + open_net, open_units,
                 "SI torque, power and efficiency were not recovered. Intake behaviour was not decoded.", TICK])
     B.family("part-jet-engine-compressor",
@@ -5750,11 +5782,13 @@ def jet_engines(B, E):
                       "With the Afterburner input on and any liquid in its buffer, b = 1 + 0.5 × stored jet fuel ÷ 0.001 = 1 + 500 × stored amount. "
                       "0.001 amount (0.01 L) gives 1.5; a full 0.4 amount (4 L) buffer gives 201. The ratio has no upper clamp, so a full buffer multiplies thrust far beyond the tooltip's description, until the 100 × S cap."),
               section("Fuel",
-                      "Jet fuel reaches the buffer through the Fuel port, which exchanges with the pipe network each update. The exhaust branch reads the stored amount but never subtracts it; only other liquids are purged. "
-                      "How much the port then draws from the tank depends on the network, which was not modelled."),
+                      "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. "
+                      "A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.",
+                      "So the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. "
+                      "The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn."),
               section("Force units and limit", cap_body),
               section("Example", example + " An enabled afterburner holding 0.01 L gives 720000 before the cap.")],
-             ex_common + J["afterburner"] + [kind("jet_engine_exhaust_afterburner"), T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel"),
+             ex_common + J["afterburner"] + [J["f"]["x_port"], J["f"]["x_purge"]] + ab_fuel + [kind("jet_engine_exhaust_afterburner"), T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel"),
                                              P("jet_engine_exhaust_afterburner", "Afterburner")],
              ex_limits[:2] + [open_ab, TICK])
     B.family("part-jet-engine-exhaust-rotating",
@@ -7449,7 +7483,7 @@ def sensor_native(E):
     f["r_missile_sign"] = code(F_RADAR, 0x1403BA94B, "410f57c5", "Missile radar angle sign", "-component +0x468",
                                "Flips the sign of component +0x468 (loaded at 0x1403ba942) for the type-1 matrix; the ordinary branch loads it at 0x1403ba879 and uses it as it is. At zero angles both matrices are the identity." + frep)
     f["r_missile_basis"] = code(F_RADAR, 0x1403BAC4F, "83b8c42c000001", "Missile radar plane basis selector", "radar_type 1",
-                                "The second radar_type test jumps to 0x1403bb16e (je at 0x1403bac56). That branch starts the scan-plane construction from -R2, R0 and R1 of the component's world rows instead of the ordinary radar's basis." + frep)
+                                "The second radar_type test jumps to 0x1403bb16e (je at 0x1403bac56). That branch first takes R0, R1 and -R2 of the unswept world rows as the axes for the reported angles (investigation/leftovers.md), then builds its scan planes from the swept frame." + frep)
     f["r_turns"] = op(F_RADAR, 0x1403BC3DC, "f30f5e056c417f00", 0x140BB0550, "Radar angle unit",
                       "Each target's yaw is negated and divided by 2π before it is stored at record +0x34, and the pitch is divided by 2π at 0x1403bc42b, so reported angles are in turns." + rep)
     # Output noise.
@@ -8003,7 +8037,10 @@ def sensors_and_radio(B, E):
     sonar_core = [f[k] for k in ("s_factory", "s_vtable", "s_div", "s_score", "s_thr", "s_merge", "s_limit", "s_window", "s_speed", "s_amp",
                                  "s_pfac", "s_passive", "s_ray", "s_noise")]
     locator = [f[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_period", "l_counter", "l_grad", "l_clamp", "l_acc", "l_rate")]
-    noise = [f[k] for k in ("sdk_sonar", "sdk_radar", "sdk_dist", "sdk_default", "noise")] + f["sdk"]
+    lo = leftovers_native(E)
+    rnd = [lo[k] for k in ("rnd_mul", "rnd_add", "rnd_out", "rnd_dist")]
+    no_noise = [lo[k] for k in ("lg_dist", "lg_set", "lg_setter")]
+    noise = [f[k] for k in ("sdk_sonar", "sdk_radar", "sdk_dist", "sdk_default", "noise")] + f["sdk"] + rnd + no_noise
     lf = legacy_sensor_native(E)
     legacy_core = [lf[k] for k in LEGACY_CORE] + [legacy_figures(E, bid) for _, bid, _ in LEGACY_SENSORS]
     fov_core = [lf[k] for k in FOV_CORE] + [radar_figures(E, bid) for _, bid in ADV_RADARS]
@@ -8054,8 +8091,11 @@ def sensors_and_radio(B, E):
                         "The locator takes the nearest beacon's 1 ÷ (0.002 d + 0.5), applies a small noise factor, clamps it to 0 to 1 and adds it to an accumulator each update. Each time the accumulator reaches 10 it pulses. Without noise that is 6 Hz within 250 m, 2.4 Hz at 1000 m and 0.2927 Hz at 10000 m. "
                         "The noise factor comes from a shared counter, not from the beacon's position, and one factor multiplies the nearest beacon's term."),
                 section("Output noise",
-                        "The game reads radar_noise, radar_distance_noise and sonar_noise from the SDK game_constants file. Radar distances are multiplied by 1 − D + 2D U, and radar and sonar angles get −A + 2A U, with a fresh random U from 0 to 1 per value. "
-                        "At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise."),
+                        "The game reads radar_noise, radar_distance_noise and sonar_noise from the SDK game_constants file. On the advanced radars and sonars, radar distances are multiplied by 1 − D + 2D U, and radar and sonar angles get −A + 2A U, with a fresh random U from 0 to 1 per value. "
+                        "At the defaults that is ±1% on distance and ±0.001 turn (±0.36 degrees) on each angle. Sonar outputs have no distance noise.",
+                        "U comes from the shared random routine: state = 214013 × state + 2531011 modulo 2^32, which returns (state >> 16) & 32767, divided by 32767. So 2U − 1 takes 32768 equally spaced values from −1 to 1. "
+                        "Over the generator's full cycle each value occurs equally often, so the error is spread evenly across the band, not bell-shaped, and the draws follow a fixed sequence from the seed rather than being independent. "
+                        "The legacy radars and sonars add no noise: logic case 50 writes the geometric distance and angles straight to its outputs."),
                 section("Open questions",
                         "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; "
                         "the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; "
@@ -8124,17 +8164,24 @@ def sensors_and_radio(B, E):
                           "A new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates: %d (%s s) at 0.01, %d (%s s) at the default FOV and %d (%s s) at 0.25. Each scan keeps at most 8 targets, best score first, and checks line of sight to each." % (
                               n2, g(round(n2 / 60, 6)), n1, g(round(n1 / 60, 6)), n3, g(round(n3 / 60, 6)))),
                   section("Outputs",
-                          "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees)."),
+                          "Angles are in turns. At the SDK defaults, distances carry up to ±1% noise and each angle up to ±0.001 turn (±0.36 degrees). "
+                          "The error is spread evenly over 32768 steps across that band, not bell-shaped."),
                   section("Variant tradeoffs",
                           "The tooltip gives no range, but radar_range is %s. On the basic radars and sonars this field equals the stated range." % rng)] +
-                 ([section("Missile orientation",
-                           "radar_type 1 sends the Missile radar down its own orientation branches in two places of the radar update. Its scan matrix turns in a different plane from the other radars' and with the opposite sign, "
-                           "and its scan planes start from a different basis of the part's axes. At zero angles the matrices are the identity, so they alone do not show which way the missile radar looks at rest.")] if missile else []),
+                 ([section("Scan frame and planes",
+                           "Let R0, R1 and R2 be the rows of the part's world transform as the game stores them, and O its position. radar_type 1 sweeps them into M = A × B × R: B turns the first two rows by the negated sweep field at +0x468, "
+                           "then A turns the second and third rows by −2π × the field at +0x420. With X, Y and Z the rows of M, the radar looks along Y. The other advanced radars build their sweep in a different plane.",
+                           "A target must lie strictly inside five planes: a far plane facing −Y at O + range × Y, and four side planes through O with normals ±cos(hy) X + sin(hy) Y and sin(hx) Y ∓ cos(hx) Z, where hy = π × FOV y and hx = π × FOV x. "
+                           "A target exactly on a plane fails. A separate check keeps it within range of O; it is a sphere, not a sixth plane. From the plane normals, FOV y sets the spread toward ±X and FOV x the spread toward ±Z, each a full width of FOV turns."),
+                   section("Angles",
+                           "Reported angles do not use the swept frame. They use right R0, forward R1 and up −R2 of the unswept transform: azimuth = atan2(u · R0, u · R1) ÷ 2π and elevation = asin(−u · R2) ÷ 2π, in turns, for the unit direction u to the target. "
+                           "Positive azimuth points toward R0 and positive elevation toward −R2. At zero scan angles the radar looks along R1. Because right × forward = −up, the output axes are mirrored relative to the R basis. A target straight behind reads +0.5 turn.")] if missile else []),
                  [radar[bid], radar["radar"], E.tooltip("radar"), E.tooltip(bid), E.attr(bid, "type", "Definition type 56, the advanced radar class."),
-                  E.attr(bid, "radar_speed", "Sweep step per update."), fig] + radar_core + [lf[k] for k in FOV_CORE + MASS_CORE] + [f["noise"], rate] +
-                 ([E.attr(bid, "radar_type", "radar_type 1 selects the missile orientation branches in the radar update."), f["r_missile"], f["r_missile_sign"], f["r_missile_basis"]] if missile else []),
+                  E.attr(bid, "radar_speed", "Sweep step per update."), fig] + radar_core + [lf[k] for k in FOV_CORE + MASS_CORE] + [f["noise"], rate] + rnd +
+                 ([E.attr(bid, "radar_type", "radar_type 1 selects the missile orientation branches in the radar update."), f["r_missile"], f["r_missile_sign"], f["r_missile_basis"]] +
+                  [lo[k] for k in ("ms_frame", "ms_fovy", "ms_fovx", "ms_planes", "ms_az", "ms_el", "ms_axes")] if missile else []),
                  ["S is the target's physics-body mass, read per physics body; how vehicle mass accounting and the environment shape it are open questions listed under Other components."] +
-                 (["Range, score, scan interval and FOV slider limits match the other advanced radars. The radar_type 1 selectors and their scan matrices are decoded; the complete scan frame, its six plane normals and the handedness of the reported azimuth and elevation were not established."] if missile else []) +
+                 (["Range, score, scan interval and FOV slider limits match the other advanced radars. Which of R0, R1 and R2 the editor shows as the part's front, side and top was not established, so the rest direction R1 is not tied to a visible face of the model, and no angle was checked in a running game."] if missile else []) +
                  (["20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."] if rng == "20000" else []))
 
 
@@ -8587,9 +8634,10 @@ def more_families(B, E):
                  ["With P = radar_range = %s, an active return at distance d passes when d ≤ P and P ÷ 10000 × S ÷ d > 0.01, that is d < %s × S m. "
                   "Returns appear as the echo window passes them, 12.333333 m of distance per update or 740 m per second." % (_num(pr), _num(pr / 100)),
                   "While it is not pinging, it scores another sonar's ping of amplitude 235 as 235 × P × 0.00002 ÷ d against the same 0.01, so one ping is heard within %s m, the %s advanced sonar's figure. "
-                  "Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default." % (_num(pr * 0.47), size)])],
+                  "Directions closer than 0.01 in squared difference merge, and each reported angle carries up to ±0.001 turn of noise at the SDK default, spread evenly over 32768 steps." % (_num(pr * 0.47), size)])],
                [T(bid), A(bid, "radar_range", "Equals the tooltip range in metres."), P(bid, "Sonar Data"), T("sonar_jammer"),
-                A(bid, "type", "Definition type 57, the advanced sonar class."), sonar_figures(E, bid)] + sonar_core + [legacy_sensor_native(E)[k] for k in MASS_CORE],
+                A(bid, "type", "Definition type 57, the advanced sonar class."), sonar_figures(E, bid)] + sonar_core + [legacy_sensor_native(E)[k] for k in MASS_CORE] +
+               [leftovers_native(E)[k] for k in ("rnd_mul", "rnd_add", "rnd_out", "rnd_dist")],
                ["S is the target's physics-body mass; submersion gating and the noisemaker's effect are open questions listed under Other components."])
     lf = legacy_sensor_native(E)
     legacy_core = [lf[k] for k in LEGACY_CORE]
@@ -8626,11 +8674,12 @@ def more_families(B, E):
                       _num(round(C, 6)), ex, out)]),
                 ("Field of view and aim", fov),
                 gate,
-                ("Setup and interactions", "Outputs give distance in metres and angles in turns." + (" The Radar Data composite carries target 1 to 8 found flags and distance, azimuth, elevation and time since detection per target." if huge else ""))],
+                ("Setup and interactions", "Outputs give distance in metres and angles in turns. They carry no SDK noise: radar_noise, radar_distance_noise and sonar_noise do not reach this logic case." + (" The Radar Data composite carries target 1 to 8 found flags and distance, azimuth, elevation and time since detection per target." if huge else ""))],
                [T(bid), A(bid, "radar_range", "Equals the tooltip range; sets the far plane, not the score."), P(bid, "FOV"), A(bid, "type", "Definition type 16, the logic component class."),
                 A(bid, "logic_gate_type", "Logic case 50; not the type-56 advanced radar or type-57 advanced sonar."),
                 A(bid, "logic_gate_subtype", "Subtype %d selects the %s branches of logic case 50." % (sub, {0: "plain radar", 1: "sonar", 2: "two-axis FOV and pitch", 3: "eight-target"}[sub])),
-                legacy_figures(E, bid)] + [P(bid, x) for x in ("Facing Yaw", "Facing Pitch", "Radar Data") if x in ports] + legacy_core,
+                legacy_figures(E, bid)] + [P(bid, x) for x in ("Facing Yaw", "Facing Pitch", "Radar Data") if x in ports] + legacy_core +
+               [leftovers_native(E)[k] for k in ("lg_dist", "lg_set", "lg_setter")],
                ["Far-plane figures assume the saved radar_fov default 0.1 and a target on the sensor's axis. S is read per physics body. "
                 "Mass accounting, the height sampler, blocking materials and other saved radar_fov values are open questions listed under Other components."])
     simple("part-transponder-locator", "Pulses up to 6 times a second, slower as the nearest transponder gets farther: 2.4 Hz at 1000 m, 0.2927 Hz at 10000 m.",
@@ -10764,6 +10813,163 @@ def tanks_ports_native(E):
     t["mc_upload"] = code(F_MC_UPLOAD, 0x1407C676F, "e86c97bcff", "Upload port placement call", "0x14038fee0 per external node",
                           "Besides the 6 by 6 size, the upload check requires nonempty component and external-node lists and an output, and checks each external node's placement with 0x14038fee0. The inspected path has no separate port-count limit.")
     E.tanks_ports = t
+    return t
+
+
+# leftovers pass; files under investigation/native/leftovers/, report investigation/leftovers.md.
+LO_REPORT = "investigation/leftovers.md"
+F_EMP_EVENT = 0x14022D0A0     # scene event constructor: type 116 with the EMP payload
+F_SCENE_EVENTS = 0x14085AEB0  # scene event dispatcher: type 116 forwards to the spatial EMP pulse
+F_WEATHER_STRIKE = 0x1405E1E30  # weather update: strike EMP
+F_OBJ_PULSE_A = 0x140757EF0   # object update selected for object kind 4 or 0: EMP of strength 30
+F_OBJ_PULSE_B = 0x14075A190   # the other of those two object updates
+F_PULSE_QUEUE = 0x1405E8FB0   # queued EMP records, 40 bytes each
+F_FLUID_MOVE = 0x1402ECA04    # chained unwind chunk of the port liquid exchange 0x1402ec710
+F_FLUID_PURGE = 0x1402EBDC0   # liquid purge helper (leaf)
+F_RANDOM = 0x1409AFA20        # shared random routine
+F_OUTPUT_SET = 0x1402EA270    # direct numeric output setter (leaf)
+_LO = "leftovers/asm/"
+LO_ASM = {
+    F_EMP_EVENT: (_LO + "emp-event-constructor.asm", "0x14022d0a0.c"), F_SCENE_EVENTS: (_LO + "scene-event.asm", None),
+    F_EMP_PULSE: (_LO + "emp-pulse.asm", "0x14077dd80.c"), F_WEATHER_STRIKE: (_LO + "weather-pulse.asm", "0x1405e1e30.c"),
+    F_OBJ_PULSE_A: (_LO + "other-pulse-a.asm", "0x140757ef0.c"), F_OBJ_PULSE_B: (_LO + "other-pulse-b.asm", "0x14075a190.c"),
+    F_PULSE_QUEUE: (_LO + "queued-pulse.asm", "0x1405e8fb0.c"), F_NET_ALLOC: (_LO + "shaft-collect.asm", "0x1404c9d20.c"),
+    F_JET: (_LO + "jet-update.asm", "0x140350f40.c"), F_FLUID_MOVE: (_LO + "fluid-exchange.asm", "0x1402ec710.c"),
+    F_FLUID_PURGE: (_LO + "fluid-purge.asm", "0x1402ebdc0.c"), F_LOGIC: (_LO + "legacy-output.asm", "0x1403c4d20.c"),
+    F_OUTPUT_SET: (_LO + "direct-output-setter.asm", "0x1402ea270.c"), F_RANDOM: (_LO + "random.asm", "0x1409afa20.c"),
+    F_RADAR: (_LO + "advanced-radar.asm", "0x1403ba040.c"), F_RADAR_SCAN: (_LO + "radar-collector.asm", "0x140909e40.c"),
+}
+
+
+def leftovers_native(E):
+    """EMP event and sources, shaft traversal of loops, afterburner fuel, legacy sensor noise, the random routine and the missile radar frame, verified once and shared."""
+    if hasattr(E, "leftovers"):
+        return E.leftovers
+    if not (E.root / LO_REPORT).is_file():
+        raise ValueError("Leftovers report missing: " + LO_REPORT)
+    rep = " Report: %s." % LO_REPORT
+
+    def cite(func, address, hexbytes):
+        prior = WHERE.get((func, address))
+        _wheel_cite(E, func, address, hexbytes, table=LO_ASM)
+        if prior is not None and prior != WHERE[(func, address)]:
+            raise ValueError("%#x@%#x is already cited from another listing" % (func, address))
+
+    def code(func, address, hexbytes, label, value, detail):
+        cite(func, address, hexbytes)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, address, hexbytes, target, label, detail):
+        cite(func, address, hexbytes)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    R = update_rate(E)
+    ups = R["ups"]
+    t = {}
+    # EMP event and its producers.
+    t["emp_type"] = code(F_EMP_EVENT, 0x14022D0D8, "48c7400874000000", "EMP scene event type", "116",
+                         "The event constructor 0x14022d0a0 writes type 116 into the new scene event. Its payload holds the world position at +0x10, an integer strength at +0x28, the inner radius at +0x2c and the outer radius at +0x30.")
+    t["emp_route"] = code(F_SCENE_EVENTS, 0x14085FA4D, "e82ee3f1ff", "EMP event dispatch", "call 0x14077dd80",
+                          "The scene event dispatcher reads the event type (0x14085aff7) and subtracts 1 (0x14085affa); jump-table entry 0x140863ba8 sends type 116 to 0x14085fa2a, "
+                          "which passes position, strength and both radii (0x14085fa39-0x14085fa49) to the spatial pulse routine 0x14077dd80.")
+    t["emp_fall"] = code(F_EMP_PULSE, 0x14077E04E, "f34c0f2cf2", "EMP pulse falloff", "trunc(strength × (1 − clamp((d − inner) ÷ (outer − inner), 0, 1)))",
+                         "The pulse routine scales the strength by this falloff and truncates it to an integer here, then calls slot +0x3f0 of each component (0x14077e085). "
+                         "d is the distance from the pulse to the vehicle body's transform origin, one value for all its components, not a distance per component.")
+    t["emp_800"] = code(F_WEATHER_STRIKE, 0x1405E2728, "41b820030000", "Weather EMP strength", "800",
+                        "The weather update 0x1405e1e30 passes 800 as the strength to the event constructor (call at 0x1405e2732). "
+                        "Inference from the owning routine and its strike-point selection: this is the lightning strike's pulse.")
+    t["emp_in"] = op(F_WEATHER_STRIKE, 0x1405E26E2, "f3440f101da5e05c00", 0x140BB0790, "Weather EMP inner radius",
+                     "Loaded into xmm11 and passed as the inner radius, in metres, of the strike pulse; inside it the full 800 applies.")
+    t["emp_out"] = op(F_WEATHER_STRIKE, 0x1405E26D9, "f3440f101516e15c00", 0x140BB07F8, "Weather EMP outer radius",
+                      "Loaded into xmm10 and passed as the outer radius of the strike pulse. At 200 m the pulse gives 800 × (1 − 100 ÷ 200) = 400; at 300 m and beyond it gives 0.")
+    t["emp_obj"] = code(F_OBJ_PULSE_A, 0x140758F57, "41b81e000000", "Object update EMP strength", "30",
+                        "Two object updates, 0x140757ef0 and 0x14075a190 (strength also at 0x14075aec1), send pulses of 30 with the same 100 m inner and 300 m outer radius (0x140758ee2, 0x140758eea). "
+                        "The dispatcher 0x14074347e-0x1407434bb selects them for object kinds 4 and 0 at object +0x208. Electricity lists the gameplay identity of those kinds as open.")
+    t["emp_queue"] = code(F_PULSE_QUEUE, 0x1405EC2E4, "e8b70dc4ff", "Queued EMP pulses", "variable strength and outer radius; inner = outer ÷ 2",
+                          "0x1405e8fb0 drains 40-byte records from a queue at object +0x5f00 (count at +0x5f10) and sends each as an EMP with its own strength and outer radius and half that as the inner radius. "
+                          "Electricity lists the code that fills the queue as open. 0x140851630 (call at 0x140856002) forwards a received payload and is not a separate physical source.")
+    t["emp_strike"] = E.derived("Lightning EMP at the strike point", "no supply for 500 updates, full again after 800 updates (13.33 s)",
+                                "Inference: within 100 m the strike adds 800 to each electric part's countdown n. Supply max(0, (300 − n) ÷ 300) stays 0 until n falls below 300 after 500 updates (8.33 s at %d updates per second) "
+                                "and is full again at n = 0, 800 updates or 13.33 s after the strike. A 30-count pulse lowers supply to 0.9 and recovers in 30 updates, 0.5 s." % ups + rep,
+                                [t["emp_800"], t["emp_in"], t["emp_obj"]] + R["findings"][:1])
+    # Shaft groups joined by several bridges.
+    t["sh_visit"] = code(F_NET_ALLOC, 0x1404CA470, "4d3954c500", "Shaft traversal visited test", "group already visited by this source",
+                         "Each source group runs one breadth-first pass over the bridges: a FIFO starts with its bridge partners in member order, and each entry carries the partner group, the path weight h and the cumulative ratio r. "
+                         "Before a group takes a contribution the solve looks it up in this source's visited list, which starts with the source itself at ratio 1. "
+                         "A first visit records the group and r, adds the source's share and queues the group's own bridges. Sources run in the order of the group container, not by component ID.")
+    t["sh_quot"] = code(F_NET_ALLOC, 0x1404CA481, "f30f5ec6", "Shaft revisit ratio", "recorded ratio ÷ current ratio",
+                        "For a group already visited, the solve divides the recorded ratio by the ratio of the new path and compares the quotient with 0.9 (0x1404ca485) and 1.1 (0x1404ca48f). "
+                        "Inside that band the path is skipped without adding a second share or expanding the group again; outside it the solve jumps to the conflict path (0x1404ca9e9).")
+    t["sh_lo"] = op(F_NET_ALLOC, 0x1404CA0DA, "f3440f1015515d6e00", 0x140BAFE34, "Shaft revisit lower bound",
+                    "Held in xmm10: a quotient below this is a ratio conflict.")
+    t["sh_hi"] = op(F_NET_ALLOC, 0x1404CA0E3, "f3440f100d185e6e00", 0x140BAFF04, "Shaft revisit upper bound",
+                    "Held in xmm9: a quotient above this is a ratio conflict.")
+    t["sh_zero"] = code(F_NET_ALLOC, 0x1404CAA17, "44897828", "Shaft conflict clears contributions", "N = 0 for every group this source visited",
+                        "On a conflict the solve walks every group in this source's visited list and sets its remote numerator to 0, dropping what earlier sources added too, then abandons the rest of this source's queue. "
+                        "Each group's own I × v term is kept.")
+    t["sh_brake"] = code(F_NET_ALLOC, 0x1404CAA44, "f30f58402c", "Shaft conflict braking weight", "D + I_s",
+                         "In the same walk the source's weight I_s is added to each visited group's remote denominator. With the numerator at 0 this pulls the published speed toward 0. "
+                         "Later sources can add shares again. A bridge with both ports on one group is checked against the source's own ratio 1, so a self-link at a ratio outside 0.9 to 1.1 brakes the group itself.")
+    t["sh_self"] = E.derived("Self-linked group at a conflicting ratio", "v ÷ 2",
+                             "Inference from the decoded rule: an otherwise isolated group of weight I and speed v whose own ports are linked at 2:1 keeps I × v in the numerator and gets I + I in the denominator, so it publishes v ÷ 2, 5 RPS from 10. "
+                             "At ratio 1 the revisit passes and adds nothing. These are deductions, not measurements." + rep,
+                             [t["sh_quot"], t["sh_zero"], t["sh_brake"]])
+    # Afterburner fuel.
+    t["ab_bias"] = op(F_JET, 0x140351D81, "f30f10150bf28500", 0x140BB0F94, "Exhaust fuel port bias",
+                      "Loaded as the pressure bias for the exchange between the Fuel port (component+0x330) and the exhaust's buffer at component+0x3b8 (call 0x1402ec710 at 0x140351d90).")
+    t["ab_move"] = code(F_FLUID_MOVE, 0x1402ECB4A, "f30f114114", "Port exchange moves jet fuel both ways", "one side − q, other side + q",
+                        "The exchange helper subtracts the moved jet fuel (container +0x14) from one side and adds it to the other: 0x1402ecb4a and 0x1402ecb61 for one direction, matching stores for the reverse. "
+                        "It can fill the buffer or return fuel to the network; clamps and the 0.4 capacity bound the amount. It is transport, not combustion.")
+    t["ab_skip"] = code(F_FLUID_PURGE, 0x1402EBE31, "4183f802", "Purge skips jet fuel", "index 2 kept",
+                        "The exhaust calls the purge helper 0x1402ebdc0 with kept index 2 and fraction 0.001 (call at 0x140351dfc). For index 2 the je at 0x1402ebe35 jumps over the debit block 0x1402ebe37-0x1402ebe60, "
+                        "so other liquids go to a temporary container that is discarded and jet fuel stays.")
+    t["ab_zero"] = E.derived("Afterburner fuel burn", "0 L per update, 0 L/s",
+                             "The afterburner update reads the stored jet fuel for 1 + 500 × amount and subtracts none. Its port exchange moves fuel in or out and the purge keeps jet fuel. "
+                             "The only jet-fuel debit in the jet update, at 0x1403533f8, belongs to the combustion chamber, and the pre-update 0x140350d90 queues effects only. "
+                             "So buffer_next = buffer + net port exchange, and with the buffer level steady the port draws 0 L/s." + rep,
+                             [t["ab_bias"], t["ab_move"], t["ab_skip"]])
+    # Legacy radar and sonar outputs.
+    t["lg_dist"] = code(F_LOGIC, 0x1403C7BE8, "f3410f11849efc040000", "Legacy radar distance output", "distance, no noise",
+                        "Logic case 50 stores the computed distance straight into the eight-target output block; its angle stores at 0x1403c7c34 and 0x1403c7c69 follow dot-product and acos arithmetic with no random value between. "
+                        "The case calls neither the settings getter 0x140294520 nor the random routine 0x1409afa20.")
+    t["lg_set"] = code(F_LOGIC, 0x1403C7D52, "e81925f2ff", "Legacy radar output call", "call 0x1402ea270",
+                       "The other legacy subtypes write their outputs through the direct setter 0x1402ea270.")
+    t["lg_setter"] = code(F_OUTPUT_SET, 0x1402EA270, "f30f114918", "Direct output setter", "output +0x18 = argument",
+                          "The setter stores its argument to the output's value at +0x18 and returns; it adds nothing.")
+    # Shared random routine.
+    t["rnd_mul"] = code(F_RANDOM, 0x1409AFA29, "694828fd430300", "Random routine multiplier", "214013",
+                        "state = 214013 × state + 2531011 modulo 2^32, with the state at +0x28 of a runtime context the routine fetches first. The multiplier is 0x343fd.")
+    t["rnd_add"] = code(F_RANDOM, 0x1409AFA30, "81c1c39e2600", "Random routine increment", "2531011",
+                        "Adds 0x269ec3 to the multiplied state and stores it back.")
+    t["rnd_out"] = code(F_RANDOM, 0x1409AFA39, "c1e91081e1ff7f0000", "Random routine output", "(state >> 16) & 32767",
+                        "Shifts the new state right by 16 and masks 15 bits (0x1409afa3c), so each call returns 0 to 32767.")
+    t["rnd_dist"] = E.derived("Sensor noise distribution", "32768 equally spaced values from −1 to 1, uniform over a full cycle",
+                              "The advanced sensors form U = result ÷ 32767 and use 2U − 1, so the noise variable takes 32768 equally spaced values including −1 and 1. "
+                              "Inference: the generator has full period 2^32 (odd increment, multiplier 1 modulo 4), so over one cycle each 15-bit output occurs 2^17 times. "
+                              "The spread is uniform, not Gaussian, and draws are a fixed sequence from the seed, not independent samples." + rep,
+                              [t["rnd_mul"], t["rnd_add"], t["rnd_out"]])
+    # Missile radar frame, planes and angles.
+    t["ms_frame"] = code(F_RADAR, 0x1403BAB20, "e85bf8dbff", "Missile radar scan frame", "M = A × B × R",
+                         "With R the part's world transform as stored (rows R0, R1, R2, position O), the first call to 0x14017a380 at 0x1403bab0a forms B × R and this one A × B × R, in row-indexed notation. "
+                         "B turns the first two rows by b = −component+0x468, then A turns the second and third rows by a = −2π × component+0x420. The radar looks along Y, the second row of M.")
+    t["ms_fovy"] = code(F_RADAR, 0x1403BB3E0, "f3450f10861c040000", "Missile side planes, FOV y", "hy = π × FOV y",
+                        "Loads FOV y (+0x41c) for the planes cos(hy) X + sin(hy) Y and −cos(hy) X + sin(hy) Y, built with the sine and cosine calls at 0x1403bb404 and 0x1403bb501. X is the first row of M.")
+    t["ms_fovx"] = code(F_RADAR, 0x1403BB60F, "f3450f108618040000", "Missile side planes, FOV x", "hx = π × FOV x",
+                        "Loads FOV x (+0x418) for the planes sin(hx) Y − cos(hx) Z and sin(hx) Y + cos(hx) Z (0x1403bb633, 0x1403bb74d), Z being the third row of M. The far plane −Y sits at O + range × Y (0x1403bb338-0x1403bb3d8).")
+    t["ms_planes"] = code(F_RADAR_SCAN, 0x140909FED, "83f905", "Missile radar plane count", "5",
+                          "The candidate collector steps through 24-byte plane records and stops after 5. A target must satisfy n · target > threshold for every plane; jbe at 0x140909fe5 rejects equality. "
+                          "Its range check is a separate sphere |target − O| ≤ range, not a sixth plane.")
+    t["ms_az"] = code(F_RADAR, 0x1403BC3D5, "0f5705b45b7f00", "Radar azimuth sign", "negated signed angle",
+                      "The azimuth is the signed angle from forward to the target's horizontal direction (helper 0x1401753d0), negated here and divided by 2π at 0x1403bc3dc. "
+                      "A zero horizontal direction is replaced by (1, 0); at the exact rear tie the helper returns −π, so the output is +0.5 turn.")
+    t["ms_el"] = code(F_RADAR, 0x1403BC437, "f30f5cc8", "Radar elevation", "0.25 − acos(z) ÷ 2π",
+                      "acos of the up component (0x1403bc426) is divided by 2π (0x1403bc42b) and subtracted from 0.25, which equals asin(z) ÷ 2π.")
+    t["ms_axes"] = E.derived("Missile radar output axes", "right R0, forward R1, up −R2",
+                             "The radar_type 1 branch at 0x1403bb16e takes its output axes from the unswept transform: right R0, forward R1, up −R2. "
+                             "For a unit direction u the azimuth is atan2(u · R0, u · R1) ÷ 2π and the elevation asin(−u · R2) ÷ 2π, in turns. Positive azimuth points toward R0 and positive elevation toward −R2. "
+                             "right × forward = −up, so these axes have the opposite handedness to the R basis. Algebra from the decoded instructions, not a runtime check." + rep,
+                             [t["ms_frame"], t["ms_az"], t["ms_el"]])
+    E.leftovers = t
     return t
 
 

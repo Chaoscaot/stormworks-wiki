@@ -12,13 +12,13 @@
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/3/limitations/1",
-        "text": "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges pass speed and weight between groups as described under Transmission; how loops, two ports on the same group and connector rebuilds combine groups in arbitrary networks was not decoded, and the model gives no SI torque or inertia.",
+        "pointer": "/categories/3/limitations/2",
+        "text": "Which code fills the queued EMP pulses, which gameplay objects the object kinds 0 and 4 that send 30-count pulses are, and what handles the spawn_emp request were not traced. So EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/3/sections/5/body",
+        "pointer": "/categories/3/sections/6/body",
         "text": "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. Generator Output already includes that factor. The shaft solver weights speed changes by force_emitter_max_force and has no torque or inertia in SI units, so it gives no charge-per-joule figure for mechanical work. The shipped realtime file sets electric_consumption_scale to 0.01, but the executable contains that name neither as ASCII nor as UTF-16LE text, and its effect was not recovered.",
         "scope": "Practical behavior guidance"
       }
@@ -264,7 +264,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/17/limitations/3",
-        "text": "The bridge equations are decoded for two groups joined by one bridge. Arbitrary loops, both ports on one group and graph rebuild order were not decoded.",
+        "text": "Which connector changes rebuild the shaft groups, when old group membership is dropped, how the rebuilt group and member order is chosen and whether an update can run on stale membership were not traced. The traversal under Several bridges and loops follows that order, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -452,18 +452,6 @@
         "scope": "Practical behavior guidance"
       },
       {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/15/limitations/2",
-        "text": "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/15/findings/59/detail",
-        "text": "The spatial pulse routine scales a count by distance falloff, truncates it to an integer at 0x14077e04e and calls each affected component's apply method. Its event discriminator was not traced; the field name, countdown and apply methods and the EMP warhead description agree on the EMP reading. Report: investigation/electricity.md. Function 0x14077dd80-0x14077e224; instruction bytes ff90f0030000 at 0x14077e085. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/emp-pulse.asm:L156-L170; ../electricity/asm/emp-event-call.asm; ../electricity/pseudocode/0x14077dd80.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
-        "scope": "Practical behavior guidance"
-      },
-      {
         "file": "wiki/data/families.json",
         "pointer": "/families/106/limitations/4",
         "text": "Shaft speed is in RPS. The charge, speed-step and shaft-group equations come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
@@ -530,12 +518,6 @@
         "file": "wiki/data/behavior.json",
         "pointer": "/families/24/limitations/0",
         "text": "Static analysis only; Q is in the internal charge unit. A conversion of internal charge to joules or watts was not recovered.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/24/limitations/1",
-        "text": "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -660,7 +642,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/123/limitations/2",
-        "text": "The afterburner's steady fuel use was not recovered: the exhaust branch never subtracts jet fuel, and what its Fuel port draws depends on the external fluid network, which was not modelled.",
+        "text": "Writes to the exhaust's fuel buffer from code outside its update, initializer, pre-update and the two liquid helpers were not traced; the zero fuel burn covers those paths. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -699,7 +681,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/188/limitations/1",
-        "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. The radar_type 1 selectors and their scan matrices are decoded; the complete scan frame, its six plane normals and the handedness of the reported azimuth and elevation were not established.",
+        "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. Which of R0, R1 and R2 the editor shows as the part's front, side and top was not established, so the rest direction R1 is not tied to a visible face of the model, and no angle was checked in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -983,7 +965,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/16/limitations/2",
-        "text": "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced, because how ducts and branches connect the parts was not reconstructed. The afterburner's steady fuel draw through its Fuel port was not recovered. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m.",
+        "text": "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced, because how ducts and branches connect the parts was not reconstructed. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1036,19 +1018,6 @@
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/12/limitations/1",
         "text": "Still unverified: how the queued setVehicleTank requests are applied (clamping, replacing or adding, the order of two requests to one tank, and failures), and so whether fuel is conserved, especially with mixed fluids. The wall-clock period of 60 onTick callbacks was not measured either. A runtime test or a decode of the queue consumer is needed.",
-        "scope": "Shipped-resource mechanics article"
-      }
-    ]
-  },
-  {
-    "key": "mechanics:sensor-noise",
-    "title": "Radar and sonar output noise: resolve missing mechanics",
-    "wiki": "https://sw-wiki.maxsp.de/mechanics/sensor-noise",
-    "locations": [
-      {
-        "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/9/limitations/2",
-        "text": "The noise arithmetic comes from that native decode and covers the advanced radars and sonars only. The legacy radars and sonars (definition type 16) were not decoded, so their noise handling is open. The random generator's distribution was not verified.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
