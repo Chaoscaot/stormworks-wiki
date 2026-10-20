@@ -1,34 +1,130 @@
-{
-  "checks": [
-    {
-      "distance": 0,
-      "nominal_hz": 6,
-      "expected_hz": 6,
-      "first_pulse_tick": 10,
-      "ten_period_pulses": 10
-    },
-    {
-      "distance": 250,
-      "nominal_hz": 6,
-      "expected_hz": 6,
-      "first_pulse_tick": 10,
-      "ten_period_pulses": 10
-    },
-    {
-      "distance": 1000,
-      "nominal_hz": 2.4000000000000004,
-      "expected_hz": 2.4,
-      "first_pulse_tick": 25,
-      "ten_period_pulses": 10
-    },
-    {
-      "distance": 10000,
-      "nominal_hz": 0.29268292682926833,
-      "expected_hz": 0.2926829268292683,
-      "first_pulse_tick": 205,
-      "ten_period_pulses": 10
-    }
-  ],
-  "radar_boundaries": "strict score equality rejected; inclusive hard-cap implemented",
-  "qualification": "arithmetic checks, no game execution"
-}
+[
+  {
+    "check": "radar minimum editable equal-axis FOV",
+    "passed": true
+  },
+  {
+    "check": "radar maximum editable equal-axis FOV",
+    "passed": true
+  },
+  {
+    "check": "radar strict mass score boundary",
+    "passed": true
+  },
+  {
+    "check": "radar just inside mass score boundary",
+    "passed": true
+  },
+  {
+    "check": "radar inclusive spherical cap when score passes",
+    "passed": true
+  },
+  {
+    "check": "radar cap excludes farther target",
+    "passed": true
+  },
+  {
+    "check": "AWACS narrow/wide scan interval",
+    "passed": true
+  },
+  {
+    "check": "legacy default on-axis plane",
+    "passed": true
+  },
+  {
+    "check": "legacy mass threshold",
+    "passed": true
+  },
+  {
+    "check": "sonar mass threshold",
+    "passed": true
+  },
+  {
+    "check": "locator nearest beacon wins",
+    "passed": true
+  },
+  {
+    "check": "locator no beacon",
+    "passed": true
+  },
+  {
+    "check": "locator nominal rate at 0",
+    "passed": true
+  },
+  {
+    "check": "locator accumulated rate at 0",
+    "passed": true
+  },
+  {
+    "check": "locator nominal rate at 250",
+    "passed": true
+  },
+  {
+    "check": "locator accumulated rate at 250",
+    "passed": true
+  },
+  {
+    "check": "locator nominal rate at 1000",
+    "passed": true
+  },
+  {
+    "check": "locator accumulated rate at 1000",
+    "passed": true
+  },
+  {
+    "check": "locator nominal rate at 10000",
+    "passed": true
+  },
+  {
+    "check": "locator accumulated rate at 10000",
+    "passed": true
+  },
+  {
+    "check": "small radio cutoff equality",
+    "passed": true
+  },
+  {
+    "check": "small radio halfway strength",
+    "passed": true
+  },
+  {
+    "check": "medium radio cutoff equality",
+    "passed": true
+  },
+  {
+    "check": "medium radio halfway strength",
+    "passed": true
+  },
+  {
+    "check": "large radio cutoff equality",
+    "passed": true
+  },
+  {
+    "check": "large radio halfway strength",
+    "passed": true
+  },
+  {
+    "check": "huge radio cutoff equality",
+    "passed": true
+  },
+  {
+    "check": "huge radio halfway strength",
+    "passed": true
+  },
+  {
+    "check": "mixed antenna range adds",
+    "passed": true
+  },
+  {
+    "check": "radio two submerged endpoints quarter range",
+    "passed": true
+  },
+  {
+    "check": "radio mixed submerged endpoints",
+    "passed": true
+  },
+  {
+    "check": "radio both half power",
+    "passed": true
+  }
+]

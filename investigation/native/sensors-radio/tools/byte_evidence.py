@@ -3,6 +3,7 @@ from pathlib import Path
 import re,json
 root=Path('investigation/native/sensors-radio')
 selected={
+0x14090a2f5:'legacy candidate: threshold 0.25',0x14090a470:'legacy candidate: signature divided by distance',0x14090a478:'legacy candidate: strict threshold comparison',
 0x1403b80de:'radar: first 0.02 factor',0x1403b80e6:'radar: second 0.02 factor',0x1403b80ee:'radar: divide by FOV product',0x1403b80fa:'radar: interval divisor 2000',0x1403b8127:'radar: store scan interval',
 0x14090a060:'radar candidate: divide configured range by 10000',0x14090a06d:'radar candidate: multiply signature',0x14090a0a5:'radar candidate: divide by distance',0x14090a0ad:'radar candidate: compare against 0.025',
 0x1403ba292:'radar: increment interval counter',0x1403bc033:'radar: segment intersection query',0x1403bcaa0:'radar: load angle noise',0x1403bcaad:'radar: load distance noise',

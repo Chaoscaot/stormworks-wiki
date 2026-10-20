@@ -6,7 +6,10 @@
       "score_threshold_strict": 0.025,
       "hard_distance_cap": "range",
       "interval_updates": "max(1, floor(range / 2000 + 0.5))",
-      "signature_physical_meaning": null
+      "signature_physical_meaning": "physics-body mass for physics-record targets; component getters and linked-body accounting apply",
+      "fov_axis_min": 0.01,
+      "fov_axis_max": 0.25,
+      "fov_axis_step": 0.01
     },
     "sonar": {
       "active_score": "part_range * target_record_signature / (10000 * distance)",
@@ -28,8 +31,26 @@
       "noise_generator_reproduced": false
     },
     "radio": {
-      "signal_strength_formula": null,
-      "status": "still open; shared RX initialization and per-part configuration recovered"
+      "consumer": "0x14054a780",
+      "height_power": "A(y)=powf(1-min(y,40000)*2.2413792976294644e-5,5.35950231552124)",
+      "height_bonus": "H=128000*clamp(1-(0.5*A(y_tx)+A(y_rx)),0,1)^2",
+      "range_before_water": "R0=((H+tx_range)+(H+rx_range))*rx_power*tx_power",
+      "water_fraction": "q=clamp(-min(y_rx,y_tx)/max(1,max(y_rx,y_tx)-min(y_rx,y_tx)),0,1)",
+      "range": "R=R0*(1-0.75*q)",
+      "pair_strength": "R>0 ? (1-float32(distance)/R)*rx_gain*tx_gain : 0",
+      "output": "maximum positive eligible pair strength, else 0",
+      "ordinary_gain": 1,
+      "rx_length_consumed": false,
+      "size_branch_in_consumer": false,
+      "directional_gain": "clamp((dot-0.9987499713897705)*800,0,1) with additional unresolved global gate"
+    },
+    "legacy": {
+      "helper": "0x14090a290",
+      "candidate_score": "physics_body_mass / distance",
+      "threshold_strict": 0.25,
+      "axial_plane": "part_range * (0.75 + 0.0025 / saved_radar_fov)",
+      "saved_fov_default": 0.1,
+      "qualification": "strict plane and score bounds; subtype geometry, height and occlusion also apply"
     }
   },
   "build_sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
@@ -124,7 +145,8 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "configuration only"
+      "model_status": "configuration only",
+      "issues": []
     },
     {
       "id": "inventory_equipment_radio_signal_locator",
@@ -215,7 +237,8 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "configuration only"
+      "model_status": "configuration only",
+      "issues": []
     },
     {
       "id": "inventory_equipment_transponder",
@@ -306,7 +329,8 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "configuration only"
+      "model_status": "configuration only",
+      "issues": []
     },
     {
       "id": "radar",
@@ -403,7 +427,21 @@
         "rx_length": "1",
         "radar_range": "5000"
       },
-      "model_status": "configuration only"
+      "model_status": "candidate score, axial geometry and subtype limits decoded; environmental limits apply",
+      "issues": [
+        90
+      ],
+      "decoded_legacy_candidate_score": {
+        "formula": "signature / distance > 0.25",
+        "score_limit_per_unit_signature": 4,
+        "helper": "0x14090a290",
+        "qualification": "after owner/type exclusions and five strict plane tests; full subtype geometry, range cap, final detection and signature production remain open",
+        "default_saved_fov": 0.1,
+        "default_axial_plane": 3875.0,
+        "horizontal_fov_min": 0.01,
+        "horizontal_fov_max": 0.125,
+        "vertical_fov": 0.25
+      }
     },
     {
       "id": "radar_advanced",
@@ -505,13 +543,37 @@
         "radar_type": "0"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        91
+      ],
       "decoded_at_default_fov_0_02": {
         "configured_range": 60000,
         "candidate_limit_per_unit_signature": 240.0,
         "scan_interval_updates": 30,
         "scan_interval_seconds": 0.5,
         "sweep_radians_per_update_at_speed_factor_1": 0.04,
-        "minimum_and_maximum_fov": "not recovered"
+        "minimum_and_maximum_fov": [
+          0.01,
+          0.25
+        ]
+      },
+      "decoded_endpoint_figures": {
+        "minimum_fov": {
+          "fov_x": 0.01,
+          "fov_y": 0.01,
+          "full_fov_degrees": 3.6,
+          "range_cap": 240000.0,
+          "strict_score_limit_per_unit_physics_mass": 960.0,
+          "scan_updates": 120
+        },
+        "maximum_fov": {
+          "fov_x": 0.25,
+          "fov_y": 0.25,
+          "full_fov_degrees": 90.0,
+          "range_cap": 384.0,
+          "strict_score_limit_per_unit_physics_mass": 1.536,
+          "scan_updates": 1
+        }
       }
     },
     {
@@ -552,13 +614,37 @@
         "radar_speed": "0.015"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        92
+      ],
       "decoded_at_default_fov_0_02": {
         "configured_range": 500000,
         "candidate_limit_per_unit_signature": 2000.0,
         "scan_interval_updates": 250,
         "scan_interval_seconds": 4.166666666666667,
         "sweep_radians_per_update_at_speed_factor_1": 0.015,
-        "minimum_and_maximum_fov": "not recovered"
+        "minimum_and_maximum_fov": [
+          0.01,
+          0.25
+        ]
+      },
+      "decoded_endpoint_figures": {
+        "minimum_fov": {
+          "fov_x": 0.01,
+          "fov_y": 0.01,
+          "full_fov_degrees": 3.6,
+          "range_cap": 2000000.0,
+          "strict_score_limit_per_unit_physics_mass": 8000.0,
+          "scan_updates": 1000
+        },
+        "maximum_fov": {
+          "fov_x": 0.25,
+          "fov_y": 0.25,
+          "full_fov_degrees": 90.0,
+          "range_cap": 3200.0,
+          "strict_score_limit_per_unit_physics_mass": 12.8,
+          "scan_updates": 2
+        }
       }
     },
     {
@@ -661,13 +747,37 @@
         "radar_type": "0"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        93
+      ],
       "decoded_at_default_fov_0_02": {
         "configured_range": 200000,
         "candidate_limit_per_unit_signature": 800.0,
         "scan_interval_updates": 100,
         "scan_interval_seconds": 1.6666666666666667,
         "sweep_radians_per_update_at_speed_factor_1": 0.02,
-        "minimum_and_maximum_fov": "not recovered"
+        "minimum_and_maximum_fov": [
+          0.01,
+          0.25
+        ]
+      },
+      "decoded_endpoint_figures": {
+        "minimum_fov": {
+          "fov_x": 0.01,
+          "fov_y": 0.01,
+          "full_fov_degrees": 3.6,
+          "range_cap": 800000.0,
+          "strict_score_limit_per_unit_physics_mass": 3200.0,
+          "scan_updates": 400
+        },
+        "maximum_fov": {
+          "fov_x": 0.25,
+          "fov_y": 0.25,
+          "full_fov_degrees": 90.0,
+          "range_cap": 1280.0,
+          "strict_score_limit_per_unit_physics_mass": 5.12,
+          "scan_updates": 1
+        }
       }
     },
     {
@@ -770,13 +880,37 @@
         "radar_type": "1"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        94
+      ],
       "decoded_at_default_fov_0_02": {
         "configured_range": 20000,
         "candidate_limit_per_unit_signature": 80.0,
         "scan_interval_updates": 10,
         "scan_interval_seconds": 0.16666666666666666,
         "sweep_radians_per_update_at_speed_factor_1": 0.03,
-        "minimum_and_maximum_fov": "not recovered"
+        "minimum_and_maximum_fov": [
+          0.01,
+          0.25
+        ]
+      },
+      "decoded_endpoint_figures": {
+        "minimum_fov": {
+          "fov_x": 0.01,
+          "fov_y": 0.01,
+          "full_fov_degrees": 3.6,
+          "range_cap": 80000.0,
+          "strict_score_limit_per_unit_physics_mass": 320.0,
+          "scan_updates": 40
+        },
+        "maximum_fov": {
+          "fov_x": 0.25,
+          "fov_y": 0.25,
+          "full_fov_degrees": 90.0,
+          "range_cap": 128.0,
+          "strict_score_limit_per_unit_physics_mass": 0.512,
+          "scan_updates": 1
+        }
       }
     },
     {
@@ -818,7 +952,8 @@
         "radar_speed": "0.03",
         "radar_type": "2"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "see report; shared component code identified",
+      "issues": []
     },
     {
       "id": "radar_advanced_phalanx",
@@ -920,13 +1055,37 @@
         "radar_type": "0"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        95
+      ],
       "decoded_at_default_fov_0_02": {
         "configured_range": 100000,
         "candidate_limit_per_unit_signature": 400.0,
         "scan_interval_updates": 50,
         "scan_interval_seconds": 0.8333333333333334,
         "sweep_radians_per_update_at_speed_factor_1": 0.03,
-        "minimum_and_maximum_fov": "not recovered"
+        "minimum_and_maximum_fov": [
+          0.01,
+          0.25
+        ]
+      },
+      "decoded_endpoint_figures": {
+        "minimum_fov": {
+          "fov_x": 0.01,
+          "fov_y": 0.01,
+          "full_fov_degrees": 3.6,
+          "range_cap": 400000.0,
+          "strict_score_limit_per_unit_physics_mass": 1600.0,
+          "scan_updates": 200
+        },
+        "maximum_fov": {
+          "fov_x": 0.25,
+          "fov_y": 0.25,
+          "full_fov_degrees": 90.0,
+          "range_cap": 640.0,
+          "strict_score_limit_per_unit_physics_mass": 2.56,
+          "scan_updates": 1
+        }
       }
     },
     {
@@ -1019,7 +1178,8 @@
         "rx_length": "1",
         "radar_range": "5000"
       },
-      "model_status": "configuration only"
+      "model_status": "configuration only",
+      "issues": []
     },
     {
       "id": "radar_dish",
@@ -1116,7 +1276,21 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "configuration only"
+      "model_status": "candidate score, axial geometry and subtype limits decoded; environmental limits apply",
+      "issues": [
+        96
+      ],
+      "decoded_legacy_candidate_score": {
+        "formula": "signature / distance > 0.25",
+        "score_limit_per_unit_signature": 4,
+        "helper": "0x14090a290",
+        "qualification": "after owner/type exclusions and five strict plane tests; full subtype geometry, range cap, final detection and signature production remain open",
+        "default_saved_fov": 0.1,
+        "default_axial_plane": 15500.0,
+        "horizontal_fov_min": 0.01,
+        "horizontal_fov_max": 0.125,
+        "vertical_fov": 0.25
+      }
     },
     {
       "id": "radar_huge",
@@ -1213,7 +1387,21 @@
         "rx_length": "1",
         "radar_range": "50000"
       },
-      "model_status": "configuration only"
+      "model_status": "candidate score, axial geometry and subtype limits decoded; environmental limits apply",
+      "issues": [
+        97
+      ],
+      "decoded_legacy_candidate_score": {
+        "formula": "signature / distance > 0.25",
+        "score_limit_per_unit_signature": 4,
+        "helper": "0x14090a290",
+        "qualification": "after owner/type exclusions and five strict plane tests; full subtype geometry, range cap, final detection and signature production remain open",
+        "default_saved_fov": 0.1,
+        "default_axial_plane": 38750.0,
+        "horizontal_fov_min": 0.01,
+        "horizontal_fov_max": 0.125,
+        "vertical_fov": 0.25
+      }
     },
     {
       "id": "radar_large",
@@ -1310,7 +1498,21 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "configuration only"
+      "model_status": "candidate score, axial geometry and subtype limits decoded; environmental limits apply",
+      "issues": [
+        98
+      ],
+      "decoded_legacy_candidate_score": {
+        "formula": "signature / distance > 0.25",
+        "score_limit_per_unit_signature": 4,
+        "helper": "0x14090a290",
+        "qualification": "after owner/type exclusions and five strict plane tests; full subtype geometry, range cap, final detection and signature production remain open",
+        "default_saved_fov": 0.1,
+        "default_axial_plane": 15500.0,
+        "horizontal_fov_min": 0.01,
+        "horizontal_fov_max": 0.25,
+        "vertical_fov": "same as horizontal"
+      }
     },
     {
       "id": "radar_sonar",
@@ -1401,7 +1603,21 @@
         "rx_length": "1",
         "radar_range": "3000"
       },
-      "model_status": "configuration only"
+      "model_status": "candidate score, axial geometry and subtype limits decoded; environmental limits apply",
+      "issues": [
+        99
+      ],
+      "decoded_legacy_candidate_score": {
+        "formula": "signature / distance > 0.25",
+        "score_limit_per_unit_signature": 4,
+        "helper": "0x14090a290",
+        "qualification": "after owner/type exclusions and five strict plane tests; full subtype geometry, range cap, final detection and signature production remain open",
+        "default_saved_fov": 0.1,
+        "default_axial_plane": 2325.0,
+        "horizontal_fov_min": 0.01,
+        "horizontal_fov_max": 0.125,
+        "vertical_fov": 0.25
+      }
     },
     {
       "id": "radar_sonar_small",
@@ -1492,7 +1708,21 @@
         "rx_length": "1",
         "radar_range": "1000"
       },
-      "model_status": "configuration only"
+      "model_status": "candidate score, axial geometry and subtype limits decoded; environmental limits apply",
+      "issues": [
+        100
+      ],
+      "decoded_legacy_candidate_score": {
+        "formula": "signature / distance > 0.25",
+        "score_limit_per_unit_signature": 4,
+        "helper": "0x14090a290",
+        "qualification": "after owner/type exclusions and five strict plane tests; full subtype geometry, range cap, final detection and signature production remain open",
+        "default_saved_fov": 0.1,
+        "default_axial_plane": 775.0,
+        "horizontal_fov_min": 0.01,
+        "horizontal_fov_max": 0.125,
+        "vertical_fov": 0.25
+      }
     },
     {
       "id": "rx_directional",
@@ -1534,7 +1764,13 @@
         "rx_range": "8000000",
         "rx_length": "0"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 8000000,
+        "same_size_sea_level_full_power_cutoff": 16000000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_directional_large",
@@ -1576,7 +1812,13 @@
         "rx_range": "10000000",
         "rx_length": "0"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 10000000,
+        "same_size_sea_level_full_power_cutoff": 20000000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_huge",
@@ -1667,7 +1909,15 @@
         "rx_length": "1.91",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [
+        105
+      ],
+      "decoded_radio": {
+        "range_contribution": 20000,
+        "same_size_sea_level_full_power_cutoff": 40000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_huge_v2",
@@ -1758,7 +2008,13 @@
         "rx_length": "1.91",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 20000,
+        "same_size_sea_level_full_power_cutoff": 40000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_large",
@@ -1849,7 +2105,15 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [
+        106
+      ],
+      "decoded_radio": {
+        "range_contribution": 4000,
+        "same_size_sea_level_full_power_cutoff": 8000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_large_v2",
@@ -1940,7 +2204,13 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 4000,
+        "same_size_sea_level_full_power_cutoff": 8000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_med",
@@ -2031,7 +2301,15 @@
         "rx_length": "0.66",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [
+        107
+      ],
+      "decoded_radio": {
+        "range_contribution": 1000,
+        "same_size_sea_level_full_power_cutoff": 2000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_med_v2",
@@ -2122,7 +2400,13 @@
         "rx_length": "0.66",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 1000,
+        "same_size_sea_level_full_power_cutoff": 2000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_small",
@@ -2213,7 +2497,15 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [
+        108
+      ],
+      "decoded_radio": {
+        "range_contribution": 100,
+        "same_size_sea_level_full_power_cutoff": 200,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_small_v2",
@@ -2304,7 +2596,13 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 100,
+        "same_size_sea_level_full_power_cutoff": 200,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_video_r",
@@ -2389,7 +2687,13 @@
         "rx_range": "10000",
         "rx_length": "1"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 10000,
+        "same_size_sea_level_full_power_cutoff": 20000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "rx_video_x",
@@ -2474,7 +2778,13 @@
         "rx_range": "10000",
         "rx_length": "1"
       },
-      "model_status": "see report; shared component code identified"
+      "model_status": "shared propagation consumer decoded; directional gate meaning remains open",
+      "issues": [],
+      "decoded_radio": {
+        "range_contribution": 10000,
+        "same_size_sea_level_full_power_cutoff": 20000,
+        "qualification": "ordinary gain=1, matching frequency/mode; equality has zero received strength"
+      }
     },
     {
       "id": "sonar_advanced",
@@ -2514,6 +2824,9 @@
         "radar_speed": "0.04"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        110
+      ],
       "decoded_isolated_target_figures": {
         "configured_range": 60000,
         "active_limit_per_unit_signature": 600.0,
@@ -2561,6 +2874,9 @@
         "radar_speed": "0.04"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        111
+      ],
       "decoded_isolated_target_figures": {
         "configured_range": 100000,
         "active_limit_per_unit_signature": 1000.0,
@@ -2608,6 +2924,9 @@
         "radar_speed": "0.04"
       },
       "model_status": "see report; shared component code identified",
+      "issues": [
+        112
+      ],
       "decoded_isolated_target_figures": {
         "configured_range": 200000,
         "active_limit_per_unit_signature": 2000.0,
@@ -2652,7 +2971,8 @@
       "explicit_model_fields": {
         "radar_range": "5000"
       },
-      "model_status": "configuration only"
+      "model_status": "configuration only",
+      "issues": []
     },
     {
       "id": "transponder",
@@ -2742,7 +3062,8 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "configuration only"
+      "model_status": "configuration only",
+      "issues": []
     },
     {
       "id": "transponder_locator",
@@ -2832,7 +3153,10 @@
         "rx_length": "1",
         "radar_range": "20000"
       },
-      "model_status": "configuration only"
+      "model_status": "configuration only",
+      "issues": [
+        114
+      ]
     }
   ]
 }

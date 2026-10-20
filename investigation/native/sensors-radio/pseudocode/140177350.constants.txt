@@ -1,0 +1,25 @@
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_140177350(undefined4 *param_1,undefined4 param_2)
+
+{
+  undefined4 uVar1;
+  uint uVar2;
+  uint uVar3;
+  
+  uVar1 = FUN_1409d4b80(param_2);
+  uVar2 = FUN_1409d6c20(param_2);
+  *param_1 = uVar1;
+  uVar3 = uVar2 ^ _DAT_140bb1f90/*f32=-0*/;
+  param_1[1] = 0;
+  param_1[2] = uVar3;
+  param_1[3] = 0;
+  *(undefined8 *)(param_1 + 4) = 0x3f800000;
+  param_1[6] = uVar2;
+  param_1[7] = 0;
+  param_1[8] = uVar1;
+  return;
+}
+
+

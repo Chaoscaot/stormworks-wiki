@@ -194,5 +194,26 @@
     "bytes": "41 0f 2f f4",
     "instruction": "comiss xmm6,xmm12",
     "source": "investigation/native/sensors-radio/asm/140909e40.asm"
+  },
+  {
+    "address": "0x14090a2f5",
+    "meaning": "legacy candidate: threshold 0.25",
+    "bytes": "f3 44 0f 10 05 be 58 2a 00",
+    "instruction": "movss  xmm8,DWORD PTR [rip+0x2a58be]        # 0x140bafbbc",
+    "source": "investigation/native/sensors-radio/asm/14090a290.asm"
+  },
+  {
+    "address": "0x14090a470",
+    "meaning": "legacy candidate: signature divided by distance",
+    "bytes": "f2 0f 5e f0",
+    "instruction": "divsd  xmm6,xmm0",
+    "source": "investigation/native/sensors-radio/asm/14090a290.asm"
+  },
+  {
+    "address": "0x14090a478",
+    "meaning": "legacy candidate: strict threshold comparison",
+    "bytes": "41 0f 2f f0",
+    "instruction": "comiss xmm6,xmm8",
+    "source": "investigation/native/sensors-radio/asm/14090a290.asm"
   }
 ]

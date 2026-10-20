@@ -1,0 +1,36 @@
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_1401a8070(longlong param_1,longlong param_2,float param_3)
+
+{
+  uint uVar1;
+  undefined8 *puVar2;
+  uint uVar3;
+  float fVar4;
+  
+  *(float *)(param_2 + 8) = param_3;
+  fVar4 = 0.0;
+  if (0.0 < param_3) {
+    fVar4 = _DAT_140bafecc / param_3;
+  }
+  *(float *)(param_2 + 0xc) = fVar4;
+  puVar2 = (undefined8 *)FUN_140958c28(0x10);
+  *puVar2 = &UNK_140b4a6b0;
+  *puVar2 = &UNK_140b55118;
+  puVar2[1] = param_2;
+  uVar3 = *(uint *)(param_1 + 0x40);
+  uVar1 = *(uint *)(param_1 + 0x38);
+  if (uVar3 == uVar1) {
+    FUN_1408de0b0((longlong *)(param_1 + 0x30));
+    uVar3 = *(uint *)(param_1 + 0x40);
+    uVar1 = *(uint *)(param_1 + 0x38);
+  }
+  *(uint *)(param_1 + 0x40) = uVar3 + 1;
+  *(undefined8 **)
+   (*(longlong *)(param_1 + 0x30) +
+   ((ulonglong)(*(int *)(param_1 + 0x3c) + -1 + uVar3 + 1) % (ulonglong)uVar1) * 8) = puVar2;
+  return;
+}
+
+

@@ -27,7 +27,7 @@ void FUN_1403b7fc0(longlong param_1)
   fVar4 = (*(float *)(lVar1 + 0x2ca4) * _DAT_140baf9b0 * _DAT_140baf9b0) /
           (*(float *)(param_1 + 0x41c) * *(float *)(param_1 + 0x418));
   *(float *)(param_1 + 0x470) = fVar4;
-  fVar4 = (float)func_0x0001409d57d8(fVar4 / _DAT_140bb0874 + _DAT_140bafcbc);
+  fVar4 = (float)FUN_1409d57d8(fVar4 / _DAT_140bb0874 + _DAT_140bafcbc);
   iVar2 = (int)fVar4;
   if ((int)fVar4 < 1) {
     iVar2 = 1;
