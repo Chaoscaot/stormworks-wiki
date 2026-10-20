@@ -13,7 +13,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/3/limitations/1",
-        "text": "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. How arbitrary gearbox and clutch networks, conflicting ratio loops and connector rebuilds combine groups was not decoded, and the model gives no SI torque or inertia.",
+        "text": "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges pass speed and weight between groups as described under Transmission; how loops, two ports on the same group and connector rebuilds combine groups in arbitrary networks was not decoded, and the model gives no SI torque or inertia.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -38,7 +38,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/4/limitations/1",
-        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
+        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -378,7 +378,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/10/limitations/1",
-        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
+        "text": "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -395,14 +395,14 @@
       },
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/families/10/findings/70/detail",
+        "pointer": "/families/10/findings/74/detail",
         "text": "A second settings byte must also be nonzero. The option that sets it was not traced; vehicle_damage is bound at settings+2, so it is not this byte. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 80784a00 at 0x14034cfb1. Interpretation rests on retained output investigation/native/behavior/../classic-engines/asm/update.asm:L972-L978; ../classic-engines/asm/overheat-setting.asm; ../classic-engines/asm/vehicle-damage-setting.asm. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/86/limitations/4",
-        "text": "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the speed step, fuel use, heating and starter equations of the classic engine update are covered by the practical behaviour research.",
+        "text": "Shaft speed is in RPS. The speed step, fuel use, heating and starter equations of the classic engine update come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -440,19 +440,19 @@
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/104/limitations/4",
-        "text": "Maximum flow, pressure units, network resistance and power consumption are unknown.",
+        "text": "Native code gives the pump's bias, its equal-pressure flow bounds of 200 L/s (small) and 400 L/s (large) and its electricity request of 0.001 × Max Power per update; they are in the practical behaviour research. A pipe run is one 40 L network whatever its length, so pipe length adds neither volume nor resistance; actual flow depends on fill, backpressure and other ports on the same network. No conversion of pump_pressure to an SI pressure or of the electricity unit to watts was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/104/findings/10/detail",
-        "text": "water_pump: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+        "text": "water_pump: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/104/findings/25/detail",
-        "text": "water_pump_large: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+        "text": "water_pump_large: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -465,25 +465,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/14/limitations/0",
-        "text": "The airflow quantity is read as relative air speed from the vector-length call it is derived from; its unit was not confirmed.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/14/sections/4/body",
-        "text": "Measure Temperature against fan state and airspeed to confirm the units of the airflow term and the surrounding-temperature reference.",
+        "text": "Static analysis of one build; no radiator temperature was measured in game. The cooled quantity is a native amount × temperature unit; no conversion to joules or watts was recovered.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/103/limitations/4",
-        "text": "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/103/limitations/5",
-        "text": "Electric, Fan On/Off and Temperature have labels but no descriptions. Signal ranges and temperature units are unspecified.",
+        "text": "The cooling rate, the airflow term in m/s, the surrounding-temperature sample, the compartment volume and the finite-flow behaviour come from native code and are in the practical behaviour research. No conversion of the cooled quantity to joules or watts was recovered. The tooltip's size rule is not a measured performance curve.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -502,7 +490,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/15/limitations/2",
-        "text": "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
+        "text": "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -514,25 +502,25 @@
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/106/limitations/4",
-        "text": "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research.",
+        "text": "Shaft speed is in RPS. The charge, speed-step and shaft-group equations come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/106/findings/8/detail",
-        "text": "motor_small: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+        "text": "motor_small: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/106/findings/21/detail",
-        "text": "motor_medium: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+        "text": "motor_medium: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/106/findings/34/detail",
-        "text": "motor_large: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+        "text": "motor_large: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -583,31 +571,31 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/24/limitations/1",
-        "text": "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
+        "text": "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/192/limitations/4",
-        "text": "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research.",
+        "text": "Shaft speed is in RPS. The charge, speed-step and shaft-group equations come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/192/findings/7/detail",
-        "text": "generator_small: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+        "text": "generator_small: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/192/findings/19/detail",
-        "text": "generator_medium: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+        "text": "generator_medium: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/192/findings/31/detail",
-        "text": "generator_large: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+        "text": "generator_large: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -632,25 +620,19 @@
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/221/limitations/4",
-        "text": "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "scope": "Definition-only extraction"
-      },
-      {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/221/limitations/5",
-        "text": "Fluid In, RPS and Fluid Out have no descriptions beyond their labels. The pressure-flow relation and the units of pump_pressure are unknown.",
+        "text": "Shaft speed is in RPS. The pump bias, shaft load request and flow bounds come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/221/findings/9/detail",
-        "text": "turbocharger_small: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+        "text": "turbocharger_small: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
         "scope": "Definition-only extraction"
       },
       {
         "file": "wiki/data/families.json",
         "pointer": "/families/221/findings/23/detail",
-        "text": "turbocharger: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+        "text": "turbocharger: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -900,15 +882,15 @@
     "wiki": "https://sw-wiki.maxsp.de/parts/passive-fluid-radiator",
     "locations": [
       {
-        "file": "wiki/data/families.json",
-        "pointer": "/families/162/limitations/4",
-        "text": "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "scope": "Definition-only extraction"
+        "file": "wiki/data/behavior.json",
+        "pointer": "/families/253/limitations/0",
+        "text": "Static analysis of one build; no radiator temperature was measured in game. The cooled quantity is a native amount × temperature unit; no conversion to joules or watts was recovered.",
+        "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/families.json",
-        "pointer": "/families/162/limitations/5",
-        "text": "The ambient-temperature relation and cooling rate are unknown.",
+        "pointer": "/families/162/limitations/4",
+        "text": "The cooling rate, the airflow term in m/s, the surrounding-temperature sample, the compartment volume and the finite-flow behaviour come from native code and are in the practical behaviour research. No conversion of the cooled quantity to joules or watts was recovered. The tooltip's size rule is not a measured performance curve.",
         "scope": "Definition-only extraction"
       }
     ]
@@ -1031,7 +1013,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/7/limitations/2",
-        "text": "No unit or delivered head is documented for pump_pressure. The effect of the realtime damping entries on this build was not recovered; their names do not occur in the executable.",
+        "text": "pump_pressure is a pump bias: the port solver adds it, scaled by electrical supply and Max Power, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres (Fluids category and pump part articles). It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered. The effect of the realtime damping entries on this build was not recovered; their names do not occur in the executable.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

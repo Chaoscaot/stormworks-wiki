@@ -391,6 +391,7 @@ F_MOTOR = 0x140400965      # chained unwind chunk of F_ELEC_UPDATE holding elect
 F_GENERATOR = 0x140400BC0  # chained unwind chunk of F_ELEC_UPDATE holding electric_type 1 (generator)
 F_REQUEST = 0x1402EECA0    # electricity draw helper: returns the supplied fraction of a request
 F_ENGINE_CLASSIC = 0x14034BA00  # classic engine update (starter draw)
+F_CLASSIC_CTOR = 0x14034A7D0    # classic engine constructor: ambient controller defaults
 F_JET = 0x140350F40        # jet engine component update (turbine branch)
 F_EXTERIOR = 0x140311F20   # outside-of-port state: compartment, air or sea water (entry chunk)
 F_EXTERIOR_BODY = 0x140311F79  # chained unwind chunk of F_EXTERIOR with the air/water branches
@@ -956,6 +957,35 @@ def exchanger_steady(qa, qb, xa, xb, tin_a, tin_b, ambient):
     return u, v, (u - aa * tin_a) / (1 - aa), (v - ab * tin_b) / (1 - ab)
 
 
+def air_velocity(E):
+    """Speed unit of the body point velocity and the cached wind it is taken against, verified once and shared."""
+    if hasattr(E, "air_velocity"):
+        return E.air_velocity
+    if not (E.root / SCOOP2_REPORT).is_file():
+        raise ValueError("Air-scoop follow-up report missing: " + SCOOP2_REPORT)
+    code, op = E.code, E.operand
+    FU = " Report: %s." % SCOOP2_REPORT
+    a = {}
+    a["ls_tag"] = E.attr("linear_speed_sensor", "logic_gate_type", "Value 19 (0x13) selects the linear speed case of the logic update.")
+    a["ls_port"] = E.port("linear_speed_sensor", "Linear Speed")
+    a["ls_vel"] = code(F_LOGIC, 0x1403C5476, "e86504dbff", "Linear speed point velocity", "v + w × r",
+                       "Logic case 0x13 crosses body+0xa4 with the rotated point offset (0x1401758e0) and adds body+0x98 (0x140175bb0 at 0x1403c5489), the same calls the scoop makes at 0x1403efefc and 0x1403eff0f." + FU)
+    a["ls_out"] = code(F_LOGIC, 0x1403C5664, "f3410f11b694060000", "Linear speed output", "component+0x694, unscaled",
+                       "The selected absolute, directional, horizontal or vertical speed is stored at component+0x694 without a unit conversion." + FU)
+    a["wpass"] = code(F_DISPATCH, 0x1405497FE, "4c8d83d0140000", "Fluid argument 10", "vehicle+0x14d0",
+                      "The dispatcher takes vehicle+0x14d0, stores it in the outgoing argument slot [rsp+0x48] at 0x14054989c and calls the component update through vtable slot +0x358 at 0x1405498d6. The fluid update saves that argument at 0x1403ef907 and passes it to the vector subtraction at 0x1403eff14." + FU)
+    a["wzero"] = code(F_WIND, 0x1404BACF6, "4883bbb8140000007570", "Wind cache, parent-body case", "vehicle+0x14b8 set: 0",
+                      "Called from the scene update at 0x1405e9173 with the weather at scene+0xbade8. When vehicle+0x14b8 holds a parent-body link the routine skips sampling and writes a zero vector." + FU)
+    a["wshel"] = op(F_WIND, 0x1404BAD47, "f30f100d7d516f00", 0x140BAFECC, "Wind shelter complement",
+                    "Each wind component from the weather sample 0x1402c1830 (taken at the translation of the vehicle's transformed matrix, with local weather-cell wind included) is multiplied by this minus the shelter value 0x1402c10e0, the largest attenuation among the weather shelter boxes; inside an inner box that value is 1." + FU)
+    a["wstore"] = code(F_WIND, 0x1404BAD83, "f3410f111af30f115104f30f114008", "Cached wind store", "vehicle+0x14d0 = wind × (1 - shelter)",
+                       "Writes the X, Y and Z of the sheltered wind to vehicle+0x14d0, one vector per vehicle." + FU)
+    a["unit"] = [a["ls_port"], a["ls_tag"], a["ls_vel"], a["ls_out"]]
+    a["wind"] = [a["wpass"], a["wzero"], a["wshel"], a["wstore"]]
+    E.air_velocity = a
+    return a
+
+
 def heat_exchangers(E):
     """Exchanger volumes, capacity helpers, port order, mutual and ambient terms, verified once and shared."""
     if hasattr(E, "exchangers"):
@@ -1409,6 +1439,15 @@ def classic_engine(E):
                          "Engine (store at 0x14034ce4d) and coolant move toward each other by k times their old difference, after the coolant ports have exchanged fluid. With liquid coolant k = 0.5, so they meet halfway each update. Liquid amount does not weight the blend." + rep)
     f["amb"] = op(F, 0x14034C63F, "f3440f1005b0328600", 0x140BAF8F8, "Engine ambient relaxation",
                   "After the coolant exchange the engine temperature moves toward the surrounding-temperature sample (component+0x42c, refreshed every 16 updates by the call at 0x14034ce9d) by this fraction per update (multiply at 0x14034cf87)." + rep)
+    HXA = " Sample routine and controller: %s." % HX_REPORT
+    f["amb_gate"] = code(F, 0x14034CE64, "f640040f0f8584000000", "Engine surrounding-temperature refresh", "every 16 updates",
+                         "Tests the low four bits of the update counter and skips the sample unless they are 0, the same 16-update cadence as the heat exchangers and radiators." + rep)
+    f["amb_call"] = code(F, 0x14034CE9D, "e8be2efcff", "Engine surrounding-temperature sample", "call 0x14030fd60",
+                         "Calls the surrounding-temperature routine the heat exchangers and radiators use, with weather flag 1 and component+0x3f0 as the enclosing-compartment argument "
+                         "(inference: that field is the engine's enclosing compartment, as component+0x4b0 is for fluid components). A new sample retargets the controller at component+0x418 inline (0x14034ceb4-0x14034ceea)." + rep + HXA)
+    f["amb_ramp"] = code(F_CLASSIC_CTOR, 0x14034AACA, "c7873404000000008041c787400400009a99d93fc6874404000002", "Engine ambient controller", "16 updates, same layout as the exchangers",
+                         "The classic engine constructor gives the controller at component+0x418 the exchangers' controller vtable 0x140b93d90 (0x14034aaab), target, output and start 20 °C, duration 16 and the same two trailing fields (1.7 and byte 2) as the exchanger constructor at 0x1403ee846-0x1403ee85a. "
+                         "The update steps it inline with the same field offsets and interpolation call 0x14092c960 (0x14034cf41)." + rep + HXA)
     f["hot"] = op(F, 0x14034CF98, "0f2f0d05388600", 0x140BB07A4, "Overheat threshold",
                   "Above this engine temperature, with both overheat gates on, the update adds 1 damage (capped at 50) whenever the overheat counter is 0, then advances the counter modulo 300." + rep)
     f["hot_set"] = code(F, 0x14034CFA6, "80783500", "engine_overheating test", "settings+0x35", "First overheat gate: the engine_overheating game setting." + rep)
@@ -1515,7 +1554,12 @@ def classic_engine(E):
     speed = [f[x] for x in ("limit_dmg", "throttle", "emp", "g_a", "g_b", "g_c", "g_d", "w_div", "dmg20", "gain", "gain_d", "drag", "sub_w", "sub_r", "receive",
                             "out_rps", "weights", "g10", "step", "runaway")]
     supply = [f[x] for x in ("inf_fuel", "f_force", "f_k", "f_div", "a_k", "a_div", "o2", "gate", "burn", "co2", "volume", "fuel")]
-    thermal = [f[x] for x in ("coolant", "heat", "bias_cap", "k", "exchange", "amb", "hot", "hot_set", "hot_set2", "hot_cap", "hot_period", "out_temp",
+    HX = heat_exchangers(E)
+    f["amb_ref"] = E.derived("Engine surrounding temperature", "same sample and 16-update ramp as the heat exchangers",
+                             "Every 16 updates the engine samples the surrounding temperature with the heat exchangers' routine: the air and water weather temperatures blended by depth, "
+                             "the enclosing compartment's temperature instead when there is one, raised by the strongest local heat source. Its controller reaches each new sample 16 updates after it arrives, and the engine relaxes toward that output by 0.001 per update.",
+                             [f["amb_gate"], f["amb_call"], f["amb_ramp"], f["amb"], HX["ambient"], HX["ramp"]])
+    thermal = [f[x] for x in ("coolant", "heat", "bias_cap", "k", "exchange", "amb", "amb_gate", "amb_call", "amb_ramp", "amb_ref", "hot", "hot_set", "hot_set2", "hot_cap", "hot_period", "out_temp",
                               "heat_s", "thermal", "hot_s")]
     start = [f[x] for x in ("starter", "s_target", "start_req")]
     E.classic = {"f": f, "forces": forces, "mags": mags, "identity": identity, "speed": speed, "supply": supply, "thermal": thermal, "start": start,
@@ -2460,6 +2504,35 @@ def heat_exchange(B, E):
     refresh = per_second(E, "Surrounding-temperature refresh interval", "16 ÷ %d = %.3g s" % (ups, 16 / ups), "One sample every 16 component updates.")
     per_s = [hx_s, leak_s, rad_s, rad3_s] + R
     H, N = heat_exchangers(E), fluid_network(E)
+    # Case 9 airflow speed and surrounding-temperature reference.
+    AV = air_velocity(E)
+    rad_v = E.code(F_FLUID, 0x1403F3A7C, "e83f7bdaff488bd04c8b45b0488d8db8000000e89c21d8ff488bc8e8a41cd8fff30f5e0588cc7b00",
+                   "Radiator airflow speed", "|v + w × r − wind| ÷ 40",
+                   "Outside an enclosed compartment (component+0x4b0 null, tested at 0x1403f3a58) case 9 takes the body point velocity at its own grid position through 0x14019b5c0, "
+                   "subtracts the vector saved from fluid-update argument 10 at [rbp-0x50] (0x140175c30), takes the length (0x140175740) and divides by 40. "
+                   "The result goes through max with the fan term (0x1408ee640 at 0x1403f3aad) and the 0…2 clamp (0x1408ee610 at 0x1403f3ac3); 1 is added at 0x1403f3ad7. Report: investigation/air-scoop.md.")
+    rad_pv = E.code(0x14019B5C0, 0x14019B5D6, "f30f1099ac0000000f28c5f30f5989a8000000", "Body point velocity", "body+0x98 + body+0xa4 × r",
+                    "The helper crosses the angular velocity at body+0xa4…+0xac with the offset and adds the linear velocity at body+0x98 (addss at 0x14019b625), "
+                    "the same fields the linear speed sensor reads unscaled. Report: investigation/air-scoop-followup.md.")
+    rad_unit = E.derived("Radiator airflow speed unit", "m/s relative to the wind",
+                         "The airflow term is the length of body point velocity minus the vehicle's cached weather wind, the vector the air scoop subtracts. "
+                         "That velocity uses the body fields the linear speed sensor reports unscaled in m/s, so the term reaches the fan cap of 2 at 80 m/s relative to the wind.",
+                         [rad_v, rad_pv, air, fan, full_air] + AV["unit"] + AV["wind"])
+    rad_gate = E.code(F_FLUID, 0x1403F3BDE, "e80d3fecffa80f755c", "Radiator surrounding-temperature refresh", "every 16 updates",
+                      "After both port exchanges case 9 reads the update counter (0x1402b7af0) and samples only when its low four bits are 0, the same test the exchangers make at 0x1403f4c98. Report: " + HX_REPORT + ".")
+    rad_amb = E.code(F_FLUID, 0x1403F3C23, "e838c1f1ff", "Radiator surrounding-temperature sample", "call 0x14030fd60",
+                     "Calls the exchangers' surrounding-temperature routine with the radiator's own world position (component+0x18 transformed at 0x1403f3b07-0x1403f3b33) and its enclosing-compartment pointer component+0x4b0, "
+                     "submits the result to the controller at component+0x630 through 0x1408cddd0 (0x1403f3c3e) and steps that controller every update through 0x1408cde20 (0x1403f3c4a). Report: " + HX_REPORT + ".")
+    rad_step = E.code(F_FLUID, 0x1403F3C4F, "f30f5935c1bc7b00498d96440600000f28d6498d8edc050000e843c84f00", "Radiator cooling step", "T + 0.003 × (1 + fan) × (ambient − T)",
+                      "Multiplies 1 + fan by 0.003 and moves the compartment temperature (component+0x5dc) toward the controller output at component+0x644 through the interpolation helper 0x1408f04b0; the result is stored back at 0x1403f3c6d. Report: " + HX_REPORT + ".")
+    rad_ref = E.derived("Radiator surrounding temperature", "same sample and 16-update ramp as the exchangers",
+                        "Case 9 uses the exchangers' controller layout at component+0x630 and the same sample routine 0x14030fd60: the air and water weather temperatures blended by depth at the radiator's position, "
+                        "the enclosing compartment's temperature instead when there is one, raised by the strongest local heat source. The controller reaches each new sample 16 updates after it arrives.",
+                        [rad_gate, rad_amb, rad_step, H["ambient"], H["ramp_init"], H["retarget"], H["ramp"]])
+    rad_out = E.code(F_FLUID, 0x1403F3C76, "498d8e28020000f3410f108edc050000e90d140000", "Radiator Temperature output", "stored water temperature, °C",
+                     "Every update case 9 ends here, also when a port is unconnected: it passes the compartment temperature (component+0x5dc, the fluid state's temperature field in °C) and the first number-output node component+0x228 "
+                     "to the number-output call 0x1402ea270 at 0x1403f5098; the exchangers publish Temp A through the same call with the same node offset at 0x1403f5083. Reading +0x228 as the Temperature port is an inference: Temperature is the electric radiator's only number output. Report: " + HX_REPORT + ".")
+    rad_x = [rad_unit, rad_v, rad_pv, rad_ref, rad_gate, rad_amb, rad_step, rad_out]
     vols = H["vol"]
     hx_core = [H["v_half"], H["v_b"], H["q_gas"], H["q_liquid"], H["q"], H["gate"], H["w_a"], H["lerp"], H["mutual"], H["filter"]]
     hx_ports = [H["pair"], H["ports"], H["b_out"]] + H["transport"]
@@ -2478,10 +2551,10 @@ def heat_exchange(B, E):
                 section("Per-second rates",
                         "Component updates run 60 times per simulated second. The fractions compound, so they are not multiplied by 60. With constant coefficients and nothing else acting, one simulated second leaves 0.161 of the gap between an exchanger's two compartments (time constant 0.547 s), 0.942 of a gap to fixed ambient through the leak alone (16.7 s), 0.835 of a passive radiator's gap to fixed ambient (5.55 s) and 0.581 at the full radiator multiplier of 3 (1.84 s). Through-flow and changing temperatures need the full model stepped 60 times per second."),
                 section("Surrounding temperature",
-                        "An exchanger samples the surrounding temperature at its own position every 16 updates (0.267 simulated seconds). Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."),
+                        "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."),
                 section("Practical setup",
-                        "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts relative airflow as fan, reaching the maximum term at an air speed of 80 in the game's speed units (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's.")],
-               [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips + hx_core + hx_ports + hx_ambient + every_vol + [N["law"], N["species_60"], N["t_content"]],
+                        "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts airflow as fan, reaching the maximum term at 80 m/s relative to the wind (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's.")],
+               [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips + hx_core + hx_ports + hx_ambient + rad_x + every_vol + [N["law"], N["species_60"], N["t_content"]],
                ["Native findings come from static decompilation of one build; no in-game measurement was made.", TICK, open_hx,
                 "The complete set of local heat sources that feed the surrounding-temperature sample, and their strengths, was not traced."])
 
@@ -2541,32 +2614,35 @@ def heat_exchange(B, E):
     through = section("Flow through the radiator",
                       "Each update the radiator exchanges with its Fluid A network, then its Fluid B network, then cools. Arriving water is mixed by the radiator's amount after the move, and below 0.01 amount per update a direct exchange also moves temperature through the ports. Its volume is capacity: in a pumped loop it need not stay full, and its water settles cooler than the coolant manifold.",
                       "For one radiator fed at a fixed inlet temperature with flow q and stored water A, the outlet sits q ÷ (k × A + (1 + k) × q) of the way from ambient to the inlet, with k = 0.003 × (1 + fan). With 9 units of water, 200 L/s and a full fan that is 83.90 °C out for 100 °C in at 20 °C ambient, a 16.10 °C drop. The cooling capacity calculator's finite-flow mode steps whole loops.")
-    elec = [rad, air, fan, rad_s, rad3_s, fan_draw, E.tooltip("fluid_radiator_electric"), E.port("fluid_radiator_electric", "Fan On/Off")] + vox[:2] + T["radiator"] + R
+    surround = section("Surrounding temperature",
+                       "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. "
+                       "Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it.")
+    open_rad = "The cooled quantity is a native amount × temperature unit; no conversion to joules or watts was recovered."
+    elec = [rad, air, fan, rad_s, rad3_s, fan_draw, E.tooltip("fluid_radiator_electric"), E.port("fluid_radiator_electric", "Fan On/Off")] + vox[:2] + T["radiator"] + R + rad_x
     B.family("electric-fluid-radiator",
              "Cools its fluid toward the surrounding temperature at 0.003 × (1 + fan) per update; the electric fan can triple the passive rate.",
              [section("Operating conditions",
-                      "Cooling runs only while both Fluid A and Fluid B are connected. The fan term is 2 × the electrical availability while Fan On/Off is on and power is present; each powered update also draws 0.001 units through the shared electricity helper, 0.06 units per simulated second."),
+                      "Cooling runs only while both Fluid A and Fluid B are connected. The fan term is 2 × the electrical availability while Fan On/Off is on and power is present; each powered update also draws 0.001 units through the shared electricity helper, 0.06 units per simulated second. "
+                      "Temperature reports the stored water temperature in °C after the cooling step."),
               section("Performance drivers",
-                      "Cooling multiplier = 1 + fan, with fan clamped to 0…2, so a fully powered fan gives three times the passive rate. Mounted outside an enclosed compartment, relative airflow counts as fan as speed ÷ 40, so a fast vehicle reaches full cooling without power. The term alone leaves 0.835 of the gap to ambient after one simulated second at multiplier 1 and 0.581 at multiplier 3."),
+                      "Cooling multiplier = 1 + fan, with fan clamped to 0…2, so a fully powered fan gives three times the passive rate. Mounted outside an enclosed compartment, airflow counts as fan as speed ÷ 40, with speed in m/s relative to the wind, so at 80 m/s a vehicle reaches full cooling without power. The term alone leaves 0.835 of the gap to ambient after one simulated second at multiplier 1 and 0.581 at multiplier 3."),
               section("Variant tradeoffs",
                       "Both sizes run the same rule and fraction. The compartment volume equals the listed voxels: 9 for the 3x3 and 25 for the 5x5, at 10 L per unit. The larger radiator therefore cools more stored water per update, if the pump keeps it filled."),
-              through,
-              section("Open measurement questions",
-                      "Measure Temperature against fan state and airspeed to confirm the units of the airflow term and the surrounding-temperature reference.")],
+              through, surround],
              elec + [floor],
-             ["The airflow quantity is read as relative air speed from the vector-length call it is derived from; its unit was not confirmed.", TICK])
+             ["Static analysis of one build; no radiator temperature was measured in game. " + open_rad, TICK])
     B.family("passive-fluid-radiator",
              "Cools its fluid toward the surrounding temperature at 0.003 per update, more when exposed to airflow.",
              [section("Operating conditions",
-                      "The passive radiator shares case 9 with the electric radiators and the fluid heat sink. Without a fan, its only boost is airflow: outside an enclosed compartment the multiplier becomes 1 + min(2, air speed ÷ 40)."),
+                      "The passive radiator shares case 9 with the electric radiators and the fluid heat sink. Without a fan, its only boost is airflow: outside an enclosed compartment the multiplier becomes 1 + min(2, air speed ÷ 40), with air speed in m/s relative to the wind, so it reaches 3 at 80 m/s."),
               section("Setup and interactions",
                       "Connect both fluid ports; with either port unconnected the cooling step is skipped. Place it on the exterior of a moving vehicle to use the airflow term."),
               section("Per-second rate",
                       "At 60 updates per simulated second the passive term leaves 0.835 of the gap to ambient after one second (time constant 5.55 s). At the airflow cap the multiplier is 3, which leaves 0.581 (1.84 s)."),
               section("Volume", "The compartment volume equals the listed voxels, 9 units of 10 L."),
-              through],
-             [rad, air, fan, rad_s, rad3_s, E.tooltip("fluid_radiator"), E.port("fluid_radiator", "Fluid A"), vox[2]] + T["radiator"] + R,
-             [TICK])
+              through, surround],
+             [rad, air, fan, rad_s, rad3_s, E.tooltip("fluid_radiator"), E.port("fluid_radiator", "Fluid A"), vox[2]] + T["radiator"] + R + rad_x,
+             ["Static analysis of one build; no radiator temperature was measured in game. " + open_rad, TICK])
 
 
 def modular_engines(B, E):
@@ -3806,8 +3882,8 @@ def electricity(B, E):
     F = N["f"]
     shared = N["shaft"] + N["emp"] + N["pool"] + N["draw"] + N["display"]
     si = "A conversion of internal charge to joules or watts was not recovered."
-    bridges = ("The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds "
-               "combine groups in arbitrary networks was not decoded.")
+    bridges = ("The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, "
+               "with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.")
     B.category("Electricity",
                "Battery capacity is electric_charge_capacity (1 : 8 : 160 across sizes), and every full source lends at most 10 internal charge per update to the shared pool that consumers draw from. "
                "electric_magnitude is a per-component multiplier on charge: a motor pays electric_magnitude × force_emitter_max_force × 0.1 per RPS of speed step, and a generator earns the same product per RPS it removes.",
@@ -3840,7 +3916,7 @@ def electricity(B, E):
                cap + [init, tenth, ratio, consumption] + level + gm + mm + gf + mf + native_em +
                [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse + R + shared + [share],
                ["Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. " + si,
-                "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. How arbitrary gearbox and clutch networks, conflicting ratio loops and connector rebuilds combine groups was not decoded, and the model gives no SI torque or inertia.",
+                "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges pass speed and weight between groups as described under Transmission; how loops, two ports on the same group and connector rebuilds combine groups in arbitrary networks was not decoded, and the model gives no SI torque or inertia.",
                 "Static analysis only.", TICK])
     B.family("electric-battery",
              "Capacity is electric_charge_capacity (1600, 12800, 256000). Each update a battery lends at most 10 × its charge fraction to the network pool, so more batteries supply more per update while a bigger battery lasts longer.",
@@ -4852,7 +4928,7 @@ def engines(B, E):
                     "Several engines on one shaft therefore pull it toward their submitted speeds in proportion to W. The RPS output shows the local speed entering the update, before this update's starter and combustion steps.")
     cooling = section("Cooling and overheating",
                       "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. "
-                      "The engine then moves 0.001 of the way toward the surrounding temperature. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. "
+                      "The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. "
                       "Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.",
                       "Above 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. "
                       "Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue.")
@@ -4860,7 +4936,7 @@ def engines(B, E):
                       "While Starter is held the engine requests max(5 - r, 0) × W × electric_magnitude × 0.1 charge: 1.2, 3.6 and 12 per RPS below 5 for the small, medium and large engine, 6, 18 and 60 from rest. "
                       "It adds the supplied fraction of the deficit to its speed, so full supply lifts it to 5 RPS in one update before shaft mixing. A loaded shaft pulls it back, and above 5 RPS the starter asks for nothing.")
     open_limits = ["The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
-                   "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
+                   "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
                    "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
                    "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.", TICK]
     B.category("Engines",
@@ -8728,23 +8804,12 @@ def air_scoop(B, E):
     facing = E.derived("Mouth direction", "local +X",
                        "The open mouth faces the part's local +X, the scoop axis for normal placement. Driving mouth first in still air gives positive projected speed and a positive bias, favoring network inflow; air entering the mouth moves along -X. Mirroring flips the mesh and the scoop axis through the same definition bits.",
                        [mouth, msign, mident, axis])
-    ls_tag = E.attr("linear_speed_sensor", "logic_gate_type", "Value 19 (0x13) selects the linear speed case of the logic update.")
-    ls_port = E.port("linear_speed_sensor", "Linear Speed")
-    ls_vel = code(F_LOGIC, 0x1403C5476, "e86504dbff", "Linear speed point velocity", "v + w × r",
-                  "Logic case 0x13 crosses body+0xa4 with the rotated point offset (0x1401758e0) and adds body+0x98 (0x140175bb0 at 0x1403c5489), the same calls the scoop makes at 0x1403efefc and 0x1403eff0f." + FU)
-    ls_out = code(F_LOGIC, 0x1403C5664, "f3410f11b694060000", "Linear speed output", "component+0x694, unscaled",
-                  "The selected absolute, directional, horizontal or vertical speed is stored at component+0x694 without a unit conversion." + FU)
+    AV = air_velocity(E)
+    ls_tag, ls_port, ls_vel, ls_out = AV["ls_tag"], AV["ls_port"], AV["ls_vel"], AV["ls_out"]
+    wpass, wzero, wshel, wstore = AV["wpass"], AV["wzero"], AV["wshel"], AV["wstore"]
     unit = E.derived("Scoop speed unit", "m/s",
                      "The scoop's point velocity uses the body fields and helpers of the linear speed sensor, whose output port reads them unscaled and is described as m/s; the scoop subtracts the cached wind before projecting. The angular velocity is then rad/s by dimensional inference.",
                      [ls_port, ls_tag, ls_vel, ls_out, relv])
-    wpass = code(F_DISPATCH, 0x1405497FE, "4c8d83d0140000", "Fluid argument 10", "vehicle+0x14d0",
-                 "The dispatcher takes vehicle+0x14d0, stores it in the outgoing argument slot [rsp+0x48] at 0x14054989c and calls the component update through vtable slot +0x358 at 0x1405498d6. The fluid update saves that argument at 0x1403ef907 and passes it to the vector subtraction at 0x1403eff14." + FU)
-    wzero = code(F_WIND, 0x1404BACF6, "4883bbb8140000007570", "Wind cache, parent-body case", "vehicle+0x14b8 set: 0",
-                 "Called from the scene update at 0x1405e9173 with the weather at scene+0xbade8. When vehicle+0x14b8 holds a parent-body link the routine skips sampling and writes a zero vector." + FU)
-    wshel = op(F_WIND, 0x1404BAD47, "f30f100d7d516f00", 0x140BAFECC, "Wind shelter complement",
-               "Each wind component from the weather sample 0x1402c1830 (taken at the translation of the vehicle's transformed matrix, with local weather-cell wind included) is multiplied by this minus the shelter value 0x1402c10e0, the largest attenuation among the weather shelter boxes; inside an inner box that value is 1." + FU)
-    wstore = code(F_WIND, 0x1404BAD83, "f3410f111af30f115104f30f114008", "Cached wind store", "vehicle+0x14d0 = wind × (1 - shelter)",
-                  "Writes the X, Y and Z of the sheltered wind to vehicle+0x14d0, one vector per vehicle." + FU)
     wind = E.derived("Subtracted vector", "cached weather wind",
                      "The vector the scoop and the case 9 radiators subtract is the vehicle's cached weather wind, sampled once per vehicle at its transformed origin and scaled by 1 - shelter; it is zero when vehicle+0x14b8 holds a parent-body link. The scoop therefore responds to airspeed relative to the wind.",
                      [wpass, wzero, wshel, wstore, relv])

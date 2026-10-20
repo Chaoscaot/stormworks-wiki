@@ -1846,7 +1846,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "No unit or delivered head is documented for pump_pressure. The effect of the realtime damping entries on this build was not recovered; their names do not occur in the executable."
+        "pump_pressure is a pump bias: the port solver adds it, scaled by electrical supply and Max Power, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres (Fluids category and pump part articles). It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered. The effect of the realtime damping entries on this build was not recovered; their names do not occur in the executable."
       ]
     },
     {

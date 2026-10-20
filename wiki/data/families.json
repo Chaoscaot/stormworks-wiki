@@ -30863,7 +30863,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the speed step, fuel use, heating and starter equations of the classic engine update are covered by the practical behaviour research."
+        "Shaft speed is in RPS. The speed step, fuel use, heating and starter equations of the classic engine update come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered."
       ]
     },
     {
@@ -35442,8 +35442,8 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "Electric, Fan On/Off and Temperature have labels but no descriptions. Signal ranges and temperature units are unspecified."
+        "The cooling rate, the airflow term in m/s, the surrounding-temperature sample, the compartment volume and the finite-flow behaviour come from native code and are in the practical behaviour research. No conversion of the cooled quantity to joules or watts was recovered. The tooltip's size rule is not a measured performance curve.",
+        "Electric, Fan On/Off and Temperature have labels but no descriptions. Fan On/Off is an on/off input; native code publishes the stored water temperature in °C as Temperature (practical behaviour research)."
       ]
     },
     {
@@ -35492,7 +35492,7 @@
           "key": "attributes.pump_pressure",
           "label": "Pump pressure field",
           "unit": null,
-          "meaning": "Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres."
+          "meaning": "Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered."
         }
       ],
       "findings": [
@@ -35629,7 +35629,7 @@
         {
           "label": "Fluid Pump · Pump pressure field",
           "value": "10",
-          "detail": "water_pump: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+          "detail": "water_pump: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
           "evidenceId": "resource:rom/data/definitions/water_pump.xml:712701b65d23:L2-L2",
           "status": "observed",
           "source": {
@@ -35840,7 +35840,7 @@
         {
           "label": "Large Fluid Pump · Pump pressure field",
           "value": "100",
-          "detail": "water_pump_large: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+          "detail": "water_pump_large: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
           "evidenceId": "resource:rom/data/definitions/water_pump_large.xml:d5b9791d5a58:L2-L2",
           "status": "observed",
           "source": {
@@ -35934,7 +35934,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Maximum flow, pressure units, network resistance and power consumption are unknown."
+        "Native code gives the pump's bias, its equal-pressure flow bounds of 200 L/s (small) and 400 L/s (large) and its electricity request of 0.001 × Max Power per update; they are in the practical behaviour research. A pipe run is one 40 L network whatever its length, so pipe length adds neither volume nor resistance; actual flow depends on fill, backpressure and other ports on the same network. No conversion of pump_pressure to an SI pressure or of the electricity unit to watts was recovered."
       ]
     },
     {
@@ -36232,7 +36232,7 @@
           "key": "attributes.electric_magnitude",
           "label": "Electrical magnitude field",
           "unit": null,
-          "meaning": "Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved."
+          "meaning": "Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered."
         }
       ],
       "findings": [
@@ -36343,7 +36343,7 @@
         {
           "label": "Small Electric Motor · Electrical magnitude field",
           "value": "1.2",
-          "detail": "motor_small: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+          "detail": "motor_small: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
           "evidenceId": "resource:rom/data/definitions/motor_small.xml:77b2b5ef91f2:L2-L2",
           "status": "observed",
           "source": {
@@ -36528,7 +36528,7 @@
         {
           "label": "Medium Electric Motor · Electrical magnitude field",
           "value": "1.1",
-          "detail": "motor_medium: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+          "detail": "motor_medium: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
           "evidenceId": "resource:rom/data/definitions/motor_medium.xml:45c0ef710323:L2-L2",
           "status": "observed",
           "source": {
@@ -36713,7 +36713,7 @@
         {
           "label": "Large Electric Motor · Electrical magnitude field",
           "value": "1.05",
-          "detail": "motor_large: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+          "detail": "motor_large: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
           "evidenceId": "resource:rom/data/definitions/motor_large.xml:9e4e7a53ba4b:L2-L2",
           "status": "observed",
           "source": {
@@ -36811,7 +36811,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research.",
+        "Shaft speed is in RPS. The charge, speed-step and shaft-group equations come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
         "The definition does not state a throttle range. The native motor update clamps the input it reads as Throttle to -1 to 1 (practical behaviour research)."
       ]
     },
@@ -50546,8 +50546,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.",
-        "The ambient-temperature relation and cooling rate are unknown."
+        "The cooling rate, the airflow term in m/s, the surrounding-temperature sample, the compartment volume and the finite-flow behaviour come from native code and are in the practical behaviour research. No conversion of the cooled quantity to joules or watts was recovered. The tooltip's size rule is not a measured performance curve."
       ]
     },
     {
@@ -58785,7 +58784,7 @@
           "key": "attributes.electric_magnitude",
           "label": "Electrical magnitude field",
           "unit": null,
-          "meaning": "Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved."
+          "meaning": "Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered."
         }
       ],
       "findings": [
@@ -58883,7 +58882,7 @@
         {
           "label": "Small Generator · Electrical magnitude field",
           "value": "0.6",
-          "detail": "generator_small: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+          "detail": "generator_small: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
           "evidenceId": "resource:rom/data/definitions/generator_small.xml:5528f1689692:L2-L2",
           "status": "observed",
           "source": {
@@ -59055,7 +59054,7 @@
         {
           "label": "Medium Generator · Electrical magnitude field",
           "value": "0.75",
-          "detail": "generator_medium: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+          "detail": "generator_medium: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
           "evidenceId": "resource:rom/data/definitions/generator_medium.xml:6100f8b6ac93:L2-L2",
           "status": "observed",
           "source": {
@@ -59227,7 +59226,7 @@
         {
           "label": "Large Generator · Electrical magnitude field",
           "value": "0.85",
-          "detail": "generator_large: attributes.electric_magnitude. Component-specific charge multiplier. Recovered motor, generator and starter equations are covered by the practical behaviour research; physical units remain unresolved.",
+          "detail": "generator_large: attributes.electric_magnitude. Component-specific charge multiplier. The motor, generator and starter equations that use it come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
           "evidenceId": "resource:rom/data/definitions/generator_large.xml:a7af79af76b2:L2-L2",
           "status": "observed",
           "source": {
@@ -59325,7 +59324,7 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque and efficiency in physical units are unknown. Internal configuration fields are not measured force, torque, watts or joules. Shaft speed is in RPS; the charge and speed equations are covered by the practical behaviour research."
+        "Shaft speed is in RPS. The charge, speed-step and shaft-group equations come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered."
       ]
     },
     {
@@ -67829,7 +67828,7 @@
           "key": "attributes.pump_pressure",
           "label": "Pump pressure field",
           "unit": null,
-          "meaning": "Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres."
+          "meaning": "Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered."
         }
       ],
       "findings": [
@@ -67953,7 +67952,7 @@
         {
           "label": "Impeller Pump (Small) · Pump pressure field",
           "value": "1",
-          "detail": "turbocharger_small: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+          "detail": "turbocharger_small: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
           "evidenceId": "resource:rom/data/definitions/turbocharger_small.xml:a23309deb5e6:L2-L2",
           "status": "observed",
           "source": {
@@ -68151,7 +68150,7 @@
         {
           "label": "Impeller Pump · Pump pressure field",
           "value": "9",
-          "detail": "turbocharger: attributes.pump_pressure. Selected pump configuration. Units and the pressure-flow curve are unknown; do not label this value atmospheres.",
+          "detail": "turbocharger: attributes.pump_pressure. Pump bias factor. The port solver adds the electric pump's supply × this × Max Power, or the impeller's 4 × |RPS| × this, to the pressure difference across the pump, on the solver's pressure scale, which the tank pressure outputs report in atmospheres; the flow bounds are in the practical behaviour research. It is not a delivered head. No conversion of pump_pressure to an SI pressure was recovered.",
           "evidenceId": "resource:rom/data/definitions/turbocharger.xml:74f56b863e4a:L2-L2",
           "status": "observed",
           "source": {
@@ -68245,8 +68244,8 @@
         "Tooltips and ports document intended behavior. No game process or native code was inspected by this extractor.",
         "Serialized fields can include defaults for unrelated systems. Their presence alone does not establish an active capability.",
         "Size labels retain component names. Grid bounds, physical bounds and listed voxel counts are different source data; no dimensions are inferred from them.",
-        "Torque, speed, fuel use and efficiency curves are unknown. Internal configuration fields are not measured force, torque, watts or joules.",
-        "Fluid In, RPS and Fluid Out have no descriptions beyond their labels. The pressure-flow relation and the units of pump_pressure are unknown."
+        "Shaft speed is in RPS. The pump bias, shaft load request and flow bounds come from native code and are in the practical behaviour research. No conversion of shaft weight, force or charge to N m, watts or joules was recovered.",
+        "Fluid In, RPS and Fluid Out have no descriptions beyond their labels. The pressure-flow relation of the port solver applies; see the practical behaviour research."
       ]
     },
     {

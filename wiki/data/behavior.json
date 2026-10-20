@@ -704,7 +704,7 @@
       ],
       "limitations": [
         "Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. A conversion of internal charge to joules or watts was not recovered.",
-        "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. How arbitrary gearbox and clutch networks, conflicting ratio loops and connector rebuilds combine groups was not decoded, and the model gives no SI torque or inertia.",
+        "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges pass speed and weight between groups as described under Transmission; how loops, two ports on the same group and connector rebuilds combine groups in arbitrary networks was not decoded, and the model gives no SI torque or inertia.",
         "Static analysis only.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -1120,7 +1120,7 @@
         },
         {
           "title": "Cooling and overheating",
-          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
+          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
         },
         {
           "title": "Starter",
@@ -1133,7 +1133,7 @@
       ],
       "limitations": [
         "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
-        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
+        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
         "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
         "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
@@ -1252,6 +1252,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034aaa1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034aaca"
         },
         {
           "path": "stormworks64.exe",
@@ -1377,6 +1382,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034ce55"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034ce64"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034ce9d"
         },
         {
           "path": "stormworks64.exe",
@@ -1967,11 +1982,11 @@
         },
         {
           "title": "Surrounding temperature",
-          "body": "An exchanger samples the surrounding temperature at its own position every 16 updates (0.267 simulated seconds). Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."
+          "body": "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates."
         },
         {
           "title": "Practical setup",
-          "body": "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts relative airflow as fan, reaching the maximum term at an air speed of 80 in the game's speed units (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's."
+          "body": "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts airflow as fan, reaching the maximum term at 80 m/s relative to the wind (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's."
         }
       ],
       "limitations": [
@@ -2074,6 +2089,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019b5d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402eb471"
         },
         {
@@ -2145,6 +2165,31 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f3863"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3a7c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3bde"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c23"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c4f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c76"
         },
         {
           "path": "stormworks64.exe",
@@ -13625,7 +13670,7 @@
         },
         {
           "title": "Cooling and overheating",
-          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
+          "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with engine_overheating on and a second settings flag set, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
         },
         {
           "title": "Starter",
@@ -14469,6 +14514,54 @@
           }
         },
         {
+          "label": "Engine surrounding-temperature refresh",
+          "value": "every 16 updates",
+          "detail": "Tests the low four bits of the update counter and skips the sample unless they are 0, the same 16-update cadence as the heat exchangers and radiators. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes f640040f0f8584000000 at 0x14034ce64. Interpretation rests on retained output investigation/native/behavior/../electrical-magnitude/pseudocode/0x14034ba00.c:L759-L773; ../electrical-magnitude/asm/classic-engine-starter.asm:L17-L40. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034ce64",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034ce64"
+          }
+        },
+        {
+          "label": "Engine surrounding-temperature sample",
+          "value": "call 0x14030fd60",
+          "detail": "Calls the surrounding-temperature routine the heat exchangers and radiators use, with weather flag 1 and component+0x3f0 as the enclosing-compartment argument (inference: that field is the engine's enclosing compartment, as component+0x4b0 is for fluid components). A new sample retargets the controller at component+0x418 inline (0x14034ceb4-0x14034ceea). Report: investigation/classic-engines.md. Sample routine and controller: investigation/heat-exchangers.md. Function 0x14034ba00-0x14034d8ad; instruction bytes e8be2efcff at 0x14034ce9d. Interpretation rests on retained output investigation/native/behavior/../electrical-magnitude/pseudocode/0x14034ba00.c:L759-L773; ../electrical-magnitude/asm/classic-engine-starter.asm:L17-L40. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034ce9d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034ce9d"
+          }
+        },
+        {
+          "label": "Engine ambient controller",
+          "value": "16 updates, same layout as the exchangers",
+          "detail": "The classic engine constructor gives the controller at component+0x418 the exchangers' controller vtable 0x140b93d90 (0x14034aaab), target, output and start 20 °C, duration 16 and the same two trailing fields (1.7 and byte 2) as the exchanger constructor at 0x1403ee846-0x1403ee85a. The update steps it inline with the same field offsets and interpolation call 0x14092c960 (0x14034cf41). Report: investigation/classic-engines.md. Sample routine and controller: investigation/heat-exchangers.md. Function 0x14034a7d0-0x14034acd2; instruction bytes c7873404000000008041c787400400009a99d93fc6874404000002 at 0x14034aaca. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034a7d0@0x14034aaca",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034aaca"
+          }
+        },
+        {
+          "label": "Engine surrounding temperature",
+          "value": "same sample and 16-update ramp as the heat exchangers",
+          "detail": "Every 16 updates the engine samples the surrounding temperature with the heat exchangers' routine: the air and water weather temperatures blended by depth, the enclosing compartment's temperature instead when there is one, raised by the strongest local heat source. Its controller reaches each new sample 16 updates after it arrives, and the engine relaxes toward that output by 0.001 per update. Inputs: native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034ce64, native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034ce9d, native:stormworks64.exe:f9206d85c82f:0x14034a7d0@0x14034aaca, native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034c63f, derived:09c95b77a62a, native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35.",
+          "evidenceId": "derived:9ceb6fcc90fb",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034ce64"
+          }
+        },
+        {
           "label": "Overheat threshold",
           "value": "115",
           "detail": "Above this engine temperature, with both overheat gates on, the update adds 1 damage (capped at 50) whenever the overheat counter is 0, then advances the counter modulo 300. Report: investigation/classic-engines.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 0f2f0d05388600 at 0x14034cf98 address binary32 115 (bytes 0000e642) at 0x140bb07a4. Interpretation rests on retained output investigation/native/behavior/../electrical-magnitude/pseudocode/0x14034ba00.c:L759-L773; ../electrical-magnitude/asm/classic-engine-starter.asm:L17-L40. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -15000,7 +15093,7 @@
       ],
       "limitations": [
         "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
-        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample; the sampler's weather and environment inputs were not decoded, so no single temperature per throttle setting exists.",
+        "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The sample uses the heat exchangers' routine; how the weather model sets the air and water temperatures that routine blends was not decoded.",
         "The settings byte that forms the second overheat gate (settings+0x4a) was not traced to a named option.",
         "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
@@ -15249,6 +15342,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034aaca"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034b647"
         },
         {
@@ -15370,6 +15468,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034ce55"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034ce64"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034ce9d"
         },
         {
           "path": "stormworks64.exe",
@@ -17745,11 +17853,11 @@
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "Cooling runs only while both Fluid A and Fluid B are connected. The fan term is 2 × the electrical availability while Fan On/Off is on and power is present; each powered update also draws 0.001 units through the shared electricity helper, 0.06 units per simulated second."
+          "body": "Cooling runs only while both Fluid A and Fluid B are connected. The fan term is 2 × the electrical availability while Fan On/Off is on and power is present; each powered update also draws 0.001 units through the shared electricity helper, 0.06 units per simulated second. Temperature reports the stored water temperature in °C after the cooling step."
         },
         {
           "title": "Performance drivers",
-          "body": "Cooling multiplier = 1 + fan, with fan clamped to 0…2, so a fully powered fan gives three times the passive rate. Mounted outside an enclosed compartment, relative airflow counts as fan as speed ÷ 40, so a fast vehicle reaches full cooling without power. The term alone leaves 0.835 of the gap to ambient after one simulated second at multiplier 1 and 0.581 at multiplier 3."
+          "body": "Cooling multiplier = 1 + fan, with fan clamped to 0…2, so a fully powered fan gives three times the passive rate. Mounted outside an enclosed compartment, airflow counts as fan as speed ÷ 40, with speed in m/s relative to the wind, so at 80 m/s a vehicle reaches full cooling without power. The term alone leaves 0.835 of the gap to ambient after one simulated second at multiplier 1 and 0.581 at multiplier 3."
         },
         {
           "title": "Variant tradeoffs",
@@ -17760,8 +17868,8 @@
           "body": "Each update the radiator exchanges with its Fluid A network, then its Fluid B network, then cools. Arriving water is mixed by the radiator's amount after the move, and below 0.01 amount per update a direct exchange also moves temperature through the ports. Its volume is capacity: in a pumped loop it need not stay full, and its water settles cooler than the coolant manifold.\n\nFor one radiator fed at a fixed inlet temperature with flow q and stored water A, the outlet sits q ÷ (k × A + (1 + k) × q) of the way from ambient to the inlet, with k = 0.003 × (1 + fan). With 9 units of water, 200 L/s and a full fan that is 83.90 °C out for 100 °C in at 20 °C ambient, a 16.10 °C drop. The cooling capacity calculator's finite-flow mode steps whole loops."
         },
         {
-          "title": "Open measurement questions",
-          "body": "Measure Temperature against fan state and airspeed to confirm the units of the airflow term and the surrounding-temperature reference."
+          "title": "Surrounding temperature",
+          "body": "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it."
         }
       ],
       "findings": [
@@ -18070,6 +18178,102 @@
           }
         },
         {
+          "label": "Radiator airflow speed unit",
+          "value": "m/s relative to the wind",
+          "detail": "The airflow term is the length of body point velocity minus the vehicle's cached weather wind, the vector the air scoop subtracts. That velocity uses the body fields the linear speed sensor reports unscaled in m/s, so the term reaches the fan cap of 2 at 80 m/s relative to the wind. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3a7c, native:stormworks64.exe:f9206d85c82f:0x14019b5c0@0x14019b5d6, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x140bb072c, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x140bb0218, derived:11c30357f5fe, resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L41-L41, resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5476, native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5664, native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405497fe, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bacf6, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad47, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad83.",
+          "evidenceId": "derived:ab77ec4d3b58",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3a7c"
+          }
+        },
+        {
+          "label": "Radiator airflow speed",
+          "value": "|v + w × r − wind| ÷ 40",
+          "detail": "Outside an enclosed compartment (component+0x4b0 null, tested at 0x1403f3a58) case 9 takes the body point velocity at its own grid position through 0x14019b5c0, subtracts the vector saved from fluid-update argument 10 at [rbp-0x50] (0x140175c30), takes the length (0x140175740) and divides by 40. The result goes through max with the fan term (0x1408ee640 at 0x1403f3aad) and the 0…2 clamp (0x1408ee610 at 0x1403f3ac3); 1 is added at 0x1403f3ad7. Report: investigation/air-scoop.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e83f7bdaff488bd04c8b45b0488d8db8000000e89c21d8ff488bc8e8a41cd8fff30f5e0588cc7b00 at 0x1403f3a7c. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3a7c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3a7c"
+          }
+        },
+        {
+          "label": "Body point velocity",
+          "value": "body+0x98 + body+0xa4 × r",
+          "detail": "The helper crosses the angular velocity at body+0xa4…+0xac with the offset and adds the linear velocity at body+0x98 (addss at 0x14019b625), the same fields the linear speed sensor reads unscaled. Report: investigation/air-scoop-followup.md. Function 0x14019b5c0-0x14019b665; instruction bytes f30f1099ac0000000f28c5f30f5989a8000000 at 0x14019b5d6. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14019b5c0@0x14019b5d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14019b5d6"
+          }
+        },
+        {
+          "label": "Radiator surrounding temperature",
+          "value": "same sample and 16-update ramp as the exchangers",
+          "detail": "Case 9 uses the exchangers' controller layout at component+0x630 and the same sample routine 0x14030fd60: the air and water weather temperatures blended by depth at the radiator's position, the enclosing compartment's temperature instead when there is one, raised by the strongest local heat source. The controller reaches each new sample 16 updates after it arrives. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3bde, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c23, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c4f, derived:09c95b77a62a, native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846, native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee, native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35.",
+          "evidenceId": "derived:307612ad34fa",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3bde"
+          }
+        },
+        {
+          "label": "Radiator surrounding-temperature refresh",
+          "value": "every 16 updates",
+          "detail": "After both port exchanges case 9 reads the update counter (0x1402b7af0) and samples only when its low four bits are 0, the same test the exchangers make at 0x1403f4c98. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e80d3fecffa80f755c at 0x1403f3bde. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3bde",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3bde"
+          }
+        },
+        {
+          "label": "Radiator surrounding-temperature sample",
+          "value": "call 0x14030fd60",
+          "detail": "Calls the exchangers' surrounding-temperature routine with the radiator's own world position (component+0x18 transformed at 0x1403f3b07-0x1403f3b33) and its enclosing-compartment pointer component+0x4b0, submits the result to the controller at component+0x630 through 0x1408cddd0 (0x1403f3c3e) and steps that controller every update through 0x1408cde20 (0x1403f3c4a). Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e838c1f1ff at 0x1403f3c23. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c23",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3c23"
+          }
+        },
+        {
+          "label": "Radiator cooling step",
+          "value": "T + 0.003 × (1 + fan) × (ambient − T)",
+          "detail": "Multiplies 1 + fan by 0.003 and moves the compartment temperature (component+0x5dc) toward the controller output at component+0x644 through the interpolation helper 0x1408f04b0; the result is stored back at 0x1403f3c6d. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f5935c1bc7b00498d96440600000f28d6498d8edc050000e843c84f00 at 0x1403f3c4f. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c4f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3c4f"
+          }
+        },
+        {
+          "label": "Radiator Temperature output",
+          "value": "stored water temperature, °C",
+          "detail": "Every update case 9 ends here, also when a port is unconnected: it passes the compartment temperature (component+0x5dc, the fluid state's temperature field in °C) and the first number-output node component+0x228 to the number-output call 0x1402ea270 at 0x1403f5098; the exchangers publish Temp A through the same call with the same node offset at 0x1403f5083. Reading +0x228 as the Temperature port is an inference: Temperature is the electric radiator's only number output. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 498d8e28020000f3410f108edc050000e90d140000 at 0x1403f3c76. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c76",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3c76"
+          }
+        },
+        {
           "label": "Exchange threshold and ambient leak",
           "value": "0.001",
           "detail": "The exchange runs only when qA+qB exceeds this value; both exchanger compartments, the cryo cooler and fluid tanks also move toward the filtered surrounding temperature (component offset 0x644) by this fraction per update. Function 0x1403ef860-0x1403f51f4; it reads binary32 0.001 (bytes 6f12833a) at 0x140baf8f8. Interpretation rests on retained output investigation/native/behavior/asm/water.asm:L4523-L4528,L3526; pseudocode/0x1403ef860.c:L876-L932,L2173-L2207. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -18135,7 +18339,7 @@
         }
       ],
       "limitations": [
-        "The airflow quantity is read as relative air speed from the vector-length call it is derived from; its unit was not confirmed.",
+        "Static analysis of one build; no radiator temperature was measured in game. The cooled quantity is a native amount × temperature unit; no conversion to joules or watts was recovered.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -18178,6 +18382,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019b5d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402ec242"
         },
         {
@@ -18208,7 +18417,32 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3a7c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f3b83"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3bde"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c23"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c4f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c76"
         },
         {
           "path": "stormworks64.exe",
@@ -19195,7 +19429,7 @@
       "limitations": [
         "Static analysis only; charge is in the internal unit. A conversion of internal charge to joules or watts was not recovered.",
         "Reading component offset 0x160 as the Throttle input is an inference from how the update uses it.",
-        "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
+        "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -25496,7 +25730,7 @@
       ],
       "limitations": [
         "Static analysis only; Q is in the internal charge unit. A conversion of internal charge to joules or watts was not recovered.",
-        "The force-weighted comparisons hold within one shaft group. How gearbox and clutch bridges, conflicting ratio loops and connector rebuilds combine groups in arbitrary networks was not decoded.",
+        "The force-weighted comparisons hold within one shaft group. Across a gearbox or clutch bridge the other group's speed and weight enter scaled by 0.95 × engagement per edge and by the ratio, with paths dropped below 0.001 and a braking response to ratio conflicts (Transmission). Not decoded: how loops, two ports on the same group and connector rebuilds order and combine groups in arbitrary networks.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -133078,7 +133312,7 @@
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "The passive radiator shares case 9 with the electric radiators and the fluid heat sink. Without a fan, its only boost is airflow: outside an enclosed compartment the multiplier becomes 1 + min(2, air speed ÷ 40)."
+          "body": "The passive radiator shares case 9 with the electric radiators and the fluid heat sink. Without a fan, its only boost is airflow: outside an enclosed compartment the multiplier becomes 1 + min(2, air speed ÷ 40), with air speed in m/s relative to the wind, so it reaches 3 at 80 m/s."
         },
         {
           "title": "Setup and interactions",
@@ -133095,6 +133329,10 @@
         {
           "title": "Flow through the radiator",
           "body": "Each update the radiator exchanges with its Fluid A network, then its Fluid B network, then cools. Arriving water is mixed by the radiator's amount after the move, and below 0.01 amount per update a direct exchange also moves temperature through the ports. Its volume is capacity: in a pumped loop it need not stay full, and its water settles cooler than the coolant manifold.\n\nFor one radiator fed at a fixed inlet temperature with flow q and stored water A, the outlet sits q ÷ (k × A + (1 + k) × q) of the way from ambient to the inlet, with k = 0.003 × (1 + fan). With 9 units of water, 200 L/s and a full fan that is 83.90 °C out for 100 °C in at 20 °C ambient, a 16.10 °C drop. The cooling capacity calculator's finite-flow mode steps whole loops."
+        },
+        {
+          "title": "Surrounding temperature",
+          "body": "The radiator cools toward the same surrounding temperature the heat exchangers use. It samples it at its own position every 16 updates and ramps to each new sample over 16 updates. Outside a compartment the sample blends the air and water weather temperatures by depth; inside an enclosed compartment it is the compartment's temperature. Nearby heat sources raise it."
         }
       ],
       "findings": [
@@ -133376,9 +133614,106 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405e3add"
           }
+        },
+        {
+          "label": "Radiator airflow speed unit",
+          "value": "m/s relative to the wind",
+          "detail": "The airflow term is the length of body point velocity minus the vehicle's cached weather wind, the vector the air scoop subtracts. That velocity uses the body fields the linear speed sensor reports unscaled in m/s, so the term reaches the fan cap of 2 at 80 m/s relative to the wind. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3a7c, native:stormworks64.exe:f9206d85c82f:0x14019b5c0@0x14019b5d6, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x140bb072c, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x140bb0218, derived:11c30357f5fe, resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L41-L41, resource:rom/data/definitions/linear_speed_sensor.xml:463518ace041:L2-L2, native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5476, native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5664, native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405497fe, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bacf6, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad47, native:stormworks64.exe:f9206d85c82f:0x1404bab00@0x1404bad83.",
+          "evidenceId": "derived:ab77ec4d3b58",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3a7c"
+          }
+        },
+        {
+          "label": "Radiator airflow speed",
+          "value": "|v + w × r − wind| ÷ 40",
+          "detail": "Outside an enclosed compartment (component+0x4b0 null, tested at 0x1403f3a58) case 9 takes the body point velocity at its own grid position through 0x14019b5c0, subtracts the vector saved from fluid-update argument 10 at [rbp-0x50] (0x140175c30), takes the length (0x140175740) and divides by 40. The result goes through max with the fan term (0x1408ee640 at 0x1403f3aad) and the 0…2 clamp (0x1408ee610 at 0x1403f3ac3); 1 is added at 0x1403f3ad7. Report: investigation/air-scoop.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e83f7bdaff488bd04c8b45b0488d8db8000000e89c21d8ff488bc8e8a41cd8fff30f5e0588cc7b00 at 0x1403f3a7c. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3a7c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3a7c"
+          }
+        },
+        {
+          "label": "Body point velocity",
+          "value": "body+0x98 + body+0xa4 × r",
+          "detail": "The helper crosses the angular velocity at body+0xa4…+0xac with the offset and adds the linear velocity at body+0x98 (addss at 0x14019b625), the same fields the linear speed sensor reads unscaled. Report: investigation/air-scoop-followup.md. Function 0x14019b5c0-0x14019b665; instruction bytes f30f1099ac0000000f28c5f30f5989a8000000 at 0x14019b5d6. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14019b5c0@0x14019b5d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14019b5d6"
+          }
+        },
+        {
+          "label": "Radiator surrounding temperature",
+          "value": "same sample and 16-update ramp as the exchangers",
+          "detail": "Case 9 uses the exchangers' controller layout at component+0x630 and the same sample routine 0x14030fd60: the air and water weather temperatures blended by depth at the radiator's position, the enclosing compartment's temperature instead when there is one, raised by the strongest local heat source. The controller reaches each new sample 16 updates after it arrives. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3bde, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c23, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c4f, derived:09c95b77a62a, native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee846, native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddee, native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde35.",
+          "evidenceId": "derived:307612ad34fa",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3bde"
+          }
+        },
+        {
+          "label": "Radiator surrounding-temperature refresh",
+          "value": "every 16 updates",
+          "detail": "After both port exchanges case 9 reads the update counter (0x1402b7af0) and samples only when its low four bits are 0, the same test the exchangers make at 0x1403f4c98. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e80d3fecffa80f755c at 0x1403f3bde. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3bde",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3bde"
+          }
+        },
+        {
+          "label": "Radiator surrounding-temperature sample",
+          "value": "call 0x14030fd60",
+          "detail": "Calls the exchangers' surrounding-temperature routine with the radiator's own world position (component+0x18 transformed at 0x1403f3b07-0x1403f3b33) and its enclosing-compartment pointer component+0x4b0, submits the result to the controller at component+0x630 through 0x1408cddd0 (0x1403f3c3e) and steps that controller every update through 0x1408cde20 (0x1403f3c4a). Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes e838c1f1ff at 0x1403f3c23. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c23",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3c23"
+          }
+        },
+        {
+          "label": "Radiator cooling step",
+          "value": "T + 0.003 × (1 + fan) × (ambient − T)",
+          "detail": "Multiplies 1 + fan by 0.003 and moves the compartment temperature (component+0x5dc) toward the controller output at component+0x644 through the interpolation helper 0x1408f04b0; the result is stored back at 0x1403f3c6d. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes f30f5935c1bc7b00498d96440600000f28d6498d8edc050000e843c84f00 at 0x1403f3c4f. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c4f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3c4f"
+          }
+        },
+        {
+          "label": "Radiator Temperature output",
+          "value": "stored water temperature, °C",
+          "detail": "Every update case 9 ends here, also when a port is unconnected: it passes the compartment temperature (component+0x5dc, the fluid state's temperature field in °C) and the first number-output node component+0x228 to the number-output call 0x1402ea270 at 0x1403f5098; the exchangers publish Temp A through the same call with the same node offset at 0x1403f5083. Reading +0x228 as the Temperature port is an inference: Temperature is the electric radiator's only number output. Report: investigation/heat-exchangers.md. Function 0x1403ef860-0x1403f51f4; instruction bytes 498d8e28020000f3410f108edc050000e90d140000 at 0x1403f3c76. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3c76",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f3c76"
+          }
         }
       ],
       "limitations": [
+        "Static analysis of one build; no radiator temperature was measured in game. The cooled quantity is a native amount × temperature unit; no conversion to joules or watts was recovered.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -133399,6 +133734,11 @@
           "sha256": "c9062351c1487e14a6cd7d79f55f8bfc0b49122d4c775b80fa833638e3c2d1e3",
           "lineStart": 152,
           "lineEnd": 152
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019b5d6"
         },
         {
           "path": "stormworks64.exe",
@@ -133433,7 +133773,32 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3a7c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f3b83"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3bde"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c23"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c4f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f3c76"
         },
         {
           "path": "stormworks64.exe",
@@ -153399,12 +153764,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8384,
+    "findingCount": 8404,
     "findingsByStatus": {
-      "derived": 699,
-      "observed": 7685
+      "derived": 704,
+      "observed": 7700
     },
-    "nativeFindingCount": 6018,
+    "nativeFindingCount": 6038,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -153447,7 +153812,7 @@
       },
       {
         "path": "wiki/data/families.json",
-        "sha256": "95c0cc72929b100c96444da8a851cf725c4740f90bc9c08673e50e70ed4a21fa"
+        "sha256": "8a159f9bef276be47e95a32bfe78d9177d5aee9add6c9b81cfbfebab2950ceab"
       },
       {
         "path": "stormworks64.exe",
@@ -153455,8 +153820,8 @@
       }
     ],
     "evidenceUse": {
-      "derived": 407,
-      "native": 1244,
+      "derived": 410,
+      "native": 1253,
       "resource": 2631
     }
   }
