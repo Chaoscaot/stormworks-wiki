@@ -40,15 +40,11 @@ The Next.js Dockerfile builds a standalone Node application. Original game files
 
 ## Publish and deploy
 
-The source publisher uses the existing `HPLAN_TOKEN` in the environment without writing it to the project. It uploads a bounded source archive to the user's existing artifact host. Dokploy downloads that archive as a remote Docker build context and builds the image on rs2. No image registry write credential is required.
+Every push to `main` deploys the site. `.github/workflows/deploy.yml` runs `npm test` in `wiki/`, builds `wiki/Dockerfile` and pushes `ghcr.io/chaoscaot/stormworks-wiki` with the tags `latest` and the commit SHA. It then posts to the Dokploy compose deploy hook, whose URL is the repository secret `DOKPLOY_DEPLOY_URL`. The Dokploy compose service runs `ghcr.io/chaoscaot/stormworks-wiki:latest` with `pull_policy: always`, so each deploy pulls the new image. A failing test stops the deploy.
 
-```bash
-python3 scripts/publish_source.py
-python3 scripts/package_deploy.py
-python3 scripts/deploy.py --title 'Publish updated Stormworks wiki'
-```
+To redeploy without a code change, run the workflow by hand (`gh workflow run deploy.yml`) or call `compose.deploy` with the Dokploy client. To roll back, point the compose file at an older SHA tag and deploy.
 
-`hosting.json` records the public artifact URL and source archive SHA-256. `.releases/` retains source archives so previous build context URLs remain available after updates. `deploy.compose.yml` contains the remote build URL and Docker settings. These files contain no deployment token.
+The older archive path (`scripts/publish_source.py`, `package_deploy.py`, `deploy.py`, `hosting.json`, `.releases/`) is no longer used by the live service.
 
 A successful queue response is not a successful deployment. Check the deployment status and logs with the Dokploy client, then verify the live family articles, comparison tables, variant pages, mechanics links and search.
 
