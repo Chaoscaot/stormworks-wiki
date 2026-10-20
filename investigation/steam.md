@@ -106,11 +106,11 @@ The boiler exchanges phase temperature Tp and circulating coolant temperature Tc
 if Qp+Qc > 0.001:
     Tp1 = Tp + k*Qc/(Qp+Qc)*(Tc-Tp)
     Tc1 = Tc + k*Qp/(Qp+Qc)*(Tp-Tc)
-Tp2 = Tp1 + 0.001*(Ta-Tp1)
-Tc2 = Tc1 + 0.001*(Ta-Tc1)
+Tp2 = Tp1 + 0.0001*(Ta-Tp1)
+Tc2 = Tc1 + 0.0001*(Ta-Tc1)
 ```
 
-Phase conversion occurs before this mutual heat transfer. Coolant port exchanges occur before conversion; water/steam port calls bracket conversion and mutual heat transfer. The emitted fluid packet can therefore have a different temperature from the component's final stored output. Evidence is subtype 0 at `0x14040cc60..0x14040d3c2`, subtype 1 at `0x14040d3c7..0x14040d80c`, `asm/update.asm` and `pseudocode/0x14040cbd0.c` lines 134..399. The model preserves conversion-before-mutual-transfer but replaces the pipe circulation with an explicit common-coolant boundary condition.
+Phase conversion occurs before this mutual heat transfer. Coolant port exchanges occur before conversion; water/steam port calls follow conversion and bracket mutual heat transfer. The emitted fluid packet can therefore have a different temperature from the component's final stored output. Evidence is subtype 0 at `0x14040cc60..0x14040d3c2`, subtype 1 at `0x14040d3c7..0x14040d80c`, `asm/update.asm` and `pseudocode/0x14040cbd0.c` lines 134..399. The model preserves conversion-before-mutual-transfer but replaces the pipe circulation with an explicit common-coolant boundary condition.
 
 The condenser has the same fixed phase threshold as the boiler. It is not a distinct pressure-dependent dew-point model. Cooling below 100 turns steam into fresh water and raises phase temperature by the small feedback above. Its total-amount heat weight allows a steam-filled chamber to exchange heat even when its liquid sum is zero.
 
@@ -118,7 +118,7 @@ The condenser has the same fixed phase threshold as the boiler. It is not a dist
 
 The two circulating coolant ports call the component-port solver with both directional flags zero and all species allowed. Their In/Out labels do not enforce one-way coolant flow. Both must be connected for that paired coolant branch to execute.
 
-Boiler water intake admits species 0 and suppresses component-to-network flow. Boiler steam outlet admits species 7 and suppresses network-to-component flow. Condenser steam intake and water outlet reverse those masks. Boiler water intake additionally uses bias -60 at `0x14040cec2`; its component-port demand uses z=network_pressure-phase_pressure-bias. The other phase ports use zero bias. Each depends on previous-pass network allocation. They do not impose fixed delivered rates. The phase helper can evaporate seawater already present, even though the normal boiler water intake mask selects fresh water.
+Boiler water intake admits species 0 and suppresses component-to-network flow. Boiler steam outlet admits species 7 and suppresses network-to-component flow. Condenser steam intake and water outlet reverse those masks. Boiler water intake additionally uses bias -60 at `0x14040cec2`; its component-port demand uses z=network_pressure-phase_pressure-bias. Boiler Steam Out uses bias `2.5*steam/phase_volume`, computed at `0x14040ce5f..0x14040ce68` and passed at `0x14040d391`. The condenser phase ports use zero bias. Each depends on previous-pass network allocation. They do not impose fixed delivered rates. The phase helper can evaporate seawater already present, even though the normal boiler water intake mask selects fresh water.
 
 `0x14017b3f0` constructs species masks. In the established `0x1402ec710` signature, stack arguments 5 and 6 are the suppress-negative and suppress-positive flags. The boiler intake call is `0x14040cecd`, and steam outlet call `0x14040d398`; inspect the retained adjacent stack writes rather than inferring direction from labels. The corresponding condenser calls are retained in the next subtype branch. The small model does not reproduce those competing network allocations.
 
@@ -180,7 +180,7 @@ Both shaft ports submit weight `20*N` and the group's current RPS. The weights a
 
 ### Valves and stroke
 
-There is no built-in inlet/exhaust phase switching in the traced subtype-3 update. Below damage 10 it calls all four component ports independently with both directional flags zero and no steam-only species mask. A/B chambers are assigned to their two corresponding ports, and external network pressures determine flow. The branch never compares z to valve-opening intervals. At damage >=10 it bypasses each paired inlet/outlet through the two-port solver and adds no drive contribution. See `asm/update.asm`, `0x14040daf7..0x14040dcdc`. Native automatic cut-off angles are therefore ruled out in this update. External valves and controller timing determine which chamber is pressurized. The report does not recommend a tested timing schedule.
+The piston switches its built-in valves at phase 0.5. In port order A In, A Out, B In, B Out, flow factors are 0, 1, 1, 0 below 0.5 and 1, 0, 0, 1 at or above 0.5. The comparison is at `0x14040db76`, following the 0.5 load at `0x14040db6e`. External network pressures still determine flow through the enabled ports. At damage >=10 the two-port solver bypasses A In to B In and A Out to B Out, and the piston adds no drive contribution. See `asm/update.asm`, `0x14040daf7..0x14040dcdc`. The model exposes these valve factors and bypass pairs separately from its pressure contribution function; it does not simulate piston network allocations.
 
 Definition loading at `0x1403181b1..0x1403181fa` binds `piston_len` to +0x2cd8 and `piston_cam` to +0x2cdc. Defaults are 0.44 and 0.075. The 3x3 resource has 0.686 and 0.146; the 5x5 has 1.2 and 0.216, all on line 2. These values enter the render transform and connecting-rod trigonometry at `0x140413fc6..0x1404140ac`, not the native pressure contribution above. See `asm/definition-steam.asm` and `asm/piston-render.asm`.
 
@@ -196,7 +196,7 @@ Recovered conversion factors are 1:1 stored water/steam amount, 200 fire-tempera
 
 The cycle example holds water at 8 internal units, uses a perfectly circulated shared coolant amount 4, ambient 20, fully supplied 21% oxygen, air pressure 2, firebox exhaust 0, and turbine reservoir pressures 2 and 1. Feed replaces converted water. All generated steam is drained; only the pressure-limited portion reaches the turbine and excess leaves through the ideal reservoir boundary. Thus this is an explicit reduced steady-state example, not a claim that a closed vehicle with those components reaches those temperatures or rates.
 
-After 3600 simulated seconds, the small firebox example gives Tf=195.0484, coolant=181.6661 and boiler=177.4133. The large example gives 385.1162, 377.5124 and 368.1046. Both have pressure-limited turbine target 2.736111 RPS. Full inputs, rates and units are in `tools/examples.json`. Ignition fuel cost and reserve inventory are not included in these continuously fueled examples. The direct phase example and quarter-turn piston example are also retained.
+After 3600 simulated seconds, the small firebox example gives Tf=199.2851, coolant=197.7850 and boiler=197.3030. The large example gives 388.5532, 387.7546 and 386.7547. Both have pressure-limited turbine target 2.736111 RPS. Full inputs, rates and units are in `tools/examples.json`. Ignition fuel cost and reserve inventory are not included in these continuously fueled examples. The direct phase example and quarter-turn piston example are also retained.
 
 `tools/verify.py` checks conservation and direction at the phase boundary, seawater splitting, condensation cap, firebox pressure/oxygen cutoffs, turbine backpressure and damage cutoffs, the steady target recurrence, and piston phase/sign cutoffs. It also compares per-definition capacities and weights with extracted voxel counts. These are consistency tests of the transcription, not runtime validation. See `tools/verification.txt`.
 
@@ -238,7 +238,7 @@ Only this report, `investigation/native/steam/` and the two appended root `.giti
 
 ## Corrections after byte review
 
-The wiki agent re-read the cited bytes and found four places where this report is wrong. The parent session confirmed items 1 and 2 in the disassembly. The wiki follows the bytes. `tools/model.py`, `steam.json` and `examples.json` still carry the first-draft values and need a follow-up fix.
+Byte review found four errors in the first draft. All four were rechecked with short objdump ranges against executable SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`. The report, `tools/model.py`, `tools/build_json.py`, `steam.json` and regenerated `tools/examples.json` now match the corrections below. All 77 static-model consistency checks pass; `SHA256SUMS` has been regenerated.
 
 1. The piston has built-in valve timing. `0x14040db66` sets port flow factors 1 and 0, `0x14040db6e` loads 0.5 from `0x140bafcbc`, and the comparison at `0x14040db76` swaps the factors when the phase is below 0.5. The four port calls at `0x14040dbb4`, `0x14040dc0a`, `0x14040dc60` and `0x14040dcb6` receive them, so one chamber fills while the other vents and the drive keeps one direction.
 2. Boiler and condenser ambient loss is 0.0001 per update, not 0.001. The constant at `0x140baf898` is binary32 1e-4, used at `0x14040d42f`, `0x14040d451` and `0x14040d7a2`.

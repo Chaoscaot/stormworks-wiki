@@ -16,9 +16,11 @@ for d in defs:
                  ignition_state_value=3600,ignition_state_duration='not recovered',
                  evidence=['asm/update.asm: 0x14040e05e..0x14040e5ff','asm/coal-network.asm: 0x1404b49f6'])
  if t in [0,1]:x.update(phase_volume_internal=.1*n,coolant_volume_internal=n,
-                         heat_exchange_coefficient_undamaged=.1,ambient_coefficient_per_tick=.001,
+                         heat_exchange_coefficient_undamaged=.1,ambient_coefficient_per_tick=.0001,
                          water_intake_bias=(-60 if t==0 else 0),
                          evidence='asm/init.asm and asm/update.asm: subtype 0/1')
+ if t==0:x.update(steam_out_bias='2.5*steam/phase_volume_internal',
+                  steam_out_bias_evidence='0x14040ce5f..0x14040d398')
  if t==2:x.update(shaft_weight_each_port=65,shaft_target_decay_per_tick=.985,
                   shaft_target_gain_per_internal_steam_transferred_after_decay=985,
                   shaft_target_gain_before_decay=1000,
@@ -31,6 +33,12 @@ for d in defs:
            inferred_render_stroke=2*cam,render_unit='world distance, metres inferred',
            phase_output_range=[0,1],phase_output_unit='turns, one-step wrapped',
            group_accumulator_gain_per_steam_partial_pressure_sine=.002,
+           valve_swap_phase_turns=.5,
+           port_flow_factors_below_half=[0,1,1,0],
+           port_flow_factors_at_or_above_half=[1,0,0,1],
+           port_order=["A In","A Out","B In","B Out"],
+           damaged_bypass_threshold=10,
+           damaged_bypass_pairs=[["A In","B In"],["A Out","B Out"]],
            evidence=['asm/init.asm','asm/update.asm: 0x14040da00..0x14040dddc','asm/definition-steam.asm','asm/piston-render.asm'])
  parts.append(x)
 out=dict(executable='stormworks64.exe',sha256='f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699',

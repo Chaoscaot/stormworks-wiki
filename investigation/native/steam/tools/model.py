@@ -10,6 +10,21 @@ or piston group integration is simulated. Python double arithmetic.
 import math, json
 from dataclasses import dataclass
 HZ=60
+AMBIENT_LOSS=.0001
+PISTON_BYPASS_PAIRS=(("A In", "B In"), ("A Out", "B Out"))
+
+def ambient(t, outside=20.):
+    return t+(outside-t)*AMBIENT_LOSS
+
+def boiler_steam_out_bias(steam, phase_volume):
+    return 2.5*steam/phase_volume
+
+def piston_ports(phase_turns, damage=0):
+    """Port factors in native order; damaged ports bypass In-In and Out-Out."""
+    if damage>=10:return dict(bypass_pairs=PISTON_BYPASS_PAIRS)
+    first=0. if phase_turns<.5 else 1.
+    return dict(zip(("A In", "A Out", "B In", "B Out"),
+                    (first,1-first,1-first,first)))
 
 def clamp(x,lo=0.,hi=1.): return max(lo,min(hi,x))
 
@@ -79,8 +94,8 @@ class Cycle:
                                  self.firebox_voxels*.0008)
         _,_,_,self.tb,q=phase(self.water,0,0,self.tb)
         self.tb,self.tc=exchange(self.tb,self.tc,self.water,self.coolant,.1)
-        self.tb+=(20-self.tb)*.001
-        self.tc+=(20-self.tc)*.001
+        self.tb=ambient(self.tb)
+        self.tc=ambient(self.tc)
         q=max(0,q);self.steam+=q
         admitted=min(q,turbine_cap(2,1))
         self.speed=turbine_tick(self.speed,admitted)
@@ -99,5 +114,10 @@ def examples():
                 phase_at_150=phase(8,0,0,150),
                 turbine_PA2_PB1=dict(q_cap=turbine_cap(2,1),
                     steady_target_RPS=.985*1000*turbine_cap(2,1)/.015),
-                piston_PA1_PB2_phase_quarter=piston_accel(1,2,.25))
+                piston_PA1_PB2_phase_quarter=piston_accel(1,2,.25),
+                ambient_150_after_update=ambient(150),
+                boiler_steam_out_bias_S2_V17_5=boiler_steam_out_bias(2,17.5),
+                piston_ports=[dict(phase=z,ports=piston_ports(z))
+                              for z in [.25,.5,.75]],
+                damaged_piston_ports=piston_ports(.25,10))
 if __name__=='__main__': print(json.dumps(examples(),indent=2))

@@ -1261,9 +1261,9 @@ test('steam cycle reproduces investigation/native/steam/tools/examples.json when
   const file = new URL('../../../investigation/native/steam/tools/examples.json', import.meta.url);
   if (!existsSync(file)) return t.skip('investigation/ is not in this checkout');
   const ex = JSON.parse(readFileSync(file, 'utf8'));
-  // model.py applies 0.001 boiler ambient loss; the bytes at 0x140baf898 give 0.0001, which the wiki graph uses.
+  // model.py now uses the byte value 0.0001 boiler ambient loss (0x140baf898), the same value the wiki graph uses.
   for (const want of ex.cycle) {
-    const r = steamCycle({ voxels: want.voxels, seconds: want.seconds, boilerAmbient: 0.001, every: want.seconds * 60 }).rows.at(-1);
+    const r = steamCycle({ voxels: want.voxels, seconds: want.seconds, every: want.seconds * 60 }).rows.at(-1);
     assert.deepEqual([r.fire, r.coolant, r.boiler, r.coal, r.steam, r.admitted, r.speed],
       [want.firebox_T, want.coolant_T, want.boiler_T, want.coal_per_s, want.steam_internal_per_s, want.turbine_admitted_internal_per_s, want.turbine_target_RPS], `${want.voxels} voxels`);
   }

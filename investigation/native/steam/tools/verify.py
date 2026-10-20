@@ -2,7 +2,7 @@
 """Consistency checks for the static transcription. No target execution."""
 import json, math
 from pathlib import Path
-from model import phase,burn,turbine_cap,turbine_tick,piston_accel,exchange,Cycle
+from model import phase,burn,turbine_cap,turbine_tick,piston_accel,exchange,Cycle,ambient,boiler_steam_out_bias,piston_ports
 root=Path(__file__).resolve().parents[1]
 checks=0
 
@@ -44,11 +44,22 @@ check(piston_accel(1,2,.25,10)==0,'piston damage cutoff')
 check(close(piston_accel(1,2,.25,1),.0012),'piston damage scale')
 a,b=exchange(300,20,400,4,.14)
 check(close(400*a+4*b,400*300+4*20),'weighted heat exchange')
+check(close(ambient(150),149.987),'boiler/condenser ambient loss')
+check(close(boiler_steam_out_bias(2,17.5),2/7),'boiler steam outlet bias')
+check(boiler_steam_out_bias(0,17.5)==0,'empty steam outlet bias')
+for z,expected in [(0,[0,1,1,0]),(.499999,[0,1,1,0]),(.5,[1,0,0,1]),(.75,[1,0,0,1])]:
+    check(list(piston_ports(z).values())==expected,'native piston valve factors')
+check(piston_ports(.25,10)['bypass_pairs']==(('A In','B In'),('A Out','B Out')),'damaged bypass pairing')
 parts=json.loads((root/'steam.json').read_text())['parts']
 for d in parts:
     t=d['subtype'];n=d['voxels']
     if t in [5,7]:check(d['coal_group_item_slots']==n,'coal voxel item capacity')
-    if t==3:check(d['shaft_weight_each_port']==20*n,'piston definition weight')
+    if t in [0,1]:check(d['ambient_coefficient_per_tick']==.0001,'phase component ambient coefficient')
+    if t==0:check(d['steam_out_bias']=='2.5*steam/phase_volume_internal','boiler bias metadata')
+    if t==3:
+        check(d['valve_swap_phase_turns']==.5,'piston valve boundary metadata')
+        check(d['damaged_bypass_pairs']==[list(pair) for pair in piston_ports(0,10)['bypass_pairs']],'piston bypass metadata')
+        check(d['shaft_weight_each_port']==20*n,'piston definition weight')
     if t==4:check(d['coal_group_item_slots']==10,'firebox inventory capacity')
 for n in [45,175]:
     c=Cycle(firebox_voxels=n)
