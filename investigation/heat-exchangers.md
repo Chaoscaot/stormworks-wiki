@@ -404,6 +404,51 @@ Replacement wording:
 Temp A and Temp B use C and report the two stored mixed-compartment temperatures after heat exchange and ambient relaxation. Packets emitted by earlier port calls can have different temperatures. Native size is the definition voxel count used in V=0.5*voxels per side; it gives 4 voxels for 2x2 and 25 for 5x5.
 
 
-## Retained files
+## Confidence and exact remaining boundaries
 
-`native/heat-exchangers/SHA256SUMS` lists every retained file with paths relative to the repository root. The Codex run that wrote this report stopped on an account credit limit before it wrote this section, so the parent session generated the checksum list. The directory holds 22 assembly excerpts, 19 pseudocode files, the definition and table extracts, the issue texts, `model.py` and `check_model.py`.
+Confidence is high for the per-definition volume chain, complete phase sums and coefficients, family q selection, four port arguments and ordering, raw ambient blend, enclosing-compartment override, controller recurrence and nominal rate conversion. The conclusions use original instruction bytes, decoded jump tables and numbered shipped-resource lines. Ghidra pseudocode is supporting evidence; unresolved switch tables and omitted floating-point arguments in its inferred signatures are not treated as source code. The target was not executed.
+
+The flow examples are conditional static-model results. Their independent affine steady calculation agrees with the stepped high-flow calculation. That checks the transcription's arithmetic under its stated assumptions; it does not validate an arbitrary real installation.
+
+Still open, with the ruled-out alternatives stated:
+
+1. Complete identities, registration rules and virtual implementations of the local environmental source services passed to `0x14030fd60`. The wrapper's arithmetic, position, weather base, enclosing override, max operations and final 400-degree expression are decoded. Weather alone, a binary air/water switch and a generic exponential sample filter are ruled out. This report does not infer every fire/heater/zone behavior from unnamed lists.
+2. Automatic exchanger startup fill, saved-state restoration and complete enclosing-compartment thermal evolution. The constructor and volume setter do not establish a universal operating inventory. Volume equals capacity in geometric units; it does not prove that a side starts full of a particular fluid. All model fills and gas pressures are explicit inputs. This boundary does not leave the q helper or volume formula open.
+3. A flow and outlet prediction for a particular complete vehicle whose graph, pressure boundaries, inventory and component order have not been supplied. The port solver and temperature transport are decoded. A universal exchanger flow rate, implicit internal pump, one-way port labels and a spatial counterflow coefficient are ruled out. The supplied prescribed-flow model checks local port bounds and includes low-flow transport, but it does not simulate the external operations maintaining its reservoirs or the complete delayed allocation graph. Arbitrary multiphase boundary mixtures are outside its pure-phase implementation; the report retains the all-species native routines.
+4. Physical joule/watt calibration and in-game validation. q is the selected stored native amount and the isolated q-weighted invariant is recovered. A conservative physical-flow heat balance is ruled out by the native recipient weighting and sequential low-flow exchange. No physical specific heat or measured effectiveness is claimed.
+
+The exact original gap quotations and replacement text above are also retained in `tools/issue-replacements.json`, generated from the four saved issue bodies. There are 3 dispositions for #6, 3 for #19, 5 for #20 and 5 for #38. Wiki, extractor, interactive-graph and website-check completion criteria remain downstream work for the authorized wiki editor. No wiki change or issue closure was made here.
+
+## Reproduction and retained files
+
+From the repository root, with GNU objdump available:
+
+```bash
+python3 -I investigation/native/heat-exchangers/tools/excerpt.py . /tmp/heat-exchanger-reproduced
+diff -ru investigation/native/heat-exchangers/asm /tmp/heat-exchanger-reproduced/asm
+diff -u investigation/native/heat-exchangers/tools/definitions.json /tmp/heat-exchanger-reproduced/tools/definitions.json
+diff -u investigation/native/heat-exchangers/tools/tables.json /tmp/heat-exchanger-reproduced/tools/tables.json
+diff -u investigation/native/heat-exchangers/tools/meter-resources.json /tmp/heat-exchanger-reproduced/tools/meter-resources.json
+python3 -I investigation/native/heat-exchangers/tools/check_model.py > /tmp/heat-exchanger-checks.json
+diff -u investigation/native/heat-exchangers/tools/examples.json /tmp/heat-exchanger-checks.json
+python3 -I investigation/native/heat-exchangers/tools/replacements.py > /tmp/heat-exchanger-replacements.md
+sha256sum -c investigation/native/heat-exchangers/SHA256SUMS
+```
+
+The extractor rejects a different executable hash. It reads resources and PE bytes and invokes objdump; it never executes the game or modifies source resources. The older liquid-liquid resource has numeric rotation attribute names accepted by the game but rejected by standard XML parsers. The script removes only those unrelated rotation tags in its temporary parse buffer; retained resource lines and hashes come from the original file.
+
+Fresh Ghidra 12.1.4 pseudocode was generated in `/tmp/heat-exchangers-ghidra` using the retained `DecompileAt.java`. It explicitly disassembles and creates each requested function without auto-analysis. To reproduce in a fresh scratch project, with `analyzeHeadless` and a suitable Java 21 installation available:
+
+```bash
+mkdir -p /tmp/heat-exchanger-ghidra-reproduced /tmp/heat-exchanger-pseudocode
+GHIDRA_HEADLESS_MAXMEM=6G analyzeHeadless /tmp/heat-exchanger-ghidra-reproduced heat \
+  -import "$PWD/stormworks64.exe" -noanalysis \
+  -scriptPath "$PWD/investigation/native/heat-exchangers/tools" \
+  -postScript DecompileAt.java /tmp/heat-exchanger-pseudocode \
+  0x14030fd60 0x1403100a0 0x1408cddd0 0x1408cde20 0x1403ef450 \
+  0x1403ef860 0x1402eb5e0 0x1402eb660 0x1402ec710 0x1402ed390 \
+  0x1402bbbb0 0x1402c15e0 0x1402c16d0 0x14030bd10 0x1402ec1a0 \
+  0x140290320 0x14019b570 0x14017a230 0x140900500
+```
+
+`native/heat-exchangers/SHA256SUMS` covers this report and every retained evidence/tool file with paths relative to the repository root. The directory contains 23 assembly excerpts, 19 pseudocode files, original-byte constant and jump-table extracts, ten numbered definition extracts, meter resource lines, four issue bodies, 16 exact quoted-gap dispositions, model outputs and reproduction tools. The only root `.gitignore` additions for this task are `!/investigation/heat-exchangers.md` and `!/investigation/native/heat-exchangers/`, appended without a blank line. No existing investigation, wiki or research file, commit, push or GitHub mutation is part of this work.

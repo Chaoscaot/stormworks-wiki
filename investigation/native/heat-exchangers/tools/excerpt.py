@@ -74,7 +74,10 @@ def main():
             bytes=pe.read(va,4).hex(' '), value=pe.value(va,'f'))
     tables['constants']['0x140bb0338'] = dict(offset=hex(pe.offset(0x140bb0338)),
         bytes=pe.read(0x140bb0338,8).hex(' '), value=pe.value(0x140bb0338,'d'))
-    (out/'tools'/'tables.json').write_text(json.dumps(tables,indent=2)+'\n')
+    for va in [0x140bb1f20,0x140bb1f90]:
+        tables['constants'][hex(va)] = dict(offset=hex(pe.offset(va)),
+            bytes=pe.read(va,4).hex(' '), uint32=hex(pe.value(va,'I')))
+    (out/'tools'/'tables.json').write_text(json.dumps(tables,indent=2,allow_nan=False)+'\n')
     definitions=[]
     for p in sorted((root/'rom/data/definitions').glob('*.xml')):
         data=p.read_bytes()

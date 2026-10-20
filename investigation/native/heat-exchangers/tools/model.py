@@ -9,6 +9,7 @@ These boundaries are analyst assumptions, not an arbitrary pump installation.
 import argparse
 from dataclasses import dataclass
 import json
+from math import isfinite
 from pathlib import Path
 
 def clamp(x, lo=0., hi=1.):
@@ -121,6 +122,12 @@ def run(variant='intercooler', flow_a=60., flow_b=60., inlet_a=100., inlet_b=20.
     row = definitions()[variant]
     v = row['voxels']*.5
     gas_a, gas_b = row['water_type'] in (17,18), row['water_type'] == 17
+    numeric = (flow_a,flow_b,inlet_a,inlet_b,ambient,fill,gas_pressure,
+               seconds,inlet_amount,outlet_amount)
+    if not all(isfinite(x) for x in numeric) or seconds < 1/60.:
+        raise ValueError('Require finite inputs and at least one 1/60-second update.')
+    if not 0. < inlet_amount <= 4. or not 0. < outlet_amount <= 4.:
+        raise ValueError('Boundary inventories must be positive and no greater than V=4.')
     if not 0. < fill <= 1. or not 0. < gas_pressure <= 60.:
         raise ValueError('Require 0<fill<=1 and 0<gas_pressure<=60.')
     a = State(v, v*gas_pressure/60. if gas_a else v*fill, inlet_a, gas_a)
