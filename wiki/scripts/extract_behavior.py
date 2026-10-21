@@ -4117,7 +4117,7 @@ def fluids(B, E):
     law = [N[k] for k in ("w_8", "w_half", "p_60", "p_eighth", "phase", "law", "pp_name", "t_pressure")]
     start = [N[k] for k in ("fill_099", "fill_q", "fill_gas", "fill_add", "start_gas", "spawn_room")]
     manual = [N[k] for k in ("m_gate", "m_bias", "m_oneway", "m_idle", "manual_env")]
-    rooms = [N["room_add"], N["room_v"]]
+    rooms = [N["room_add"], N["room_v"]] + [open_issues_native(E)[k] for k in ("v_add", "a_air", "a_atm", "f_out", "f_min")]
     B.category("Fluids",
                "Each connected run of open or enclosed pipe is one 40 L network; pumps add a pressure bias, which caps equal-pressure flow at 200 L/s for the small electric pump, 400 L/s for the large one and 60 L/s for the manual pump; tanks, hoses, connectors and filters move fluid between networks without merging them; fluid meters use one channel per fluid type.",
                [section("Moving fluid",
@@ -4131,7 +4131,8 @@ def fluids(B, E):
                         "Fluid arriving in a compartment is mixed by the compartment's amount after the move: T = (A' × T + q × T_donor) ÷ (A' + q). So 1 unit at 20 °C receiving 0.5 at 100 °C ends at 40 °C, not the 46.7 °C of ordinary mixing. Below 0.01 amount per update, radiator, manifold and two-way pump ports also exchange temperature directly at a rate of up to 0.1 ÷ volume per update, so heat crosses a port even with no net flow."),
                 section("Storage and temperature",
                         "Each listed voxel of a tank gives 15.625 L. Liquid tanks hold 31.25, 187.5 and 703.125 L and gas tanks 46.875, 109.375, 984.375 and 3515.625 L. Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s.",
-                        "A fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4.",
+                        "A fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4: a scan of the hull's wall bits counts half-cell steps inside. "
+                        "A custom compartment with no gas starts with air at 1 atm, and the same compartment state exchanges with the outside water and air when the hull floods (Fluid Spawner).",
                         "Diesel and jet-fuel tanks are filled by a separate spawn step: 0.99 × fill × V, capped to the fuel in stock on its inventory branch, plus V ÷ 60 of air. Saved tanks keep each compartment's 13 species amounts, total and temperature and the fill-pending flag."),
                 section("Identifying fluids",
                         "The liquid and gas meters share one composite layout: 1 water, 2 diesel, 3 jet fuel, 4 air, 5 CO2, 6 oil, 7 seawater, 8 steam, 9 slurry, 10 saturated slurry, 11 oxygen, 12 nitrogen, 13 hydrogen. Air is reported as the sum of oxygen, carbon dioxide and nitrogen."),
@@ -4140,7 +4141,7 @@ def fluids(B, E):
                p + [spawn, tank_leak, tank_s] + meters + N["damping"] + T["solver"] + T["electric"][:2] + T["impeller"][:2] + T["modular"][:1] + R +
                vols + links + law + start + manual + rooms + [tanks_ports_native(E)[k] for k in ("sp_099", "sp_60", "sp_cap", "sv_species", "sv_loop", "sv_pending")],
                ["Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. "
-                "Custom-compartment volume from wall geometry and hull flooding were not decoded. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
+                "How arbitrary wall shapes map to the custom-compartment volume scan, and which rules create and remove the openings that let a hull flood, were not traced. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced either. "
                 "The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.", TICK])
     B.family("electric-fluid-pump",
              "Pushes fluid with a bias of electrical supply × pump_pressure × Max Power; at equal pressure the small pump moves at most 200 L/s and the large one 400 L/s.",
@@ -5024,22 +5025,36 @@ def fluid_links(B, E):
     ends = [fg[k] for k in ("l_init", "l_recv", "l_held", "l_char", "l_rope2")]
     ends_s = ("Which end exchanges",
               "When a hose link between two components is completed, the end that started it gets the exchange flag for that side and the receiving end's flag is cleared, so the link exchanges once per update, from the starting end. "
-              "A cleared flag on one end does not mean the link is invalid. On hooks with two attachment positions the coupling name Rope 2 selects the second side. "
-              "A hose end held by a character is a separate link to that character: it clears the component's exchange flag and adds no second hook, so the hook-to-hook exchange does not run for it.")
+              "A cleared flag on one end does not mean the link is invalid. On hooks with two attachment positions the coupling name Rope 2 selects the second side.")
+    oi = open_issues_native(E)
+    attach = [oi[k] for k in ("h_pos", "h_limit", "h_cmp", "h_char", "h_flag2", "v_ends", "v_same", "v_match", "v_kind", "v_winch", "v_pulley", "v_free",
+                              "c_limit", "c_cmp", "c_load", "c_script", "c_editor")]
+    attach_s = ("Attaching a hose",
+                "Picking up a hose end makes a mechanical link between the hook and the character. It clears the hook's exchange flag on that side and adds no compartment or second hook, "
+                "so a carried hose moves no fluid to the character or into the world: it is not an open outlet. Attaching the free end to a second component completes the link, and the hook-to-hook exchange starts.\n\n"
+                "In normal interaction the two ends must be different components, and a second link between the same attachment points, in either order, is refused. "
+                "A fluid anchor takes another fluid anchor, a hose pulley or a winch, and a hose pulley takes a fluid anchor, another hose pulley or a winch. Electric and plain rope anchors and pulleys do not take a hose. "
+                "The chosen attachment point must be free. When picking up, the character must be within the link's distance limit of the attachment point, and when completing, the two attachment points must be within it; the limit is 40 m by default, and equal distance passes.\n\n"
+                "Other routes check less. Loading a saved vehicle rebuilds links with only the position and distance checks, without the subtype match or the free-point check, so an edited file can hold links that normal interaction refuses. "
+                "The spawnRope script function also skips the subtype match, and stores a deferred link when a body is not loaded. The editor rebuilds links without the character distance check; the position and distance checks apply when the link is built in the world.")
     simple("part-rope-hook-fluid", "Links the fluid networks at both ends of a hose with bias 0, both directions and exchange factor 0.5; hose length adds no volume or resistance.",
            [("Operating conditions", "A rope logic link between two anchors forms the hose. Each update the end that holds the link's exchange flag calls the two-port solver between the Fluid Node networks at the two ends with bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. When the far end is a hose pulley the link uses the pulley's matching port."),
-            ("Setup and interactions", "The anchor stores no fluid and the exchange reads no length, so a long hose moves fluid as readily as a short one."), ends_s],
-           rope + ends + [Tt("rope_hook_fluid"), A("rope_hook_fluid", "logic_gate_subtype", "Rope-hook subtype 1, the hose anchor."), P("rope_hook_fluid", "Fluid Node")],
-           ["Completed links exchange fluid once, through the end assigned to perform the exchange. A character-held loose hose uses a separate link path; its fluid operation and the complete attachment restrictions across the interaction, scripting, loading and editing paths remain untraced."])
+            ("Setup and interactions", "The anchor stores no fluid and the exchange reads no length, so a long hose moves fluid as readily as a short one."), ends_s, attach_s],
+           rope + ends + attach + [Tt("rope_hook_fluid"), A("rope_hook_fluid", "logic_gate_subtype", "Rope-hook subtype 1, the hose anchor."), P("rope_hook_fluid", "Fluid Node")],
+           ["The attachment checks were traced for normal interaction, saved links, the spawnRope script function and the editor's link reconstruction. "
+            "Other editor gestures, the code that later turns deferred link records into links, and indirect writers of a character's held link were not traced."])
     pulley_open = {
-        "part-winch-pulley-hose": "The hose pulley selects its linked side through reciprocal attachment pointers, and one end performs each exchange. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced.",
-        "part-winch-pulley-hose-corner": "The corner hose pulley uses the same end exchange scheme as the straight pulley. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced.",
+        "part-winch-pulley-hose": "The attachment checks were traced for normal interaction, saved links, the spawnRope script function and the editor's link reconstruction. "
+                                  "Other editor gestures and the code that later turns deferred link records into links were not traced.",
+        "part-winch-pulley-hose-corner": "The corner pulley has the straight pulley's subtype 8, so the same attachment checks apply. "
+                                         "Other editor gestures and the code that later turns deferred link records into links were not traced.",
     }
     for fid, bid in (("part-winch-pulley-hose", "winch_pulley_hose"), ("part-winch-pulley-hose-corner", "winch_pulley_hose_corner")):
         simple(fid, "Shares one 40 L fluid network between Fluid Node 1 and Fluid Node 2 and exchanges with linked hoses at factor 1.",
                [("Operating conditions", "The extra network builder gives a subtype 8 pulley one network of volume 4, 40 L, and registers both fluid ports in it, so fluid passes through the pulley freely. Exchanges started from the pulley use factor 1 instead of the hose links' 0.5. The network's volume does not change with deployed hose length."),
-                ("Linked side", "A hook linked to the pulley picks the pulley's port by the reciprocal attachment pointer: when the pulley's back pointer leads to that hook it uses the pulley's second fluid port, otherwise its first. As for every hose link, only the end holding the exchange flag runs the exchange.")],
-               rope + ends + [fg["l_side"], N["p_sub"], N["p_vol"], Tt(bid), A(bid, "logic_gate_subtype", "Rope-hook subtype 8, the hose pulley."), P(bid, "Fluid Node 1"), P(bid, "Fluid Node 2")], [pulley_open[fid]])
+                ("Linked side", "A hook linked to the pulley picks the pulley's port by the reciprocal attachment pointer: when the pulley's back pointer leads to that hook it uses the pulley's second fluid port, otherwise its first. As for every hose link, only the end holding the exchange flag runs the exchange."),
+                attach_s],
+               rope + ends + attach + [fg["l_side"], N["p_sub"], N["p_vol"], Tt(bid), A(bid, "logic_gate_subtype", "Rope-hook subtype 8, the hose pulley."), P(bid, "Fluid Node 1"), P(bid, "Fluid Node 2")], [pulley_open[fid]])
     simple("part-connector-water", "When attached, links its fluid network to the other connector's with bias 0, both directions and exchange factor 0.5; the two networks stay separate.",
            [("Operating conditions", "With an attached connector, a network on its Fluid port and the transfer flag set, each update calls the two-port solver between the two Fluid ports: bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. The connector holds no fluid and does not merge the networks, so each side keeps its own 40 L pipe pressure."),
             ("Setup and interactions", "Free flow in the tooltip means no bias and no species filter. The halved step limit still applies, so it is not unlimited flow.")],
@@ -5077,9 +5092,22 @@ def fluid_links(B, E):
            [("Operating conditions", "On the first build the spawner adds min(free room, 0.99 × fill × V) of the selected fluid to the compartment it sits in, where V is that compartment's volume. Air is split into nitrogen, oxygen and CO2. Diesel and jet fuel are skipped by this branch. Its tooltip says gases are spawned compressed at 60 atm; under the pressure law a compartment whose gas reaches A = V reads 60 atm."),
             ("Diesel and jet fuel", "Diesel and jet fuel are added by the request-gated fuel fill of a vehicle spawn, the same operation that fills diesel and jet-fuel tanks (see Fluid Tank). "
                                     "For a spawner with an enclosing compartment C it adds q = min(C.V − C.A, 0.99 × fill × C.V) of the selected fuel to C. On the inventory branch q is first capped to that fuel in stock, which then loses q. "
-                                    "The fuel is added to what C already holds, so q depends on earlier fills, other spawners and restored contents. Unlike a fuel tank, the spawner gets no air with it.")],
-           [N["spawn_room"], N["fill_call"], N["fill_099"], N["law"], N["room_add"], N["room_v"], Tt("water_spawner")] + sp_fuel,
-           ["Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded."])
+                                    "The fuel is added to what C already holds, so q depends on earlier fills, other spawners and restored contents. Unlike a fuel tank, the spawner gets no air with it."),
+            ("Compartment volume", "V comes from the hull's walls, not from the spawner's size. The hull builder sets one bit per oriented wall in a grid mask and then scans each column along one grid axis, starting outside. "
+                                   "Wall bits in neighbouring cells switch the scan in and out of the interior at half-cell steps. Each half inside adds 0.5 × 0.015625 × 100, so a fully enclosed sample adds 1.5625 (15.625 L) and a half sample 0.78125. "
+                                   "Wall orientation and shape change which halves count, so counting the cells inside the hull's bounding box gives a different V."),
+            ("Starting air", "After its spawner fuel step, the request-gated fill pass of a vehicle spawn gives each custom compartment that holds no gas an air amount of V ÷ 60, which reads 1 atm when the room holds nothing else. Gas already there, from a spawner or restored contents, is left as it is. "
+                             "The compartment's environment update then turns that air into 0.7896 nitrogen, 0.21 oxygen and 0.0004 carbon dioxide per unit. An empty room therefore starts with air, not vacuum or pure oxygen."),
+            ("Flooding", "The spawner's fluid sits in the same compartment state that hull flooding uses; it is not a tank sealed off from the hull. "
+                         "For each connection the flooding pass samples the outside, which is air above the water surface, water below it, or another compartment, and compares it with the connected compartment. "
+                         "Fluid moves from the higher to the lower pressure: q = min(source amount, destination free room, 0.1 × (P_source − P_destination)), and nothing moves unless all three are above 0. "
+                         "Gases move in proportion to each gas's share of the source's gas, liquids to each liquid's share of its liquid. "
+                         "Pressure follows the compartment law of the Fluids category. The rate therefore depends on the hull, its openings, its pose, the outside water and the contents, so no fixed amount per hole applies.")],
+           [N["spawn_room"], N["fill_call"], N["fill_099"], N["law"], N["room_add"], N["room_v"], Tt("water_spawner")] + sp_fuel
+           + [oi[k] for k in ("w_bit", "v_s", "v_100", "v_half", "v_add", "v_masks", "v_sample", "a_read", "a_div", "a_air", "a_conv", "a_n2", "a_o2", "a_co2", "a_atm",
+                              "f_out", "f_rate", "f_dp", "f_min", "f_split", "f_move")] + [tp["sp_60"]],
+           ["The mapping from arbitrary wall blocks, wedges, rotated parts and damage to the scan's wall bits was not traced, and neither were the rules that create and remove openings between compartments and the outside "
+            "or the outside depth and environment queries."])
 
 def engines(B, E):
     C = classic_engine(E)
@@ -5157,6 +5185,8 @@ def engines(B, E):
                       "Throttle is clamped to 0 to 1, although the tooltip describes -1 to 1, and the RPS Limiter, 0.99 retention, heating and overheat rules match the diesels."),
               section("Why it does not run on its own",
                       "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments: the constructor clears them and the current serializer does not save them, so the supply gate holds the effective throttle at 0. "
+                      "The engine fills those compartments only through its port exchange, which returns at once for a port with no connected network, so a missing port is not a hidden air or fuel source. "
+                      "The environment update touches only the coolant compartment. "
                       "Only the coolant compartment starts filled, with 100 L of fresh water. electric_magnitude 0 makes the starter request 0, even with infinite electricity. "
                       "Derived from the traced paths, not tested in game: a new turbine at rest does not start itself. With infinite_fuel on and its shaft spun above 2 RPS by another component, it gains speed like a diesel with W = 50."),
               section("Shaft and load",
@@ -5170,11 +5200,14 @@ def engines(B, E):
                       "turbine.xml has type 5, so the factory calls the classic engine constructor, and the reader then binds the definition, restores the saved state and initializes the part. "
                       "Neither the reader nor the factory tests the Deprecated bit, and nothing on this route replaces the part with a modular jet or migrates it. "
                       "A saved vehicle that contains a Turbine Engine therefore loads it as the original classic engine: the catalog skip keeps it out of the parts list but does not reject it on load. "
-                      "The construction factory calls the same constructor, so internal construction paths can still build one; this does not give scripts a way to place an arbitrary part.")],
+                      "The construction factory calls the same constructor, so internal construction paths can still build one; this does not give scripts a way to place an arbitrary part.",
+                      "The vehicle reader picks the XML or the binary component reader by the file's serialization mode, and both reach the same factory. A readable older file whose component resolves to turbine therefore also gets the classic engine. "
+                      "The mode is a format selector, not a game version.")],
              [turbine, t_mag, t_weight, t_tip] + t_ports + C["identity"] + C["speed"] + [f["inf_fuel"], f["f_force"], f["gate"], f["heat"], f["heat_s"], f["s_target"], f["starter"], f["coolant"]]
-             + t_dep + [na["cc_intake"], na["cc_fuel"]] + [oi[k] for k in ("tl_type", "tl_call", "tl_ctor", "tl_def", "tl_load", "tl_route")],
-             ["Static analysis of one build; the game was not run. Whether a writer reached indirectly through a world, script, editor, copy or load path fills the private fuel or intake compartments was not traced: "
-              "the search covered direct stores at their offsets and the generic environment update, which touches only the coolant. Vehicle files from formats older than the current reader were not traced either.", TICK])
+             + t_dep + [na["cc_intake"], na["cc_fuel"]] + [oi[k] for k in ("tl_type", "tl_call", "tl_ctor", "tl_def", "tl_load", "tl_route", "e_port", "e_null", "e_env", "e_save", "e_mode", "e_xml", "e_bin", "e_route")],
+             ["Static analysis of one build; the game was not run. The checked engine, environment, serializer and loading paths add no fuel or intake. "
+              "Copy and clone code, every virtual dispatch target and pointer aliases were not traced, so a writer to the private fuel or intake compartments outside those paths is not ruled out. "
+              "Format migrations that run before the vehicle reader's dispatch, and which historical files still reach that reader, were not traced either.", TICK])
 
 
 # propulsion pass; files under investigation/native/propulsion/, report investigation/propulsion.md.
@@ -12486,12 +12519,45 @@ def followups_native(E):
     return t
 
 
-# Open-issue pass: pumpjack piston source, deposit selection and scheduling, and the legacy turbine load route;
+# Open-issue pass: pumpjack piston source, deposit selection and scheduling, the legacy turbine load route,
+# hose attachment checks, the turbine's indirect writers and custom-compartment volume, air and flooding;
 # files under investigation/native/open-issues/.
 OI_REPORT = "investigation/open-issues.md"
 _OI = "open-issues/"
 OIL_UPDATE_SLOT = 0x140B836F8   # slot +0x358 of c_scene_vehicle_component_oil_rig: the oil update 0x14044fd00
-OI_PSEUDO = {F_JOINT: "0x140357ca0.c", F_WELL: "14044fd00.c", F_COMP_LOAD: "0x1404b81f0.c", F_FACTORY_B: "0x1404b8f30.c"}
+F_LINK_CHECK = 0x140524566   # chained unwind chunk of the interaction link validator 0x140524540
+F_HOOK_MATCH = 0x140524860   # rope-hook subtype compatibility helper (leaf)
+F_HOOK_FREE = 0x1405247E0    # attachment selection check: calls the occupancy lookup
+F_LINK_LOAD = 0x14051D85F    # chained unwind chunk of the saved-link reconstruction 0x14051d830
+F_SPAWN_ROPE = 0x1407359F0   # world implementation behind the registered spawnRope wrapper 0x1405af7a0
+F_EDITOR_LINKS = 0x140782AB0  # editor reconstruction of rope and hose links
+F_PORT_GATE = 0x1402EC710    # entry chunk of the port exchange: null connected-network gate
+F_ENV_ARM = 0x14049DAA4      # chained unwind chunk of the component environment update 0x14049d7b0
+F_ENGINE_SAVE = 0x14034E6AB  # chained unwind chunk of the classic engine serializer 0x14034e570
+F_VEHICLE_READ = 0x1404ADB90  # vehicle serializer: XML or binary component reader by serialization mode
+F_WALL_BIT = 0x1402F5A30     # oriented wall bit insertion into the hull grid mask
+F_HULL_ENV = 0x14049D7B0     # custom-compartment environment update: legacy air conversion
+F_AIR_SPLIT = 0x1402EB270    # legacy air to nitrogen, oxygen and carbon dioxide (leaf)
+F_FLOOD = 0x14049CBC0        # connection-group pass: outside state and compartment transfer
+OI_PSEUDO = {F_JOINT: "0x140357ca0.c", F_WELL: "14044fd00.c", F_COMP_LOAD: "0x1404b81f0.c", F_FACTORY_B: "0x1404b8f30.c",
+             F_HELD_LINK: "0x1405209d0.c", F_LINK_CHECK: "0x140524540.c", F_HOOK_MATCH: "0x140524860.c", F_HOSE_LINK: "140521500.c",
+             F_LINK_LOAD: "0x14051d830.c", F_SPAWN_ROPE: "0x1407359f0.c", F_EDITOR_LINKS: "0x140782ab0.c", F_ENGINE_CLASSIC: "0x14034ba00.c",
+             F_PORT_GATE: "0x1402ec710.c", F_ENV_ARM: "0x14049d7b0.c", F_ENGINE_SAVE: "0x14034e570.c", F_VEHICLE_READ: "0x1404adb90.c",
+             F_WALL_BIT: "0x1402f5a30.c", F_ROOM_VOLUME: "1402f5cd0.c", F_SPAWN_FILL: "0x1405dafa0.c", F_HULL_ENV: "0x14049d7b0.c",
+             F_AIR_SPLIT: "0x1402eb270.c", F_FLOOD: "0x14049cbc0.c"}
+# Interior scan masks of the volume builder: the individual bit tests at each address, ORed per group.
+OI_MASKS = {
+    "start_previous": (0x10410410, ((0x1402F5F7F, "a810"), (0x1402F5F83, "48a900040000"), (0x1402F5F8B, "48a900000100"), (0x1402F5F93, "48a900004000"), (0x1402F5F9B, "48a900000010"))),
+    "stop_middle": (0x00F30C4C40000000, ((0x1402F5FB1, "48a900000040"),) + tuple((a, "48ba" + h) for a, h in (
+        (0x1402F5FBD, "0000000004000000"), (0x1402F5FD0, "0000000008000000"), (0x1402F5FE3, "0000000040000000"), (0x1402F5FF2, "0000000000040000"),
+        (0x1402F6001, "0000000000080000"), (0x1402F6010, "0000000000000100"), (0x1402F601F, "0000000000000200"), (0x1402F602E, "0000000000001000"),
+        (0x1402F603D, "0000000000002000"), (0x1402F604C, "0000000000004000"), (0x1402F605B, "0000000000008000")))),
+    "start_middle": (0x030CF31100000000, tuple((a, "48ba" + h) for a, h in (
+        (0x1402F606D, "0000000001000000"), (0x1402F6080, "0000000000020000"), (0x1402F6093, "0000000000010000"), (0x1402F60A6, "0000000010000000"),
+        (0x1402F60B5, "0000000000200000"), (0x1402F60C4, "0000000000100000"), (0x1402F60D3, "0000000000800000"), (0x1402F60E2, "0000000000400000"),
+        (0x1402F60F1, "0000000000000800"), (0x1402F6100, "0000000000000400"), (0x1402F610F, "0000000000000002"), (0x1402F611E, "0000000000000001")))),
+    "stop_next": (0x20820820, ((0x1402F613C, "a820"), (0x1402F6140, "48a900080000"), (0x1402F6148, "48a900000200"), (0x1402F6150, "48a900008000"), (0x1402F6158, "48a900000020"))),
+}
 
 
 def _oi_cite(E, func, address, hexbytes, listing):
@@ -12499,13 +12565,14 @@ def _oi_cite(E, func, address, hexbytes, listing):
     k = (func, address)
     old = WHERE.pop(k, None)
     _wheel_cite(E, func, address, hexbytes, listing=_OI + "asm/" + listing)
-    WHERE[k] += "; ../" + _OI + "pseudocode/" + OI_PSEUDO[func]
+    if func in OI_PSEUDO:
+        WHERE[k] += "; ../" + _OI + "pseudocode/" + OI_PSEUDO[func]
     if old is not None and old != WHERE[k]:
         raise ValueError("%#x@%#x is already cited from another listing" % k)
 
 
 def open_issues_native(E):
-    """Pumpjack piston position, well deposit selection, oil update scheduling and the turbine load route, verified once and shared."""
+    """Pumpjack piston, deposit selection and scheduling, turbine load route and fuel sources, hose attachment checks and custom-compartment volume, air and flooding, verified once and shared."""
     if hasattr(E, "open_issues"):
         return E.open_issues
     n = E.native
@@ -12581,6 +12648,145 @@ def open_issues_native(E):
                               "A saved component whose name matches turbine is therefore built by the classic engine constructor and restored like any other part; the catalog's Deprecated skip does not apply to loading. "
                               "No turbine-specific migration and no modular-jet replacement appears on this route. The construction factory 0x14045dd20 calls the same constructor (0x14045ded8)." + rep,
                               [t["tl_type"], t["tl_call"], t["tl_ctor"], t["tl_def"], t["tl_load"]])
+
+    def op(func, listing, address, hexbytes, target, label, detail):
+        _oi_cite(E, func, address, hexbytes, listing)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    # Hose links: the held end, the interaction checks, and the load, script and editor routes.
+    hc = "held-constructor.asm"
+    t["h_pos"] = code(F_HELD_LINK, hc, 0x140520A8A, "e83130faff", "Held end attachment position", "call 0x1404c3ac0",
+                      "The held-end constructor resolves the component's attachment position in world space. A failed lookup (tested at 0x140520baa) creates no link.")
+    t["h_limit"] = op(F_HELD_LINK, hc, 0x140520B4E, "f30f1035d6fb6800", 0x140BB072C, "Default hose link distance limit",
+                      "Loaded when the caller passes a limit of 0; any other limit is used as given.")
+    t["h_cmp"] = code(F_HELD_LINK, hc, 0x140520B9F, "0f2ffe", "Held end distance test", "d ≤ limit",
+                      "Compares d = sqrt(dx² + dy² + dz²), from the character's position to the attachment point and rounded to binary32, with the limit and creates no link when d is larger. Equal distance passes.")
+    t["h_char"] = code(F_HELD_LINK, hc, 0x140520C9A, "4c897e30", "Character end of the held link", "link+0x30",
+                       "Stores the character as the link's second end. No second compartment and no second rope-hook component are created.")
+    t["h_flag2"] = code(F_HELD_LINK, hc, 0x140520DBB, "c687a90a000000", "Held end clears the second-side exchange flag", "0",
+                        "When the attachment named Rope 2 was picked, clears the hook's second-side flag (+0xaa9); the other attachment clears the first-side flag (+0xaa8, at 0x140520ea4). "
+                        "The carried link therefore moves no fluid between the hook, the character or the world until it is completed.")
+    lv = "link-validation.asm"
+    t["v_ends"] = code(F_LINK_CHECK, lv, 0x140524579, "4d85c0", "Link check: first end", "component required",
+                       "The interaction validator 0x140524540 requires the first end (here) and the second end (0x140524582) and rejects equal ends at 0x14052458b. "
+                       "It then rejects a pair that an existing link already joins at the same attachment coordinates, in either order.")
+    t["v_same"] = code(F_LINK_CHECK, lv, 0x14052458B, "4c3bc3", "Link check: same component", "rejected",
+                       "A link from a component to itself is refused.")
+    t["v_match"] = code(F_LINK_CHECK, lv, 0x1405246AE, "e8ad010000", "Link check calls the subtype match", "call 0x140524860",
+                        "After the duplicate scan the validator accepts the pair only when the subtype helper returns true. The link constructors do not call this helper.")
+    if n.raw(0x1405249BC, 3) != bytes.fromhex("83f901"):
+        raise ValueError("Fluid-anchor subtype test moved from 0x1405249bc")
+    t["v_kind"] = code(F_HOOK_MATCH, lv, 0x140524916, "83fa01", "Hose link kind", "kind 1",
+                       "The subtype helper compares each end's rope-hook subtype (definition+0xe74) with the link kind. For kind 1, the hose, it accepts fluid anchor (subtype 1, also tested at 0x1405249bc, bytes 83 f9 01) with fluid anchor, hose pulley or winch, "
+                       "hose pulley with fluid anchor, hose pulley or winch, and winch with winch. Electric anchors and pulleys and plain rope anchors and pulleys do not match a hose. The straight and corner hose pulleys share subtype 8.")
+    t["v_winch"] = code(F_HOOK_MATCH, lv, 0x1405248F7, "4183f803", "Winch subtype in the match", "subtype 3",
+                        "A winch end matches another winch, or the anchor and pulley of the selected kind.")
+    t["v_pulley"] = code(F_HOOK_MATCH, lv, 0x14052491F, "83f908", "Hose pulley subtype in the match", "subtype 8",
+                         "Tested only on the hose kind's branch.")
+    t["v_free"] = code(F_HOOK_FREE, lv, 0x140524835, "e8c63e0000", "Attachment occupancy lookup", "call 0x140528700",
+                       "Before a link is started, a picked attachment of a hook with a positive subtype must be free: the lookup compares the component and the exact local attachment coordinates with both ends of every existing link. "
+                       "The interaction handler repeats this check before it creates a held link.")
+    cc = "complete-constructor.asm"
+    t["c_limit"] = op(F_HOSE_LINK, cc, 0x1405217D9, "f30f10354bef6800", 0x140BB072C, "Completed link default distance limit",
+                      "The completed component-to-component constructor also defaults a limit of 0 to this value.")
+    t["c_cmp"] = code(F_HOSE_LINK, cc, 0x14052183E, "0f2ffe", "Completed link distance test", "d ≤ limit",
+                      "Creates the link only when both attachment-position lookups succeed and the distance between the two attachment points is at most the limit.")
+    t["c_load"] = code(F_LINK_LOAD, "load-links.asm", 0x14051D923, "83b8740e000007", "Saved link reconstruction", "skips a pair of net hooks (subtype 7)",
+                       "The saved-link reader 0x14051d830 needs both ends and their rope hooks, skips a pair of net hooks, maps pulley and winch subtypes to the saved link kind and calls the completed constructor with the default limit. "
+                       "It calls neither the subtype match nor the occupancy lookup.")
+    t["c_script"] = code(F_SPAWN_ROPE, "script-spawn-rope.asm", 0x140735C12, "e8e9b8deff", "spawnRope builds a completed link", "call 0x140521500",
+                         "The spawnRope wrapper 0x1405af7a0 forwards both ends, their coordinates, the length and the link kind to this world routine. With both bodies loaded it calls the completed constructor; otherwise it stores a deferred link record. "
+                         "Neither branch calls the subtype match.")
+    t["c_editor"] = code(F_EDITOR_LINKS, "editor-hose-filter.asm", 0x140783B18, "83b9740e000008", "Editor link reconstruction", "hose pulley subtype 8",
+                         "The editor routine identifies winches and the matching pulley family from both end definitions, records the link kind and end coordinates and stores deferred link records. "
+                         "It applies no character distance check there; the runtime constructor still checks positions and distance later.")
+    # Turbine: the port exchange's null gate, the environment arm, the serializer and the format dispatch.
+    t["e_port"] = code(F_ENGINE_CLASSIC, "engine-exchange-sites.asm", 0x14034BEF9, "e81208faff", "Engine port exchange", "call 0x1402ec710",
+                       "The classic engine update exchanges a port with its private container through the port exchange, passing the port descriptor and the container.")
+    t["e_null"] = code(F_PORT_GATE, "engine-port-null-gate.asm", 0x1402EC73B, "0f84300c0000", "Port exchange without a network", "returns at once",
+                       "Reads the port's connected-network pointer (descriptor+0x20, at 0x1402ec71b), tests it (0x1402ec738) and returns when it is null. A port with no network is not an implicit air or fuel source.")
+    t["e_env"] = code(F_ENV_ARM, "hull-ambient-update.asm", 0x14049DE78, "f30f11b838040000", "Engine environment arm", "coolant+0x438",
+                      "The component environment update reaches the classic engine through its class getter, writes the coolant compartment's two environment fields (+0x438, and +0x43c at 0x14049de80) "
+                      "and passes the coolant state to the legacy-air conversion (0x14049de8f). It writes neither the private fuel nor the intake container.")
+    t["e_save"] = code(F_ENGINE_SAVE, "engine-serializer.asm", 0x14034E810, "e8fb325b00", "Engine serializer descriptors", "port descriptors at +0x1f8 and +0x398",
+                       "The serializer's two extra helper calls (0x14034e810, 0x14034e82e) receive port and exhaust descriptors (lea at 0x14034e7f7 and 0x14034e815), not the private fuel or intake state.")
+    t["e_mode"] = code(F_VEHICLE_READ, "vehicle-format-dispatch.asm", 0x1404ADD58, "8b4620", "Vehicle serialization mode", "mode field +0x20",
+                       "The vehicle serializer reads its serialization mode and calls the XML component reader 0x1404b81f0 (0x1404add76) or the binary component reader 0x1404b89d0 (0x1404add93). "
+                       "Both reach the shared component factory and the part's initializer. The mode is a file format selector, not a game release number.")
+    t["e_xml"] = code(F_VEHICLE_READ, "vehicle-format-dispatch.asm", 0x1404ADD76, "e875a40000", "XML component reader dispatch", "call 0x1404b81f0",
+                      "The reader that resolves a saved definition name and calls the factory.")
+    t["e_bin"] = code(F_VEHICLE_READ, "vehicle-format-dispatch.asm", 0x1404ADD93, "e838ac0000", "Binary component reader dispatch", "call 0x1404b89d0",
+                      "The other format's reader, which also calls the component factory.")
+    t["e_route"] = E.derived("Turbine fuel and intake sources", "none on the checked paths",
+                             "The engine exchanges fuel and intake only through its declared ports, and the port exchange returns for a port without a network; turbine.xml declares no fluid port. "
+                             "The environment arm writes only the coolant, the serializer's extra helpers take port descriptors, and both component readers lead to the same factory and constructor. "
+                             "Copy and clone code, every virtual dispatch target and pointer aliases were outside this check." + rep,
+                             [t["e_port"], t["e_null"], t["e_env"], t["e_save"], t["e_mode"]])
+    # Custom compartments: wall-mask volume, default air and flooding.
+    t["w_bit"] = code(F_WALL_BIT, "wall-mask-insert.asm", 0x1402F5C78, "4c0fabe2", "Oriented wall bit", "bit set in the grid mask",
+                      "The hull geometry builder 0x140486ca0 inserts each oriented wall through this routine, which sets the bit of the wall's orientation ID at its grid position.")
+    vb = "volume-builder.asm"
+    t["v_s"] = op(F_ROOM_VOLUME, vb, 0x1402F5D40, "f30f1035349c8b00", 0x140BAF97C, "Volume sample multiplier",
+                  "Each counted sample's weight is multiplied by this and by 100 (0x1402f5d4c).")
+    t["v_100"] = op(F_ROOM_VOLUME, vb, 0x1402F5D4C, "f30f103d3caa8b00", 0x140BB0790, "Volume scale",
+                    "The second multiplier of each sample.")
+    t["v_half"] = op(F_ROOM_VOLUME, vb, 0x1402F5D59, "f3440f10055a9f8b00", 0x140BAFCBC, "Half-cell weight",
+                     "Each of the two half-cell states of a sample adds this weight when it is inside.")
+    t["v_add"] = code(F_ROOM_VOLUME, vb, 0x1402F6191, "f3410f58d0", "Second half-cell weight", "w = 0.5 × p + 0.5 × q",
+                      "Adds the second half's weight. The scan walks each column along the third grid axis from outside; wall bits of the previous, current and next mask records switch the first half p and the second half q in or out, and q carries into the next sample.")
+    for group, (mask, tests) in OI_MASKS.items():
+        bits = 0
+        for address, hexbytes in tests:
+            raw = bytes.fromhex(hexbytes)
+            if n.raw(address, len(raw)) != raw:
+                raise ValueError("Volume mask test differs at %#x" % address)
+            bits |= int.from_bytes(raw[1:] if raw[0] == 0xA8 else raw[2:], "little")
+        if bits != mask:
+            raise ValueError("Volume mask %s is %#x, not %#x" % (group, bits, mask))
+    first = {g: OI_MASKS[g][1][0] for g in OI_MASKS}
+    t["v_masks"] = E.derived("Volume scan wall masks", ", ".join("%s %#x" % (g, OI_MASKS[g][0]) for g in OI_MASKS),
+                             "ORs of the individual bit tests in the scan loop, re-read byte by byte by the extractor (first tests at %s). "
+                             "p = inside or any(previous & start_previous); q = (p and not any(current & stop_middle)) or any(current & start_middle); inside = q and not any(next & stop_next). "
+                             "Each column starts outside, and a missing mask record adds no bits." % ", ".join("%#x" % first[g][0] for g in OI_MASKS) + rep,
+                             [t["w_bit"], t["v_add"]])
+    t["v_sample"] = E.derived("Volume per sample", "full 1.5625, half 0.78125",
+                              "0.5 + 0.5 = 1 for a sample with both halves inside, × 0.015625 × 100 = 1.5625 volume units (15.625 L); one half gives 0.78125. "
+                              "The builder stores the binary32 sum as the compartment's volume. Wall orientation and shape change the counted halves, so counting cells in a bounding box gives a different volume." + rep,
+                              [t["v_half"], t["v_s"], t["v_100"], t["v_add"]])
+    af = "ambient-fill.asm"
+    t["a_read"] = code(F_SPAWN_FILL, af, 0x1405DC8D6, "f3410f104038", "Default air: room volume", "compartment+0x38",
+                       "In the request-gated fill pass, after the spawner fill arms, the custom-room loop reaches this when the room's cached amount is 0 or less, or when its gas species, summed through the jump table at 0x1405dc8bc, total 0. "
+                       "A room that already holds gas skips it.")
+    t["a_div"] = code(F_SPAWN_FILL, af, 0x1405DC8DC, "f3410f5ec5", "Default air: divide by 60", "V ÷ 60",
+                      "Divides the volume by xmm13, which the pass loads with binary32 60 at 0x1405db0c8.")
+    t["a_air"] = code(F_SPAWN_FILL, af, 0x1405DC8E1, "f3410f114048", "Default air store", "air = V ÷ 60",
+                      "Stores the result in the legacy-air slot (+0x48) and as the cached amount (+0x70, at 0x1405dc8e7). Other species slots are not written here.")
+    t["a_conv"] = code(F_HULL_ENV, "hull-ambient-update.asm", 0x14049DA69, "e802d8e4ff", "Room air conversion call", "call 0x1402eb270",
+                       "The regular environment update of each custom compartment passes the room's fluid state (+0x30) to the legacy-air conversion.")
+    ah = "ambient-helper.asm"
+    t["a_n2"] = op(F_AIR_SPLIT, ah, 0x1402EB287, "f30f5905394b8c00", 0x140BAFDC8, "Air to nitrogen",
+                   "For positive legacy air A the conversion clears the air slot and adds A × this to nitrogen.")
+    t["a_o2"] = op(F_AIR_SPLIT, ah, 0x1402EB292, "f30f590dea488c00", 0x140BAFB84, "Air to oxygen", "Adds A × this to oxygen.")
+    t["a_co2"] = op(F_AIR_SPLIT, ah, 0x1402EB29A, "f30f59152a468c00", 0x140BAF8CC, "Air to carbon dioxide", "Adds A × this to carbon dioxide.")
+    N = fluid_network(E)
+    t["a_atm"] = E.derived("Default room air pressure", "1 atm",
+                           "With gas only, the pressure law gives P = 60 × A ÷ V, so A = V ÷ 60 reads 60 × (V ÷ 60) ÷ V = 1 atm, before and after the air is split into nitrogen, oxygen and carbon dioxide." + rep,
+                           [t["a_air"], N["law"]])
+    ft = "hull-flood-transfer.asm"
+    t["f_out"] = code(F_FLOOD, ft, 0x14049D1A3, "e8784de7ff", "Outside state for a connection", "call 0x140311f20",
+                      "The connection-group pass samples the connection's world-space region and gets the outside fluid state: air above the water surface, water below it, or a supplied compartment's state. "
+                      "It then compares that state with the connected compartments, so outside water and air enter the same transfer as room-to-room contents.")
+    t["f_rate"] = op(F_FLOOD, ft, 0x14049D00B, "f3440f1025bc2a7100", 0x140BAFAD0, "Flood transfer rate",
+                     "Loaded once for the pass and multiplied with the pressure difference at 0x14049d435.")
+    t["f_dp"] = code(F_FLOOD, ft, 0x14049D435, "f3410f59e4", "Flood pressure budget", "0.1 × (P_source − P_destination)",
+                     "The pressures come from the compartment pressure helper 0x1402eb460, the same law as tanks and pipes.")
+    t["f_min"] = code(F_FLOOD, ft, 0x14049D453, "f30f5dec", "Flood transfer amount", "q = min(source amount, destination room, budget)",
+                      "Takes the smaller of the source amount and the destination's free room (minss at 0x14049d44c), then of that and the pressure budget. "
+                      "The species pass runs only when the source amount, the budget and the free room are all above 0 (0x14049d457 to 0x14049d46c).")
+    t["f_split"] = code(F_FLOOD, ft, 0x14049D4AC, "e8afe1e4ff", "Flood species share", "gas sum 0x1402eb660",
+                        "Through the species jump table (0x14049d49b) each gas moves q × its amount ÷ the source's gas sum, and each liquid the same against the liquid sum, clamped to 0 and to the amount available.")
+    t["f_move"] = code(F_FLOOD, ft, 0x14049D4CA, "f30f111b", "Flood species added", "destination + share",
+                       "Subtracts the share from the source (0x14049d4c1) and adds it to the destination; afterwards both cached amounts are recomputed from the species.")
     E.open_issues = t
     return t
 

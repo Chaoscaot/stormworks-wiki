@@ -1,0 +1,55 @@
+   14049dd00:	e8 7b c6 cd ff                                  	call   0x14017a380
+   14049dd05:	48 8d 95 80 00 00 00                            	lea    rdx,[rbp+0x80]
+   14049dd0c:	4c 8d 45 98                                     	lea    r8,[rbp-0x68]
+   14049dd10:	48 8d 4d 50                                     	lea    rcx,[rbp+0x50]
+   14049dd14:	e8 a7 74 ce ff                                  	call   0x1401851c0
+   14049dd19:	49 8b cd                                        	mov    rcx,r13
+   14049dd1c:	f2 0f 10 70 08                                  	movsd  xmm6,QWORD PTR [rax+0x8]
+   14049dd21:	f2 0f 10 78 20                                  	movsd  xmm7,QWORD PTR [rax+0x20]
+   14049dd26:	49 8b 45 00                                     	mov    rax,QWORD PTR [r13+0x0]
+   14049dd2a:	66 0f 5a f6                                     	cvtpd2ps xmm6,xmm6
+   14049dd2e:	66 0f 5a ff                                     	cvtpd2ps xmm7,xmm7
+   14049dd32:	ff 90 c0 00 00 00                               	call   QWORD PTR [rax+0xc0]
+   14049dd38:	49 8b 55 00                                     	mov    rdx,QWORD PTR [r13+0x0]
+   14049dd3c:	49 8b cd                                        	mov    rcx,r13
+   14049dd3f:	48 85 c0                                        	test   rax,rax
+   14049dd42:	74 65                                           	je     0x14049dda9
+   14049dd44:	ff 92 c0 00 00 00                               	call   QWORD PTR [rdx+0xc0]
+   14049dd4a:	49 8b cd                                        	mov    rcx,r13
+   14049dd4d:	f3 0f 11 b8 98 05 00 00                         	movss  DWORD PTR [rax+0x598],xmm7
+   14049dd55:	f3 0f 11 b0 9c 05 00 00                         	movss  DWORD PTR [rax+0x59c],xmm6
+   14049dd5d:	49 8b 45 00                                     	mov    rax,QWORD PTR [r13+0x0]
+   14049dd61:	ff 90 c0 00 00 00                               	call   QWORD PTR [rax+0xc0]
+   14049dd67:	48 8d 88 98 05 00 00                            	lea    rcx,[rax+0x598]
+   14049dd6e:	e8 fd d4 e4 ff                                  	call   0x1402eb270
+   14049dd73:	49 8b 45 00                                     	mov    rax,QWORD PTR [r13+0x0]
+   14049dd77:	49 8b cd                                        	mov    rcx,r13
+   14049dd7a:	ff 90 c0 00 00 00                               	call   QWORD PTR [rax+0xc0]
+   14049dd80:	49 8b cd                                        	mov    rcx,r13
+   14049dd83:	f3 0f 11 b8 e4 05 00 00                         	movss  DWORD PTR [rax+0x5e4],xmm7
+   14049dd8b:	f3 0f 11 b0 e8 05 00 00                         	movss  DWORD PTR [rax+0x5e8],xmm6
+   14049dd93:	49 8b 45 00                                     	mov    rax,QWORD PTR [r13+0x0]
+   14049dd97:	ff 90 c0 00 00 00                               	call   QWORD PTR [rax+0xc0]
+   14049dd9d:	48 8d 88 e4 05 00 00                            	lea    rcx,[rax+0x5e4]
+   14049dda4:	e9 4d 02 00 00                                  	jmp    0x14049dff6
+   14049dda9:	ff 92 a8 00 00 00                               	call   QWORD PTR [rdx+0xa8]
+   14049ddaf:	49 8b 55 00                                     	mov    rdx,QWORD PTR [r13+0x0]
+   14049ddb3:	49 8b cd                                        	mov    rcx,r13
+   14049ddb6:	48 85 c0                                        	test   rax,rax
+   14049ddb9:	74 2f                                           	je     0x14049ddea
+   14049ddbb:	ff 92 a8 00 00 00                               	call   QWORD PTR [rdx+0xa8]
+   14049ddc1:	49 8b cd                                        	mov    rcx,r13
+   14049ddc4:	f3 0f 11 b8 4c 04 00 00                         	movss  DWORD PTR [rax+0x44c],xmm7
+   14049ddcc:	f3 0f 11 b0 50 04 00 00                         	movss  DWORD PTR [rax+0x450],xmm6
+   14049ddd4:	49 8b 45 00                                     	mov    rax,QWORD PTR [r13+0x0]
+   14049ddd8:	ff 90 a8 00 00 00                               	call   QWORD PTR [rax+0xa8]
+   14049ddde:	48 8d 88 4c 04 00 00                            	lea    rcx,[rax+0x44c]
+   14049dde5:	e9 0c 02 00 00                                  	jmp    0x14049dff6
+   14049ddea:	ff 52 78                                        	call   QWORD PTR [rdx+0x78]
+   14049dded:	49 8b 55 00                                     	mov    rdx,QWORD PTR [r13+0x0]
+   14049ddf1:	49 8b cd                                        	mov    rcx,r13
+   14049ddf4:	48 85 c0                                        	test   rax,rax
+   14049ddf7:	74 29                                           	je     0x14049de22
+   14049ddf9:	ff 52 78                                        	call   QWORD PTR [rdx+0x78]
+   14049ddfc:	49 8b cd                                        	mov    rcx,r13
+   14049ddff:	f3 0f 11 b8 e8 01 00 00                         	movss  DWORD PTR [rax+0x1e8],xmm7

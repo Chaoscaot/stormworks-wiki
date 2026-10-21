@@ -1751,7 +1751,7 @@
         },
         {
           "title": "Storage and temperature",
-          "body": "Each listed voxel of a tank gives 15.625 L. Liquid tanks hold 31.25, 187.5 and 703.125 L and gas tanks 46.875, 109.375, 984.375 and 3515.625 L. Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s.\n\nA fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4.\n\nDiesel and jet-fuel tanks are filled by a separate spawn step: 0.99 × fill × V, capped to the fuel in stock on its inventory branch, plus V ÷ 60 of air. Saved tanks keep each compartment's 13 species amounts, total and temperature and the fill-pending flag."
+          "body": "Each listed voxel of a tank gives 15.625 L. Liquid tanks hold 31.25, 187.5 and 703.125 L and gas tanks 46.875, 109.375, 984.375 and 3515.625 L. Tanks keep their contents' temperature and drift toward the surrounding temperature by 0.001 per update. At 60 updates per simulated second that leaves 0.942 of the gap after one second, a time constant of 16.7 s.\n\nA fresh gas tank starts at 59.4 atm at full fill. The fluid spawner fills its enclosing custom compartment with up to 0.99 × fill × volume, limited by free room; its tooltip says gases are spawned at 60 atm. A custom compartment's volume follows its geometry rather than the pipe network's 4: a scan of the hull's wall bits counts half-cell steps inside. A custom compartment with no gas starts with air at 1 atm, and the same compartment state exchanges with the outside water and air when the hull floods (Fluid Spawner).\n\nDiesel and jet-fuel tanks are filled by a separate spawn step: 0.99 × fill × V, capped to the fuel in stock on its inventory branch, plus V ÷ 60 of air. Saved tanks keep each compartment's 13 species amounts, total and temperature and the fill-pending flag."
         },
         {
           "title": "Identifying fluids",
@@ -1763,7 +1763,7 @@
         }
       ],
       "limitations": [
-        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
+        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. How arbitrary wall shapes map to the custom-compartment volume scan, and which rules create and remove the openings that let a hull flood, were not traced. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced either. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -1944,6 +1944,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402f6191"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402f61e3"
         },
         {
@@ -2079,6 +2084,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d1a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d453"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404a177d"
         },
         {
@@ -2140,6 +2155,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405dc5bf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc8e1"
         },
         {
           "path": "stormworks64.exe",
@@ -116047,7 +116067,11 @@
         },
         {
           "title": "Which end exchanges",
-          "body": "When a hose link between two components is completed, the end that started it gets the exchange flag for that side and the receiving end's flag is cleared, so the link exchanges once per update, from the starting end. A cleared flag on one end does not mean the link is invalid. On hooks with two attachment positions the coupling name Rope 2 selects the second side. A hose end held by a character is a separate link to that character: it clears the component's exchange flag and adds no second hook, so the hook-to-hook exchange does not run for it."
+          "body": "When a hose link between two components is completed, the end that started it gets the exchange flag for that side and the receiving end's flag is cleared, so the link exchanges once per update, from the starting end. A cleared flag on one end does not mean the link is invalid. On hooks with two attachment positions the coupling name Rope 2 selects the second side."
+        },
+        {
+          "title": "Attaching a hose",
+          "body": "Picking up a hose end makes a mechanical link between the hook and the character. It clears the hook's exchange flag on that side and adds no compartment or second hook, so a carried hose moves no fluid to the character or into the world: it is not an open outlet. Attaching the free end to a second component completes the link, and the hook-to-hook exchange starts.\n\nIn normal interaction the two ends must be different components, and a second link between the same attachment points, in either order, is refused. A fluid anchor takes another fluid anchor, a hose pulley or a winch, and a hose pulley takes a fluid anchor, another hose pulley or a winch. Electric and plain rope anchors and pulleys do not take a hose. The chosen attachment point must be free. When picking up, the character must be within the link's distance limit of the attachment point, and when completing, the two attachment points must be within it; the limit is 40 m by default, and equal distance passes.\n\nOther routes check less. Loading a saved vehicle rebuilds links with only the position and distance checks, without the subtype match or the free-point check, so an edited file can hold links that normal interaction refuses. The spawnRope script function also skips the subtype match, and stores a deferred link when a body is not loaded. The editor rebuilds links without the character distance check; the position and distance checks apply when the link is built in the world."
         }
       ],
       "findings": [
@@ -116184,6 +116208,210 @@
           }
         },
         {
+          "label": "Held end attachment position",
+          "value": "call 0x1404c3ac0",
+          "detail": "The held-end constructor resolves the component's attachment position in world space. A failed lookup (tested at 0x140520baa) creates no link. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes e83130faff at 0x140520a8a. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L53; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520a8a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520a8a"
+          }
+        },
+        {
+          "label": "Default hose link distance limit",
+          "value": "40",
+          "detail": "Loaded when the caller passes a limit of 0; any other limit is used as given. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes f30f1035d6fb6800 at 0x140520b4e address binary32 40 (bytes 00002042) at 0x140bb072c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L95; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520b4e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520b4e"
+          }
+        },
+        {
+          "label": "Held end distance test",
+          "value": "d ≤ limit",
+          "detail": "Compares d = sqrt(dx² + dy² + dz²), from the character's position to the attachment point and rounded to binary32, with the limit and creates no link when d is larger. Equal distance passes. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes 0f2ffe at 0x140520b9f. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L115; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520b9f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520b9f"
+          }
+        },
+        {
+          "label": "Character end of the held link",
+          "value": "link+0x30",
+          "detail": "Stores the character as the link's second end. No second compartment and no second rope-hook component are created. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes 4c897e30 at 0x140520c9a. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L172; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520c9a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520c9a"
+          }
+        },
+        {
+          "label": "Held end clears the second-side exchange flag",
+          "value": "0",
+          "detail": "When the attachment named Rope 2 was picked, clears the hook's second-side flag (+0xaa9); the other attachment clears the first-side flag (+0xaa8, at 0x140520ea4). The carried link therefore moves no fluid between the hook, the character or the world until it is completed. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes c687a90a000000 at 0x140520dbb. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L243; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520dbb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520dbb"
+          }
+        },
+        {
+          "label": "Link check: first end",
+          "value": "component required",
+          "detail": "The interaction validator 0x140524540 requires the first end (here) and the second end (0x140524582) and rejects equal ends at 0x14052458b. It then rejects a pair that an existing link already joins at the same attachment coordinates, in either order. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes 4d85c0 at 0x140524579. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L26; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x140524579",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524579"
+          }
+        },
+        {
+          "label": "Link check: same component",
+          "value": "rejected",
+          "detail": "A link from a component to itself is refused. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes 4c3bc3 at 0x14052458b. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L30; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x14052458b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052458b"
+          }
+        },
+        {
+          "label": "Link check calls the subtype match",
+          "value": "call 0x140524860",
+          "detail": "After the duplicate scan the validator accepts the pair only when the subtype helper returns true. The link constructors do not call this helper. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes e8ad010000 at 0x1405246ae. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L102; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x1405246ae",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405246ae"
+          }
+        },
+        {
+          "label": "Hose link kind",
+          "value": "kind 1",
+          "detail": "The subtype helper compares each end's rope-hook subtype (definition+0xe74) with the link kind. For kind 1, the hose, it accepts fluid anchor (subtype 1, also tested at 0x1405249bc, bytes 83 f9 01) with fluid anchor, hose pulley or winch, hose pulley with fluid anchor, hose pulley or winch, and winch with winch. Electric anchors and pulleys and plain rope anchors and pulleys do not match a hose. The straight and corner hose pulleys share subtype 8. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 83fa01 at 0x140524916. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L270; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x140524916",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524916"
+          }
+        },
+        {
+          "label": "Winch subtype in the match",
+          "value": "subtype 3",
+          "detail": "A winch end matches another winch, or the anchor and pulley of the selected kind. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 4183f803 at 0x1405248f7. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L258; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x1405248f7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405248f7"
+          }
+        },
+        {
+          "label": "Hose pulley subtype in the match",
+          "value": "subtype 8",
+          "detail": "Tested only on the hose kind's branch. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 83f908 at 0x14052491f. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L274; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x14052491f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052491f"
+          }
+        },
+        {
+          "label": "Attachment occupancy lookup",
+          "value": "call 0x140528700",
+          "detail": "Before a link is started, a picked attachment of a hook with a positive subtype must be free: the lookup compares the component and the exact local attachment coordinates with both ends of every existing link. The interaction handler repeats this check before it creates a held link. Report: investigation/open-issues.md. Function 0x1405247e0-0x140524853; instruction bytes e8c63e0000 at 0x140524835. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L200. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405247e0@0x140524835",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524835"
+          }
+        },
+        {
+          "label": "Completed link default distance limit",
+          "value": "40",
+          "detail": "The completed component-to-component constructor also defaults a limit of 0 to this value. Report: investigation/open-issues.md. Function 0x140521500-0x14052202c; instruction bytes f30f10354bef6800 at 0x1405217d9 address binary32 40 (bytes 00002042) at 0x140bb072c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/complete-constructor.asm:L190; ../open-issues/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x1405217d9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405217d9"
+          }
+        },
+        {
+          "label": "Completed link distance test",
+          "value": "d ≤ limit",
+          "detail": "Creates the link only when both attachment-position lookups succeed and the distance between the two attachment points is at most the limit. Report: investigation/open-issues.md. Function 0x140521500-0x14052202c; instruction bytes 0f2ffe at 0x14052183e. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/complete-constructor.asm:L214; ../open-issues/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x14052183e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052183e"
+          }
+        },
+        {
+          "label": "Saved link reconstruction",
+          "value": "skips a pair of net hooks (subtype 7)",
+          "detail": "The saved-link reader 0x14051d830 needs both ends and their rope hooks, skips a pair of net hooks, maps pulley and winch subtypes to the saved link kind and calls the completed constructor with the default limit. It calls neither the subtype match nor the occupancy lookup. Report: investigation/open-issues.md. Function 0x14051d85f-0x14051dd70; instruction bytes 83b8740e000007 at 0x14051d923. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/load-links.asm:L71; ../open-issues/pseudocode/0x14051d830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14051d85f@0x14051d923",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14051d923"
+          }
+        },
+        {
+          "label": "spawnRope builds a completed link",
+          "value": "call 0x140521500",
+          "detail": "The spawnRope wrapper 0x1405af7a0 forwards both ends, their coordinates, the length and the link kind to this world routine. With both bodies loaded it calls the completed constructor; otherwise it stores a deferred link record. Neither branch calls the subtype match. Report: investigation/open-issues.md. Function 0x1407359f0-0x140735ef5; instruction bytes e8e9b8deff at 0x140735c12. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/script-spawn-rope.asm:L150; ../open-issues/pseudocode/0x1407359f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407359f0@0x140735c12",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140735c12"
+          }
+        },
+        {
+          "label": "Editor link reconstruction",
+          "value": "hose pulley subtype 8",
+          "detail": "The editor routine identifies winches and the matching pulley family from both end definitions, records the link kind and end coordinates and stores deferred link records. It applies no character distance check there; the runtime constructor still checks positions and distance later. Report: investigation/open-issues.md. Function 0x140782ab0-0x140784819; instruction bytes 83b9740e000008 at 0x140783b18. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/editor-hose-filter.asm:L28; ../open-issues/pseudocode/0x140782ab0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140782ab0@0x140783b18",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140783b18"
+          }
+        },
+        {
           "label": "Fluid Hose Anchor · tooltip",
           "value": "Draw a rope logic link between two Fluid Hose Anchors to form a hose. Limited to only one link but can transfer fluid across the link.",
           "detail": "rope_hook_fluid: developer-authored description; intended behaviour, not a measurement.",
@@ -116224,7 +116452,7 @@
         }
       ],
       "limitations": [
-        "Completed links exchange fluid once, through the end assigned to perform the exchange. A character-held loose hose uses a separate link path; its fluid operation and the complete attachment restrictions across the interaction, scripting, loading and editing paths remain untraced."
+        "The attachment checks were traced for normal interaction, saved links, the spawnRope script function and the editor's link reconstruction. Other editor gestures, the code that later turns deferred link records into links, and indirect writers of a character's held link were not traced."
       ],
       "sources": [
         {
@@ -116278,6 +116506,36 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14051d923"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520a8a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520b4e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520b9f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520c9a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520dbb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140520ea4"
         },
         {
@@ -116288,12 +116546,67 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405217d9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052183e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140521c53"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140521ebd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524579"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052458b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405246ae"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524835"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405248f7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524916"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052491f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140735c12"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140783b18"
         },
         {
           "path": "stormworks64.exe",
@@ -139136,7 +139449,7 @@
         },
         {
           "title": "Why it does not run on its own",
-          "body": "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments: the constructor clears them and the current serializer does not save them, so the supply gate holds the effective throttle at 0. Only the coolant compartment starts filled, with 100 L of fresh water. electric_magnitude 0 makes the starter request 0, even with infinite electricity. Derived from the traced paths, not tested in game: a new turbine at rest does not start itself. With infinite_fuel on and its shaft spun above 2 RPS by another component, it gains speed like a diesel with W = 50."
+          "body": "The definition has four ports: RPS, Starter, Throttle and Electric. Nothing connects to the internal diesel or intake compartments: the constructor clears them and the current serializer does not save them, so the supply gate holds the effective throttle at 0. The engine fills those compartments only through its port exchange, which returns at once for a port with no connected network, so a missing port is not a hidden air or fuel source. The environment update touches only the coolant compartment. Only the coolant compartment starts filled, with 100 L of fresh water. electric_magnitude 0 makes the starter request 0, even with infinite electricity. Derived from the traced paths, not tested in game: a new turbine at rest does not start itself. With infinite_fuel on and its shaft spun above 2 RPS by another component, it gains speed like a diesel with W = 50."
         },
         {
           "title": "Shaft and load",
@@ -139148,7 +139461,7 @@
         },
         {
           "title": "Loading saved vehicles",
-          "body": "The vehicle reader looks each saved component's definition name up among the loaded definitions and passes the match's component type to the component factory. turbine.xml has type 5, so the factory calls the classic engine constructor, and the reader then binds the definition, restores the saved state and initializes the part. Neither the reader nor the factory tests the Deprecated bit, and nothing on this route replaces the part with a modular jet or migrates it. A saved vehicle that contains a Turbine Engine therefore loads it as the original classic engine: the catalog skip keeps it out of the parts list but does not reject it on load. The construction factory calls the same constructor, so internal construction paths can still build one; this does not give scripts a way to place an arbitrary part."
+          "body": "The vehicle reader looks each saved component's definition name up among the loaded definitions and passes the match's component type to the component factory. turbine.xml has type 5, so the factory calls the classic engine constructor, and the reader then binds the definition, restores the saved state and initializes the part. Neither the reader nor the factory tests the Deprecated bit, and nothing on this route replaces the part with a modular jet or migrates it. A saved vehicle that contains a Turbine Engine therefore loads it as the original classic engine: the catalog skip keeps it out of the parts list but does not reject it on load. The construction factory calls the same constructor, so internal construction paths can still build one; this does not give scripts a way to place an arbitrary part.\n\nThe vehicle reader picks the XML or the binary component reader by the file's serialization mode, and both reach the same factory. A readable older file whose component resolves to turbine therefore also gets the classic engine. The mode is a format selector, not a game version."
         }
       ],
       "findings": [
@@ -139944,6 +140257,102 @@
           }
         },
         {
+          "label": "Engine port exchange",
+          "value": "call 0x1402ec710",
+          "detail": "The classic engine update exchanges a port with its private container through the port exchange, passing the port descriptor and the container. Report: investigation/open-issues.md. Function 0x14034ba00-0x14034d8ad; instruction bytes e81208faff at 0x14034bef9. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/engine-exchange-sites.asm:L32; ../open-issues/pseudocode/0x14034ba00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034bef9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034bef9"
+          }
+        },
+        {
+          "label": "Port exchange without a network",
+          "value": "returns at once",
+          "detail": "Reads the port's connected-network pointer (descriptor+0x20, at 0x1402ec71b), tests it (0x1402ec738) and returns when it is null. A port with no network is not an implicit air or fuel source. Report: investigation/open-issues.md. Function 0x1402ec710-0x1402ec741; instruction bytes 0f84300c0000 at 0x1402ec73b. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/engine-port-null-gate.asm:L19; ../open-issues/pseudocode/0x1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ec710@0x1402ec73b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ec73b"
+          }
+        },
+        {
+          "label": "Engine environment arm",
+          "value": "coolant+0x438",
+          "detail": "The component environment update reaches the classic engine through its class getter, writes the coolant compartment's two environment fields (+0x438, and +0x43c at 0x14049de80) and passes the coolant state to the legacy-air conversion (0x14049de8f). It writes neither the private fuel nor the intake container. Report: investigation/open-issues.md. Function 0x14049daa4-0x14049e025; instruction bytes f30f11b838040000 at 0x14049de78. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-ambient-update.asm:L376; ../open-issues/pseudocode/0x14049d7b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049daa4@0x14049de78",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049de78"
+          }
+        },
+        {
+          "label": "Engine serializer descriptors",
+          "value": "port descriptors at +0x1f8 and +0x398",
+          "detail": "The serializer's two extra helper calls (0x14034e810, 0x14034e82e) receive port and exhaust descriptors (lea at 0x14034e7f7 and 0x14034e815), not the private fuel or intake state. Report: investigation/open-issues.md. Function 0x14034e6ab-0x14034e8a5; instruction bytes e8fb325b00 at 0x14034e810. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/engine-serializer.asm:L184; ../open-issues/pseudocode/0x14034e570.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034e6ab@0x14034e810",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034e810"
+          }
+        },
+        {
+          "label": "Vehicle serialization mode",
+          "value": "mode field +0x20",
+          "detail": "The vehicle serializer reads its serialization mode and calls the XML component reader 0x1404b81f0 (0x1404add76) or the binary component reader 0x1404b89d0 (0x1404add93). Both reach the shared component factory and the part's initializer. The mode is a file format selector, not a game release number. Report: investigation/open-issues.md. Function 0x1404adb90-0x1404ade5b; instruction bytes 8b4620 at 0x1404add58. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/vehicle-format-dispatch.asm:L112; ../open-issues/pseudocode/0x1404adb90.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404adb90@0x1404add58",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404add58"
+          }
+        },
+        {
+          "label": "XML component reader dispatch",
+          "value": "call 0x1404b81f0",
+          "detail": "The reader that resolves a saved definition name and calls the factory. Report: investigation/open-issues.md. Function 0x1404adb90-0x1404ade5b; instruction bytes e875a40000 at 0x1404add76. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/vehicle-format-dispatch.asm:L121; ../open-issues/pseudocode/0x1404adb90.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404adb90@0x1404add76",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404add76"
+          }
+        },
+        {
+          "label": "Binary component reader dispatch",
+          "value": "call 0x1404b89d0",
+          "detail": "The other format's reader, which also calls the component factory. Report: investigation/open-issues.md. Function 0x1404adb90-0x1404ade5b; instruction bytes e838ac0000 at 0x1404add93. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/vehicle-format-dispatch.asm:L130; ../open-issues/pseudocode/0x1404adb90.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404adb90@0x1404add93",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404add93"
+          }
+        },
+        {
+          "label": "Turbine fuel and intake sources",
+          "value": "none on the checked paths",
+          "detail": "The engine exchanges fuel and intake only through its declared ports, and the port exchange returns for a port without a network; turbine.xml declares no fluid port. The environment arm writes only the coolant, the serializer's extra helpers take port descriptors, and both component readers lead to the same factory and constructor. Copy and clone code, every virtual dispatch target and pointer aliases were outside this check. Report: investigation/open-issues.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034bef9, native:stormworks64.exe:f9206d85c82f:0x1402ec710@0x1402ec73b, native:stormworks64.exe:f9206d85c82f:0x14049daa4@0x14049de78, native:stormworks64.exe:f9206d85c82f:0x14034e6ab@0x14034e810, native:stormworks64.exe:f9206d85c82f:0x1404adb90@0x1404add58.",
+          "evidenceId": "derived:ef22c3106bef",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034bef9"
+          }
+        },
+        {
           "label": "Scene update call",
           "value": "call 0x1405e8fb0",
           "detail": "The simulation coordinator runs the scene update, which reaches the vehicle/component dispatcher, before it submits the physics worker. Report: investigation/update-rate.md. Function 0x14073f890-0x1407468e3; instruction bytes e8f059eaff at 0x1407435bb. Interpretation rests on retained output investigation/native/behavior/../update-rate/asm/stormworks64-physics-submit.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -140017,7 +140426,7 @@
         }
       ],
       "limitations": [
-        "Static analysis of one build; the game was not run. Whether a writer reached indirectly through a world, script, editor, copy or load path fills the private fuel or intake compartments was not traced: the search covered direct stores at their offsets and the generic environment update, which touches only the coolant. Vehicle files from formats older than the current reader were not traced either.",
+        "Static analysis of one build; the game was not run. The checked engine, environment, serializer and loading paths add no fuel or intake. Copy and clone code, every virtual dispatch target and pointer aliases were not traced, so a writer to the private fuel or intake compartments outside those paths is not ruled out. Format migrations that run before the vehicle reader's dispatch, and which historical files still reach that reader, were not traced either.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -140072,6 +140481,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401fd9de"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ec73b"
         },
         {
           "path": "stormworks64.exe",
@@ -140166,6 +140580,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034bef9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034c616"
         },
         {
@@ -140236,7 +140655,32 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034e810"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045ded8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049de78"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404add58"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404add76"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404add93"
         },
         {
           "path": "stormworks64.exe",
@@ -141723,6 +142167,18 @@
         {
           "title": "Diesel and jet fuel",
           "body": "Diesel and jet fuel are added by the request-gated fuel fill of a vehicle spawn, the same operation that fills diesel and jet-fuel tanks (see Fluid Tank). For a spawner with an enclosing compartment C it adds q = min(C.V − C.A, 0.99 × fill × C.V) of the selected fuel to C. On the inventory branch q is first capped to that fuel in stock, which then loses q. The fuel is added to what C already holds, so q depends on earlier fills, other spawners and restored contents. Unlike a fuel tank, the spawner gets no air with it."
+        },
+        {
+          "title": "Compartment volume",
+          "body": "V comes from the hull's walls, not from the spawner's size. The hull builder sets one bit per oriented wall in a grid mask and then scans each column along one grid axis, starting outside. Wall bits in neighbouring cells switch the scan in and out of the interior at half-cell steps. Each half inside adds 0.5 × 0.015625 × 100, so a fully enclosed sample adds 1.5625 (15.625 L) and a half sample 0.78125. Wall orientation and shape change which halves count, so counting the cells inside the hull's bounding box gives a different V."
+        },
+        {
+          "title": "Starting air",
+          "body": "After its spawner fuel step, the request-gated fill pass of a vehicle spawn gives each custom compartment that holds no gas an air amount of V ÷ 60, which reads 1 atm when the room holds nothing else. Gas already there, from a spawner or restored contents, is left as it is. The compartment's environment update then turns that air into 0.7896 nitrogen, 0.21 oxygen and 0.0004 carbon dioxide per unit. An empty room therefore starts with air, not vacuum or pure oxygen."
+        },
+        {
+          "title": "Flooding",
+          "body": "The spawner's fluid sits in the same compartment state that hull flooding uses; it is not a tank sealed off from the hull. For each connection the flooding pass samples the outside, which is air above the water surface, water below it, or another compartment, and compares it with the connected compartment. Fluid moves from the higher to the lower pressure: q = min(source amount, destination free room, 0.1 × (P_source − P_destination)), and nothing moves unless all three are above 0. Gases move in proportion to each gas's share of the source's gas, liquids to each liquid's share of its liquid. Pressure follows the compartment law of the Fluids category. The rate therefore depends on the hull, its openings, its pose, the outside water and the contents, so no fixed amount per hole applies."
         }
       ],
       "findings": [
@@ -141894,10 +142350,274 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405db0bb"
           }
+        },
+        {
+          "label": "Oriented wall bit",
+          "value": "bit set in the grid mask",
+          "detail": "The hull geometry builder 0x140486ca0 inserts each oriented wall through this routine, which sets the bit of the wall's orientation ID at its grid position. Report: investigation/open-issues.md. Function 0x1402f5a30-0x1402f5cca; instruction bytes 4c0fabe2 at 0x1402f5c78. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/wall-mask-insert.asm:L11; ../open-issues/pseudocode/0x1402f5a30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402f5a30@0x1402f5c78",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f5c78"
+          }
+        },
+        {
+          "label": "Volume sample multiplier",
+          "value": "0.015625",
+          "detail": "Each counted sample's weight is multiplied by this and by 100 (0x1402f5d4c). Report: investigation/open-issues.md. Function 0x1402f5d22-0x1402f63c6; instruction bytes f30f1035349c8b00 at 0x1402f5d40 address binary32 0.015625 (bytes 0000803c) at 0x140baf97c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/volume-builder.asm:L33; ../open-issues/pseudocode/1402f5cd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f5d40",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f5d40"
+          }
+        },
+        {
+          "label": "Volume scale",
+          "value": "100",
+          "detail": "The second multiplier of each sample. Report: investigation/open-issues.md. Function 0x1402f5d22-0x1402f63c6; instruction bytes f30f103d3caa8b00 at 0x1402f5d4c address binary32 100 (bytes 0000c842) at 0x140bb0790. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/volume-builder.asm:L35; ../open-issues/pseudocode/1402f5cd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f5d4c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f5d4c"
+          }
+        },
+        {
+          "label": "Half-cell weight",
+          "value": "0.5",
+          "detail": "Each of the two half-cell states of a sample adds this weight when it is inside. Report: investigation/open-issues.md. Function 0x1402f5d22-0x1402f63c6; instruction bytes f3440f10055a9f8b00 at 0x1402f5d59 address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/volume-builder.asm:L37; ../open-issues/pseudocode/1402f5cd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f5d59",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f5d59"
+          }
+        },
+        {
+          "label": "Second half-cell weight",
+          "value": "w = 0.5 × p + 0.5 × q",
+          "detail": "Adds the second half's weight. The scan walks each column along the third grid axis from outside; wall bits of the previous, current and next mask records switch the first half p and the second half q in or out, and q carries into the next sample. Report: investigation/open-issues.md. Function 0x1402f5d22-0x1402f63c6; instruction bytes f3410f58d0 at 0x1402f6191. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/volume-builder.asm:L304; ../open-issues/pseudocode/1402f5cd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f6191",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f6191"
+          }
+        },
+        {
+          "label": "Volume scan wall masks",
+          "value": "start_previous 0x10410410, stop_middle 0xf30c4c40000000, start_middle 0x30cf31100000000, stop_next 0x20820820",
+          "detail": "ORs of the individual bit tests in the scan loop, re-read byte by byte by the extractor (first tests at 0x1402f5f7f, 0x1402f5fb1, 0x1402f606d, 0x1402f613c). p = inside or any(previous & start_previous); q = (p and not any(current & stop_middle)) or any(current & start_middle); inside = q and not any(next & stop_next). Each column starts outside, and a missing mask record adds no bits. Report: investigation/open-issues.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402f5a30@0x1402f5c78, native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f6191.",
+          "evidenceId": "derived:5a004e2a5347",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f5c78"
+          }
+        },
+        {
+          "label": "Volume per sample",
+          "value": "full 1.5625, half 0.78125",
+          "detail": "0.5 + 0.5 = 1 for a sample with both halves inside, × 0.015625 × 100 = 1.5625 volume units (15.625 L); one half gives 0.78125. The builder stores the binary32 sum as the compartment's volume. Wall orientation and shape change the counted halves, so counting cells in a bounding box gives a different volume. Report: investigation/open-issues.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f5d59, native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f5d40, native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f5d4c, native:stormworks64.exe:f9206d85c82f:0x1402f5d22@0x1402f6191.",
+          "evidenceId": "derived:9b4c67b98b57",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f5d59"
+          }
+        },
+        {
+          "label": "Default air: room volume",
+          "value": "compartment+0x38",
+          "detail": "In the request-gated fill pass, after the spawner fill arms, the custom-room loop reaches this when the room's cached amount is 0 or less, or when its gas species, summed through the jump table at 0x1405dc8bc, total 0. A room that already holds gas skips it. Report: investigation/open-issues.md. Function 0x1405dafa0-0x1405df408; instruction bytes f3410f104038 at 0x1405dc8d6. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/ambient-fill.asm:L34; ../open-issues/pseudocode/0x1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc8d6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc8d6"
+          }
+        },
+        {
+          "label": "Default air: divide by 60",
+          "value": "V ÷ 60",
+          "detail": "Divides the volume by xmm13, which the pass loads with binary32 60 at 0x1405db0c8. Report: investigation/open-issues.md. Function 0x1405dafa0-0x1405df408; instruction bytes f3410f5ec5 at 0x1405dc8dc. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/ambient-fill.asm:L35; ../open-issues/pseudocode/0x1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc8dc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc8dc"
+          }
+        },
+        {
+          "label": "Default air store",
+          "value": "air = V ÷ 60",
+          "detail": "Stores the result in the legacy-air slot (+0x48) and as the cached amount (+0x70, at 0x1405dc8e7). Other species slots are not written here. Report: investigation/open-issues.md. Function 0x1405dafa0-0x1405df408; instruction bytes f3410f114048 at 0x1405dc8e1. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/ambient-fill.asm:L36; ../open-issues/pseudocode/0x1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc8e1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc8e1"
+          }
+        },
+        {
+          "label": "Room air conversion call",
+          "value": "call 0x1402eb270",
+          "detail": "The regular environment update of each custom compartment passes the room's fluid state (+0x30) to the legacy-air conversion. Report: investigation/open-issues.md. Function 0x14049d7b0-0x14049daa4; instruction bytes e802d8e4ff at 0x14049da69. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-ambient-update.asm:L154; ../open-issues/pseudocode/0x14049d7b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049d7b0@0x14049da69",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049da69"
+          }
+        },
+        {
+          "label": "Air to nitrogen",
+          "value": "0.7896",
+          "detail": "For positive legacy air A the conversion clears the air slot and adds A × this to nitrogen. Report: investigation/open-issues.md. Function 0x1402eb270-0x1402eb350; instruction bytes f30f5905394b8c00 at 0x1402eb287 address binary32 0.7896 (bytes 3a234a3f) at 0x140bafdc8. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/ambient-helper.asm:L35; ../open-issues/pseudocode/0x1402eb270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb270@0x1402eb287",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb287"
+          }
+        },
+        {
+          "label": "Air to oxygen",
+          "value": "0.21",
+          "detail": "Adds A × this to oxygen. Report: investigation/open-issues.md. Function 0x1402eb270-0x1402eb350; instruction bytes f30f590dea488c00 at 0x1402eb292 address binary32 0.21 (bytes 3d0a573e) at 0x140bafb84. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/ambient-helper.asm:L37; ../open-issues/pseudocode/0x1402eb270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb270@0x1402eb292",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb292"
+          }
+        },
+        {
+          "label": "Air to carbon dioxide",
+          "value": "0.0004",
+          "detail": "Adds A × this to carbon dioxide. Report: investigation/open-issues.md. Function 0x1402eb270-0x1402eb350; instruction bytes f30f59152a468c00 at 0x1402eb29a address binary32 0.0004 (bytes 17b7d139) at 0x140baf8cc. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/ambient-helper.asm:L38; ../open-issues/pseudocode/0x1402eb270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402eb270@0x1402eb29a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402eb29a"
+          }
+        },
+        {
+          "label": "Default room air pressure",
+          "value": "1 atm",
+          "detail": "With gas only, the pressure law gives P = 60 × A ÷ V, so A = V ÷ 60 reads 60 × (V ÷ 60) ÷ V = 1 atm, before and after the air is split into nitrogen, oxygen and carbon dioxide. Report: investigation/open-issues.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc8e1, derived:d59de08c3571.",
+          "evidenceId": "derived:3f2ab815dfb9",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc8e1"
+          }
+        },
+        {
+          "label": "Outside state for a connection",
+          "value": "call 0x140311f20",
+          "detail": "The connection-group pass samples the connection's world-space region and gets the outside fluid state: air above the water surface, water below it, or a supplied compartment's state. It then compares that state with the connected compartments, so outside water and air enter the same transfer as room-to-room contents. Report: investigation/open-issues.md. Function 0x14049cbc0-0x14049d7a4; instruction bytes e8784de7ff at 0x14049d1a3. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-flood-transfer.asm:L396; ../open-issues/pseudocode/0x14049cbc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049cbc0@0x14049d1a3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049d1a3"
+          }
+        },
+        {
+          "label": "Flood transfer rate",
+          "value": "0.1",
+          "detail": "Loaded once for the pass and multiplied with the pressure difference at 0x14049d435. Report: investigation/open-issues.md. Function 0x14049cbc0-0x14049d7a4; instruction bytes f3440f1025bc2a7100 at 0x14049d00b address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-flood-transfer.asm:L310; ../open-issues/pseudocode/0x14049cbc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049cbc0@0x14049d00b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049d00b"
+          }
+        },
+        {
+          "label": "Flood pressure budget",
+          "value": "0.1 × (P_source − P_destination)",
+          "detail": "The pressures come from the compartment pressure helper 0x1402eb460, the same law as tanks and pipes. Report: investigation/open-issues.md. Function 0x14049cbc0-0x14049d7a4; instruction bytes f3410f59e4 at 0x14049d435. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-flood-transfer.asm:L554; ../open-issues/pseudocode/0x14049cbc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049cbc0@0x14049d435",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049d435"
+          }
+        },
+        {
+          "label": "Flood transfer amount",
+          "value": "q = min(source amount, destination room, budget)",
+          "detail": "Takes the smaller of the source amount and the destination's free room (minss at 0x14049d44c), then of that and the pressure budget. The species pass runs only when the source amount, the budget and the free room are all above 0 (0x14049d457 to 0x14049d46c). Report: investigation/open-issues.md. Function 0x14049cbc0-0x14049d7a4; instruction bytes f30f5dec at 0x14049d453. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-flood-transfer.asm:L560; ../open-issues/pseudocode/0x14049cbc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049cbc0@0x14049d453",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049d453"
+          }
+        },
+        {
+          "label": "Flood species share",
+          "value": "gas sum 0x1402eb660",
+          "detail": "Through the species jump table (0x14049d49b) each gas moves q × its amount ÷ the source's gas sum, and each liquid the same against the liquid sum, clamped to 0 and to the amount available. Report: investigation/open-issues.md. Function 0x14049cbc0-0x14049d7a4; instruction bytes e8afe1e4ff at 0x14049d4ac. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-flood-transfer.asm:L580; ../open-issues/pseudocode/0x14049cbc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049cbc0@0x14049d4ac",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049d4ac"
+          }
+        },
+        {
+          "label": "Flood species added",
+          "value": "destination + share",
+          "detail": "Subtracts the share from the source (0x14049d4c1) and adds it to the destination; afterwards both cached amounts are recomputed from the species. Report: investigation/open-issues.md. Function 0x14049cbc0-0x14049d7a4; instruction bytes f30f111b at 0x14049d4ca. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/hull-flood-transfer.asm:L587; ../open-issues/pseudocode/0x14049cbc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049cbc0@0x14049d4ca",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049d4ca"
+          }
+        },
+        {
+          "label": "Spawn air divisor",
+          "value": "60",
+          "detail": "Held in xmm13. The arm divides V by this (divss at 0x1405dc4c2) for the air it adds. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes f3440f102d8f565d00 at 0x1405db0c8 address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L76-L77; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405db0c8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405db0c8"
+          }
         }
       ],
       "limitations": [
-        "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded."
+        "The mapping from arbitrary wall blocks, wedges, rotated parts and damage to the scan's wall bits was not traced, and neither were the rules that create and remove openings between compartments and the outside or the outside depth and environment queries."
       ],
       "sources": [
         {
@@ -141909,7 +142629,47 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb287"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb292"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402eb29a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402eb471"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402f5c78"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402f5d40"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402f5d4c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402f5d59"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402f6191"
         },
         {
           "path": "stormworks64.exe",
@@ -141920,6 +142680,41 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402f63f3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d00b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d1a3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d435"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d453"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d4ac"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049d4ca"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049da69"
         },
         {
           "path": "stormworks64.exe",
@@ -141940,6 +142735,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405db0bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405db0c8"
         },
         {
           "path": "stormworks64.exe",
@@ -141970,6 +142770,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405dc3fe"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc8d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc8dc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc8e1"
         }
       ]
     },
@@ -146053,6 +146868,10 @@
         {
           "title": "Linked side",
           "body": "A hook linked to the pulley picks the pulley's port by the reciprocal attachment pointer: when the pulley's back pointer leads to that hook it uses the pulley's second fluid port, otherwise its first. As for every hose link, only the end holding the exchange flag runs the exchange."
+        },
+        {
+          "title": "Attaching a hose",
+          "body": "Picking up a hose end makes a mechanical link between the hook and the character. It clears the hook's exchange flag on that side and adds no compartment or second hook, so a carried hose moves no fluid to the character or into the world: it is not an open outlet. Attaching the free end to a second component completes the link, and the hook-to-hook exchange starts.\n\nIn normal interaction the two ends must be different components, and a second link between the same attachment points, in either order, is refused. A fluid anchor takes another fluid anchor, a hose pulley or a winch, and a hose pulley takes a fluid anchor, another hose pulley or a winch. Electric and plain rope anchors and pulleys do not take a hose. The chosen attachment point must be free. When picking up, the character must be within the link's distance limit of the attachment point, and when completing, the two attachment points must be within it; the limit is 40 m by default, and equal distance passes.\n\nOther routes check less. Loading a saved vehicle rebuilds links with only the position and distance checks, without the subtype match or the free-point check, so an edited file can hold links that normal interaction refuses. The spawnRope script function also skips the subtype match, and stores a deferred link when a body is not loaded. The editor rebuilds links without the character distance check; the position and distance checks apply when the link is built in the world."
         }
       ],
       "findings": [
@@ -146186,6 +147005,210 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x140b87094"
+          }
+        },
+        {
+          "label": "Held end attachment position",
+          "value": "call 0x1404c3ac0",
+          "detail": "The held-end constructor resolves the component's attachment position in world space. A failed lookup (tested at 0x140520baa) creates no link. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes e83130faff at 0x140520a8a. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L53; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520a8a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520a8a"
+          }
+        },
+        {
+          "label": "Default hose link distance limit",
+          "value": "40",
+          "detail": "Loaded when the caller passes a limit of 0; any other limit is used as given. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes f30f1035d6fb6800 at 0x140520b4e address binary32 40 (bytes 00002042) at 0x140bb072c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L95; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520b4e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520b4e"
+          }
+        },
+        {
+          "label": "Held end distance test",
+          "value": "d ≤ limit",
+          "detail": "Compares d = sqrt(dx² + dy² + dz²), from the character's position to the attachment point and rounded to binary32, with the limit and creates no link when d is larger. Equal distance passes. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes 0f2ffe at 0x140520b9f. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L115; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520b9f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520b9f"
+          }
+        },
+        {
+          "label": "Character end of the held link",
+          "value": "link+0x30",
+          "detail": "Stores the character as the link's second end. No second compartment and no second rope-hook component are created. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes 4c897e30 at 0x140520c9a. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L172; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520c9a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520c9a"
+          }
+        },
+        {
+          "label": "Held end clears the second-side exchange flag",
+          "value": "0",
+          "detail": "When the attachment named Rope 2 was picked, clears the hook's second-side flag (+0xaa9); the other attachment clears the first-side flag (+0xaa8, at 0x140520ea4). The carried link therefore moves no fluid between the hook, the character or the world until it is completed. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes c687a90a000000 at 0x140520dbb. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L243; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520dbb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520dbb"
+          }
+        },
+        {
+          "label": "Link check: first end",
+          "value": "component required",
+          "detail": "The interaction validator 0x140524540 requires the first end (here) and the second end (0x140524582) and rejects equal ends at 0x14052458b. It then rejects a pair that an existing link already joins at the same attachment coordinates, in either order. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes 4d85c0 at 0x140524579. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L26; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x140524579",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524579"
+          }
+        },
+        {
+          "label": "Link check: same component",
+          "value": "rejected",
+          "detail": "A link from a component to itself is refused. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes 4c3bc3 at 0x14052458b. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L30; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x14052458b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052458b"
+          }
+        },
+        {
+          "label": "Link check calls the subtype match",
+          "value": "call 0x140524860",
+          "detail": "After the duplicate scan the validator accepts the pair only when the subtype helper returns true. The link constructors do not call this helper. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes e8ad010000 at 0x1405246ae. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L102; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x1405246ae",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405246ae"
+          }
+        },
+        {
+          "label": "Hose link kind",
+          "value": "kind 1",
+          "detail": "The subtype helper compares each end's rope-hook subtype (definition+0xe74) with the link kind. For kind 1, the hose, it accepts fluid anchor (subtype 1, also tested at 0x1405249bc, bytes 83 f9 01) with fluid anchor, hose pulley or winch, hose pulley with fluid anchor, hose pulley or winch, and winch with winch. Electric anchors and pulleys and plain rope anchors and pulleys do not match a hose. The straight and corner hose pulleys share subtype 8. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 83fa01 at 0x140524916. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L270; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x140524916",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524916"
+          }
+        },
+        {
+          "label": "Winch subtype in the match",
+          "value": "subtype 3",
+          "detail": "A winch end matches another winch, or the anchor and pulley of the selected kind. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 4183f803 at 0x1405248f7. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L258; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x1405248f7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405248f7"
+          }
+        },
+        {
+          "label": "Hose pulley subtype in the match",
+          "value": "subtype 8",
+          "detail": "Tested only on the hose kind's branch. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 83f908 at 0x14052491f. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L274; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x14052491f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052491f"
+          }
+        },
+        {
+          "label": "Attachment occupancy lookup",
+          "value": "call 0x140528700",
+          "detail": "Before a link is started, a picked attachment of a hook with a positive subtype must be free: the lookup compares the component and the exact local attachment coordinates with both ends of every existing link. The interaction handler repeats this check before it creates a held link. Report: investigation/open-issues.md. Function 0x1405247e0-0x140524853; instruction bytes e8c63e0000 at 0x140524835. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L200. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405247e0@0x140524835",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524835"
+          }
+        },
+        {
+          "label": "Completed link default distance limit",
+          "value": "40",
+          "detail": "The completed component-to-component constructor also defaults a limit of 0 to this value. Report: investigation/open-issues.md. Function 0x140521500-0x14052202c; instruction bytes f30f10354bef6800 at 0x1405217d9 address binary32 40 (bytes 00002042) at 0x140bb072c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/complete-constructor.asm:L190; ../open-issues/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x1405217d9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405217d9"
+          }
+        },
+        {
+          "label": "Completed link distance test",
+          "value": "d ≤ limit",
+          "detail": "Creates the link only when both attachment-position lookups succeed and the distance between the two attachment points is at most the limit. Report: investigation/open-issues.md. Function 0x140521500-0x14052202c; instruction bytes 0f2ffe at 0x14052183e. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/complete-constructor.asm:L214; ../open-issues/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x14052183e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052183e"
+          }
+        },
+        {
+          "label": "Saved link reconstruction",
+          "value": "skips a pair of net hooks (subtype 7)",
+          "detail": "The saved-link reader 0x14051d830 needs both ends and their rope hooks, skips a pair of net hooks, maps pulley and winch subtypes to the saved link kind and calls the completed constructor with the default limit. It calls neither the subtype match nor the occupancy lookup. Report: investigation/open-issues.md. Function 0x14051d85f-0x14051dd70; instruction bytes 83b8740e000007 at 0x14051d923. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/load-links.asm:L71; ../open-issues/pseudocode/0x14051d830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14051d85f@0x14051d923",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14051d923"
+          }
+        },
+        {
+          "label": "spawnRope builds a completed link",
+          "value": "call 0x140521500",
+          "detail": "The spawnRope wrapper 0x1405af7a0 forwards both ends, their coordinates, the length and the link kind to this world routine. With both bodies loaded it calls the completed constructor; otherwise it stores a deferred link record. Neither branch calls the subtype match. Report: investigation/open-issues.md. Function 0x1407359f0-0x140735ef5; instruction bytes e8e9b8deff at 0x140735c12. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/script-spawn-rope.asm:L150; ../open-issues/pseudocode/0x1407359f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407359f0@0x140735c12",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140735c12"
+          }
+        },
+        {
+          "label": "Editor link reconstruction",
+          "value": "hose pulley subtype 8",
+          "detail": "The editor routine identifies winches and the matching pulley family from both end definitions, records the link kind and end coordinates and stores deferred link records. It applies no character distance check there; the runtime constructor still checks positions and distance later. Report: investigation/open-issues.md. Function 0x140782ab0-0x140784819; instruction bytes 83b9740e000008 at 0x140783b18. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/editor-hose-filter.asm:L28; ../open-issues/pseudocode/0x140782ab0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140782ab0@0x140783b18",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140783b18"
           }
         },
         {
@@ -146278,7 +147301,7 @@
         }
       ],
       "limitations": [
-        "The hose pulley selects its linked side through reciprocal attachment pointers, and one end performs each exchange. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced."
+        "The attachment checks were traced for normal interaction, saved links, the spawnRope script function and the editor's link reconstruction. Other editor gestures and the code that later turns deferred link records into links were not traced."
       ],
       "sources": [
         {
@@ -146353,6 +147376,36 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14051d923"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520a8a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520b4e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520b9f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520c9a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520dbb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140520ea4"
         },
         {
@@ -146363,12 +147416,67 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405217d9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052183e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140521c53"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140521ebd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524579"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052458b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405246ae"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524835"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405248f7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524916"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052491f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140735c12"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140783b18"
         },
         {
           "path": "stormworks64.exe",
@@ -146388,6 +147496,10 @@
         {
           "title": "Linked side",
           "body": "A hook linked to the pulley picks the pulley's port by the reciprocal attachment pointer: when the pulley's back pointer leads to that hook it uses the pulley's second fluid port, otherwise its first. As for every hose link, only the end holding the exchange flag runs the exchange."
+        },
+        {
+          "title": "Attaching a hose",
+          "body": "Picking up a hose end makes a mechanical link between the hook and the character. It clears the hook's exchange flag on that side and adds no compartment or second hook, so a carried hose moves no fluid to the character or into the world: it is not an open outlet. Attaching the free end to a second component completes the link, and the hook-to-hook exchange starts.\n\nIn normal interaction the two ends must be different components, and a second link between the same attachment points, in either order, is refused. A fluid anchor takes another fluid anchor, a hose pulley or a winch, and a hose pulley takes a fluid anchor, another hose pulley or a winch. Electric and plain rope anchors and pulleys do not take a hose. The chosen attachment point must be free. When picking up, the character must be within the link's distance limit of the attachment point, and when completing, the two attachment points must be within it; the limit is 40 m by default, and equal distance passes.\n\nOther routes check less. Loading a saved vehicle rebuilds links with only the position and distance checks, without the subtype match or the free-point check, so an edited file can hold links that normal interaction refuses. The spawnRope script function also skips the subtype match, and stores a deferred link when a body is not loaded. The editor rebuilds links without the character distance check; the position and distance checks apply when the link is built in the world."
         }
       ],
       "findings": [
@@ -146524,6 +147636,210 @@
           }
         },
         {
+          "label": "Held end attachment position",
+          "value": "call 0x1404c3ac0",
+          "detail": "The held-end constructor resolves the component's attachment position in world space. A failed lookup (tested at 0x140520baa) creates no link. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes e83130faff at 0x140520a8a. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L53; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520a8a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520a8a"
+          }
+        },
+        {
+          "label": "Default hose link distance limit",
+          "value": "40",
+          "detail": "Loaded when the caller passes a limit of 0; any other limit is used as given. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes f30f1035d6fb6800 at 0x140520b4e address binary32 40 (bytes 00002042) at 0x140bb072c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L95; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520b4e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520b4e"
+          }
+        },
+        {
+          "label": "Held end distance test",
+          "value": "d ≤ limit",
+          "detail": "Compares d = sqrt(dx² + dy² + dz²), from the character's position to the attachment point and rounded to binary32, with the limit and creates no link when d is larger. Equal distance passes. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes 0f2ffe at 0x140520b9f. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L115; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520b9f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520b9f"
+          }
+        },
+        {
+          "label": "Character end of the held link",
+          "value": "link+0x30",
+          "detail": "Stores the character as the link's second end. No second compartment and no second rope-hook component are created. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes 4c897e30 at 0x140520c9a. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L172; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520c9a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520c9a"
+          }
+        },
+        {
+          "label": "Held end clears the second-side exchange flag",
+          "value": "0",
+          "detail": "When the attachment named Rope 2 was picked, clears the hook's second-side flag (+0xaa9); the other attachment clears the first-side flag (+0xaa8, at 0x140520ea4). The carried link therefore moves no fluid between the hook, the character or the world until it is completed. Report: investigation/open-issues.md. Function 0x1405209d0-0x14052101b; instruction bytes c687a90a000000 at 0x140520dbb. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/held-constructor.asm:L243; ../open-issues/pseudocode/0x1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520dbb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520dbb"
+          }
+        },
+        {
+          "label": "Link check: first end",
+          "value": "component required",
+          "detail": "The interaction validator 0x140524540 requires the first end (here) and the second end (0x140524582) and rejects equal ends at 0x14052458b. It then rejects a pair that an existing link already joins at the same attachment coordinates, in either order. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes 4d85c0 at 0x140524579. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L26; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x140524579",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524579"
+          }
+        },
+        {
+          "label": "Link check: same component",
+          "value": "rejected",
+          "detail": "A link from a component to itself is refused. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes 4c3bc3 at 0x14052458b. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L30; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x14052458b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052458b"
+          }
+        },
+        {
+          "label": "Link check calls the subtype match",
+          "value": "call 0x140524860",
+          "detail": "After the duplicate scan the validator accepts the pair only when the subtype helper returns true. The link constructors do not call this helper. Report: investigation/open-issues.md. Function 0x140524566-0x14052477c; instruction bytes e8ad010000 at 0x1405246ae. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L102; ../open-issues/pseudocode/0x140524540.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524566@0x1405246ae",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405246ae"
+          }
+        },
+        {
+          "label": "Hose link kind",
+          "value": "kind 1",
+          "detail": "The subtype helper compares each end's rope-hook subtype (definition+0xe74) with the link kind. For kind 1, the hose, it accepts fluid anchor (subtype 1, also tested at 0x1405249bc, bytes 83 f9 01) with fluid anchor, hose pulley or winch, hose pulley with fluid anchor, hose pulley or winch, and winch with winch. Electric anchors and pulleys and plain rope anchors and pulleys do not match a hose. The straight and corner hose pulleys share subtype 8. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 83fa01 at 0x140524916. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L270; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x140524916",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524916"
+          }
+        },
+        {
+          "label": "Winch subtype in the match",
+          "value": "subtype 3",
+          "detail": "A winch end matches another winch, or the anchor and pulley of the selected kind. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 4183f803 at 0x1405248f7. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L258; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x1405248f7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405248f7"
+          }
+        },
+        {
+          "label": "Hose pulley subtype in the match",
+          "value": "subtype 8",
+          "detail": "Tested only on the hose kind's branch. Report: investigation/open-issues.md. Function 0x140524860-0x140524960; instruction bytes 83f908 at 0x14052491f. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L274; ../open-issues/pseudocode/0x140524860.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140524860@0x14052491f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052491f"
+          }
+        },
+        {
+          "label": "Attachment occupancy lookup",
+          "value": "call 0x140528700",
+          "detail": "Before a link is started, a picked attachment of a hook with a positive subtype must be free: the lookup compares the component and the exact local attachment coordinates with both ends of every existing link. The interaction handler repeats this check before it creates a held link. Report: investigation/open-issues.md. Function 0x1405247e0-0x140524853; instruction bytes e8c63e0000 at 0x140524835. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/link-validation.asm:L200. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405247e0@0x140524835",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140524835"
+          }
+        },
+        {
+          "label": "Completed link default distance limit",
+          "value": "40",
+          "detail": "The completed component-to-component constructor also defaults a limit of 0 to this value. Report: investigation/open-issues.md. Function 0x140521500-0x14052202c; instruction bytes f30f10354bef6800 at 0x1405217d9 address binary32 40 (bytes 00002042) at 0x140bb072c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/complete-constructor.asm:L190; ../open-issues/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x1405217d9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405217d9"
+          }
+        },
+        {
+          "label": "Completed link distance test",
+          "value": "d ≤ limit",
+          "detail": "Creates the link only when both attachment-position lookups succeed and the distance between the two attachment points is at most the limit. Report: investigation/open-issues.md. Function 0x140521500-0x14052202c; instruction bytes 0f2ffe at 0x14052183e. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/complete-constructor.asm:L214; ../open-issues/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x14052183e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052183e"
+          }
+        },
+        {
+          "label": "Saved link reconstruction",
+          "value": "skips a pair of net hooks (subtype 7)",
+          "detail": "The saved-link reader 0x14051d830 needs both ends and their rope hooks, skips a pair of net hooks, maps pulley and winch subtypes to the saved link kind and calls the completed constructor with the default limit. It calls neither the subtype match nor the occupancy lookup. Report: investigation/open-issues.md. Function 0x14051d85f-0x14051dd70; instruction bytes 83b8740e000007 at 0x14051d923. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/load-links.asm:L71; ../open-issues/pseudocode/0x14051d830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14051d85f@0x14051d923",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14051d923"
+          }
+        },
+        {
+          "label": "spawnRope builds a completed link",
+          "value": "call 0x140521500",
+          "detail": "The spawnRope wrapper 0x1405af7a0 forwards both ends, their coordinates, the length and the link kind to this world routine. With both bodies loaded it calls the completed constructor; otherwise it stores a deferred link record. Neither branch calls the subtype match. Report: investigation/open-issues.md. Function 0x1407359f0-0x140735ef5; instruction bytes e8e9b8deff at 0x140735c12. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/script-spawn-rope.asm:L150; ../open-issues/pseudocode/0x1407359f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407359f0@0x140735c12",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140735c12"
+          }
+        },
+        {
+          "label": "Editor link reconstruction",
+          "value": "hose pulley subtype 8",
+          "detail": "The editor routine identifies winches and the matching pulley family from both end definitions, records the link kind and end coordinates and stores deferred link records. It applies no character distance check there; the runtime constructor still checks positions and distance later. Report: investigation/open-issues.md. Function 0x140782ab0-0x140784819; instruction bytes 83b9740e000008 at 0x140783b18. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/editor-hose-filter.asm:L28; ../open-issues/pseudocode/0x140782ab0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140782ab0@0x140783b18",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140783b18"
+          }
+        },
+        {
           "label": "Pulley side selection",
           "value": "reciprocal pointer",
           "detail": "Before the first-side exchange (call at 0x1403b6c4a) the pass compares the linked hook's back pointer (+0xaa0) with this component and uses the linked pulley's second port (+0x950, 0x1403b6c1a) when it matches, otherwise its first port (+0x918, 0x1403b6c23). Report: investigation/fluid-gaps.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 48399aa00a0000 at 0x1403b6c11. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/hose-side1.asm:L31; ../fluid-gaps/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -146613,7 +147929,7 @@
         }
       ],
       "limitations": [
-        "The corner hose pulley uses the same end exchange scheme as the straight pulley. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced."
+        "The corner pulley has the straight pulley's subtype 8, so the same attachment checks apply. Other editor gestures and the code that later turns deferred link records into links were not traced."
       ],
       "sources": [
         {
@@ -146688,6 +148004,36 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14051d923"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520a8a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520b4e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520b9f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520c9a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520dbb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140520ea4"
         },
         {
@@ -146698,12 +148044,67 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405217d9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052183e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140521c53"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140521ebd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524579"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052458b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405246ae"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524835"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405248f7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140524916"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14052491f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140735c12"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140783b18"
         },
         {
           "path": "stormworks64.exe",
@@ -167821,12 +169222,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 9171,
+    "findingCount": 9252,
     "findingsByStatus": {
-      "derived": 752,
-      "observed": 8419
+      "derived": 756,
+      "observed": 8496
     },
-    "nativeFindingCount": 6750,
+    "nativeFindingCount": 6831,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -167877,8 +169278,8 @@
       }
     ],
     "evidenceUse": {
-      "derived": 437,
-      "native": 1655,
+      "derived": 441,
+      "native": 1697,
       "resource": 2722
     }
   }

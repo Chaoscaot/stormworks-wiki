@@ -1,0 +1,55 @@
+   1402f5f7f:	a8 10                                           	test   al,0x10
+   1402f5f83:	48 a9 00 04 00 00                               	test   rax,0x400
+   1402f5f8b:	48 a9 00 00 01 00                               	test   rax,0x10000
+   1402f5f93:	48 a9 00 00 40 00                               	test   rax,0x400000
+   1402f5f9b:	48 a9 00 00 00 10                               	test   rax,0x10000000
+   1402f5fb1:	48 a9 00 00 00 40                               	test   rax,0x40000000
+   1402f5fbd:	48 ba 00 00 00 00 04 00 00 00                   	movabs rdx,0x400000000
+   1402f5fd0:	48 ba 00 00 00 00 08 00 00 00                   	movabs rdx,0x800000000
+   1402f5fe3:	48 ba 00 00 00 00 40 00 00 00                   	movabs rdx,0x4000000000
+   1402f5ff2:	48 ba 00 00 00 00 00 04 00 00                   	movabs rdx,0x40000000000
+   1402f6001:	48 ba 00 00 00 00 00 08 00 00                   	movabs rdx,0x80000000000
+   1402f6010:	48 ba 00 00 00 00 00 00 01 00                   	movabs rdx,0x1000000000000
+   1402f601f:	48 ba 00 00 00 00 00 00 02 00                   	movabs rdx,0x2000000000000
+   1402f602e:	48 ba 00 00 00 00 00 00 10 00                   	movabs rdx,0x10000000000000
+   1402f603d:	48 ba 00 00 00 00 00 00 20 00                   	movabs rdx,0x20000000000000
+   1402f604c:	48 ba 00 00 00 00 00 00 40 00                   	movabs rdx,0x40000000000000
+   1402f605b:	48 ba 00 00 00 00 00 00 80 00                   	movabs rdx,0x80000000000000
+   1402f606d:	48 ba 00 00 00 00 01 00 00 00                   	movabs rdx,0x100000000
+   1402f6080:	48 ba 00 00 00 00 00 02 00 00                   	movabs rdx,0x20000000000
+   1402f6093:	48 ba 00 00 00 00 00 01 00 00                   	movabs rdx,0x10000000000
+   1402f60a6:	48 ba 00 00 00 00 10 00 00 00                   	movabs rdx,0x1000000000
+   1402f60b5:	48 ba 00 00 00 00 00 20 00 00                   	movabs rdx,0x200000000000
+   1402f60c4:	48 ba 00 00 00 00 00 10 00 00                   	movabs rdx,0x100000000000
+   1402f60d3:	48 ba 00 00 00 00 00 80 00 00                   	movabs rdx,0x800000000000
+   1402f60e2:	48 ba 00 00 00 00 00 40 00 00                   	movabs rdx,0x400000000000
+   1402f60f1:	48 ba 00 00 00 00 00 00 08 00                   	movabs rdx,0x8000000000000
+   1402f6100:	48 ba 00 00 00 00 00 00 04 00                   	movabs rdx,0x4000000000000
+   1402f610f:	48 ba 00 00 00 00 00 00 00 02                   	movabs rdx,0x200000000000000
+   1402f611e:	48 ba 00 00 00 00 00 00 00 01                   	movabs rdx,0x100000000000000
+   1402f613c:	a8 20                                           	test   al,0x20
+   1402f6140:	48 a9 00 08 00 00                               	test   rax,0x800
+   1402f6148:	48 a9 00 00 02 00                               	test   rax,0x20000
+   1402f6150:	48 a9 00 00 80 00                               	test   rax,0x800000
+   1402f6158:	48 a9 00 00 00 20                               	test   rax,0x20000000
+   1402f6191:	f3 41 0f 58 d0                                  	addss  xmm2,xmm8
+   1402f61ce:	f3 41 0f 59 ca                                  	mulss  xmm1,xmm10
+   1402f61d3:	f3 0f 59 c6                                     	mulss  xmm0,xmm6
+   1402f61d7:	f3 0f 59 ce                                     	mulss  xmm1,xmm6
+   1402f61db:	f3 0f 59 c7                                     	mulss  xmm0,xmm7
+   1402f61df:	f3 0f 59 ca                                     	mulss  xmm1,xmm2
+   1402f61e3:	f3 44 0f 58 d8                                  	addss  xmm11,xmm0
+   1402f61f0:	f3 0f 59 cf                                     	mulss  xmm1,xmm7
+   1402f61f4:	f3 41 0f 59 c2                                  	mulss  xmm0,xmm10
+   1402f61f9:	f3 0f 58 4e 18                                  	addss  xmm1,DWORD PTR [rsi+0x18]
+   1402f61fe:	f3 0f 59 c6                                     	mulss  xmm0,xmm6
+   1402f620a:	f3 0f 59 c2                                     	mulss  xmm0,xmm2
+   1402f6212:	f3 0f 59 c7                                     	mulss  xmm0,xmm7
+   1402f6216:	f3 41 0f 59 ca                                  	mulss  xmm1,xmm10
+   1402f621b:	f3 0f 58 46 1c                                  	addss  xmm0,DWORD PTR [rsi+0x1c]
+   1402f6220:	f3 0f 59 ce                                     	mulss  xmm1,xmm6
+   1402f6229:	f3 0f 59 ca                                     	mulss  xmm1,xmm2
+   1402f622d:	f3 0f 59 cf                                     	mulss  xmm1,xmm7
+   1402f6231:	f3 0f 58 4e 20                                  	addss  xmm1,DWORD PTR [rsi+0x20]
+   1402f63c4:	76 2d                                           	jbe    0x1402f63f3
+   1402f63f3:	f3 44 0f 11 5e 38                               	movss  DWORD PTR [rsi+0x38],xmm11

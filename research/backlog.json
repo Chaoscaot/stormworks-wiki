@@ -51,7 +51,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/5/limitations/0",
-        "text": "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
+        "text": "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. How arbitrary wall shapes map to the custom-compartment volume scan, and which rules create and remove the openings that let a hull flood, were not traced. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced either. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -644,7 +644,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/197/limitations/0",
-        "text": "Completed links exchange fluid once, through the end assigned to perform the exchange. A character-held loose hose uses a separate link path; its fluid operation and the complete attachment restrictions across the interaction, scripting, loading and editing paths remain untraced.",
+        "text": "The attachment checks were traced for normal interaction, saved links, the spawnRope script function and the editor's link reconstruction. Other editor gestures, the code that later turns deferred link records into links, and indirect writers of a character's held link were not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -670,7 +670,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/241/limitations/0",
-        "text": "Static analysis of one build; the game was not run. Whether a writer reached indirectly through a world, script, editor, copy or load path fills the private fuel or intake compartments was not traced: the search covered direct stores at their offsets and the generic environment update, which touches only the coolant. Vehicle files from formats older than the current reader were not traced either.",
+        "text": "Static analysis of one build; the game was not run. The checked engine, environment, serializer and loading paths add no fuel or intake. Copy and clone code, every virtual dispatch target and pointer aliases were not traced, so a writer to the private fuel or intake compartments outside those paths is not ruled out. Format migrations that run before the vehicle reader's dispatch, and which historical files still reach that reader, were not traced either.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -683,7 +683,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/245/limitations/0",
-        "text": "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded.",
+        "text": "The mapping from arbitrary wall blocks, wedges, rotated parts and damage to the scan's wall bits was not traced, and neither were the rules that create and remove openings between compartments and the outside or the outside depth and environment queries.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -696,7 +696,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/254/limitations/0",
-        "text": "The hose pulley selects its linked side through reciprocal attachment pointers, and one end performs each exchange. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced.",
+        "text": "The attachment checks were traced for normal interaction, saved links, the spawnRope script function and the editor's link reconstruction. Other editor gestures and the code that later turns deferred link records into links were not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -709,7 +709,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/255/limitations/0",
-        "text": "The corner hose pulley uses the same end exchange scheme as the straight pulley. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced.",
+        "text": "The corner pulley has the straight pulley's subtype 8, so the same attachment checks apply. Other editor gestures and the code that later turns deferred link records into links were not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -754,7 +754,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/2/limitations/2",
-        "text": "Buoyancy is in internal units of the native submerged weight V. Still not recovered: a complete rule for which cells and faces of an arbitrary hull the fill state and exposure classification count, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So a whole vessel's V does not yet follow from its parts list.",
+        "text": "Buoyancy is in internal units of the native submerged weight V. Still not recovered: a complete rule for which cells and faces of an arbitrary hull the fill state and exposure classification count, the units and water or gas classification of the compartment inputs W and G, and which openings seal a compartment or let it flood. So a whole vessel's V does not yet follow from its parts list.",
         "scope": "Shipped-resource mechanics article"
       },
       {

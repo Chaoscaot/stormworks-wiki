@@ -1343,7 +1343,7 @@ def build_articles():
              realtime_loader()] + [physics_core()[k] for k in ('v_leaf', 'v_cell', 's_weight', 's_normal', 's_loop', 's_total', 's_L', 'slam', 'phi', 'wave')],
             [sdk_limit, native_limit,
              'Buoyancy is in internal units of the native submerged weight V. Still not recovered: a complete rule for which cells and faces of an arbitrary hull the fill state and exposure classification count, '
-             'the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So a whole vessel\'s V does not yet follow from its parts list.',
+             'the units and water or gas classification of the compartment inputs W and G, and which openings seal a compartment or let it flood. So a whole vessel\'s V does not yet follow from its parts list.',
              'How the cached wave triangles\' normals and vertex vectors are generated was not traced. No SI meaning is assigned to the drag factors.'])
     article('wheels-suspension', 'Wheels, grip and suspension', 'Physics',
             'Realtime configuration separates tire damping, suspension stiffness and wheel torque scaling, but the executable contains none of these names; the wheel code uses its own constants.',
