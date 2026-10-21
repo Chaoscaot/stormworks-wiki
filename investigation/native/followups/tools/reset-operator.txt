@@ -1,0 +1,35 @@
+1-// entry 140730d40
+2-
+3:void FUN_140730d40(longlong *param_1,int param_2,undefined8 param_3,undefined4 param_4,
+4:                  undefined4 param_5)
+5-
+6-{
+7-  longlong lVar1;
+--
+9-  int iVar3;
+10-  undefined1 auStackX_8 [8];
+11-  
+12:  lVar2 = param_1[2];
+13-  iVar3 = 0;
+14-  while( true ) {
+15-    if (iVar3 == *(int *)(lVar2 + 0x40)) {
+--
+19-             (*(longlong *)(lVar2 + 0x30) +
+20-             ((ulonglong)(uint)(*(int *)(lVar2 + 0x3c) + iVar3) % (ulonglong)*(uint *)(lVar2 + 0x38)
+21-             ) * 8);
+22:    if (*(int *)(lVar1 + 4) == param_2) break;
+23-    iVar3 = iVar3 + 1;
+24-  }
+25-  lVar2 = *(longlong *)(lVar1 + 0xe0);
+--
+30-  if (lVar2 == 0) {
+31-    return;
+32-  }
+33:  lVar2 = FUN_1409278b0(lVar2,param_3,auStackX_8);
+34-  if (lVar2 == 0) {
+35-    return;
+36-  }
+37:  (**(code **)(*param_1 + 0x3c8))(param_1,param_2,lVar2 + 0x18,param_4,param_5);
+38-  return;
+39-}
+40-

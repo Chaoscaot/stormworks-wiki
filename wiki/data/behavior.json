@@ -1763,7 +1763,7 @@
         }
       ],
       "limitations": [
-        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Which editor, mission, career or creative and save-loading workflows enable the diesel and jet-fuel fill or keep restored contents, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
+        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -3139,7 +3139,6 @@
       ],
       "limitations": [
         "Timing between vehicles and through cables is listed with the open questions of the Composite data over electrical cables mechanics article.",
-        "Power Add and Power Meter select a case that computes nothing in the logic update. Their transmission-network formulas were not recovered, and whether the two definitions are obsolete in this build was not traced.",
         "A Train Junction Controller's writes replace the junction's route bit, so the last write wins, but the order in which controllers on different vehicles update was not traced: a stable priority between controllers has not been established. Which bit value means the left or right branch for each track orientation was not established either.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -3336,7 +3335,7 @@
         },
         {
           "title": "Choosing a joint",
-          "body": "Robotic pivots and hinges are position servos: the input sets an angle within ±0.25 turns and the motor slows as it closes in. Velocity pivots and turret rings are speed motors: the input sets turns per second, capped at 10, with no angle limit, and they brake at an input of 0. Suspensions are force-limited sliders without Gear Ratio or electricity. Plain and power pivots are unpowered hinges. Turret rings also extend a sealed volume through the ring."
+          "body": "Robotic pivots and hinges are position servos: the input sets an angle within ±0.25 turns and the motor slows as it closes in. Velocity pivots and turret rings are speed motors: the input sets turns per second, capped at 10, with no angle limit, and they brake at an input of 0. Suspensions are force-limited sliders without Gear Ratio or electricity. Plain and power pivots are unpowered hinges with no angular stop. Turret rings also extend a sealed volume through the ring."
         }
       ],
       "limitations": [
@@ -3344,7 +3343,6 @@
         "An equivalent spring rate and damping for the suspensions was not recovered; the update is a speed motor with a position-dependent force cap.",
         "Ordinary joint fluid passage uses the shared bidirectional, all-species two-port solver with zero bias and factor 1, and delivered flow depends on network pressure and allocation history. Mechanical shaft speed, torque and any joint-specific losses across a joint were not traced.",
         "The local sign flip of σ is decoded, but its world-axis direction for each placement and reflected orientation was not traced; that needs the joint-frame and body-order transforms.",
-        "The plain and power pivot definitions skip the hinge setup's explicit angle-limit branch, so their tooltip quarter-turn stop does not come from that setter. Their assembled travel and any other stop mechanism remain unverified.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.",
         "Static analysis only; no game process was run."
       ],
@@ -3360,6 +3358,16 @@
           "sha256": "a43e893a80695599f753f90cf3d515dea7a6b4f62cecbe21d2e99d701b7fcd16",
           "lineStart": 2,
           "lineEnd": 2
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140125660"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019f2de"
         },
         {
           "path": "stormworks64.exe",
@@ -5789,7 +5797,7 @@
         },
         {
           "title": "Fireboxes",
-          "body": "Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. The fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. Each update it requests b = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal, T being the fire temperature: at most 0.054 coal per simulated second for the small firebox and 0.21 for the large. Air limits the burn. A fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of the Air chamber moves to the Exhaust chamber, r = b × 200 ÷ 60, and the burn is cut to the share that oxygen covers at a 0.21 reference fraction. So it needs Air pressure more than 1 above Exhaust pressure. Burnt oxygen becomes carbon dioxide in the exhaust. Each unit of coal actually burned adds 200 to the fire temperature."
+          "body": "Ignition takes one coal and sets the ignition state, saved as ignition_counter, to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. The fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. Each update it requests b = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal, T being the fire temperature: at most 0.054 coal per simulated second for the small firebox and 0.21 for the large. Air limits the burn. A fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of the Air chamber moves to the Exhaust chamber, r = b × 200 ÷ 60, and the burn is cut to the share that oxygen covers at a 0.21 reference fraction. So it needs Air pressure more than 1 above Exhaust pressure. Burnt oxygen becomes carbon dioxide in the exhaust. Each unit of coal actually burned adds 200 to the fire temperature."
         },
         {
           "title": "Firebox heat and coolant",
@@ -5817,7 +5825,7 @@
         },
         {
           "title": "Open questions",
-          "body": "Ignition writes 3600 to a state that the recovered firebox combustion paths test as a nonzero enable. No countdown was found in those paths, and the complete gameplay writer that clears or decrements it was not traced. Hot damaged fireboxes can queue a component and body event when vehicle damage is on. The event consumer, any global blast and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive."
+          "body": "Ignition writes 3600 to a saved state named ignition_counter, and combustion tests only whether it is nonzero. No countdown has been decoded: the steam update, the steam reset and the serializer hold no decrement. Writes through generic copies or rebased pointers elsewhere in the executable were not traced. A hot damaged firebox queues a component and body event when vehicle damage is on, and the scene later submits that component's geometry to a shared geometry-change queue. How those records end in damage or destruction, any blast radius or energy and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive."
         }
       ],
       "limitations": [
@@ -6181,6 +6189,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140490f6f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b49e0"
         },
         {
@@ -6241,6 +6254,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549dec"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405e3add"
         },
         {
@@ -6272,6 +6290,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d768"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6f408"
         }
       ]
     },
@@ -6390,7 +6413,7 @@
       ],
       "limitations": [
         "SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
-        "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but its enforcing path and internal unit were not established. The recovered gearbox update, ratio helper and shaft solver hold no 4000 and compare the copied force_emitter_max_force with nothing.",
+        "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but no enforcing code and no internal unit for it were established. Whole-executable searches for 4000 as a binary32 constant or an integer immediate found no use in the gearbox binder, update and ratio helper or the shaft collect and publish code, and those paths compare the copied force_emitter_max_force with nothing. A threshold computed from another constant or a definition value, or applied through a shared damage path, was not traced.",
         "Damage disables the gearbox or clutch bridge. Both use the shared capped damage setter, and the shared repair routine can subtract damage to 0. The complete damage triggers, repair cadence and any torque-triggered breakage were not traced.",
         "The rebuild clears registered shaft-node group pointers before freeing the old groups, then forms new groups and appends members in connection-discovery order. Which connector changes schedule a rebuild, and the update ordering that would rule out a pass on stale membership, were not traced, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
         "Static analysis only.",
@@ -6473,6 +6496,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14032af7f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14033e319"
         },
         {
           "path": "stormworks64.exe",
@@ -23521,11 +23549,11 @@
         },
         {
           "title": "Diesel and jet fuel at spawn",
-          "body": "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. This operation adds to the existing contents and does not clear them.\n\nThe fill runs only when the spawn request's fuel-fill byte is set. Request construction clears it and then copies the caller's argument, and the shared spawn job passes a byte from another object, so a fresh spawn does not always fill. One identified path sets it: the Lua call resetVehicleState marks the vehicle's pending request and enables the fuel fill. The stock-capped branch also needs request mode 1, a second request flag, an inventory record and a cleared settings byte. The limitations below cover which workflows and options set them."
+          "body": "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. This operation adds to the existing contents and does not clear them.\n\nThe fill runs only when the spawn request's fuel-fill byte is set. Request construction clears it and then copies the caller's argument. That argument is the spawn record's first-spawn flag, saved as is_first_spawn with a default of on, so a restored record keeps its saved choice. Some spawn producers pass off, and the Lua call resetVehicleState sets it. The stock-capped branch also needs infinite_money off, request mode 1, a second request flag and a qualifying inventory record; otherwise the whole request is added."
         },
         {
           "title": "Saved contents and reset",
-          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again."
+          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again.\n\nVehicle construction and vehicle file loading read saved components with runtime fields admitted, so a tank restores its saved contents and fill-pending flag when the saved data holds them. Each tank then rebuilds its capacity from the definition without touching the contents. Entering the vehicle editor, and the editor's file-load paths, run the reset on every component after loading, so tanks there lose their saved contents and are marked for the pending fill again."
         }
       ],
       "findings": [
@@ -24181,15 +24209,111 @@
           }
         },
         {
-          "label": "Liquid tank start pressure",
-          "value": "about 60.4, 60.9 and 63.5 atm (small, medium, large)",
-          "detail": "Inference from the fill branch and the pressure law, before any exchange: a fresh tank with a liquid other than diesel or jet fuel selected and fill 1 holds 0.99 × V of it plus V ÷ 60 of air, so L = 0.99 × V and G = V ÷ 60. Small (V 3.125): 60 × 1.0067 = 60.40 atm. Medium (V 18.75) and large (V 70.3125): the air fills the last 1 % of room, giving 60.94 and 63.52 atm. A liquid tank set to a gas instead receives 0.99 × fill × V ÷ 60 of it, 0.99 atm at fill 1. Report: investigation/fluids-network.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79e0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79d0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79f6, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b7a52, derived:d59de08c3571, derived:a9832b465a8c, derived:7d5295c1ec2b, derived:c4f70b880444.",
-          "evidenceId": "derived:fb79f6346ec6",
-          "status": "derived",
+          "label": "Saved first-spawn flag",
+          "value": "is_first_spawn",
+          "detail": "The spawn record serializer binds record+0xd4 to this name (lea r9 at 0x140546345) with a named default of 1 (0x140546340); binary restore writes the saved byte at 0x1405463bc. The request producers copy this byte into the spawn request's fuel-fill gate +0x45, so a saved record keeps its own choice. Report: investigation/followups.md. Function 0x140545d10-0x1405467ec; it references the string 'is_first_spawn' at 0x140b88080. Interpretation rests on retained output investigation/native/behavior/../followups/asm/140545d10.asm:L439; ../followups/pseudocode/140545d10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140545d10@0x140b88080",
+          "status": "observed",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
-            "address": "0x1404b79e0"
+            "address": "0x140b88080"
+          }
+        },
+        {
+          "label": "Spawn event first-spawn store",
+          "value": "argument → +0xd4",
+          "detail": "The spawn event builder stores its caller's first-spawn argument in the record byte that becomes the fuel-fill gate. Report: investigation/followups.md. Function 0x14066ed90-0x14066f00f; instruction bytes 8883d4000000 at 0x14066ef93. Interpretation rests on retained output investigation/native/behavior/../followups/asm/14066ed90.asm:L120; ../followups/pseudocode/14066ed90.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14066ed90@0x14066ef93",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14066ef93"
+          }
+        },
+        {
+          "label": "Spawn producer passing false",
+          "value": "first-spawn argument 0",
+          "detail": "One producer in the dispatcher 0x1406bb400 passes 0 before the spawn event call at 0x1406c3475; another does the same at 0x1406c5c45. Other producers pass a variable byte (tools/first-spawn-producer-windows.txt under investigation/native/followups). Report: investigation/followups.md. Function 0x1406bb400-0x1406ca288; instruction bytes c644245800 at 0x1406c342d. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1406bb400@0x1406c342d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1406c342d"
+          }
+        },
+        {
+          "label": "Stock-cap setting",
+          "value": "infinite_money",
+          "detail": "The settings serializer binds settings+8 to this name (lea r9 at 0x140292e5f). It is the settings byte the stock-capped fuel branch requires to be 0. Report: investigation/followups.md. Function 0x140292d60-0x140293a3b; it references the string 'infinite_money' at 0x140b101f8. Interpretation rests on retained output investigation/native/behavior/../followups/asm/140292d60.asm:L77; ../followups/pseudocode/140292d60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140292d60@0x140b101f8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b101f8"
+          }
+        },
+        {
+          "label": "Construction read flags",
+          "value": "5: configuration and runtime fields",
+          "detail": "Asynchronous vehicle construction installs read flags 5 in its reader context, so saved runtime fields such as tank contents and spawner_pending are read when the data holds them; missing named fields keep their defaults. Report: investigation/followups.md. Function 0x1404bbca0-0x1404bc6f8; instruction bytes c745f705000000 at 0x1404bbe9a. Interpretation rests on retained output investigation/native/behavior/../followups/asm/construction-load-final.asm:L143; ../followups/pseudocode/prior-1404bbca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bbca0@0x1404bbe9a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bbe9a"
+          }
+        },
+        {
+          "label": "Vehicle file read flags",
+          "value": "5",
+          "detail": "The vehicle file loader installs the same flags. Report: investigation/followups.md. Function 0x1404c16b0-0x1404c236f; instruction bytes c745f805000000 at 0x1404c1bcc. Interpretation rests on retained output investigation/native/behavior/../followups/asm/file-load-final.asm:L343; ../followups/pseudocode/1404c16b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c16b0@0x1404c1bcc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c1bcc"
+          }
+        },
+        {
+          "label": "Capacity rebuild after restore",
+          "value": "slot +0x18 after the serializer",
+          "detail": "The named component reader calls the component serializer (0x1404b8502) and then slot +0x18 (the binary reader at 0x1404b8cc5). For tanks that slot is 0x1403ef450, which recomputes the capacity from the definition and does not clear species amounts, total, temperature or fill pending. Report: investigation/followups.md. Function 0x1404b81f0-0x1404b8818; instruction bytes ff5018 at 0x1404b850b. Interpretation rests on retained output investigation/native/behavior/../followups/asm/component-load-final.asm:L235; ../followups/pseudocode/1404b81f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b850b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b850b"
+          }
+        },
+        {
+          "label": "Network reconstruction before the pending fill",
+          "value": "restore, capacity, networks, pending fill",
+          "detail": "Construction reconstructs the networks (this call and 0x1404bc382) and then calls the pending fill at 0x1404bc38a. The request-gated diesel and jet-fuel fill runs later. Report: investigation/followups.md. Function 0x1404bbca0-0x1404bc6f8; instruction bytes e8d44bfeff at 0x1404bc377. Interpretation rests on retained output investigation/native/behavior/../followups/asm/construction-load-final.asm:L460; ../followups/pseudocode/prior-1404bbca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bbca0@0x1404bc377",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bc377"
+          }
+        },
+        {
+          "label": "Editor entry resets components",
+          "value": "slot +0x3c8 of each component",
+          "detail": "Entering the vehicle editor calls slot +0x3c8 on each component after any load or copy; for tanks that is the reset 0x1403eebf0, which clears contents and re-arms the pending fill. The editor's supplied-path load 0x1407d1f00 (0x1407d2241) and data/debris/ reload 0x1407d1a50 (0x1407d1e12) call the same slot after a successful file load. Report: investigation/followups.md. Function 0x1407d09b0-0x1407d1434; instruction bytes ff90c8030000 at 0x1407d0fa6. Interpretation rests on retained output investigation/native/behavior/../followups/asm/1407d09b0.asm:L300; ../followups/pseudocode/1407d09b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407d09b0@0x1407d0fa6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407d0fa6"
           }
         },
         {
@@ -24202,6 +24326,18 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403ef705"
+          }
+        },
+        {
+          "label": "Liquid tank start pressure",
+          "value": "about 60.4, 60.9 and 63.5 atm (small, medium, large)",
+          "detail": "Inference from the fill branch and the pressure law, before any exchange: a fresh tank with a liquid other than diesel or jet fuel selected and fill 1 holds 0.99 × V of it plus V ÷ 60 of air, so L = 0.99 × V and G = V ÷ 60. Small (V 3.125): 60 × 1.0067 = 60.40 atm. Medium (V 18.75) and large (V 70.3125): the air fills the last 1 % of room, giving 60.94 and 63.52 atm. A liquid tank set to a gas instead receives 0.99 × fill × V ÷ 60 of it, 0.99 atm at fill 1. Report: investigation/fluids-network.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79e0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79d0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79f6, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b7a52, derived:d59de08c3571, derived:a9832b465a8c, derived:7d5295c1ec2b, derived:c4f70b880444.",
+          "evidenceId": "derived:fb79f6346ec6",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b79e0"
           }
         },
         {
@@ -24348,7 +24484,7 @@
         }
       ],
       "limitations": [
-        "Diesel and jet fuel use a separate request-gated fill, and resetVehicleState is one identified path that enables it; which editor, mission, career or creative and save-loading workflows enable it is not yet mapped. The pending fill follows network reconstruction, while the fuel fill has its own request gate; the reset and restore choices each loading and editor workflow makes are not yet mapped.",
+        "Diesel and jet fuel use the spawn request's first-spawn flag. Which mission, editor and other user commands pass it on or off was not mapped; several spawn producers in the large event dispatchers 0x1406bb400 and 0x1407dd990 pass a variable value. Whether every mission spawn and editor command follows one of the construction, file-load and editor paths above, or adds its own reset, was not mapped either.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -24525,7 +24661,27 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b850b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bbe9a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bc377"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404bc38a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c1bcc"
         },
         {
           "path": "stormworks64.exe",
@@ -24610,6 +24766,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14066ef93"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1406c342d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140727ed2"
         },
         {
@@ -24621,6 +24787,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407d0fa6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b101f8"
         },
         {
           "path": "stormworks64.exe",
@@ -24651,6 +24827,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b6d9c0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b88080"
         },
         {
           "path": "stormworks64.exe",
@@ -25487,7 +25668,7 @@
         },
         {
           "title": "Saved contents and reset",
-          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again."
+          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again.\n\nVehicle construction and vehicle file loading read saved components with runtime fields admitted, so a tank restores its saved contents and fill-pending flag when the saved data holds them. Each tank then rebuilds its capacity from the definition without touching the contents. Entering the vehicle editor, and the editor's file-load paths, run the reset on every component after loading, so tanks there lose their saved contents and are marked for the pending fill again."
         },
         {
           "title": "Pressure limits",
@@ -25980,6 +26161,78 @@
           }
         },
         {
+          "label": "Construction read flags",
+          "value": "5: configuration and runtime fields",
+          "detail": "Asynchronous vehicle construction installs read flags 5 in its reader context, so saved runtime fields such as tank contents and spawner_pending are read when the data holds them; missing named fields keep their defaults. Report: investigation/followups.md. Function 0x1404bbca0-0x1404bc6f8; instruction bytes c745f705000000 at 0x1404bbe9a. Interpretation rests on retained output investigation/native/behavior/../followups/asm/construction-load-final.asm:L143; ../followups/pseudocode/prior-1404bbca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bbca0@0x1404bbe9a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bbe9a"
+          }
+        },
+        {
+          "label": "Vehicle file read flags",
+          "value": "5",
+          "detail": "The vehicle file loader installs the same flags. Report: investigation/followups.md. Function 0x1404c16b0-0x1404c236f; instruction bytes c745f805000000 at 0x1404c1bcc. Interpretation rests on retained output investigation/native/behavior/../followups/asm/file-load-final.asm:L343; ../followups/pseudocode/1404c16b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c16b0@0x1404c1bcc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c1bcc"
+          }
+        },
+        {
+          "label": "Capacity rebuild after restore",
+          "value": "slot +0x18 after the serializer",
+          "detail": "The named component reader calls the component serializer (0x1404b8502) and then slot +0x18 (the binary reader at 0x1404b8cc5). For tanks that slot is 0x1403ef450, which recomputes the capacity from the definition and does not clear species amounts, total, temperature or fill pending. Report: investigation/followups.md. Function 0x1404b81f0-0x1404b8818; instruction bytes ff5018 at 0x1404b850b. Interpretation rests on retained output investigation/native/behavior/../followups/asm/component-load-final.asm:L235; ../followups/pseudocode/1404b81f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b850b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b850b"
+          }
+        },
+        {
+          "label": "Network reconstruction before the pending fill",
+          "value": "restore, capacity, networks, pending fill",
+          "detail": "Construction reconstructs the networks (this call and 0x1404bc382) and then calls the pending fill at 0x1404bc38a. The request-gated diesel and jet-fuel fill runs later. Report: investigation/followups.md. Function 0x1404bbca0-0x1404bc6f8; instruction bytes e8d44bfeff at 0x1404bc377. Interpretation rests on retained output investigation/native/behavior/../followups/asm/construction-load-final.asm:L460; ../followups/pseudocode/prior-1404bbca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404bbca0@0x1404bc377",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404bc377"
+          }
+        },
+        {
+          "label": "Editor entry resets components",
+          "value": "slot +0x3c8 of each component",
+          "detail": "Entering the vehicle editor calls slot +0x3c8 on each component after any load or copy; for tanks that is the reset 0x1403eebf0, which clears contents and re-arms the pending fill. The editor's supplied-path load 0x1407d1f00 (0x1407d2241) and data/debris/ reload 0x1407d1a50 (0x1407d1e12) call the same slot after a successful file load. Report: investigation/followups.md. Function 0x1407d09b0-0x1407d1434; instruction bytes ff90c8030000 at 0x1407d0fa6. Interpretation rests on retained output investigation/native/behavior/../followups/asm/1407d09b0.asm:L300; ../followups/pseudocode/1407d09b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407d09b0@0x1407d0fa6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407d0fa6"
+          }
+        },
+        {
+          "label": "Liquid tank volume factor",
+          "value": "0.015625",
+          "detail": "The water_component_type 8 case applies the same 0.015625 and 100 (0x1403ef70d) to the listed voxel count and stores V at component+0x5a0 (0x1403ef715). Report: investigation/fluids-network.md. Function 0x1403ef450-0x1403ef847; instruction bytes f30f59056f027c00 at 0x1403ef705 address binary32 0.015625 (bytes 0000803c) at 0x140baf97c. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/tank-init.asm:L159-L164. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ef450@0x1403ef705",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ef705"
+          }
+        },
+        {
           "label": "Gas tank start pressure",
           "value": "59.4 atm at fill 1",
           "detail": "Inference from the fill branch and the pressure law, before any exchange: a fresh gas tank receives q = 0.99 × fill × V of the selected gas and no ambient air, so P = 60 × 0.99 × fill = 59.4 × fill atm for every size. Tank Content then reads 10 × 0.99 × V, 0.99 of the geometric litres; the species list shows 600 × amount. Report: investigation/fluids-network.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79e0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79f6, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b7a52, derived:d59de08c3571, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3863, native:stormworks64.exe:f9206d85c82f:0x1403f9e40@0x1403f9fa7.",
@@ -26223,7 +26476,7 @@
         }
       ],
       "limitations": [
-        "Gas-tank contents and the fill-pending flag are saved, a reset clears the contents and sets fill pending, and the pending fill follows network reconstruction; which loading and editor workflows run each of these is not yet mapped.",
+        "Whether every mission spawn and editor command follows one of the construction, file-load and editor paths in Saved contents and reset, or adds its own reset, was not mapped.",
         "No maximum safe pressure or pressure-triggered gas-tank damage threshold was found. A generic damage path or inlined pressure logic elsewhere in the executable was not traced, so this static investigation has not established that none exists.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -26375,6 +26628,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ef705"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f37b8"
         },
         {
@@ -26435,7 +26693,27 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b850b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bbe9a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404bc377"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404bc38a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c1bcc"
         },
         {
           "path": "stormworks64.exe",
@@ -26466,6 +26744,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407d0fa6"
         },
         {
           "path": "stormworks64.exe",
@@ -35560,7 +35843,7 @@
         },
         {
           "title": "Legacy definitions",
-          "body": "Both legacy definitions carry torque_component_type 1 and run the gearbox code above. Their force_emitter_max_force values, 1000 for torque_gearbox and 9999999 for torque_gearbox_2, are copied to the RPS A connection at binding and not submitted as a solver weight. Only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference, without a unit. The gearbox update, ratio helper and shaft solve hold no 4000 and compare the copied value with nothing, so the limit is not enforced in those paths. Where it is enforced is an open item under Transmission on the parts index."
+          "body": "Both legacy definitions carry torque_component_type 1 and run the gearbox code above. Their force_emitter_max_force values, 1000 for torque_gearbox and 9999999 for torque_gearbox_2, are copied to the RPS A connection at binding and not submitted as a solver weight. Only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference, without a unit. Whole-executable searches for the constant 4000 found it only outside the gearbox and shaft code, for example in a propulsion division, and the gearbox update, ratio helper and shaft solve compare the copied value with nothing. So this build does not enforce the limit in those paths. Whether a computed threshold or a shared damage path enforces it is an open item under Transmission on the parts index."
         },
         {
           "title": "Torque meter readings",
@@ -36320,6 +36603,30 @@
           }
         },
         {
+          "label": "Binary32 4000 use outside the gearbox",
+          "value": "4000",
+          "detail": "A propulsion routine divides by the shared binary32 4000. It is one of the 10 instruction references to that constant listed in investigation/native/followups/tools/constant4000-refs.txt; none lies in the gearbox or shaft code. Report: investigation/followups.md. Function 0x14033e200-0x14033e3a0; instruction bytes f30f5e0573258700 at 0x14033e319 address binary32 4000 (bytes 00007a45) at 0x140bb0894. The byte check above is the evidence; no wider formula is claimed from it. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14033e200@0x14033e319",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14033e319"
+          }
+        },
+        {
+          "label": "Whole-executable 4000 search",
+          "value": "no use in the gearbox or shaft code",
+          "detail": "Every byte occurrence of binary32 4000 and integer 4000 in the PE sections is inventoried in tools/constant4000-locations.txt, the instruction references to the shared binary32 4000 at 0x140bb0894 in tools/constant4000-refs.txt and integer immediates in tools/int4000-immediates.txt (investigation/native/followups). The extractor re-checks the 10 references and that none lies in the gearbox binder, update or ratio helper or the shaft collect and publish code. The integer comparison at 0x1402c81aa belongs to another class. A computed or indirectly supplied threshold is not covered by a literal search. Report: investigation/followups.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14033e200@0x14033e319.",
+          "evidenceId": "derived:0d3ed968e24d",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14033e319"
+          }
+        },
+        {
           "label": "Gearbox · tooltip",
           "value": "The ratio can be toggled between two values which can be set in the properties.",
           "detail": "torque_gearbox: developer-authored description; intended behaviour, not a measurement.",
@@ -36508,6 +36815,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140325aba"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14033e319"
         },
         {
           "path": "stormworks64.exe",
@@ -48405,7 +48717,7 @@
         },
         {
           "title": "Transfers",
-          "body": "While linked, the two connectors' electric nodes point at each other, so the electrical pool builder treats both networks as one charge pool. The pool walk adds no capacity or loss for this link; battery output and consumer limits still apply. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging."
+          "body": "While linked, the two connectors' electric nodes point at each other, so the electrical pool builder treats both networks as one charge pool. The pool walk adds no capacity or loss for this link; battery output and consumer limits still apply. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after."
         }
       ],
       "findings": [
@@ -48663,6 +48975,42 @@
           }
         },
         {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          }
+        },
+        {
           "label": "Electric connector bridge",
           "value": "self+0x938 = partner node+0x908",
           "detail": "For connector_type 4 (0x1403d27b8) each side's bridge points at the other's electric node, so the pool builder 0x1404c9d20 walks both networks as one charge pool. That walk applies no capacity or loss to the edge; battery and consumer limits still apply. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes 48898738090000 at 0x1403d27cf. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L770; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -48799,7 +49147,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -48821,6 +49169,16 @@
           "sha256": "80432201437e255e37fd311b6871bba7c304c25e09dd53ca3895f389777c7372",
           "lineStart": 109,
           "lineEnd": 109
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
         },
         {
           "path": "stormworks64.exe",
@@ -48900,6 +49258,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -48972,7 +49335,7 @@
         },
         {
           "title": "Transfers",
-          "body": "Each side's electric node points at the other's, so both networks form one charge pool, with no capacity or loss for this link. The Fluid ports exchange with factor 0.5 and bias 0 in both directions; the networks stay separate. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging."
+          "body": "Each side's electric node points at the other's, so both networks form one charge pool, with no capacity or loss for this link. The Fluid ports exchange with factor 0.5 and bias 0 in both directions; the networks stay separate. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after."
         }
       ],
       "findings": [
@@ -49334,6 +49697,42 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403d4426"
+          }
+        },
+        {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
           }
         },
         {
@@ -49644,7 +50043,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -49683,6 +50082,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14011f8e1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
         },
         {
           "path": "stormworks64.exe",
@@ -49857,6 +50266,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -49930,7 +50344,7 @@
         },
         {
           "title": "Transfers",
-          "body": "Each side's electric node points at the other's, so both networks form one charge pool, with no capacity or loss for this link. The Fluid ports exchange with factor 0.5 and bias 0 in both directions; the networks stay separate. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging."
+          "body": "Each side's electric node points at the other's, so both networks form one charge pool, with no capacity or loss for this link. The Fluid ports exchange with factor 0.5 and bias 0 in both directions; the networks stay separate. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after."
         }
       ],
       "findings": [
@@ -50292,6 +50706,42 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403d4426"
+          }
+        },
+        {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
           }
         },
         {
@@ -50576,7 +51026,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -50603,6 +51053,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14011f8e1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
         },
         {
           "path": "stormworks64.exe",
@@ -50777,6 +51237,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -50850,7 +51315,7 @@
         },
         {
           "title": "Transfers",
-          "body": "Each side's electric node points at the other's, so both networks form one charge pool, with no capacity or loss for this link. The Fluid ports exchange with factor 0.5 and bias 0 in both directions; the networks stay separate. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging."
+          "body": "Each side's electric node points at the other's, so both networks form one charge pool, with no capacity or loss for this link. The Fluid ports exchange with factor 0.5 and bias 0 in both directions; the networks stay separate. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after."
         }
       ],
       "findings": [
@@ -51215,6 +51680,42 @@
           }
         },
         {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          }
+        },
+        {
           "label": "Component updates per simulated second",
           "value": 60,
           "detail": "One component update per component, then one physics tick that advances simulated time by 1/60 s. This holds for active, normally simulated vehicles; pauses, sleep or fast-forward, unloaded vehicles and real-time slowdown are outside it. Report: investigation/update-rate.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407439c6, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3aea, native:stormworks64.exe:f9206d85c82f:0x1405e3a80@0x1405e3add, native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407435bb, native:stormworks64.exe:f9206d85c82f:0x1405e8fb0@0x1405ebd5c.",
@@ -51496,7 +51997,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -51523,6 +52024,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14011f8e1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
         },
         {
           "path": "stormworks64.exe",
@@ -51697,6 +52208,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -51774,7 +52290,7 @@
         },
         {
           "title": "Signals and transfers",
-          "body": "While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. The Electric port powers the magnet. This connector does not run the direct pool bridge that Electric Connectors and hardpoints use, so the port label alone does not show that electricity crosses the link."
+          "body": "While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after. The Electric port only powers the magnet. The connector's electrical bridge starts empty and this connector's attach branch never sets it, so no electricity crosses the link. A separate electric connector or cable can still join the two electrical networks."
         }
       ],
       "findings": [
@@ -52152,6 +52668,78 @@
           }
         },
         {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          }
+        },
+        {
+          "label": "Connector electrical bridge at construction",
+          "value": "component+0x938 = 0",
+          "detail": "The constructor clears the bridge of the electrical node at component+0x908 (registered at 0x1403d0a71), so the pool traversal 0x1404c9d20 finds no partner. Only the electric-subtype branch (test at 0x1403d27b8) and the hardpoint branch set it; small, hinge and large connectors take other attachment branches, so their Electric port serves only the magnet. Report: investigation/followups.md. Function 0x1403d02c0-0x1403d06e5; instruction bytes 4889bb38090000 at 0x1403d05a8. Interpretation rests on retained output investigation/native/behavior/../followups/asm/connector-construct-final.asm:L147. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d02c0@0x1403d05a8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d05a8"
+          }
+        },
+        {
+          "label": "Electric connector bridge",
+          "value": "self+0x938 = partner node+0x908",
+          "detail": "For connector_type 4 (0x1403d27b8) each side's bridge points at the other's electric node, so the pool builder 0x1404c9d20 walks both networks as one charge pool. That walk applies no capacity or loss to the edge; battery and consumer limits still apply. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes 48898738090000 at 0x1403d27cf. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L770; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d19f0@0x1403d27cf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d27cf"
+          }
+        },
+        {
+          "label": "Hardpoint electric bridge",
+          "value": "self+0x938 = partner node+0x908",
+          "detail": "The hardpoint branch sets the same bridge after its fixed joint. The small, hinge and large branches do not run either setter. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes 48898738090000 at 0x1403d4059. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L2104; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d19f0@0x1403d4059",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d4059"
+          }
+        },
+        {
           "label": "Hinge Connector · tooltip",
           "value": "Two connectors will attach when they are within close proximity and both are switched on. They will connect along their long edge and hinge along this axis. An on/off output allows you to check whether or not this connector is currently attached to anything.",
           "detail": "connector_hinge: developer-authored description; intended behaviour, not a measurement.",
@@ -52205,7 +52793,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game."
       ],
       "sources": [
@@ -52251,6 +52839,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d05a8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403d05e6"
         },
         {
@@ -52266,7 +52869,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d27cf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403d2ee5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d4059"
         },
         {
           "path": "stormworks64.exe",
@@ -52341,6 +52954,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -52403,7 +53021,7 @@
         },
         {
           "title": "Signals and transfers",
-          "body": "While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. The Large Connector also sends On/Off Sent to the partner's On/Off Received and Number Sent to its Number Received, links its RPS shaft node to the partner's when both have one, and exchanges fluid between the two Fluid ports with factor 0.5 and bias 0, like the Fluid Connector. The networks stay separate. The Electric port powers the magnet. This connector does not run the direct pool bridge that Electric Connectors and hardpoints use, so the port label alone does not show that electricity crosses the link."
+          "body": "While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after. The Large Connector also sends On/Off Sent to the partner's On/Off Received and Number Sent to its Number Received, links its RPS shaft node to the partner's when both have one, and exchanges fluid between the two Fluid ports with factor 0.5 and bias 0, like the Fluid Connector. The networks stay separate. The Electric port only powers the magnet. The connector's electrical bridge starts empty and this connector's attach branch never sets it, so no electricity crosses the link. A separate electric connector or cable can still join the two electrical networks."
         }
       ],
       "findings": [
@@ -52793,6 +53411,42 @@
           }
         },
         {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          }
+        },
+        {
           "label": "Mechanical bridge parameter",
           "value": "node+0x48 = 1000000",
           "detail": "The tail reached by the large (0x1403d26c5), torque (0x1403d27f5) and hardpoint branches sets this on the connector's mechanical node (+0x880) and links the two nodes (0x1403d4091) when both have a shaft port. The node's ratio field +0x44 starts at 1. The value is a graph-bridge parameter, not a power rating. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes c7474800247449 at 0x1403d4081. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L2110; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -52881,6 +53535,42 @@
           }
         },
         {
+          "label": "Connector electrical bridge at construction",
+          "value": "component+0x938 = 0",
+          "detail": "The constructor clears the bridge of the electrical node at component+0x908 (registered at 0x1403d0a71), so the pool traversal 0x1404c9d20 finds no partner. Only the electric-subtype branch (test at 0x1403d27b8) and the hardpoint branch set it; small, hinge and large connectors take other attachment branches, so their Electric port serves only the magnet. Report: investigation/followups.md. Function 0x1403d02c0-0x1403d06e5; instruction bytes 4889bb38090000 at 0x1403d05a8. Interpretation rests on retained output investigation/native/behavior/../followups/asm/connector-construct-final.asm:L147. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d02c0@0x1403d05a8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d05a8"
+          }
+        },
+        {
+          "label": "Electric connector bridge",
+          "value": "self+0x938 = partner node+0x908",
+          "detail": "For connector_type 4 (0x1403d27b8) each side's bridge points at the other's electric node, so the pool builder 0x1404c9d20 walks both networks as one charge pool. That walk applies no capacity or loss to the edge; battery and consumer limits still apply. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes 48898738090000 at 0x1403d27cf. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L770; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d19f0@0x1403d27cf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d27cf"
+          }
+        },
+        {
+          "label": "Hardpoint electric bridge",
+          "value": "self+0x938 = partner node+0x908",
+          "detail": "The hardpoint branch sets the same bridge after its fixed joint. The small, hinge and large branches do not run either setter. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes 48898738090000 at 0x1403d4059. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L2104; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d19f0@0x1403d4059",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d4059"
+          }
+        },
+        {
           "label": "Large Connector · tooltip",
           "value": "Two large connectors will attach when they are within close proximity and both are switched on. The additional inputs and outputs allow you to send and receive power and signals between two connected magnets, giving you a limited amount of control over a linked vehicle. An additional on/off output allows you to check whether or not this connector is currently attached to anything.",
           "detail": "connector_large: developer-authored description; intended behaviour, not a measurement.",
@@ -52934,7 +53624,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game."
       ],
       "sources": [
@@ -53004,6 +53694,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d05a8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403d05e6"
         },
         {
@@ -53020,6 +53725,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403d26b2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d27cf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d4059"
         },
         {
           "path": "stormworks64.exe",
@@ -53109,6 +53824,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -53176,7 +53896,7 @@
         },
         {
           "title": "Signals and transfers",
-          "body": "While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. The Electric port powers the magnet. This connector does not run the direct pool bridge that Electric Connectors and hardpoints use, so the port label alone does not show that electricity crosses the link."
+          "body": "While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after. The Electric port only powers the magnet. The connector's electrical bridge starts empty and this connector's attach branch never sets it, so no electricity crosses the link. A separate electric connector or cable can still join the two electrical networks."
         }
       ],
       "findings": [
@@ -53530,6 +54250,78 @@
           }
         },
         {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          }
+        },
+        {
+          "label": "Connector electrical bridge at construction",
+          "value": "component+0x938 = 0",
+          "detail": "The constructor clears the bridge of the electrical node at component+0x908 (registered at 0x1403d0a71), so the pool traversal 0x1404c9d20 finds no partner. Only the electric-subtype branch (test at 0x1403d27b8) and the hardpoint branch set it; small, hinge and large connectors take other attachment branches, so their Electric port serves only the magnet. Report: investigation/followups.md. Function 0x1403d02c0-0x1403d06e5; instruction bytes 4889bb38090000 at 0x1403d05a8. Interpretation rests on retained output investigation/native/behavior/../followups/asm/connector-construct-final.asm:L147. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d02c0@0x1403d05a8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d05a8"
+          }
+        },
+        {
+          "label": "Electric connector bridge",
+          "value": "self+0x938 = partner node+0x908",
+          "detail": "For connector_type 4 (0x1403d27b8) each side's bridge points at the other's electric node, so the pool builder 0x1404c9d20 walks both networks as one charge pool. That walk applies no capacity or loss to the edge; battery and consumer limits still apply. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes 48898738090000 at 0x1403d27cf. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L770; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d19f0@0x1403d27cf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d27cf"
+          }
+        },
+        {
+          "label": "Hardpoint electric bridge",
+          "value": "self+0x938 = partner node+0x908",
+          "detail": "The hardpoint branch sets the same bridge after its fixed joint. The small, hinge and large branches do not run either setter. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes 48898738090000 at 0x1403d4059. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L2104; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403d19f0@0x1403d4059",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403d4059"
+          }
+        },
+        {
           "label": "Small Connector · tooltip",
           "value": "Two small connectors will attach when they are within close proximity and both are switched on. An on/off output allows you to check whether or not this connector is currently attached to anything.",
           "detail": "connector_small: developer-authored description; intended behaviour, not a measurement.",
@@ -53583,7 +54375,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game."
       ],
       "sources": [
@@ -53629,6 +54421,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d05a8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403d05e6"
         },
         {
@@ -53645,6 +54452,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403d2751"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d27cf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403d4059"
         },
         {
           "path": "stormworks64.exe",
@@ -53719,6 +54536,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -53763,7 +54585,7 @@
         },
         {
           "title": "Transfers",
-          "body": "While linked, the two connectors' shaft nodes are linked in the mechanical graph with a bridge parameter of 1000000 and a ratio field of 1. That parameter is not a power or torque rating. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging."
+          "body": "While linked, the two connectors' shaft nodes are linked in the mechanical graph with a bridge parameter of 1000000 and a ratio field of 1. That parameter is not a power or torque rating. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after."
         }
       ],
       "findings": [
@@ -54021,6 +54843,42 @@
           }
         },
         {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          }
+        },
+        {
           "label": "Mechanical bridge parameter",
           "value": "node+0x48 = 1000000",
           "detail": "The tail reached by the large (0x1403d26c5), torque (0x1403d27f5) and hardpoint branches sets this on the connector's mechanical node (+0x880) and links the two nodes (0x1403d4091) when both have a shaft port. The node's ratio field +0x44 starts at 1. The value is a graph-bridge parameter, not a power rating. Report: investigation/connectors.md. Function 0x1403d19f0-0x1403d4124; instruction bytes c7474800247449 at 0x1403d4081. Interpretation rests on retained output investigation/native/behavior/../connectors/asm/connector-attach.asm:L2110; ../connectors/pseudocode/1403d19f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -54157,7 +55015,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -54179,6 +55037,16 @@
           "sha256": "08f7eba207c9fd3015130602fd2ae64b5e9a3554532bb9226e3786b285efdbba",
           "lineStart": 49,
           "lineEnd": 49
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
         },
         {
           "path": "stormworks64.exe",
@@ -54258,6 +55126,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14054c4b8"
         },
         {
@@ -54326,7 +55199,7 @@
         },
         {
           "title": "Attaching and release",
-          "body": "It looks for another Fluid Connector within 10 m and attaches when the centres are under 0.5 m apart, with no orientation test. Its definition flag 0x100000 turns the magnetic pull off. A Bullet point-to-point joint then holds the centres together with no finite break threshold. Release starts a 120-update count, 2 simulated seconds. While it runs the connector cannot attach and the scene pass detaches it. Holding Release keeps restarting the count, so it can attach again 120 updates after the input goes off. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging."
+          "body": "It looks for another Fluid Connector within 10 m and attaches when the centres are under 0.5 m apart, with no orientation test. Its definition flag 0x100000 turns the magnetic pull off. A Bullet point-to-point joint then holds the centres together with no finite break threshold. Release starts a 120-update count, 2 simulated seconds. While it runs the connector cannot attach and the scene pass detaches it. Holding Release keeps restarting the count, so it can attach again 120 updates after the input goes off. While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after."
         }
       ],
       "findings": [
@@ -54658,6 +55531,42 @@
           }
         },
         {
+          "label": "Output flush call",
+          "value": "slot +0x28 of every output, per vehicle",
+          "detail": "After the first loop has run every component's update (slot +0x358 at 0x1405498d6), a second loop over the vehicles calls the per-vehicle pass (0x140549a5b) and then slot +0x28 of each signal slot in the vehicle's list. Inputs have an empty slot +0x28 (0x14008fd00). Inference: a value an update writes to an output reaches the wired inputs after every component has run, so the next block reads it one update later. Report: investigation/composite.md. Function 0x140549240-0x140549ef6; instruction bytes ff5028 at 0x140549ad2. Interpretation rests on retained output investigation/native/behavior/../composite/asm/140549240.asm:L520; ../composite/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549ad2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549ad2"
+          }
+        },
+        {
+          "label": "On/off output flush",
+          "value": "output byte +0x18 → each input's +0x50",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_bool walks the output's list of wired inputs (+0x20, count +0x30) and passes its byte value to each input's slot +0x50, 0x1402ea0b0, which stores it at input+0x18 (bytes 885118). Report: investigation/composite.md. Function 0x1402ea450-0x1402ea49e; instruction bytes 0fb65318488b01ff5050 at 0x1402ea482. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea000.asm:L412-L414. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea450@0x1402ea482",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea482"
+          }
+        },
+        {
+          "label": "Composite output flush",
+          "value": "132-byte value +0x18 → each input's +0x60",
+          "detail": "Slot +0x28 of c_vehicle_logic_slot_output_composite (0x1402ea650) walks the wired inputs (+0xa0, count +0xb0) and passes the address of its value to each input's slot +0x60. Report: investigation/composite.md. Function 0x1402ea667-0x1402ea6a4; instruction bytes 488d5318488b01ff5060 at 0x1402ea68b. Interpretation rests on retained output investigation/native/behavior/../composite/asm/1402ea650.asm:L23-L25; ../composite/pseudocode/1402ea650.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ea667@0x1402ea68b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ea68b"
+          }
+        },
+        {
           "label": "Fluid Connector · port Release Connector",
           "value": "Release the connector when receiving an on signal.",
           "detail": "connector_water: input port. Interface description.",
@@ -54769,7 +55678,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -54797,6 +55706,16 @@
           "sha256": "aa857ed596a2cd472805f1058eed70076ab24b553344cb8a0e71a962dda3e5cb",
           "lineStart": 109,
           "lineEnd": 109
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea482"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ea68b"
         },
         {
           "path": "stormworks64.exe",
@@ -54887,6 +55806,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549ad2"
         },
         {
           "path": "stormworks64.exe",
@@ -60944,11 +61868,11 @@
     },
     {
       "id": "part-gate-torque-add",
-      "summary": "Power Add selects a case that computes nothing in the logic update; no code that adds or measures power for it was found.",
+      "summary": "Power Add is a legacy gate with one passive mechanical connection. It adds or measures no power, but the connection can join a shaft network.",
       "sections": [
         {
           "title": "How it updates",
-          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. The definition lists a single mechanical output, Combined Power, and no engine inputs. No transmission formula for this part was found, so its name and tooltip are no evidence that it adds or measures anything. The Logic category lists what remains open."
+          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. The definition has one port, the mechanical connection Combined Power. The shared port lookup skips the input or output mode test for mechanical ports, so the gate binder still binds that connection and registers it as a shaft node. A shaft network can include it and write the group's speed into it, but the gate itself adds nothing, measures nothing and has no numeric output. Its name and tooltip describe a calculation this build does not perform."
         }
       ],
       "findings": [
@@ -61001,6 +61925,54 @@
             "lineStart": 32,
             "lineEnd": 32
           }
+        },
+        {
+          "label": "Port lookup type offset",
+          "value": "port type − 2",
+          "detail": "The shared port lookup forms the port type minus 2 before it decides whether to compare port modes. Report: investigation/followups.md. Function 0x1403224f0-0x1403226fc; instruction bytes 418d41fe at 0x1403224fc. Interpretation rests on retained output investigation/native/behavior/../followups/asm/port-lookup-prologue.asm:L13; ../followups/pseudocode/0x1403224f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403224f0@0x1403224fc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403224fc"
+          }
+        },
+        {
+          "label": "Port lookup mode filter",
+          "value": "on only outside port types 2 to 4",
+          "detail": "cmp with 2 (0x140322503) and seta store the filter flag, so mechanical, fluid and electrical ports, types 2 to 4, are looked up without a mode test. Report: investigation/followups.md. Function 0x1403224f0-0x1403226fc; instruction bytes 0f97442468 at 0x140322509. Interpretation rests on retained output investigation/native/behavior/../followups/asm/port-lookup-prologue.asm:L17; ../followups/pseudocode/0x1403224f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403224f0@0x140322509",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322509"
+          }
+        },
+        {
+          "label": "Port lookup skips the mode test",
+          "value": "no mode comparison for types 2 to 4",
+          "detail": "With the flag clear (test at 0x140322670) the lookup jumps over the mode comparison at 0x14032267b. The gate binder's input-mode argument therefore does not exclude the mode-0 mechanical port of Power Add or Power Meter. Report: investigation/followups.md. Function 0x1403224f0-0x1403226fc; instruction bytes 740b at 0x140322675. Interpretation rests on retained output investigation/native/behavior/../followups/asm/port-lookup-mode-exception.asm:L11; ../followups/pseudocode/0x1403224f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403224f0@0x140322675",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322675"
+          }
+        },
+        {
+          "label": "Gate mechanical binding",
+          "value": "first mechanical port → component+0x2c0",
+          "detail": "The logic gate binder resolves mechanical ordinals into component+0x2c0, +0x310 (0x1403c386d) and +0x5b0 (0x1403c397c). Power Add and Power Meter define one mechanical port, so only +0x2c0 resolves. Registration 0x1403c2fd0 lists that node with the component's shaft nodes and the shaft lookup 0x1404c2550 accepts it, so the connection can join a shaft network. No second port, bridge, submission or numeric output follows. Report: investigation/followups.md. Function 0x1403c3730-0x1403c4260; instruction bytes 488987c0020000 at 0x1403c3849. Interpretation rests on retained output investigation/native/behavior/../followups/asm/gate-mechanical-binding.asm:L18. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c3730@0x1403c3849",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c3849"
+          }
         }
       ],
       "limitations": [],
@@ -61020,6 +61992,26 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403224fc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140322509"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140322675"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c3849"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c4e9f"
         },
         {
@@ -61031,15 +62023,15 @@
     },
     {
       "id": "part-gate-torque-multimeter",
-      "summary": "Power Meter selects a case that computes nothing in the logic update; no code that adds or measures power for it was found.",
+      "summary": "Power Meter is a legacy gate with one passive mechanical connection. It adds or measures no power, but the connection can join a shaft network.",
       "sections": [
         {
           "title": "How it updates",
-          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. The definition lists a single mechanical output, Relay, and no engine inputs. No transmission formula for this part was found, so its name and tooltip are no evidence that it adds or measures anything. The Logic category lists what remains open."
+          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. The definition has one port, the mechanical connection Relay. The shared port lookup skips the input or output mode test for mechanical ports, so the gate binder still binds that connection and registers it as a shaft node. A shaft network can include it and write the group's speed into it, but the gate itself adds nothing, measures nothing and has no numeric output. Its name and tooltip describe a calculation this build does not perform."
         },
         {
           "title": "Setup and interactions",
-          "body": "The tooltip asks for it in series between engine and consumer. No code found so far relays or measures power through it."
+          "body": "The tooltip asks for it in series between engine and consumer. With one connection and no reading output it can neither relay power between two shafts nor report a measurement."
         }
       ],
       "findings": [
@@ -61094,6 +62086,54 @@
           }
         },
         {
+          "label": "Port lookup type offset",
+          "value": "port type − 2",
+          "detail": "The shared port lookup forms the port type minus 2 before it decides whether to compare port modes. Report: investigation/followups.md. Function 0x1403224f0-0x1403226fc; instruction bytes 418d41fe at 0x1403224fc. Interpretation rests on retained output investigation/native/behavior/../followups/asm/port-lookup-prologue.asm:L13; ../followups/pseudocode/0x1403224f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403224f0@0x1403224fc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403224fc"
+          }
+        },
+        {
+          "label": "Port lookup mode filter",
+          "value": "on only outside port types 2 to 4",
+          "detail": "cmp with 2 (0x140322503) and seta store the filter flag, so mechanical, fluid and electrical ports, types 2 to 4, are looked up without a mode test. Report: investigation/followups.md. Function 0x1403224f0-0x1403226fc; instruction bytes 0f97442468 at 0x140322509. Interpretation rests on retained output investigation/native/behavior/../followups/asm/port-lookup-prologue.asm:L17; ../followups/pseudocode/0x1403224f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403224f0@0x140322509",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322509"
+          }
+        },
+        {
+          "label": "Port lookup skips the mode test",
+          "value": "no mode comparison for types 2 to 4",
+          "detail": "With the flag clear (test at 0x140322670) the lookup jumps over the mode comparison at 0x14032267b. The gate binder's input-mode argument therefore does not exclude the mode-0 mechanical port of Power Add or Power Meter. Report: investigation/followups.md. Function 0x1403224f0-0x1403226fc; instruction bytes 740b at 0x140322675. Interpretation rests on retained output investigation/native/behavior/../followups/asm/port-lookup-mode-exception.asm:L11; ../followups/pseudocode/0x1403224f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403224f0@0x140322675",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140322675"
+          }
+        },
+        {
+          "label": "Gate mechanical binding",
+          "value": "first mechanical port → component+0x2c0",
+          "detail": "The logic gate binder resolves mechanical ordinals into component+0x2c0, +0x310 (0x1403c386d) and +0x5b0 (0x1403c397c). Power Add and Power Meter define one mechanical port, so only +0x2c0 resolves. Registration 0x1403c2fd0 lists that node with the component's shaft nodes and the shaft lookup 0x1404c2550 accepts it, so the connection can join a shaft network. No second port, bridge, submission or numeric output follows. Report: investigation/followups.md. Function 0x1403c3730-0x1403c4260; instruction bytes 488987c0020000 at 0x1403c3849. Interpretation rests on retained output investigation/native/behavior/../followups/asm/gate-mechanical-binding.asm:L18. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c3730@0x1403c3849",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c3849"
+          }
+        },
+        {
           "label": "Power Meter · tooltip",
           "value": "To prevent a loss of power, it should be connected in series between the engine and its receiving component.",
           "detail": "gate_torque_multimeter: developer-authored description; intended behaviour, not a measurement.",
@@ -61126,6 +62166,26 @@
           "sha256": "26c1c4702df9f268224c0ebaf9d0f75f0771bf4eedf3736f2c43fa87008fea0d",
           "lineStart": 85,
           "lineEnd": 85
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403224fc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140322509"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140322675"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c3849"
         },
         {
           "path": "stormworks64.exe",
@@ -69698,7 +70758,7 @@
         },
         {
           "title": "Fuel",
-          "body": "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.\n\nSo the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn.\n\nOutside the update, the constructor empties the buffer and the jet serializer saves the Fuel port state but not the buffer. A whole-executable search for stores to the buffer's jet fuel found no other debit of the afterburner's fuel."
+          "body": "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. Inside that exchange a mixing step also moves jet fuel between the buffer and the network toward equal jet-fuel shares: J' = J + 0.5 × m × (N ÷ S_N − J ÷ S_P), with J and N the jet fuel and S_P and S_N the exchanged totals of buffer and network and m the step amount. It conserves the combined jet fuel, so it moves fuel and burns none. A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.\n\nSo the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn.\n\nOutside the update, the constructor empties the buffer and the jet serializer saves the Fuel port state but not the buffer. A whole-executable search for direct stores to the buffer's jet fuel, and the buffer's pointer followed through the exchange, mixing and purge calls, found no other debit of the afterburner's fuel."
         },
         {
           "title": "Force units and limit",
@@ -70203,6 +71263,54 @@
           }
         },
         {
+          "label": "Exhaust passes its private buffer",
+          "value": "P = component+0x3b8",
+          "detail": "The exhaust passes its private container to the port exchange 0x1402ec710 (call at 0x140351d90). That exchange stores jet fuel at P+0x14, the buffer's jet fuel, in its incoming (0x1402ecb61) and outgoing (0x1402ecfa5) branches. Report: investigation/followups.md. Function 0x140350f40-0x1403540f6; instruction bytes 488d97b8030000 at 0x140351d89. Interpretation rests on retained output investigation/native/behavior/../followups/asm/afterburner-exchange-arguments.asm:L27; ../followups/pseudocode/prior-140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140351d89",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140351d89"
+          }
+        },
+        {
+          "label": "Exchange calls the mixing step",
+          "value": "call 0x1402ed390 with the private buffer",
+          "detail": "Passes the private container as the second argument (0x1402ed343) with the original species mask (0x1402ed33c). Report: investigation/followups.md. Function 0x1402ed308-0x1402ed371; instruction bytes e83d000000 at 0x1402ed34e. Interpretation rests on retained output investigation/native/behavior/../followups/asm/jet-exchange-final.asm:L739; ../followups/pseudocode/prior-1402ec710.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed308@0x1402ed34e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed34e"
+          }
+        },
+        {
+          "label": "Mixing half factor",
+          "value": "0.5",
+          "detail": "With both selected totals above 0.0001 the step removes a = m × J ÷ S_P from the buffer and b = m × N ÷ S_N from the network, m being the exchange amount capped to both totals (minss at 0x1402ed4ea and 0x1402ed4ee), and adds (a + b) × this to each. Report: investigation/followups.md. Function 0x1402ed4db-0x1402ed8b4; instruction bytes f30f1035d2278c00 at 0x1402ed4e2 address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../followups/asm/jet-diffusion-final.asm:L88; ../followups/pseudocode/1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed4db@0x1402ed4e2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed4e2"
+          }
+        },
+        {
+          "label": "Mixing store to the buffer",
+          "value": "J + 0.5 × m × (N ÷ S_N − J ÷ S_P)",
+          "detail": "Stores the buffer's new jet fuel (again at 0x1402ed5f3); the network side is stored at 0x1402ed5e1 and 0x1402ed5fe. The combined jet fuel is conserved apart from rounding, so this moves fuel and burns none. Report: investigation/followups.md. Function 0x1402ed4db-0x1402ed8b4; instruction bytes f30f114214 at 0x1402ed5ce. Interpretation rests on retained output investigation/native/behavior/../followups/asm/jet-diffusion-final.asm:L143; ../followups/pseudocode/1402ed390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ed4db@0x1402ed5ce",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ed5ce"
+          }
+        },
+        {
           "label": "Jet Exhaust Afterburner · jet_engine_component_type",
           "value": "4",
           "detail": "jet_engine_exhaust_afterburner: definition attribute jet_engine_component_type. Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).",
@@ -70330,7 +71438,7 @@
       "limitations": [
         "Static decompilation of one build; the game was not run. Figures are for one part in one update. What an assembled engine settles at depends on its duct network; the Jet engines category lists that and the unit questions as open.",
         "Pressure, temperature, charge and force are internal units, not pascals, degrees, watts or newtons.",
-        "Writes to the exhaust's fuel buffer through escaped pointers, generic copies or computed addresses were not traced, so an indirect writer elsewhere is not ruled out. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
+        "Writes to the exhaust's fuel buffer through pointers loaded from other objects, interior pointers kept elsewhere or generic bulk copies were not traced, so a complete exclusion of other writers is not established. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -70391,6 +71499,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed34e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed4e2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ed5ce"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034fc29"
         },
         {
@@ -70412,6 +71535,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140351d81"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140351d89"
         },
         {
           "path": "stormworks64.exe",
@@ -78285,7 +79413,7 @@
         }
       ],
       "limitations": [
-        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
+        "Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.",
         "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -86990,7 +88118,7 @@
         },
         {
           "title": "Stops",
-          "body": "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The tooltip stop therefore does not come from that setter; the assembled travel is listed as open under Mechanical joints."
+          "body": "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The hinge starts with its angular half-range at −1, and the solver applies an angular limit only when the half-range is 0 or more, so the pivot has no angular stop. Only the surrounding vehicle geometry can block its travel."
         }
       ],
       "findings": [
@@ -87122,6 +88250,30 @@
           }
         },
         {
+          "label": "Hinge default angular half-range",
+          "value": "-1",
+          "detail": "The deferred hinge creation command 0x1401a0c30 (vtable entry 0x140b6ae58, re-read by the extractor) runs the shared hinge constructor block, which builds binary64 -1 here and stores it at constraint+0x588 (0x14019f2e8). The centre angle at +0x580 is 0 (0x14019f2d7). Report: investigation/followups.md. Function 0x14019f0b0-0x14019f3d2; instruction bytes 48b8000000000000f0bf at 0x14019f2de. Interpretation rests on retained output investigation/native/behavior/../followups/asm/1401a0c30.asm:L130. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14019f0b0@0x14019f2de",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14019f2de"
+          }
+        },
+        {
+          "label": "Hinge angular limit test",
+          "value": "limit only when the half-range is 0 or more",
+          "detail": "The solver-side test loads the half-range (0x14012563d), compares it with 0 (0x140125648) and skips the angular-limit calculation when it is negative. A pivot whose setup skips the limit setter keeps -1, so it has no angular stop. Report: investigation/followups.md. Function 0x140125620-0x140125704; instruction bytes 0f8293000000 at 0x140125660. Interpretation rests on retained output investigation/native/behavior/../followups/asm/140125620.asm:L17; ../followups/pseudocode/140125620.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140125620@0x140125660",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140125660"
+          }
+        },
+        {
           "label": "Pivot · tooltip",
           "value": "The pivot can rotate to 0.25 turns in both directions.",
           "detail": "multibody_pivot_a: developer-authored description; intended behaviour, not a measurement.",
@@ -87148,6 +88300,16 @@
           "sha256": "d4ead7a31d6935d82cb496fbf256d488c944be6c9e13a8d692d6563e05459d55",
           "lineStart": 83,
           "lineEnd": 83
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140125660"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019f2de"
         },
         {
           "path": "stormworks64.exe",
@@ -87345,7 +88507,7 @@
         },
         {
           "title": "Stops",
-          "body": "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The tooltip stop therefore does not come from that setter; the assembled travel is listed as open under Mechanical joints."
+          "body": "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The hinge starts with its angular half-range at −1, and the solver applies an angular limit only when the half-range is 0 or more, so the pivot has no angular stop. Only the surrounding vehicle geometry can block its travel."
         },
         {
           "title": "Setup and interactions",
@@ -87468,6 +88630,30 @@
           }
         },
         {
+          "label": "Hinge default angular half-range",
+          "value": "-1",
+          "detail": "The deferred hinge creation command 0x1401a0c30 (vtable entry 0x140b6ae58, re-read by the extractor) runs the shared hinge constructor block, which builds binary64 -1 here and stores it at constraint+0x588 (0x14019f2e8). The centre angle at +0x580 is 0 (0x14019f2d7). Report: investigation/followups.md. Function 0x14019f0b0-0x14019f3d2; instruction bytes 48b8000000000000f0bf at 0x14019f2de. Interpretation rests on retained output investigation/native/behavior/../followups/asm/1401a0c30.asm:L130. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14019f0b0@0x14019f2de",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14019f2de"
+          }
+        },
+        {
+          "label": "Hinge angular limit test",
+          "value": "limit only when the half-range is 0 or more",
+          "detail": "The solver-side test loads the half-range (0x14012563d), compares it with 0 (0x140125648) and skips the angular-limit calculation when it is negative. A pivot whose setup skips the limit setter keeps -1, so it has no angular stop. Report: investigation/followups.md. Function 0x140125620-0x140125704; instruction bytes 0f8293000000 at 0x140125660. Interpretation rests on retained output investigation/native/behavior/../followups/asm/140125620.asm:L17; ../followups/pseudocode/140125620.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140125620@0x140125660",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140125660"
+          }
+        },
+        {
           "label": "Pivot (Power) · tooltip",
           "value": "The pivot can rotate to 0.25 turns in both directions.",
           "detail": "multibody_pivot_torque_a: developer-authored description; intended behaviour, not a measurement.",
@@ -87513,6 +88699,16 @@
           "sha256": "a43e893a80695599f753f90cf3d515dea7a6b4f62cecbe21d2e99d701b7fcd16",
           "lineStart": 87,
           "lineEnd": 87
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140125660"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14019f2de"
         },
         {
           "path": "stormworks64.exe",
@@ -149866,7 +151062,7 @@
       "sections": [
         {
           "title": "Ignition and coal",
-          "body": "Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. The fire also keeps burning while it is hotter than 150. Burning draws on a fractional reserve, refilled one coal at a time from the shared inventory, to which a firebox adds 10 slots."
+          "body": "Ignition takes one coal and sets the ignition state, saved as ignition_counter, to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. The fire also keeps burning while it is hotter than 150. Burning draws on a fractional reserve, refilled one coal at a time from the shared inventory, to which a firebox adds 10 slots."
         },
         {
           "title": "Burn rate",
@@ -149882,7 +151078,7 @@
         },
         {
           "title": "Damage",
-          "body": "Damage raises the ambient loss toward 0.01. A hot damaged firebox sets a pending flag, and after the update a shared helper queues a component damage event when the vehicle_damage setting is on. What that event does downstream is listed under Steam on the parts index."
+          "body": "Damage raises the ambient loss toward 0.01. A hot damaged firebox sets a pending flag, and after the update a shared helper queues a component damage event when the vehicle_damage setting is on. After the component updates the scene passes the firebox's geometry to a shared geometry-change queue. What that queue finally damages is listed under Steam on the parts index."
         }
       ],
       "findings": [
@@ -150199,6 +151395,18 @@
           }
         },
         {
+          "label": "Saved ignition state name",
+          "value": "ignition_counter",
+          "detail": "The steam serializer passes component+0x754 (0x14041346c) under this name to its scalar reader (call at 0x140413485) with a default of 0 (0x14041347a). The name does not show a countdown: the steam update writes 3600 and tests only zero or nonzero, and the complete steam reset 0x140408f30 (vtable entry 0x140af7190, re-read) holds no access to +0x754. Report: investigation/followups.md. Function 0x14041316a-0x1404135f3; it references the string 'ignition_counter' at 0x140b6f408. Interpretation rests on retained output investigation/native/behavior/../followups/asm/14041316a.asm:L196; ../followups/pseudocode/14041316a.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041316a@0x140b6f408",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b6f408"
+          }
+        },
+        {
           "label": "Firebox damage event hand-off",
           "value": "tail call 0x140325680",
           "detail": "The steam post-update clears the firebox's pending damage flag (+0x7b0 at 0x140411eb6) and tail-calls the shared event helper. Report: investigation/drivetrain-gaps.md. Function 0x140411ea0-0x140411ed0; instruction bytes e9b937f1ff at 0x140411ec2. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/140411ea0.asm:L15; ../drivetrain-gaps/pseudocode/140411ea0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -150220,6 +151428,30 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403256a6"
+          }
+        },
+        {
+          "label": "Queued damage event consumer",
+          "value": "call 0x140490c20 per component and body pair",
+          "detail": "The scene worker passes its event queue (0x1405499b5) through the vehicle worker to the body pass, where the firebox post-update appends its pair. After the updates it hands each queued component and body pair to this consumer. Report: investigation/followups.md. Function 0x140549240-0x140549ef6; instruction bytes e82f6ef4ff at 0x140549dec. Interpretation rests on retained output investigation/native/behavior/../followups/asm/scene-phase-final.asm:L672; ../followups/pseudocode/140549240.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549240@0x140549dec",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549dec"
+          }
+        },
+        {
+          "label": "Queued damage event geometry",
+          "value": "records to 0x1404923c0",
+          "detail": "The consumer enumerates the component's geometry and submits coordinate and index records to the shared geometry-change routine 0x1404923c0 (also at 0x140491003). These calls set no blast radius or blast energy. Report: investigation/followups.md. Function 0x140490c69-0x14049107f; instruction bytes e84c140000 at 0x140490f6f. Interpretation rests on retained output investigation/native/behavior/../followups/asm/140490c20.asm:L200; ../followups/pseudocode/140490c20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140490c69@0x140490f6f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140490f6f"
           }
         },
         {
@@ -150728,6 +151960,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140490f6f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b49e0"
         },
         {
@@ -150739,6 +151976,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140549dec"
         },
         {
           "path": "stormworks64.exe",
@@ -150764,6 +152006,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b6f408"
         }
       ]
     },
@@ -166044,12 +167291,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 9068,
+    "findingCount": 9140,
     "findingsByStatus": {
-      "derived": 748,
-      "observed": 8320
+      "derived": 749,
+      "observed": 8391
     },
-    "nativeFindingCount": 6648,
+    "nativeFindingCount": 6720,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -166100,8 +167347,8 @@
       }
     ],
     "evidenceUse": {
-      "derived": 434,
-      "native": 1615,
+      "derived": 435,
+      "native": 1639,
       "resource": 2721
     }
   }

@@ -1,0 +1,96 @@
+35-  uVar14 = (uint)((ulonglong)in_stack_ffffffffffffff68 >> 0x20);
+36-  uStackX_20 = param_4;
+37-  if (*(char *)(param_3 + 0x24) == '\0') {
+38-    if (iVar5 == 0) {
+39-      in_stack_ffffffffffffff68 = (longlong *)((ulonglong)uVar14 << 0x20);
+40:      FUN_1408ef630(*(undefined8 *)(param_3 + 0x18),param_4,&UNK_140add93e,auStackX_18,
+41-                    in_stack_ffffffffffffff68);
+42-      uStack_88 = auStackX_18[0];
+43-    }
+44-    else {
+45-      uStack_88 = auStackX_18[0];
+--
+78-        if (*(int *)(param_3 + 0x20) == 0) {
+79-          if (((*(char *)(param_3 + 0x24) != '\x01') || ((int)uVar10 != (int)uStack_58)) ||
+80-             (iVar5 = FUN_14099dae0(lVar9,lStack_60,uVar10), uVar8 = uStackX_20, iVar5 != 0)) {
+81-            uVar8 = uStackX_20;
+82-            in_stack_ffffffffffffff68 = &lStack_60;
+83:            FUN_140190c40(*(undefined8 *)(param_3 + 0x18),uStackX_20,&UNK_140add93e,&lStack_70,
+84-                          in_stack_ffffffffffffff68);
+85-            uVar10 = uStack_68 & 0xffffffff;
+86-          }
+87-        }
+88-        else {
+--
+99-        }
+100-        if (*(int *)(param_3 + 0x20) == 0) {
+101-          if ((*(char *)(param_3 + 0x24) != '\x01') || (cVar11 != '\0')) {
+102-            in_stack_ffffffffffffff68 =
+103-                 (longlong *)((ulonglong)in_stack_ffffffffffffff68 & 0xffffffffffffff00);
+104:            FUN_1408ef170(*(undefined8 *)(param_3 + 0x18),uVar8,&UNK_140add93e,auStackX_18,
+105-                          in_stack_ffffffffffffff68);
+106-          }
+107-        }
+108-        else if (*(int *)(param_3 + 0x20) == 1) {
+109-          lVar9 = *(longlong *)(param_3 + 0x10);
+--
+145-        plVar6 = (longlong *)FUN_1404b8f30(param_1);
+146-        if (plVar6 != (longlong *)0x0) {
+147-          *(undefined4 *)(plVar6 + 2) = param_5;
+148-          *(undefined4 *)(plVar6 + 0x10) = *(undefined4 *)(param_1 + 0x147c);
+149-          (**(code **)(*plVar6 + 8))(plVar6,lVar9);
+150:          (**(code **)(*plVar6 + 0x260))(plVar6,param_2,param_3,uStackX_20);
+151:          (**(code **)(*plVar6 + 0x18))(plVar6);
+152-          FUN_140325860(plVar6);
+153-          FUN_1404b9be0(param_1,plVar6,lVar9);
+154-        }
+155-        uStack_80 = uStack_80 + 1;
+156-        lVar9 = lStack_70;
+--
+164-  }
+165-  else {
+166-    if (iVar5 == 0) {
+167-      if ((*(char *)(param_3 + 0x24) != '\x01') || (auStackX_18[0] != 0)) {
+168-        in_stack_ffffffffffffff68 = (longlong *)((ulonglong)uVar14 << 0x20);
+169:        FUN_1408ef630(*(undefined8 *)(param_3 + 0x18),param_4,&UNK_140add93e,auStackX_18,
+170-                      in_stack_ffffffffffffff68);
+171-      }
+172-    }
+173-    else if (iVar5 == 1) {
+174-      lVar9 = *(longlong *)(param_3 + 0x10);
+--
+200-            if ((*(int *)(lVar9 + 0x290) == (int)uStack_58) &&
+201-               (iVar5 = FUN_14099dae0(*(undefined8 *)(lVar9 + 0x288),lStack_60,
+202-                                      *(int *)(lVar9 + 0x290)), iVar5 == 0)) goto LAB_1404b8e31;
+203-          }
+204-          in_stack_ffffffffffffff68 = &lStack_60;
+205:          FUN_140190c40(*(undefined8 *)(param_3 + 0x18),param_4,&UNK_140add93e,lVar9 + 0x288,
+206-                        in_stack_ffffffffffffff68);
+207-        }
+208-        else if (*(int *)(param_3 + 0x20) == 1) {
+209-          FUN_140188b60(*(undefined8 *)(param_3 + 0x10));
+210-        }
+--
+220-                   (ulonglong)*(uint *)(param_1 + 0x3f8)) * 8) + 0x58);
+221-        if (*(int *)(param_3 + 0x20) == 0) {
+222-          if ((*(char *)(param_3 + 0x24) != '\x01') || (*(char *)(lVar9 + 0x40) != '\0')) {
+223-            in_stack_ffffffffffffff68 =
+224-                 (longlong *)((ulonglong)in_stack_ffffffffffffff68 & 0xffffffffffffff00);
+225:            FUN_1408ef170(*(undefined8 *)(param_3 + 0x18),param_4,&UNK_140add93e,lVar9 + 0x40,
+226-                          in_stack_ffffffffffffff68);
+227-          }
+228-        }
+229-        else if (*(int *)(param_3 + 0x20) == 1) {
+230-          lVar4 = *(longlong *)(param_3 + 0x10);
+--
+243-        }
+244-        plVar6 = *(longlong **)
+245-                  (*(longlong *)(param_1 + 0x3f0) +
+246-                  ((ulonglong)(*(int *)(param_1 + 0x3fc) + uVar13) %
+247-                  (ulonglong)*(uint *)(param_1 + 0x3f8)) * 8);
+248:        (**(code **)(*plVar6 + 0x260))(plVar6,param_2,param_3,param_4);
+249-        uVar13 = uVar13 + 1;
+250-      } while (uVar13 < *(uint *)(param_1 + 0x400));
+251-    }
+252-  }
+253-  return 1;

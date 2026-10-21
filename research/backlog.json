@@ -51,7 +51,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/5/limitations/0",
-        "text": "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Which editor, mission, career or creative and save-loading workflows enable the diesel and jet-fuel fill or keep restored contents, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
+        "text": "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -114,12 +114,6 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/9/limitations/1",
-        "text": "Power Add and Power Meter select a case that computes nothing in the logic update. Their transmission-network formulas were not recovered, and whether the two definitions are obsolete in this build was not traced.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/9/limitations/2",
         "text": "A Train Junction Controller's writes replace the junction's route bit, so the last write wins, but the order in which controllers on different vehicles update was not traced: a stable priority between controllers has not been established. Which bit value means the left or right branch for each track orientation was not established either.",
         "scope": "Practical behavior guidance"
       }
@@ -152,12 +146,6 @@
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/10/limitations/3",
         "text": "The local sign flip of σ is decoded, but its world-axis direction for each placement and reflected orientation was not traced; that needs the joint-frame and body-order transforms.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/10/limitations/4",
-        "text": "The plain and power pivot definitions skip the hinge setup's explicit angle-limit branch, so their tooltip quarter-turn stop does not come from that setter. Their assembled travel and any other stop mechanism remain unverified.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -221,7 +209,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/15/sections/9/body",
-        "text": "Ignition writes 3600 to a state that the recovered firebox combustion paths test as a nonzero enable. No countdown was found in those paths, and the complete gameplay writer that clears or decrements it was not traced. Hot damaged fireboxes can queue a component and body event when vehicle damage is on. The event consumer, any global blast and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.",
+        "text": "Ignition writes 3600 to a saved state named ignition_counter, and combustion tests only whether it is nonzero. No countdown has been decoded: the steam update, the steam reset and the serializer hold no decrement. Writes through generic copies or rebased pointers elsewhere in the executable were not traced. A hot damaged firebox queues a component and body event when vehicle damage is on, and the scene later submits that component's geometry to a shared geometry-change queue. How those records end in damage or destruction, any blast radius or energy and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -240,7 +228,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/17/limitations/1",
-        "text": "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but its enforcing path and internal unit were not established. The recovered gearbox update, ratio helper and shaft solver hold no 4000 and compare the copied force_emitter_max_force with nothing.",
+        "text": "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but no enforcing code and no internal unit for it were established. Whole-executable searches for 4000 as a binary32 constant or an integer immediate found no use in the gearbox binder, update and ratio helper or the shaft collect and publish code, and those paths compare the copied force_emitter_max_force with nothing. A threshold computed from another constant or a definition value, or applied through a shared damage path, was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -473,7 +461,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/19/limitations/0",
-        "text": "Diesel and jet fuel use a separate request-gated fill, and resetVehicleState is one identified path that enables it; which editor, mission, career or creative and save-loading workflows enable it is not yet mapped. The pending fill follows network reconstruction, while the fuel fill has its own request gate; the reset and restore choices each loading and editor workflow makes are not yet mapped.",
+        "text": "Diesel and jet fuel use the spawn request's first-spawn flag. Which mission, editor and other user commands pass it on or off was not mapped; several spawn producers in the large event dispatchers 0x1406bb400 and 0x1407dd990 pass a variable value. Whether every mission spawn and editor command follows one of the construction, file-load and editor paths above, or adds its own reset, was not mapped either.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -486,7 +474,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/22/limitations/0",
-        "text": "Gas-tank contents and the fill-pending flag are saved, a reset clears the contents and sets fill pending, and the pending fill follows network reconstruction; which loading and editor workflows run each of these is not yet mapped.",
+        "text": "Whether every mission spawn and editor command follows one of the construction, file-load and editor paths in Saved contents and reset, or adds its own reset, was not mapped.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -617,7 +605,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/123/limitations/2",
-        "text": "Writes to the exhaust's fuel buffer through escaped pointers, generic copies or computed addresses were not traced, so an indirect writer elsewhere is not ruled out. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
+        "text": "Writes to the exhaust's fuel buffer through pointers loaded from other objects, interior pointers kept elsewhere or generic bulk copies were not traced, so a complete exclusion of other writers is not established. Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -798,7 +786,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/26/limitations/2",
-        "text": "The attachment distances, pull, joint types, release timing, signal copies, fluid factor, electrical pool bridge, ordnance codes and Launch latch come from that native decode. Free flow is tooltip wording rather than a measured lossless-transfer claim. Still unresolved: a conversion of the internal pull, body weight and joint impulse to newtons and kilograms, so no holding capacity in SI units; the end-to-end latency of signals, composite data and video across a link, which needs the input sampling and receiving order traced; whether and how small, hinge and large connectors carry electricity, since they do not run the direct pool bridge of electric connectors and hardpoints; the meaning of the mechanical bridge parameter 1000000 for capacity and loss; how the Mag All's contact records are produced and filtered; and any ordnance activation beyond the Launched latch and the vehicle's own wiring, since the Launch branch calls no firing, ignition or projectile routine.",
+        "text": "The attachment distances, pull, joint types, release timing, signal copies and timing, fluid factor, electrical pool bridge, ordnance codes and Launch latch come from those native decodes. Free flow is tooltip wording rather than a measured lossless-transfer claim. Still unresolved: a conversion of the internal pull, body weight and joint impulse to newtons and kilograms, so no holding capacity in SI units; the latency of video across a link, and of any signal while a link forms, on sleeping or unloaded vehicles or over network replication; the meaning of the mechanical bridge parameter 1000000 for capacity and loss; how the Mag All's contact records are produced and filtered; and any ordnance activation beyond the Launched latch and the vehicle's own wiring, since the Launch branch calls no firing, ignition or projectile routine.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -905,7 +893,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/16/limitations/2",
-        "text": "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced: the duct and splitter search is decoded, but how merged and attached assemblies supply the body map it searches was not. The intake's pairing partner and the sources behind its source sample were not traced either. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m.",
+        "text": "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced: the duct and splitter search is decoded, but how merged and attached assemblies supply the body map it searches was not. The intake's pairing partner and the sources behind its source sample were not traced either. Writes to the afterburner buffer through pointers loaded from other objects or generic bulk copies were not traced, so a complete exclusion of other buffer writers is not established. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -983,7 +971,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/17/limitations/2",
-        "text": "The burn, phase, heat-transfer and port figures come from that native decode, not from these definitions alone. Still not decoded: a gameplay writer that clears or decrements the firebox ignition state; the consumer of the event a hot damaged firebox queues, any global blast and any pressure-triggered boiler rupture; and a joule or thermal-unit calibration of coal heat and boiling. Temperatures and amounts are internal game values.",
+        "text": "The burn, phase, heat-transfer and port figures come from that native decode, not from these definitions alone. Still not decoded: a writer outside the steam update, reset and serializer that clears or decrements the firebox ignition state; what the geometry-change records from a hot damaged firebox finally damage or destroy, any blast formula and any pressure-triggered boiler rupture; and a joule or thermal-unit calibration of coal heat and boiling. Temperatures and amounts are internal game values.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1009,7 +997,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/20/limitations/2",
-        "text": "The ratio, coupling and clutch laws come from that native decode, not from these definitions alone. Not recovered: SI torque and physical power losses, a finite slip torque or friction law, the path and internal unit that would enforce torque_gearbox_2's 4000 limit, and the complete damage triggers, repair cadence and any torque-triggered breakage. Which connector changes schedule a shaft rebuild, and the update ordering that would rule out stale membership, were not traced.",
+        "text": "The ratio, coupling and clutch laws come from that native decode, not from these definitions alone. Not recovered: SI torque and physical power losses, a finite slip torque or friction law, a computed threshold or shared damage path that would enforce torque_gearbox_2's 4000 limit and its internal unit, and the complete damage triggers, repair cadence and any torque-triggered breakage. Which connector changes schedule a shaft rebuild, and the update ordering that would rule out stale membership, were not traced.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

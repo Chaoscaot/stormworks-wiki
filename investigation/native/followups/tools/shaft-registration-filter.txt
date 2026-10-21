@@ -1,0 +1,42 @@
+1-// entry 1404c2550
+2-
+3:longlong FUN_1404c2550(longlong *param_1,uint param_2,longlong *param_3)
+4-
+5-{
+6-  int iVar1;
+--
+60-        uStack_30 = 0xffffff00;
+61-      }
+62-      plVar14 = (longlong *)
+63:                FUN_1408dd3f0(lVar10 + 0x3a8,&lStack_48,
+64-                              (ulonglong)uVar12 +
+65-                              lVar13 + lVar16 +
+66-                              ((longlong)(int)((ulonglong)lStack_48 >> 0x20) >> 0x3f &
+--
+71-        lVar16 = *plVar14;
+72-        iVar19 = (int)param_3[1] - *(int *)(lVar16 + 0x20);
+73-        iVar17 = *(int *)((longlong)param_3 + 4) - *(int *)(lVar16 + 0x1c);
+74:        iVar18 = (int)*param_3 - *(int *)(lVar16 + 0x18);
+75-        iVar1 = *(int *)(lVar16 + 0x34);
+76-        iVar2 = *(int *)(lVar16 + 0x38);
+77-        iVar3 = *(int *)(lVar16 + 0x44);
+--
+81-        iVar7 = *(int *)(lVar16 + 0x4c);
+82-        iVar8 = *(int *)(lVar16 + 0x3c);
+83-        iVar9 = *(int *)(lVar16 + 0x48);
+84:        iVar11 = (**(code **)(*plVar15 + 0x3a0))(plVar15);
+85-        if (iVar11 != 0) {
+86-          do {
+87:            lVar16 = (**(code **)(*plVar15 + 0x3a8))(plVar15,uVar20);
+88:            if (((lVar16 != 0) && (lVar10 = *(longlong *)(lVar16 + 0x18), lVar10 != 0)) &&
+89-               ((*(int *)(lVar10 + 0x20) == iVar19 * iVar2 + iVar17 * iVar1 + iVar18 * iVar5 &&
+90-                ((*(int *)(lVar10 + 0x24) == iVar19 * iVar3 + iVar17 * iVar6 + iVar18 * iVar8 &&
+91-                 (*(int *)(lVar10 + 0x28) == iVar19 * iVar4 + iVar17 * iVar7 + iVar18 * iVar9))))))
+--
+93-              return lVar16;
+94-            }
+95-            uVar20 = uVar20 + 1;
+96:            uVar12 = (**(code **)(*plVar15 + 0x3a0))(plVar15);
+97-          } while (uVar20 < uVar12);
+98-        }
+99-      }

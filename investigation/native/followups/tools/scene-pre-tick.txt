@@ -1,0 +1,81 @@
+                                  (ulonglong)*(uint *)(param_1 + 0x328)) * 8);
+              if (((*(int *)(pcVar16 + 0x10) == 5) &&
+                  (plVar28 = *(longlong **)(pcVar16 + 8), plVar28 != (longlong *)0x0)) &&
+                 (((int)plVar28[2] != 0 && (*pcVar16 == '\0')))) {
+                uVar25 = 0;
+                do {
+                  if ((uVar27 != uVar36) || (uVar34 != uVar25)) {
+                    lVar31 = *(longlong *)
+                              (*plVar28 +
+                              ((ulonglong)(*(int *)((longlong)plVar28 + 0xc) + uVar25) %
+                              (ulonglong)*(uint *)(plVar28 + 1)) * 8);
+                    if ((*(uint *)(lVar29 + 0x400) < *(uint *)(lVar31 + 0x400)) &&
+                       (*(uint *)(lVar31 + 0x400) < uVar26)) {
+                      uStack_210 = 0;
+                      uStack_214 = 0;
+                      cVar23 = FUN_14048e810(lVar31 + 0x738,*(longlong *)(lVar29 + 0x718) + 0x78,
+                                             &uStack_210,&uStack_214);
+                      uVar27 = uStack_208;
+                      uVar34 = uStack_20c;
+                      if (cVar23 != '\0') {
+                        *(undefined8 *)(lVar29 + 0x14b8) =
+                             *(undefined8 *)
+                              (*(longlong *)(lVar31 + 0xf80) +
+                              ((ulonglong)(*(int *)(lVar31 + 0xf8c) + uStack_214) %
+                              (ulonglong)*(uint *)(lVar31 + 0xf88)) * 8);
+                        *(uint *)(lVar29 + 0x14c0) = uStack_210;
+                        lVar30 = *(longlong *)(lVar31 + 0x718);
+                        lVar17 = *(longlong *)(lVar29 + 0x718);
+                        fVar44 = (float)(*(double *)(lVar30 + 0x88) - *(double *)(lVar17 + 0x88));
+                        fVar42 = (float)(*(double *)(lVar30 + 0x80) - *(double *)(lVar17 + 0x80));
+                        fVar43 = (float)(*(double *)(lVar30 + 0x78) - *(double *)(lVar17 + 0x78));
+                        fVar1 = *(float *)(lVar30 + 0xa4);
+                        fVar2 = *(float *)(lVar30 + 0xa8);
+                        fVar3 = *(float *)(lVar30 + 0xac);
+                        fVar4 = *(float *)(lVar30 + 0xa0);
+                        fVar5 = *(float *)(lVar30 + 0x9c);
+                        *(float *)(lVar29 + 0x14c4) =
+                             (fVar44 * fVar2 - fVar42 * fVar3) + *(float *)(lVar30 + 0x98);
+                        *(float *)(lVar29 + 0x14c8) = (fVar43 * fVar3 - fVar44 * fVar1) + fVar5;
+                        *(float *)(lVar29 + 0x14cc) = (fVar42 * fVar1 - fVar43 * fVar2) + fVar4;
+                        uVar26 = *(uint *)(lVar31 + 0x400);
+                      }
+                    }
+                  }
+                  uVar25 = uVar25 + 1;
+                  plVar28 = *(longlong **)(pcVar16 + 8);
+                } while (uVar25 < *(uint *)(plVar28 + 2));
+              }
+              uVar36 = uVar36 + 1;
+              uVar25 = *(uint *)(param_1 + 0x330);
+            } while (uVar36 < uVar25);
+          }
+          uStack_20c = uVar34 + 1;
+          plVar28 = (longlong *)plStack_1a0[1];
+        } while (uStack_20c < *(uint *)(plVar28 + 2));
+      }
+      uStack_208 = uVar27 + 1;
+      lVar29 = lStack_1d8;
+      param_12 = lStack_1e0;
+      param_6 = uStack_200;
+    } while (uStack_208 < uVar25);
+  }
+  FUN_1401ad0d0(lVar29,0,0x30);
+  if (*(int *)(param_12 + 0x58) != 0) {
+    FUN_1409b2d50(*(undefined8 *)(param_12 + 0x50));
+    *(undefined8 *)(param_12 + 0x50) = 0;
+    *(undefined4 *)(param_12 + 0x58) = 0;
+  }
+  *(undefined8 *)(param_12 + 0x5c) = 0;
+  FUN_1401ad030(lVar29,0,0x31);
+  uVar25 = 0;
+  if (*(int *)(param_1 + 0x330) != 0) {
+    do {
+      pcVar16 = *(char **)(*(longlong *)(param_1 + 800) +
+                          ((ulonglong)(*(int *)(param_1 + 0x32c) + uVar25) %
+                          (ulonglong)*(uint *)(param_1 + 0x328)) * 8);
+      if ((((*(int *)(pcVar16 + 0x10) == 5) && (lVar31 = *(longlong *)(pcVar16 + 8), lVar31 != 0))
+          && (*(int *)(lVar31 + 0x10) != 0)) && (*pcVar16 == '\0')) {
+        FUN_1404bd940(lVar31,pcVar16,param_6,param_12);
+      }
+      uVar25 = uVar25 + 1;

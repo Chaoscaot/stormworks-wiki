@@ -1,0 +1,119 @@
+1-
+2-void FUN_1404bbca0(longlong *param_1,longlong param_2,undefined8 param_3,undefined8 param_4,
+3:                  undefined8 param_5,undefined8 param_6,ulonglong param_7,undefined8 *param_8,
+4:                  ulonglong *param_9,longlong *param_10,uint param_11,char param_12,
+5-                  undefined1 param_13)
+6-
+7-{
+8-  uint uVar1;
+--
+60-  lStackX_10 = param_2;
+61-  uStackX_18 = param_3;
+62-  uStackX_20 = param_4;
+63-  lVar5 = FUN_140294520();
+64:  if ((*(char *)(lVar5 + 0x108) != '\0') && ((int)param_9[1] != 0)) {
+65-    uStack_c0 = 0;
+66-    uStack_b8 = 0;
+67-    uStack_b0 = 0;
+68:    puStack_f8 = param_9;
+69:    uStack_f0 = *param_9;
+70:    plStack_e8._0_5_ = (uint5)(uint)param_9[1];
+71-    FUN_14090d900(&puStack_f8);
+72-    lVar5 = uStack_c0;
+73-    param_7 = (ulonglong)uStack_b0;
+74-    if (uStack_b0 != 0) {
+--
+108-          *(undefined8 *)(lVar6 + 0x10 + lVar5) = uVar8;
+109-          uVar2 = *(undefined4 *)(puVar7 + 3);
+110-          *(undefined4 *)(puVar7 + 3) = *(undefined4 *)(lVar6 + 0x18 + lVar5);
+111-          *(undefined4 *)(lVar6 + 0x18 + lVar5) = uVar2;
+112:          lVar6 = FUN_14046ec30(lVar11,puVar7,lStackX_10 + 8,uStackX_18,param_5,param_6);
+113-          *(undefined1 *)(lVar6 + 0x338) = 1;
+114-        }
+115-        uVar19 = uVar19 + 1;
+116-        param_7 = param_7 - 1;
+--
+124-  uStack_50 = 5;
+125-  *(undefined4 *)(param_1 + 0x55) = *(undefined4 *)(param_8 + 1);
+126-  uVar16 = 0;
+127-  uStack_58 = param_4;
+128:  if (param_11 == 0) {
+129-    uStack_c0 = 0;
+130-    uStack_b8 = 0;
+131-    FUN_14017b670(&uStack_c0);
+132-    uStack_b8 = CONCAT44(uStack_b8._4_4_,*(int *)(param_8 + 1));
+--
+184-      FUN_1409b2d50(lVar11);
+185-      uStack_b8 = 0;
+186-    }
+187-  }
+188:  else if (param_11 == 1) {
+189-    puStack_f8 = (ulonglong *)0x0;
+190-    uStack_f0 = uStack_f0 & 0xffffffff00000000;
+191-    plStack_e8 = (longlong *)0x0;
+192-    uStack_e0 = 0;
+193:    iStack_d8 = param_11;
+194-    uStack_d4 = 0;
+195-    plVar9 = (longlong *)FUN_140958c28(0x18);
+196-    *plVar9 = (longlong)&puStack_f8;
+197-    plVar9[1] = (longlong)puStack_f8;
+--
+256-        uVar15 = (ulonglong)((int)uVar15 + 1);
+257-      }
+258-    } while ((uint)uVar15 < *(uint *)(param_1 + 2));
+259-  }
+260:  FUN_1404c2bf0(param_1);
+261-  FUN_1404c88e0(param_1);
+262:  FUN_1408b7d40(param_10);
+263-  uVar15 = uVar16;
+264-  if ((int)param_1[2] != 0) {
+265-    do {
+266:      lVar11 = uVar15 * 0xf0 + *param_10;
+267-      FUN_1404a80c0(*(undefined8 *)
+268-                     (*param_1 +
+269-                     ((ulonglong)(uint)(*(int *)((longlong)param_1 + 0xc) + (int)uVar15) %
+270-                     (ulonglong)*(uint *)(param_1 + 1)) * 8),lVar11,lVar11 + 0x18,lVar11 + 0x30);
+271-      uVar19 = (int)uVar15 + 1;
+272-      uVar15 = (ulonglong)uVar19;
+273-    } while (uVar19 < *(uint *)(param_1 + 2));
+274-  }
+275:  FUN_1404c29c0(param_1);
+276-  lVar11 = param_1[2];
+277-  uVar15 = uVar16;
+278-LAB_1404bc280:
+279-  iVar12 = (int)uVar15;
+280-  if (iVar12 == (int)lVar11) {
+281-    FUN_1404be190(param_1);
+282-    FUN_1404cad20(param_1);
+283:    param_11 = 0;
+284-    uVar19 = 0;
+285-    if ((int)param_1[2] != 0) {
+286-      do {
+287-        lVar11 = *(longlong *)
+--
+289-                  ((ulonglong)(uint)(*(int *)((longlong)param_1 + 0xc) + (int)uVar16) %
+290-                  (ulonglong)*(uint *)(param_1 + 1)) * 8);
+291-        FUN_1404a0f50(lVar11,param_1 + 0xd);
+292-        FUN_1404a2130(lVar11,param_1 + 0xd);
+293:        FUN_1404b7640(lVar11);
+294:        FUN_1404b7c70(lVar11,param_1 + 0x28,param_5,param_12,param_13);
+295-        FUN_1404b3270(lVar11);
+296-        FUN_1404b3ab0(lVar11,param_1 + 0x1c);
+297:        FUN_1404b4610(lVar11,param_5,param_1 + 0x22,param_12,param_13);
+298-        plStackX_8 = (longlong *)CONCAT44(plStackX_8._4_4_,*(int *)(lVar11 + 0x418));
+299-        iVar12 = *(int *)(lVar11 + 0x418);
+300-        for (iVar20 = 0; iVar20 != iVar12; iVar20 = iVar20 + 1) {
+301-          lVar5 = (**(code **)(**(longlong **)
+--
+331-          }
+332-          iVar12 = (int)plStackX_8;
+333-        }
+334-        FUN_1404b4be0(lVar11);
+335:        param_11 = param_11 + 1;
+336:        uVar16 = (ulonglong)param_11;
+337-        uVar19 = *(uint *)(param_1 + 2);
+338:      } while (param_11 < uVar19);
+339-    }
+340-    uVar14 = 0;
+341-    if (uVar19 != 0) {
+342-      do {

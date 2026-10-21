@@ -1,0 +1,183 @@
+80-    uVar26 = uVar24;
+81-    do {
+82-      fVar39 = 0.0;
+83-      fVar40 = 0.0;
+84-      lVar25 = *(longlong *)(lVar25 + ((ulonglong)(iVar23 + uVar26) % (ulonglong)uVar27) * 8);
+85:      *(undefined8 *)(lVar25 + 0x50) = 0;
+86-      *(undefined8 *)(lVar25 + 0x58) = 0;
+87:      *(undefined8 *)(lVar25 + 0x60) = 0;
+88-      iVar23 = *(int *)(param_1 + 0x74);
+89-      uVar27 = *(uint *)(param_1 + 0x70);
+90-      lVar25 = *(longlong *)(param_1 + 0x68);
+91-      uVar21 = uVar24;
+92-      if (*(int *)(*(longlong *)(lVar25 + ((ulonglong)(iVar23 + uVar26) % (ulonglong)uVar27) * 8) +
+--
+104-          else {
+105-            fVar39 = fVar39 + fVar34;
+106-          }
+107-          lVar32 = *(longlong *)(lVar32 + 0x10);
+108-          lVar29 = *(longlong *)(lVar32 + 0x28);
+109:          dVar38 = (double)((float)*(int *)(lVar32 + 0x20) * fVar16 - *(float *)(lVar29 + 0x728));
+110-          dVar13 = (double)((float)*(int *)(lVar32 + 0x1c) * fVar16 - *(float *)(lVar29 + 0x724));
+111-          dVar36 = (double)((float)*(int *)(lVar32 + 0x18) * fVar16 - *(float *)(lVar29 + 0x720));
+112-          lVar32 = *(longlong *)(lVar29 + 0x718);
+113-          dVar2 = *(double *)(lVar32 + 0x28);
+114-          dVar3 = *(double *)(lVar32 + 0x48);
+115-          dVar4 = *(double *)(lVar32 + 0x68);
+116-          dVar5 = *(double *)(lVar32 + 0x88);
+117:          dVar6 = *(double *)(lVar32 + 0x20);
+118-          dVar7 = *(double *)(lVar32 + 0x40);
+119:          dVar8 = *(double *)(lVar32 + 0x60);
+120-          dVar9 = *(double *)(lVar32 + 0x80);
+121:          *(double *)(lVar25 + 0x50) =
+122-               dVar13 * *(double *)(lVar32 + 0x38) + dVar36 * *(double *)(lVar32 + 0x18) +
+123-               dVar38 * *(double *)(lVar32 + 0x58) + *(double *)(lVar32 + 0x78) +
+124:               *(double *)(lVar25 + 0x50);
+125-          *(double *)(lVar25 + 0x58) =
+126-               dVar36 * dVar6 + dVar13 * dVar7 + dVar38 * dVar8 + dVar9 + *(double *)(lVar25 + 0x58)
+127-          ;
+128:          *(double *)(lVar25 + 0x60) =
+129:               dVar36 * dVar2 + dVar13 * dVar3 + dVar38 * dVar4 + dVar5 + *(double *)(lVar25 + 0x60)
+130-          ;
+131-          uVar21 = uVar21 + 1;
+132-          iVar23 = *(int *)(param_1 + 0x74);
+133-          uVar27 = *(uint *)(param_1 + 0x70);
+134-          lVar25 = *(longlong *)(param_1 + 0x68);
+--
+139-      lVar25 = *(longlong *)(lVar25 + ((ulonglong)(iVar23 + uVar26) % (ulonglong)uVar27) * 8);
+140-      dVar2 = (double)*(uint *)(lVar25 + 0x78);
+141-      auVar35._8_4_ = SUB84(dVar2,0);
+142-      auVar35._0_8_ = dVar2;
+143-      auVar35._12_4_ = (int)((ulonglong)dVar2 >> 0x20);
+144:      auVar35 = divpd(*(undefined1 (*) [16])(lVar25 + 0x50),auVar35);
+145:      *(undefined1 (*) [16])(lVar25 + 0x50) = auVar35;
+146:      *(double *)(lVar25 + 0x60) = *(double *)(lVar25 + 0x60) / dVar2;
+147-      iVar23 = *(int *)(param_1 + 0x74);
+148-      uVar27 = *(uint *)(param_1 + 0x70);
+149-      lVar25 = *(longlong *)(param_1 + 0x68);
+150-      lVar32 = *(longlong *)(lVar25 + ((ulonglong)(iVar23 + uVar26) % (ulonglong)uVar27) * 8);
+151-      fVar34 = *(float *)(lVar32 + 0x40);
+--
+207-        uVar31 = 0;
+208-        lVar25 = *(longlong *)
+209-                  (*(longlong *)(param_1 + 0x98) +
+210-                  ((ulonglong)(*(int *)(param_1 + 0xa4) + uStackX_10) %
+211-                  (ulonglong)*(uint *)(param_1 + 0xa0)) * 8);
+212:        if (*(longlong *)(lVar25 + 0x20) == 0) {
+213:          *(longlong *)(lVar25 + 0x20) = lVar25 + 0x18;
+214-          **(undefined4 **)
+215-            (*(longlong *)
+216-              (*(longlong *)(param_1 + 0x98) +
+217-              ((ulonglong)(*(int *)(param_1 + 0xa4) + uStackX_10) %
+218:              (ulonglong)*(uint *)(param_1 + 0xa0)) * 8) + 0x20) = 0;
+219-          *(undefined4 *)
+220-           (*(longlong *)
+221-             (*(longlong *)
+222-               (*(longlong *)(param_1 + 0x98) +
+223-               ((ulonglong)(*(int *)(param_1 + 0xa4) + uStackX_10) %
+224:               (ulonglong)*(uint *)(param_1 + 0xa0)) * 8) + 0x20) + 4) = 0;
+225-          lStack_150 = 0;
+226-          uStack_148 = 0;
+227-          uStack_144 = 0;
+228-          uStack_140 = 0;
+229-          uStack_168 = 0;
+--
+266-                            (*(longlong *)
+267-                              (*plVar12 +
+268-                              ((ulonglong)(*(int *)((longlong)plVar12 + 0xc) + uVar21) %
+269-                              (ulonglong)*(uint *)(plVar12 + 1)) * 8) + 0x30);
+270-                  if (lVar25 != 0) {
+271:                    uVar11 = *(undefined8 *)(lVar25 + 0x20);
+272-                    if (uVar24 == uVar27) {
+273-                      FUN_1408de0b0(&uStack_168);
+274-                      uVar20 = uStack_168;
+275-                      uVar24 = uStack_158;
+276-                      uVar26 = uStack_15c;
+--
+371-  iVar23 = *(int *)(param_1 + 0x8c);
+372-  uVar24 = *(uint *)(param_1 + 0x88);
+373-  uVar20 = (ulonglong)(iVar23 + uStackX_10) % (ulonglong)uVar24;
+374-  lVar25 = *(longlong *)(param_1 + 0x80);
+375-  uVar28 = uVar22;
+376:  if (*(int *)(*(longlong *)(lVar25 + uVar20 * 8) + 0x20) != 0) {
+377-    do {
+378-      lVar25 = *(longlong *)(lVar25 + uVar20 * 8);
+379-      lVar32 = *(longlong *)
+380-                (*(longlong *)(lVar25 + 0x10) +
+381-                ((ulonglong)(uint)(*(int *)(lVar25 + 0x1c) + (int)uVar28) %
+--
+387-      iVar23 = *(int *)(param_1 + 0x8c);
+388-      uVar24 = *(uint *)(param_1 + 0x88);
+389-      uVar20 = (ulonglong)(iVar23 + uStackX_10) % (ulonglong)uVar24;
+390-      lVar25 = *(longlong *)(param_1 + 0x80);
+391-      uVar28 = (ulonglong)uVar27;
+392:    } while (uVar27 < *(uint *)(*(longlong *)(lVar25 + uVar20 * 8) + 0x20));
+393-  }
+394-  pfVar10 = *(float **)(lVar25 + ((ulonglong)(iVar23 + uStackX_10) % (ulonglong)uVar24) * 8);
+395-  fVar34 = fVar34 / pfVar10[1];
+396-  *pfVar10 = fVar34;
+397-  uStack_168 = 0;
+--
+462-      uVar24 = *(uint *)(param_1 + 0x88);
+463-      lVar25 = *(longlong *)(param_1 + 0x80);
+464-      lVar32 = lStack_150;
+465-    } while (uStackX_20 <
+466-             *(uint *)(*(longlong *)
+467:                        (lVar25 + ((ulonglong)(iVar23 + uStackX_10) % (ulonglong)uVar24) * 8) + 0x20
+468-                      ));
+469-joined_r0x0001404ca39d:
+470-    if (uVar27 != 0) {
+471-      _auStack_138 = *(undefined1 (*) [16])(uVar20 + (uVar28 % uVar22) * 0x10);
+472-      uVar24 = (uint)uVar22;
+--
+494-        uVar22 = (ulonglong)uStack_160;
+495-        uVar20 = uStack_168;
+496-        uVar27 = uStack_158;
+497-      }
+498-      bVar15 = false;
+499:      lVar25 = *(longlong *)(auStack_138._0_8_ + 0x20);
+500-      if ((lVar25 != 0) && (uVar17 = auStack_138._8_4_, fVar16 < (float)auStack_138._8_4_)) {
+501-        fVar37 = fStack_12c;
+502-        uVar30 = (ulonglong)uStack_140;
+503-        uVar24 = uVar26;
+504-        if (uStack_140 != 0) {
+--
+530-        puVar19 = (undefined8 *)
+531-                  (lVar32 + ((ulonglong)((uVar26 - 1) + uStack_140) % (ulonglong)uStack_148) * 0x10)
+532-        ;
+533-        *puVar19 = CONCAT44(uStack_114,uStack_118);
+534-        puVar19[1] = CONCAT44(uStack_10c,fStack_110);
+535:        lVar25 = *(longlong *)(auStack_138._0_8_ + 0x20);
+536-        fVar33 = *(float *)(*(longlong *)
+537-                             (*(longlong *)(param_1 + 0x80) +
+538-                             ((ulonglong)(*(int *)(param_1 + 0x8c) + uStackX_10) %
+539-                             (ulonglong)*(uint *)(param_1 + 0x88)) * 8) + 4);
+540-        iVar23 = -1;
+--
+544-        *(float *)(lVar25 + 0x28) =
+545-             (float)iVar23 * fVar34 * fVar33 * (float)uVar17 + *(float *)(lVar25 + 0x28);
+546-        *(float *)(lVar25 + 0x2c) =
+547-             (fVar33 * (float)uVar17) / (float)((uint)fVar37 & uVar31) + *(float *)(lVar25 + 0x2c);
+548-        uVar24 = 0;
+549:        lVar25 = *(longlong *)(auStack_138._0_8_ + 0x20);
+550-        lVar29 = auStack_138._0_8_;
+551:        if (*(int *)(lVar25 + 0x20) != 0) {
+552-          do {
+553-            lVar25 = *(longlong *)
+554-                      (*(longlong *)(lVar25 + 0x10) +
+555-                      ((ulonglong)(*(int *)(lVar25 + 0x1c) + uVar24) %
+556-                      (ulonglong)*(uint *)(lVar25 + 0x18)) * 8);
+--
+573-              *(float *)(puVar19 + 1) = (float)uVar17 * *(float *)(lVar25 + 0x40) * fVar39;
+574-              *(float *)((longlong)puVar19 + 0xc) = fVar37 * *(float *)(lVar25 + 0x44);
+575-              uStack_158 = uVar27;
+576-            }
+577-            uVar24 = uVar24 + 1;
+578:            lVar25 = *(longlong *)(lVar29 + 0x20);
+579-            lVar32 = lStack_150;
+580:          } while (uVar24 < *(uint *)(lVar25 + 0x20));
+581-        }
+582-      }
+583-      goto joined_r0x0001404ca39d;
+584-    }
+585-  }

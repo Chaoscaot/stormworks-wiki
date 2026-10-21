@@ -1,0 +1,54 @@
+5-  float fVar1;
+6-  float fVar2;
+7-  float fVar3;
+8-  
+9:  fVar3 = *(float *)(param_2 + 8) - *(float *)(param_2 + 0x40);
+10-  if (param_3 == 0) {
+11-LAB_1402ebe03:
+12-    fVar1 = param_4 * *(float *)(param_1 + 0x10);
+13-    fVar2 = fVar3;
+--
+16-    }
+17-    fVar3 = fVar3 - fVar2;
+18-    *(float *)(param_2 + 0x10) = fVar2 + *(float *)(param_2 + 0x10);
+19-    *(float *)(param_1 + 0x10) = *(float *)(param_1 + 0x10) - fVar2;
+20:    if (param_3 != 2) goto LAB_1402ebe37;
+21-LAB_1402ebe6b:
+22-    fVar1 = param_4 * *(float *)(param_1 + 0x18);
+23-    fVar2 = fVar3;
+24-    if (fVar1 <= fVar3) {
+--
+78-    fVar3 = fVar3 - fVar2;
+79-    *(float *)(param_2 + 0xc) = fVar2 + *(float *)(param_2 + 0xc);
+80-    *(float *)(param_1 + 0xc) = *(float *)(param_1 + 0xc) - fVar2;
+81-    if (param_3 != 1) goto LAB_1402ebe03;
+82:LAB_1402ebe37:
+83:    fVar1 = param_4 * *(float *)(param_1 + 0x14);
+84-    fVar2 = fVar3;
+85-    if (fVar1 <= fVar3) {
+86-      fVar2 = fVar1;
+87-    }
+88-    fVar3 = fVar3 - fVar2;
+89:    *(float *)(param_2 + 0x14) = fVar2 + *(float *)(param_2 + 0x14);
+90:    *(float *)(param_1 + 0x14) = *(float *)(param_1 + 0x14) - fVar2;
+91-    if (param_3 != 3) goto LAB_1402ebe6b;
+92-LAB_1402ebe9f:
+93-    fVar1 = param_4 * *(float *)(param_1 + 0x1c);
+94-    fVar2 = fVar3;
+--
+136-  }
+137-  *(float *)(param_2 + 0x3c) = fVar3 + *(float *)(param_2 + 0x3c);
+138-  *(float *)(param_1 + 0x3c) = *(float *)(param_1 + 0x3c) - fVar3;
+139-LAB_1402ec063:
+140:  *(float *)(param_2 + 0x40) =
+141:       *(float *)(param_2 + 0xc) + 0.0 + *(float *)(param_2 + 0x10) + *(float *)(param_2 + 0x14) +
+142-       *(float *)(param_2 + 0x18) + *(float *)(param_2 + 0x1c) + *(float *)(param_2 + 0x20) +
+143-       *(float *)(param_2 + 0x24) + *(float *)(param_2 + 0x28) + *(float *)(param_2 + 0x2c) +
+144-       *(float *)(param_2 + 0x30) + *(float *)(param_2 + 0x34) + *(float *)(param_2 + 0x38) +
+145-       *(float *)(param_2 + 0x3c);
+146:  *(float *)(param_1 + 0x40) =
+147:       *(float *)(param_1 + 0xc) + 0.0 + *(float *)(param_1 + 0x10) + *(float *)(param_1 + 0x14) +
+148-       *(float *)(param_1 + 0x18) + *(float *)(param_1 + 0x1c) + *(float *)(param_1 + 0x20) +
+149-       *(float *)(param_1 + 0x24) + *(float *)(param_1 + 0x28) + *(float *)(param_1 + 0x2c) +
+150-       *(float *)(param_1 + 0x30) + *(float *)(param_1 + 0x34) + *(float *)(param_1 + 0x38) +
+151-       *(float *)(param_1 + 0x3c);

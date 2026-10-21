@@ -1,0 +1,200 @@
+investigation/native/followups/asm/file-load-final.asm:   1404c1700:	0f 84 b3 04 00 00    	je     0x1404c1bb9
+investigation/native/followups/asm/file-load-final.asm:   1404c194e:	0f 86 45 02 00 00    	jbe    0x1404c1b99
+investigation/native/followups/asm/file-load-final.asm:   1404c1a4d:	0f 84 e9 00 00 00    	je     0x1404c1b3c
+investigation/native/followups/asm/file-load-final.asm:   1404c1b02:	89 43 18             	mov    DWORD PTR [rbx+0x18],eax
+investigation/native/followups/asm/file-load-final.asm:   1404c1b05:	89 4d b8             	mov    DWORD PTR [rbp-0x48],ecx
+investigation/native/followups/asm/file-load-final.asm:   1404c1b08:	48 8b 85 80 00 00 00 	mov    rax,QWORD PTR [rbp+0x80]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b0f:	48 89 44 24 28       	mov    QWORD PTR [rsp+0x28],rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1b14:	48 8b 45 68          	mov    rax,QWORD PTR [rbp+0x68]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b18:	48 89 44 24 20       	mov    QWORD PTR [rsp+0x20],rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1b1d:	4c 8b 4d 60          	mov    r9,QWORD PTR [rbp+0x60]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b21:	4d 8b c4             	mov    r8,r12
+investigation/native/followups/asm/file-load-final.asm:   1404c1b24:	48 8b d3             	mov    rdx,rbx
+investigation/native/followups/asm/file-load-final.asm:   1404c1b27:	48 8b 8d 88 00 00 00 	mov    rcx,QWORD PTR [rbp+0x88]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b2e:	e8 fd d0 fa ff       	call   0x14046ec30
+investigation/native/followups/asm/file-load-final.asm:   1404c1b33:	c6 80 38 03 00 00 01 	mov    BYTE PTR [rax+0x338],0x1
+investigation/native/followups/asm/file-load-final.asm:   1404c1b3a:	eb 03                	jmp    0x1404c1b3f
+investigation/native/followups/asm/file-load-final.asm:   1404c1b3c:	45 33 ff             	xor    r15d,r15d
+investigation/native/followups/asm/file-load-final.asm:   1404c1b3f:	83 7d b8 00          	cmp    DWORD PTR [rbp-0x48],0x0
+investigation/native/followups/asm/file-load-final.asm:   1404c1b43:	74 16                	je     0x1404c1b5b
+investigation/native/followups/asm/file-load-final.asm:   1404c1b45:	48 8b 4d b0          	mov    rcx,QWORD PTR [rbp-0x50]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b49:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/file-load-final.asm:   1404c1b4c:	74 0d                	je     0x1404c1b5b
+investigation/native/followups/asm/file-load-final.asm:   1404c1b4e:	e8 fd 11 4f 00       	call   0x1409b2d50
+investigation/native/followups/asm/file-load-final.asm:   1404c1b53:	4c 89 7d b0          	mov    QWORD PTR [rbp-0x50],r15
+investigation/native/followups/asm/file-load-final.asm:   1404c1b57:	44 89 7d b8          	mov    DWORD PTR [rbp-0x48],r15d
+investigation/native/followups/asm/file-load-final.asm:   1404c1b5b:	48 8b 4d a0          	mov    rcx,QWORD PTR [rbp-0x60]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b5f:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/file-load-final.asm:   1404c1b62:	74 0d                	je     0x1404c1b71
+investigation/native/followups/asm/file-load-final.asm:   1404c1b64:	e8 e7 11 4f 00       	call   0x1409b2d50
+investigation/native/followups/asm/file-load-final.asm:   1404c1b69:	48 c7 45 a8 00 00 00 00 	mov    QWORD PTR [rbp-0x58],0x0
+investigation/native/followups/asm/file-load-final.asm:   1404c1b71:	48 8b 4c 24 78       	mov    rcx,QWORD PTR [rsp+0x78]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b76:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/file-load-final.asm:   1404c1b79:	74 0d                	je     0x1404c1b88
+investigation/native/followups/asm/file-load-final.asm:   1404c1b7b:	e8 d0 11 4f 00       	call   0x1409b2d50
+investigation/native/followups/asm/file-load-final.asm:   1404c1b80:	48 c7 45 80 00 00 00 00 	mov    QWORD PTR [rbp-0x80],0x0
+investigation/native/followups/asm/file-load-final.asm:   1404c1b88:	41 ff c5             	inc    r13d
+investigation/native/followups/asm/file-load-final.asm:   1404c1b8b:	44 3b 6d d8          	cmp    r13d,DWORD PTR [rbp-0x28]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b8f:	0f 82 db fd ff ff    	jb     0x1404c1970
+investigation/native/followups/asm/file-load-final.asm:   1404c1b95:	4c 8b 65 50          	mov    r12,QWORD PTR [rbp+0x50]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b99:	48 8d 4d c8          	lea    rcx,[rbp-0x38]
+investigation/native/followups/asm/file-load-final.asm:   1404c1b9d:	e8 8e ea 40 00       	call   0x1408d0630
+investigation/native/followups/asm/file-load-final.asm:   1404c1ba2:	90                   	nop
+investigation/native/followups/asm/file-load-final.asm:   1404c1ba3:	48 8b 4d 90          	mov    rcx,QWORD PTR [rbp-0x70]
+investigation/native/followups/asm/file-load-final.asm:   1404c1ba7:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/file-load-final.asm:   1404c1baa:	74 0d                	je     0x1404c1bb9
+investigation/native/followups/asm/file-load-final.asm:   1404c1bac:	e8 9f 11 4f 00       	call   0x1409b2d50
+investigation/native/followups/asm/file-load-final.asm:   1404c1bb1:	48 c7 45 98 00 00 00 00 	mov    QWORD PTR [rbp-0x68],0x0
+investigation/native/followups/asm/file-load-final.asm:   1404c1bb9:	48 8b 85 88 00 00 00 	mov    rax,QWORD PTR [rbp+0x88]
+investigation/native/followups/asm/file-load-final.asm:   1404c1bc0:	48 89 45 e8          	mov    QWORD PTR [rbp-0x18],rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1bc4:	48 8b 45 78          	mov    rax,QWORD PTR [rbp+0x78]
+investigation/native/followups/asm/file-load-final.asm:   1404c1bc8:	48 89 45 f0          	mov    QWORD PTR [rbp-0x10],rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1bcc:	c7 45 f8 05 00 00 00 	mov    DWORD PTR [rbp-0x8],0x5
+investigation/native/followups/asm/file-load-final.asm:   1404c1bd3:	4c 89 7c 24 30       	mov    QWORD PTR [rsp+0x30],r15
+investigation/native/followups/asm/file-load-final.asm:   1404c1bd8:	48 c7 44 24 38 00 00 00 00 	mov    QWORD PTR [rsp+0x38],0x0
+investigation/native/followups/asm/file-load-final.asm:   1404c1be1:	48 8d 4c 24 30       	lea    rcx,[rsp+0x30]
+investigation/native/followups/asm/file-load-final.asm:   1404c1be6:	e8 85 9a cb ff       	call   0x14017b670
+investigation/native/followups/asm/file-load-final.asm:   1404c1beb:	90                   	nop
+investigation/native/followups/asm/file-load-final.asm:   1404c1bec:	48 8b 5d 58          	mov    rbx,QWORD PTR [rbp+0x58]
+investigation/native/followups/asm/file-load-final.asm:   1404c1bf0:	8b bd a0 00 00 00    	mov    edi,DWORD PTR [rbp+0xa0]
+investigation/native/followups/asm/file-load-final.asm:   1404c1bf6:	4c 89 7c 24 40       	mov    QWORD PTR [rsp+0x40],r15
+investigation/native/followups/asm/file-load-final.asm:   1404c1bfb:	83 ff 04             	cmp    edi,0x4
+investigation/native/followups/asm/file-load-final.asm:   1404c1bfe:	0f 84 c8 03 00 00    	je     0x1404c1fcc
+investigation/native/followups/asm/file-load-final.asm:   1404c1c04:	48 8d 44 24 40       	lea    rax,[rsp+0x40]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c09:	48 89 85 88 00 00 00 	mov    QWORD PTR [rbp+0x88],rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1c10:	44 89 7c 24 4c       	mov    DWORD PTR [rsp+0x4c],r15d
+investigation/native/followups/asm/file-load-final.asm:   1404c1c15:	48 8b 75 70          	mov    rsi,QWORD PTR [rbp+0x70]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c19:	8b 56 08             	mov    edx,DWORD PTR [rsi+0x8]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c1c:	89 54 24 48          	mov    DWORD PTR [rsp+0x48],edx
+investigation/native/followups/asm/file-load-final.asm:   1404c1c20:	ff c2                	inc    edx
+investigation/native/followups/asm/file-load-final.asm:   1404c1c22:	48 8d 4c 24 40       	lea    rcx,[rsp+0x40]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c27:	e8 84 af cb ff       	call   0x14017cbb0
+investigation/native/followups/asm/file-load-final.asm:   1404c1c2c:	44 8b 44 24 48       	mov    r8d,DWORD PTR [rsp+0x48]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c31:	49 ff c0             	inc    r8
+investigation/native/followups/asm/file-load-final.asm:   1404c1c34:	48 8b 16             	mov    rdx,QWORD PTR [rsi]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c37:	48 8b 4c 24 40       	mov    rcx,QWORD PTR [rsp+0x40]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c3c:	e8 6f b7 4d 00       	call   0x14099d3b0
+investigation/native/followups/asm/file-load-final.asm:   1404c1c41:	90                   	nop
+investigation/native/followups/asm/file-load-final.asm:   1404c1c42:	4c 8d 4c 24 30       	lea    r9,[rsp+0x30]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c47:	4c 8d 44 24 40       	lea    r8,[rsp+0x40]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c4c:	40 0f b6 d7          	movzx  edx,dil
+investigation/native/followups/asm/file-load-final.asm:   1404c1c50:	48 8d 4b 08          	lea    rcx,[rbx+0x8]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c54:	e8 07 21 cc ff       	call   0x140183d60
+investigation/native/followups/asm/file-load-final.asm:   1404c1c59:	84 c0                	test   al,al
+investigation/native/followups/asm/file-load-final.asm:   1404c1c5b:	0f 85 da 06 00 00    	jne    0x1404c233b
+investigation/native/followups/asm/file-load-final.asm:   1404c1c61:	4c 89 7c 24 50       	mov    QWORD PTR [rsp+0x50],r15
+investigation/native/followups/asm/file-load-final.asm:   1404c1c66:	44 89 7c 24 58       	mov    DWORD PTR [rsp+0x58],r15d
+investigation/native/followups/asm/file-load-final.asm:   1404c1c6b:	4c 89 7c 24 60       	mov    QWORD PTR [rsp+0x60],r15
+investigation/native/followups/asm/file-load-final.asm:   1404c1c70:	4c 89 7c 24 68       	mov    QWORD PTR [rsp+0x68],r15
+investigation/native/followups/asm/file-load-final.asm:   1404c1c75:	44 89 7c 24 70       	mov    DWORD PTR [rsp+0x70],r15d
+investigation/native/followups/asm/file-load-final.asm:   1404c1c7a:	88 44 24 74          	mov    BYTE PTR [rsp+0x74],al
+investigation/native/followups/asm/file-load-final.asm:   1404c1c7e:	b9 a0 04 00 00       	mov    ecx,0x4a0
+investigation/native/followups/asm/file-load-final.asm:   1404c1c83:	e8 a0 6f 49 00       	call   0x140958c28
+investigation/native/followups/asm/file-load-final.asm:   1404c1c88:	48 89 85 88 00 00 00 	mov    QWORD PTR [rbp+0x88],rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1c8f:	0f b6 54 24 74       	movzx  edx,BYTE PTR [rsp+0x74]
+investigation/native/followups/asm/file-load-final.asm:   1404c1c94:	48 8b c8             	mov    rcx,rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1c97:	e8 84 ea cc ff       	call   0x140190720
+investigation/native/followups/asm/file-load-final.asm:   1404c1c9c:	90                   	nop
+investigation/native/followups/asm/file-load-final.asm:   1404c1c9d:	48 8b d0             	mov    rdx,rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1ca0:	48 8d 4c 24 68       	lea    rcx,[rsp+0x68]
+investigation/native/followups/asm/file-load-final.asm:   1404c1ca5:	e8 26 e7 40 00       	call   0x1408d03d0
+investigation/native/followups/asm/file-load-final.asm:   1404c1caa:	90                   	nop
+investigation/native/followups/asm/file-load-final.asm:   1404c1cab:	8b 44 24 70          	mov    eax,DWORD PTR [rsp+0x70]
+investigation/native/followups/asm/file-load-final.asm:   1404c1caf:	85 c0                	test   eax,eax
+investigation/native/followups/asm/file-load-final.asm:   1404c1cb1:	75 11                	jne    0x1404c1cc4
+investigation/native/followups/asm/file-load-final.asm:   1404c1cb3:	48 8d 54 24 30       	lea    rdx,[rsp+0x30]
+investigation/native/followups/asm/file-load-final.asm:   1404c1cb8:	48 8b 4c 24 68       	mov    rcx,QWORD PTR [rsp+0x68]
+investigation/native/followups/asm/file-load-final.asm:   1404c1cbd:	e8 7e ec cc ff       	call   0x140190940
+investigation/native/followups/asm/file-load-final.asm:   1404c1cc2:	eb 5f                	jmp    0x1404c1d23
+investigation/native/followups/asm/file-load-final.asm:   1404c1cc4:	83 f8 01             	cmp    eax,0x1
+investigation/native/followups/asm/file-load-final.asm:   1404c1cc7:	75 5e                	jne    0x1404c1d27
+investigation/native/followups/asm/file-load-final.asm:   1404c1cc9:	8b 5c 24 38          	mov    ebx,DWORD PTR [rsp+0x38]
+investigation/native/followups/asm/file-load-final.asm:   1404c1ccd:	ff cb                	dec    ebx
+investigation/native/followups/asm/file-load-final.asm:   1404c1ccf:	8b 4c 24 58          	mov    ecx,DWORD PTR [rsp+0x58]
+investigation/native/followups/asm/file-load-final.asm:   1404c1cd3:	48 8b 44 24 50       	mov    rax,QWORD PTR [rsp+0x50]
+investigation/native/followups/asm/file-load-final.asm:   1404c1cd8:	3b cb                	cmp    ecx,ebx
+investigation/native/followups/asm/file-load-final.asm:   1404c1cda:	74 37                	je     0x1404c1d13
+investigation/native/followups/asm/file-load-final.asm:   1404c1cdc:	48 85 c0             	test   rax,rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1cdf:	74 17                	je     0x1404c1cf8
+investigation/native/followups/asm/file-load-final.asm:   1404c1ce1:	48 8b c8             	mov    rcx,rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1ce4:	e8 67 10 4f 00       	call   0x1409b2d50
+investigation/native/followups/asm/file-load-final.asm:   1404c1ce9:	49 8b c7             	mov    rax,r15
+investigation/native/followups/asm/file-load-final.asm:   1404c1cec:	48 89 44 24 50       	mov    QWORD PTR [rsp+0x50],rax
+investigation/native/followups/asm/file-load-final.asm:   1404c1cf1:	41 8b cf             	mov    ecx,r15d
+investigation/native/followups/asm/file-load-final.asm:   1404c1cf4:	89 4c 24 58          	mov    DWORD PTR [rsp+0x58],ecx
+investigation/native/followups/asm/file-load-final.asm:   1404c1cf8:	85 db                	test   ebx,ebx
+investigation/native/followups/asm/file-load-final.asm:   1404c1cfa:	74 17                	je     0x1404c1d13
+investigation/native/followups/asm/file-load-final.asm:   1404c1cfc:	8b cb                	mov    ecx,ebx
+investigation/native/followups/asm/file-load-final.asm:   1404c1cfe:	ba 10 00 00 00       	mov    edx,0x10
+investigation/native/followups/asm/construction-load-final.asm:   1404bbd5b:	48 c1 e2 05          	shl    rdx,0x5
+investigation/native/followups/asm/construction-load-final.asm:   1404bbdea:	48 c1 e6 05          	shl    rsi,0x5
+investigation/native/followups/asm/construction-load-final.asm:   1404bbe1a:	49 c1 e6 05          	shl    r14,0x5
+investigation/native/followups/asm/construction-load-final.asm:   1404bbe9a:	c7 45 f7 05 00 00 00 	mov    DWORD PTR [rbp-0x9],0x5
+investigation/native/followups/asm/construction-load-final.asm:   1404bc032:	0f 84 05 01 00 00    	je     0x1404bc13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc044:	e9 f4 00 00 00       	jmp    0x1404bc13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc04c:	0f 85 eb 00 00 00    	jne    0x1404bc13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc104:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/construction-load-final.asm:   1404bc107:	74 0f                	je     0x1404bc118
+investigation/native/followups/asm/construction-load-final.asm:   1404bc109:	ba 18 00 00 00       	mov    edx,0x18
+investigation/native/followups/asm/construction-load-final.asm:   1404bc10e:	e8 09 c7 49 00       	call   0x14095881c
+investigation/native/followups/asm/construction-load-final.asm:   1404bc113:	4c 89 6c 24 50       	mov    QWORD PTR [rsp+0x50],r13
+investigation/native/followups/asm/construction-load-final.asm:   1404bc118:	4c 89 6c 24 50       	mov    QWORD PTR [rsp+0x50],r13
+investigation/native/followups/asm/construction-load-final.asm:   1404bc11d:	83 7c 24 48 00       	cmp    DWORD PTR [rsp+0x48],0x0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc122:	74 19                	je     0x1404bc13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc124:	48 8b 4c 24 40       	mov    rcx,QWORD PTR [rsp+0x40]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc129:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/construction-load-final.asm:   1404bc12c:	74 0f                	je     0x1404bc13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc12e:	e8 1d 6c 4f 00       	call   0x1409b2d50
+investigation/native/followups/asm/construction-load-final.asm:   1404bc133:	4c 89 6c 24 40       	mov    QWORD PTR [rsp+0x40],r13
+investigation/native/followups/asm/construction-load-final.asm:   1404bc138:	44 89 6c 24 48       	mov    DWORD PTR [rsp+0x48],r13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc13d:	80 bf 9c 02 00 00 00 	cmp    BYTE PTR [rdi+0x29c],0x0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc144:	75 0d                	jne    0x1404bc153
+investigation/native/followups/asm/construction-load-final.asm:   1404bc146:	80 bf 9d 02 00 00 00 	cmp    BYTE PTR [rdi+0x29d],0x0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc14d:	75 04                	jne    0x1404bc153
+investigation/native/followups/asm/construction-load-final.asm:   1404bc14f:	32 c0                	xor    al,al
+investigation/native/followups/asm/construction-load-final.asm:   1404bc151:	eb 02                	jmp    0x1404bc155
+investigation/native/followups/asm/construction-load-final.asm:   1404bc153:	b0 01                	mov    al,0x1
+investigation/native/followups/asm/construction-load-final.asm:   1404bc155:	88 87 9c 02 00 00    	mov    BYTE PTR [rdi+0x29c],al
+investigation/native/followups/asm/construction-load-final.asm:   1404bc15b:	4c 89 6c 24 40       	mov    QWORD PTR [rsp+0x40],r13
+investigation/native/followups/asm/construction-load-final.asm:   1404bc160:	48 c7 44 24 48 00 00 00 00 	mov    QWORD PTR [rsp+0x48],0x0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc169:	44 89 6c 24 50       	mov    DWORD PTR [rsp+0x50],r13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc16e:	48 8d 54 24 40       	lea    rdx,[rsp+0x40]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc173:	48 8b cf             	mov    rcx,rdi
+investigation/native/followups/asm/construction-load-final.asm:   1404bc176:	e8 25 cf 00 00       	call   0x1404c90a0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc17b:	41 8b dd             	mov    ebx,r13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc17e:	83 7f 10 00          	cmp    DWORD PTR [rdi+0x10],0x0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc182:	0f 86 80 00 00 00    	jbe    0x1404bc208
+investigation/native/followups/asm/construction-load-final.asm:   1404bc188:	0f 1f 84 00 00 00 00 00 	nop    DWORD PTR [rax+rax*1+0x0]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc190:	8b 47 0c             	mov    eax,DWORD PTR [rdi+0xc]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc193:	03 c3                	add    eax,ebx
+investigation/native/followups/asm/construction-load-final.asm:   1404bc195:	33 d2                	xor    edx,edx
+investigation/native/followups/asm/construction-load-final.asm:   1404bc197:	f7 77 08             	div    DWORD PTR [rdi+0x8]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc19a:	48 8b 07             	mov    rax,QWORD PTR [rdi]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc19d:	4c 8b 04 d0          	mov    r8,QWORD PTR [rax+rdx*8]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1a1:	49 89 b8 50 02 00 00 	mov    QWORD PTR [r8+0x250],rdi
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1a8:	45 8b cd             	mov    r9d,r13d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1ab:	41 8b 80 00 04 00 00 	mov    eax,DWORD PTR [r8+0x400]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1b2:	85 c0                	test   eax,eax
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1b4:	74 3f                	je     0x1404bc1f5
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1b6:	66 66 0f 1f 84 00 00 00 00 00 	data16 nop WORD PTR [rax+rax*1+0x0]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1c0:	41 8b 80 fc 03 00 00 	mov    eax,DWORD PTR [r8+0x3fc]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1c7:	41 03 c1             	add    eax,r9d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1ca:	33 d2                	xor    edx,edx
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1cc:	41 f7 b0 f8 03 00 00 	div    DWORD PTR [r8+0x3f8]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1d3:	49 8b 80 f0 03 00 00 	mov    rax,QWORD PTR [r8+0x3f0]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1da:	48 8b 0c d0          	mov    rcx,QWORD PTR [rax+rdx*8]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1de:	4c 89 41 28          	mov    QWORD PTR [rcx+0x28],r8
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1e2:	41 ff c1             	inc    r9d
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1e5:	41 8b 80 00 04 00 00 	mov    eax,DWORD PTR [r8+0x400]
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1ec:	44 3b c8             	cmp    r9d,eax
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1ef:	72 cf                	jb     0x1404bc1c0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1f1:	85 c0                	test   eax,eax
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1f3:	75 0c                	jne    0x1404bc201
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1f5:	8b d3                	mov    edx,ebx
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1f7:	48 8b cf             	mov    rcx,rdi
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1fa:	e8 c1 c0 3f 00       	call   0x1408b82c0
+investigation/native/followups/asm/construction-load-final.asm:   1404bc1ff:	eb 02                	jmp    0x1404bc203
+investigation/native/followups/asm/construction-load-final.asm:   1404bc206:	72 88                	jb     0x1404bc190
+investigation/native/followups/asm/construction-load-final.asm:   1404bc377:	e8 d4 4b fe ff       	call   0x1404a0f50
+investigation/native/followups/asm/construction-load-final.asm:   1404bc382:	e8 a9 5d fe ff       	call   0x1404a2130
+investigation/native/followups/asm/construction-load-final.asm:   1404bc38a:	e8 b1 b2 ff ff       	call   0x1404b7640

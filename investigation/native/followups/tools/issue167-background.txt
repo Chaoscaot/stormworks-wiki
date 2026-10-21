@@ -1,0 +1,10 @@
+9:## #170 RX Directional
+53:## #171 RX Directional (Large)
+61:## #166 Jet Combustion Chamber
+108:## #167 Jet Exhaust Afterburner
+112:The private liquid container starts at component `+0x3b8`. Its jet-fuel member is container `+0x14`, hence component `+0x3cc`. The constructor clears it as part of a wider store. The only direct jet-fuel debit identified in the shared jet update remains the combustion-chamber branch, not the exhaust branch.
+117:| Afterburner passes private container to exchange | `0x140351d89`: `48 8d 97 b8 03 00 00` (lea    rdx,[rdi+0x3b8]) |
+118:| Afterburner reads stored jet fuel | `0x140351eab`: `f3 0f 10 97 cc 03 00 00` (movss  xmm2,DWORD PTR [rdi+0x3cc]) |
+119:| Chamber fuel debit in the other subtype | `0x1403533f8`: `f3 0f 11 8f cc 03 00 00` (movss  DWORD PTR [rdi+0x3cc],xmm1) |
+137:## #172 Turbine Engine, legacy part
+168:## Corrections by the parent session

@@ -1,0 +1,124 @@
+118-      plStack_1a8 = (longlong *)(plVar16[0xb] + 0x48);
+119-      iStack_1a0 = 0;
+120:      iVar32 = *(int *)(plVar16[0xb] + 0x58);
+121-      plStack_138 = (longlong *)CONCAT44(plStack_138._4_4_,iVar32);
+122-      plVar17 = plStack_1a8;
+--
+164-              do {
+165-                uVar14 = (**(code **)(*plVar16 + 0x398))(plVar16);
+166:                if ((uVar14 == 0) || (lVar27 = *(longlong *)(uVar14 + 0x18), lVar27 == 0))
+167-                goto LAB_1404a126c;
+168:                switch(*(undefined4 *)(lVar27 + 0x2c)) {
+169-                default:
+170-                  iVar20 = 1;
+--
+198-                if ((((*(int *)(lVar27 + 0x20) == *piStack_158) &&
+199-                     (*(int *)(lVar27 + 0x24) == piStack_158[1])) &&
+200:                    (*(int *)(lVar27 + 0x28) == piStack_158[2])) &&
+201-                   (((iVar11 * (int)plVar16[9] + iVar20 * (int)plVar16[6] +
+202-                      iVar21 * *(int *)((longlong)plVar16 + 0x3c) == iVar23 &&
+--
+218-              uVar12 = uStack_1d4;
+219-              uVar25 = uStack_1d8;
+220:              if ((uVar26 != 0) && (*(int *)(*(longlong *)(uVar26 + 0x18) + 0x34) == 2)) {
+221-                if (uStack_1d8 == uStack_1c8) {
+222-                  FUN_1408e10d0(&uStack_1d0);
+--
+236-                *(int *)(puVar15 + 4) = iStack_15c;
+237-                *(ulonglong *)((longlong)puVar15 + 0x24) = CONCAT44(iStack_104,iStack_108);
+238:                *(int *)((longlong)puVar15 + 0x2c) = iVar32;
+239-                uVar14 = uStack_1d0;
+240-                plVar17 = plStack_1a8;
+--
+251-            do {
+252-              uVar14 = (**(code **)(*plVar16 + 0x388))(plVar16);
+253:              if ((uVar14 == 0) || (lVar27 = *(longlong *)(uVar14 + 0x18), lVar27 == 0))
+254-              goto LAB_1404a144c;
+255:              switch(*(undefined4 *)(lVar27 + 0x2c)) {
+256-              default:
+257-                iVar20 = 1;
+--
+285-              if (((((*(int *)(lVar27 + 0x20) == *piStack_158) &&
+286-                    (*(int *)(lVar27 + 0x24) == piStack_158[1])) &&
+287:                   (*(int *)(lVar27 + 0x28) == piStack_158[2])) &&
+288-                  ((iVar11 * (int)plVar16[9] + iVar20 * (int)plVar16[6] +
+289-                    iVar21 * *(int *)((longlong)plVar16 + 0x3c) == iVar23 &&
+--
+304-            uVar12 = uStack_1d4;
+305-            uVar25 = uStack_1d8;
+306:            if ((uVar29 != 0) && (*(int *)(*(longlong *)(uVar29 + 0x18) + 0x34) == 3)) {
+307-              if (uStack_1d8 == uStack_1c8) {
+308-                FUN_1408e10d0(&uStack_1d0);
+--
+321-              *(int *)(puVar15 + 4) = iStack_15c;
+322-              *(ulonglong *)((longlong)puVar15 + 0x24) = CONCAT44(iStack_104,iStack_108);
+323:              *(int *)((longlong)puVar15 + 0x2c) = iVar32;
+324-              uVar14 = uStack_1d0;
+325-              plVar17 = plStack_1a8;
+--
+459-      uVar12 = uStack_188 + 1;
+460-      uVar29 = (ulonglong)((uStack_18c - 1) + uVar12) % (ulonglong)uStack_190;
+461:      *(undefined8 *)(lStack_198 + 0x10 + uVar29 * 0x18) = 0;
+462:      *(ulonglong *)(lStack_198 + uVar29 * 0x18) = CONCAT44(uStack_ac,uStack_b0);
+463:      *(undefined4 *)(lStack_198 + 8 + uVar29 * 0x18) = uStack_a8;
+464:      *(ulonglong *)(lStack_198 + 0xc + uVar29 * 0x18) = CONCAT44(uStack_a0,uStack_a4);
+465:      *(undefined4 *)(lStack_198 + 0x14 + uVar29 * 0x18) = uStack_9c;
+466-      lStack_178 = 0;
+467-      uStack_170 = 0;
+--
+478-      if (uVar12 != 0) {
+479-        uVar29 = (ulonglong)uStack_18c % (ulonglong)uVar25;
+480:        uStack_f8 = *(undefined8 *)(lVar27 + uVar29 * 0x18);
+481:        iStack_1b0 = *(int *)(lVar27 + 8 + uVar29 * 0x18);
+482:        uStack_150 = *(undefined8 *)(lVar27 + 0xc + uVar29 * 0x18);
+483:        iVar32 = *(int *)(lVar27 + 0x14 + uVar29 * 0x18);
+484-        if (uStack_18c == uVar25 - 1) {
+485-          uStack_18c = 0;
+--
+528-LAB_1404a1b91:
+529-                lVar22 = ((ulonglong)(uStack_1c4 + uVar24) % uVar31) * 0x30 + uVar14;
+530:                if (((*(int *)(lVar22 + 0x18) != iStack_128) ||
+531-                    (*(int *)(lVar22 + 0x1c) != iStack_1b0)) ||
+532-                   (*(int *)(lVar22 + 0x20) != iStack_19c)) goto LAB_1404a1bde;
+533-                if (((*(int *)(lVar22 + 0x24) != -(int)uStack_150) ||
+534:                    (*(int *)(lVar22 + 0x28) != -uStack_150._4_4_)) ||
+535:                   (*(int *)(lVar22 + 0x2c) != -iStack_1a0)) goto LAB_1404a1bde;
+536-                if (uStack_1d4 == 1) {
+537-                  FUN_1402ee5e0();
+--
+606-              lVar22 = plVar18[0xb];
+607-              iVar23 = 0;
+608:              iVar32 = *(int *)(lVar22 + 0x58);
+609-LAB_1404a1a20:
+610-              uVar14 = uStack_1d0;
+--
+618-                    (*(int *)(lVar19 + 0x10) != -uStack_150._4_4_)) ||
+619-                   (*(int *)(lVar19 + 0x14) != -iStack_1a0)) goto LAB_1404a1a84;
+620:                iStack_1b0 = *(int *)(lVar22 + 0x58);
+621-                plStack_138 = plVar18 + 6;
+622-                for (iVar32 = 0; uVar14 = uStack_1d0, iVar32 != iStack_1b0; iVar32 = iVar32 + 1) {
+--
+633-                    uVar12 = uVar12 + 1;
+634-                    uVar14 = (ulonglong)((uStack_18c - 1) + uVar12) % (ulonglong)uVar25;
+635:                    *(undefined8 *)(lVar27 + 0xc + uVar14 * 0x18) = 0;
+636:                    *(undefined4 *)(lVar27 + 0x14 + uVar14 * 0x18) = 0;
+637:                    *(ulonglong *)(lVar27 + uVar14 * 0x18) = CONCAT44(iStack_124,iStack_128);
+638:                    *(int *)(lVar27 + 8 + uVar14 * 0x18) = iStack_19c;
+639-                    uStack_188 = uVar12;
+640-                    lVar19 = FUN_14017ac60(plStack_138,auStack_68,piVar13 + 5);
+--
+642-                    uStack_d4 = *(undefined4 *)(lVar19 + 0x10);
+643-                    uVar4 = *(undefined4 *)(lVar19 + 0x14);
+644:                    *(undefined8 *)(lVar27 + 0xc + uVar14 * 0x18) = *(undefined8 *)(lVar19 + 0xc);
+645:                    *(undefined4 *)(lVar27 + 0x14 + uVar14 * 0x18) = uVar4;
+646-                  }
+647-                }
+--
+704-            lStack_88 = lVar27;
+705-            if (lVar27 != 0) {
+706:              if (*(int *)(lVar27 + 0x18) != 0) {
+707-                FUN_1409b2d50(*(undefined8 *)(lVar27 + 0x10));
+708-                *(undefined8 *)(lVar27 + 0x10) = 0;
+709:                *(undefined4 *)(lVar27 + 0x18) = 0;
+710-              }
+711-              *(undefined8 *)(lVar27 + 0x1c) = 0;

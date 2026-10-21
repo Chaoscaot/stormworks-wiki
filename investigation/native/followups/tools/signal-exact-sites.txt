@@ -1,0 +1,107 @@
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4200:	c6 83 71 09 00 00 01 	mov    BYTE PTR [rbx+0x971],0x1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4207:	eb 49                	jmp    0x1403d4252
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4209:	e8 12 03 ec ff       	call   0x140294520
+investigation/native/followups/asm/connector-signal-final.asm:   1403d420e:	80 78 33 00          	cmp    BYTE PTR [rax+0x33],0x0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4212:	75 3e                	jne    0x1403d4252
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4214:	f3 0f 10 0d dc c5 7d 00 	movss  xmm1,DWORD PTR [rip+0x7dc5dc]        # 0x140bb07f8
+investigation/native/followups/asm/connector-signal-final.asm:   1403d421c:	0f 57 c0             	xorps  xmm0,xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d421f:	8b 83 30 09 00 00    	mov    eax,DWORD PTR [rbx+0x930]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4225:	0f 28 d1             	movaps xmm2,xmm1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4228:	f3 48 0f 2a c0       	cvtsi2ss xmm0,rax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d422d:	f3 0f 5c d0          	subss  xmm2,xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4231:	0f 57 c0             	xorps  xmm0,xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4234:	f3 0f 5e d1          	divss  xmm2,xmm1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4238:	f3 0f 5f c2          	maxss  xmm0,xmm2
+investigation/native/followups/asm/connector-signal-final.asm:   1403d423c:	f3 0f 59 83 44 09 00 00 	mulss  xmm0,DWORD PTR [rbx+0x944]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4244:	0f 2e c6             	ucomiss xmm0,xmm6
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4247:	7a 09                	jp     0x1403d4252
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4249:	75 07                	jne    0x1403d4252
+investigation/native/followups/asm/connector-signal-final.asm:   1403d424b:	c6 83 71 09 00 00 00 	mov    BYTE PTR [rbx+0x971],0x0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4252:	8b 83 7c 09 00 00    	mov    eax,DWORD PTR [rbx+0x97c]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4258:	85 c0                	test   eax,eax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d425a:	75 05                	jne    0x1403d4261
+investigation/native/followups/asm/connector-signal-final.asm:   1403d425c:	39 43 08             	cmp    DWORD PTR [rbx+0x8],eax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d425f:	76 13                	jbe    0x1403d4274
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4261:	c6 83 71 09 00 00 00 	mov    BYTE PTR [rbx+0x971],0x0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4268:	85 c0                	test   eax,eax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d426a:	74 08                	je     0x1403d4274
+investigation/native/followups/asm/connector-signal-final.asm:   1403d426c:	ff c8                	dec    eax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d426e:	89 83 7c 09 00 00    	mov    DWORD PTR [rbx+0x97c],eax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4274:	80 3d 84 74 91 00 00 	cmp    BYTE PTR [rip+0x917484],0x0        # 0x140ceb6ff
+investigation/native/followups/asm/connector-signal-final.asm:   1403d427b:	0f 84 d4 00 00 00    	je     0x1403d4355
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4281:	48 8b 43 58          	mov    rax,QWORD PTR [rbx+0x58]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4285:	83 b8 7c 0e 00 00 05 	cmp    DWORD PTR [rax+0xe7c],0x5
+investigation/native/followups/asm/connector-signal-final.asm:   1403d428c:	0f 85 c3 00 00 00    	jne    0x1403d4355
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4292:	48 8b 8b 50 09 00 00 	mov    rcx,QWORD PTR [rbx+0x950]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4299:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/connector-signal-final.asm:   1403d429c:	0f 84 b3 00 00 00    	je     0x1403d4355
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42a2:	4c 8b 81 b8 09 00 00 	mov    r8,QWORD PTR [rcx+0x9b8]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42a9:	48 8b 93 b0 09 00 00 	mov    rdx,QWORD PTR [rbx+0x9b0]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42b0:	49 8b 40 58          	mov    rax,QWORD PTR [r8+0x58]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42b4:	f3 0f 10 8a 20 01 00 00 	movss  xmm1,DWORD PTR [rdx+0x120]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42bc:	f6 40 40 04          	test   BYTE PTR [rax+0x40],0x4
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42c0:	76 16                	jbe    0x1403d42d8
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42c2:	f3 41 0f 10 80 dc 09 00 00 	movss  xmm0,DWORD PTR [r8+0x9dc]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42cb:	f3 41 0f 58 80 d8 09 00 00 	addss  xmm0,DWORD PTR [r8+0x9d8]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42d4:	f3 0f 58 c8          	addss  xmm1,xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42d8:	0f 2f 89 d8 09 00 00 	comiss xmm1,DWORD PTR [rcx+0x9d8]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42df:	77 6d                	ja     0x1403d434e
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42e1:	f3 0f 10 81 dc 09 00 00 	movss  xmm0,DWORD PTR [rcx+0x9dc]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42e9:	0f 2f c1             	comiss xmm0,xmm1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42ec:	77 60                	ja     0x1403d434e
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42ee:	80 bb d0 01 00 00 00 	cmp    BYTE PTR [rbx+0x1d0],0x0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42f5:	74 41                	je     0x1403d4338
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42f7:	48 8b 42 18          	mov    rax,QWORD PTR [rdx+0x18]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42fb:	48 85 c0             	test   rax,rax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d42fe:	74 11                	je     0x1403d4311
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4300:	80 b8 c0 08 00 00 00 	cmp    BYTE PTR [rax+0x8c0],0x0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4307:	75 08                	jne    0x1403d4311
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4309:	f3 0f 11 8b e4 09 00 00 	movss  DWORD PTR [rbx+0x9e4],xmm1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4311:	f3 0f 10 83 e4 09 00 00 	movss  xmm0,DWORD PTR [rbx+0x9e4]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4319:	41 b0 01             	mov    r8b,0x1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d431c:	f3 0f 10 1d 98 c5 7d 00 	movss  xmm3,DWORD PTR [rip+0x7dc598]        # 0x140bb08bc
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4324:	f3 0f 5c c1          	subss  xmm0,xmm1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4328:	48 8b cf             	mov    rcx,rdi
+investigation/native/followups/asm/connector-signal-final.asm:   1403d432b:	f3 0f 11 44 24 20    	movss  DWORD PTR [rsp+0x20],xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4331:	e8 8a 44 dd ff       	call   0x1401a87c0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4336:	eb 1d                	jmp    0x1403d4355
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4338:	0f 57 db             	xorps  xmm3,xmm3
+investigation/native/followups/asm/connector-signal-final.asm:   1403d433b:	f3 0f 11 74 24 20    	movss  DWORD PTR [rsp+0x20],xmm6
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4341:	45 33 c0             	xor    r8d,r8d
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4344:	48 8b cf             	mov    rcx,rdi
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4347:	e8 74 44 dd ff       	call   0x1401a87c0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d434c:	eb 07                	jmp    0x1403d4355
+investigation/native/followups/asm/connector-signal-final.asm:   1403d434e:	c6 83 71 09 00 00 00 	mov    BYTE PTR [rbx+0x971],0x0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4355:	48 8b 8b 50 09 00 00 	mov    rcx,QWORD PTR [rbx+0x950]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d435c:	48 85 c9             	test   rcx,rcx
+investigation/native/followups/asm/connector-signal-final.asm:   1403d435f:	0f 84 74 01 00 00    	je     0x1403d44d9
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4365:	0f b6 83 d0 01 00 00 	movzx  eax,BYTE PTR [rbx+0x1d0]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d436c:	88 81 28 02 00 00    	mov    BYTE PTR [rcx+0x228],al
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4372:	48 8b 43 58          	mov    rax,QWORD PTR [rbx+0x58]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4376:	48 8b 8b 50 09 00 00 	mov    rcx,QWORD PTR [rbx+0x950]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d437d:	83 b8 7c 0e 00 00 08 	cmp    DWORD PTR [rax+0xe7c],0x8
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4384:	75 0d                	jne    0x1403d4393
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4386:	66 0f 6e 83 38 0b 00 00 	movd   xmm0,DWORD PTR [rbx+0xb38]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d438e:	0f 5b c0             	cvtdq2ps xmm0,xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4391:	eb 08                	jmp    0x1403d439b
+investigation/native/followups/asm/connector-signal-final.asm:   1403d4393:	f3 0f 10 83 60 02 00 00 	movss  xmm0,DWORD PTR [rbx+0x260]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d439b:	f3 0f 11 81 80 02 00 00 	movss  DWORD PTR [rcx+0x280],xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43a3:	48 8d 93 10 04 00 00 	lea    rdx,[rbx+0x410]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43aa:	48 8b 8b 50 09 00 00 	mov    rcx,QWORD PTR [rbx+0x950]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43b1:	8b 83 b8 02 00 00    	mov    eax,DWORD PTR [rbx+0x2b8]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43b7:	48 81 c1 58 03 00 00 	add    rcx,0x358
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43be:	89 01                	mov    DWORD PTR [rcx],eax
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43c0:	0f 10 83 bc 02 00 00 	movups xmm0,XMMWORD PTR [rbx+0x2bc]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43c7:	0f 11 41 04          	movups XMMWORD PTR [rcx+0x4],xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43cb:	0f 10 8b cc 02 00 00 	movups xmm1,XMMWORD PTR [rbx+0x2cc]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43d2:	0f 11 49 14          	movups XMMWORD PTR [rcx+0x14],xmm1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43d6:	0f 10 83 dc 02 00 00 	movups xmm0,XMMWORD PTR [rbx+0x2dc]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43dd:	0f 11 41 24          	movups XMMWORD PTR [rcx+0x24],xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43e1:	0f 10 8b ec 02 00 00 	movups xmm1,XMMWORD PTR [rbx+0x2ec]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43e8:	0f 11 49 34          	movups XMMWORD PTR [rcx+0x34],xmm1
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43ec:	0f 10 83 fc 02 00 00 	movups xmm0,XMMWORD PTR [rbx+0x2fc]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43f3:	0f 11 41 44          	movups XMMWORD PTR [rcx+0x44],xmm0
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43f7:	0f 10 8b 0c 03 00 00 	movups xmm1,XMMWORD PTR [rbx+0x30c]
+investigation/native/followups/asm/connector-signal-final.asm:   1403d43fe:	0f 11 49 54          	movups XMMWORD PTR [rcx+0x54],xmm1
+investigation/native/followups/asm/scene-phase-final.asm:   1405498d6:	41 ff 92 58 03 00 00 	call   QWORD PTR [r10+0x358]
+investigation/native/followups/asm/scene-phase-final.asm:   140549ad2:	ff 50 28             	call   QWORD PTR [rax+0x28]

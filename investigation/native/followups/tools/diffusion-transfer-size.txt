@@ -1,0 +1,26 @@
+  }
+  if ((param_4 & 0x800) != 0) {
+    fVar9 = fVar9 + *(float *)(param_2 + 0x38);
+    fVar8 = fVar8 + *(float *)(param_3 + 0x38);
+  }
+  if ((param_4 & 0x1000) != 0) {
+    fVar9 = fVar9 + *(float *)(param_2 + 0x3c);
+    fVar8 = fVar8 + *(float *)(param_3 + 0x3c);
+  }
+  if ((_DAT_140baf898 < fVar9) && (_DAT_140baf898 < fVar8)) {
+    fVar5 = fVar9;
+    if (fVar8 <= fVar9) {
+      fVar5 = fVar8;
+    }
+    if (fVar5 <= param_1) {
+      param_1 = fVar5;
+    }
+    if ((param_4 & 1) != 0) {
+      fVar6 = (param_1 * *(float *)(param_3 + 0xc)) / fVar8;
+      fVar5 = (*(float *)(param_2 + 0xc) * param_1) / fVar9;
+      *(float *)(param_2 + 0xc) = *(float *)(param_2 + 0xc) - fVar5;
+      *(float *)(param_3 + 0xc) = *(float *)(param_3 + 0xc) - fVar6;
+      fVar5 = (fVar6 + fVar5) * fVar7;
+      *(float *)(param_2 + 0xc) = fVar5 + *(float *)(param_2 + 0xc);
+      *(float *)(param_3 + 0xc) = fVar5 + *(float *)(param_3 + 0xc);
+    }

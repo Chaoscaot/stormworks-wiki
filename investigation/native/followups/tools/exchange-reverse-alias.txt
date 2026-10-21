@@ -1,0 +1,66 @@
+             (*(float *)(param_8 + 0x40) * *(float *)(param_8 + 0x48) +
+             fVar16 * *(float *)(param_2 + 0x48)) / (*(float *)(param_8 + 0x40) + fVar16);
+      }
+      goto LAB_1402ed2d0;
+    }
+  }
+  if ((fVar16 < 0.0) && (fVar11 = *(float *)(param_2 + 0x40), 0.0 < fVar11)) {
+    if (fVar16 <= (float)((uint)fVar11 ^ uVar4)) {
+      fVar16 = (float)((uint)fVar11 ^ uVar4);
+    }
+    if (fVar16 <= _DAT_140bb0c28) {
+      fVar16 = _DAT_140bb0c28;
+    }
+    *(undefined4 *)(param_8 + 0x44) = *(undefined4 *)(param_2 + 0x44);
+    *(undefined4 *)(param_8 + 0x48) = *(undefined4 *)(param_2 + 0x48);
+    fVar11 = (float)((uint)fVar16 ^ uVar4) / fVar11;
+    if ((param_7 & 1) != 0) {
+      fVar8 = (float)(*(uint *)(param_2 + 0xc) ^ uVar4) * fVar11;
+      *(float *)(param_8 + 0xc) = fVar8;
+      fVar8 = *(float *)(*(longlong *)(param_1 + 0x20) + 0xc) - fVar8;
+      fVar16 = 0.0;
+      if (0.0 <= fVar8) {
+        fVar16 = fVar8;
+      }
+      *(float *)(*(longlong *)(param_1 + 0x20) + 0xc) = fVar16;
+      fVar8 = *(float *)(param_2 + 0xc) + *(float *)(param_8 + 0xc);
+      fVar16 = 0.0;
+      if (0.0 <= fVar8) {
+        fVar16 = fVar8;
+      }
+      *(float *)(param_2 + 0xc) = fVar16;
+    }
+    if ((param_7 & 2) != 0) {
+      fVar8 = (float)(*(uint *)(param_2 + 0x10) ^ uVar4) * fVar11;
+      *(float *)(param_8 + 0x10) = fVar8;
+      fVar8 = *(float *)(*(longlong *)(param_1 + 0x20) + 0x10) - fVar8;
+      fVar16 = 0.0;
+      if (0.0 <= fVar8) {
+        fVar16 = fVar8;
+      }
+      *(float *)(*(longlong *)(param_1 + 0x20) + 0x10) = fVar16;
+      fVar8 = *(float *)(param_8 + 0x10) + *(float *)(param_2 + 0x10);
+      fVar16 = 0.0;
+      if (0.0 <= fVar8) {
+        fVar16 = fVar8;
+      }
+      *(float *)(param_2 + 0x10) = fVar16;
+    }
+    if ((param_7 & 4) != 0) {
+      fVar8 = (float)(*(uint *)(param_2 + 0x14) ^ uVar4) * fVar11;
+      *(float *)(param_8 + 0x14) = fVar8;
+      fVar8 = *(float *)(*(longlong *)(param_1 + 0x20) + 0x14) - fVar8;
+      fVar16 = 0.0;
+      if (0.0 <= fVar8) {
+        fVar16 = fVar8;
+      }
+      *(float *)(*(longlong *)(param_1 + 0x20) + 0x14) = fVar16;
+      fVar8 = *(float *)(param_8 + 0x14) + *(float *)(param_2 + 0x14);
+      fVar16 = 0.0;
+      if (0.0 <= fVar8) {
+        fVar16 = fVar8;
+      }
+      *(float *)(param_2 + 0x14) = fVar16;
+    }
+    if ((param_7 & 8) != 0) {
+      fVar8 = (float)(*(uint *)(param_2 + 0x18) ^ uVar4) * fVar11;

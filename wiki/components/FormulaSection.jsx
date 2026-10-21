@@ -468,7 +468,7 @@ const JET_EXHAUST = {
     'The x axis is the exhaust\'s incoming pressure, not RPS. What pressure a given engine reaches depends on the compressor, chambers, turbines and the ducts between them, which the model does not solve.',
     'Output is in the game\'s internal force units. Body mass is not calibrated to kilograms, so these are not newtons. The game applies the force once per update and the physics solver integrates it; do not multiply it by 60.',
     'The cap is off by default because S depends on the whole joined assembly, not on the exhaust. Tick it and set S to the mass total of the bodies joined by joints to see the effect.',
-    'The stored jet fuel is what sits in the exhaust\'s own 4 L buffer. The exhaust never subtracts it; how fast the Fuel port refills it from the tank depends on the pipe network and is not modelled.',
+    'The stored jet fuel is what sits in the exhaust\'s own 4 L buffer. The exhaust never burns it. The Fuel port exchange and its mixing step fill or drain it depending on the pipe network, which is not modelled here.',
     'Height is read from the vehicle; treating it as metres is an inference. The basic, rotating and afterburner exhausts share the coefficient; the rotating exhaust only turns the direction.',
   ],
 };

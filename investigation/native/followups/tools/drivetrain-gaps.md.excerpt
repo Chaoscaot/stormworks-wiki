@@ -1,0 +1,161 @@
+## 1. Transmission #15 and #157
+
+Verdict: partly answered.
+
+### The tooltip limit and damage
+
+The legacy `torque_gearbox_2.xml` tooltip is still not an established enforcement rule. The retained definition extract and earlier bounded float-constant search do not identify a gearbox comparison implementing its claimed 4000 torque difference. This pass did not establish an internal unit for that number. Neither a failed literal search nor the absence of a comparison in the gearbox update proves that computed or indirect enforcement is absent from the entire executable.
+
+The damage setter is shared, rather than a private gearbox breakage equation. For the unsigned argument `x`, it implements:
+
+```
+damage = min_unsigned(x, 50)
+```
+
+At `0x140325ab0`, `b8 32 00 00 00`, the cap is 50. `0x140325ab5`, `3b d0`, and `0x140325ab7`, `0f 42 c2`, select the smaller unsigned argument. `0x140325aba`, `89 41 08`, stores component damage. The gearbox vtable entry at `0x140b66730`, `b0 5a 32 40 01 00 00 00`, selects this setter. `asm/damage-capped-setter.asm` and `tools/gear-vtable.txt` retain the relevant data and code.
+
+The shared repair path is a newly located writer. In `0x1404a04a0`, a selected component whose damage exceeds its component field at `+0xc` receives:
+
+```
+requested_damage = max_signed(0, old_damage - repair_argument)
+virtual_damage_setter(requested_damage)
+```
+
+`0x1404a07ac`, `8b 57 08`, loads damage; `0x1404a07af`, `2b 95 28 01 00 00`, subtracts the caller's repair argument; `0x1404a07b5`, `bb 00 00 00 00`, supplies zero; `0x1404a07ba`, `0f 48 d3`, replaces a negative result with zero; `0x1404a07c8`, `ff 50 20`, calls the virtual setter. This establishes how a generic repair operation can clear gearbox and clutch damage. It does not establish a per-second repair rate or every tool's invocation cadence. See also section 4.
+
+The already identified gearbox update tests damage and disables its bridge. This pass has not found a speed-difference or torque-difference producer of that damage. The complete collision, explosion and repair caller chain is not established, so torque-triggered breakage remains unresolved.
+
+### Shaft membership is explicitly dropped before reconstruction
+
+There is a concrete reset and rebuild sequence, rather than membership being retained indefinitely:
+
+1. `0x1404cad20` visits the bodies and their components and calls virtual slot `+0x3e0` at `0x1404cad8e`, `ff 90 e0 03 00 00`.
+2. For the gearbox, that slot is the base reset `0x14032af10`. The vtable pointer at `0x140b66af0` is `10 af 32 40 01 00 00 00`. Its shaft-node loop walks the component's registered nodes and clears their group pointer and cached submissions. `0x14032af7f`, `4c 89 52 20`, clears node `+0x20`; `0x14032af83`, `4c 89 52 28`, clears the adjacent submitted weight and speed together; `0x14032af87`, `44 89 52 30`, clears published speed. The preceding register setup makes the source zero.
+3. Only after the component loop, `0x1404cadbb`, `48 8d 8e 80 00 00 00`, selects the manager's shaft-group container, and `0x1404cadc2`, `e8 e9 f6 3f 00`, calls `0x1408ca4b0` to release its groups and member containers.
+4. The rebuild caller subsequently invokes `0x1404a0f50` for each body. It enumerates the current component and definition connection arrays, discovers compatible shaft connections, creates a group for an unassigned seed and appends discovered members.
+
+`asm/reset-before-free.asm`, `asm/14032af10.asm`, `asm/network-reset-relink.asm` and `asm/shaft-group-build.asm` retain this sequence. The earlier group pointer is therefore deliberately invalidated by reset before its group is freed.
+
+Newly allocated shaft groups start with speed zero and both initial weight fields equal to 1. `0x1404a166b`, `33 c0`, and `0x1404a166d`, `89 07`, initialize speed; `0x1404a166f`, `c7 47 04 00 00 80 3f`, and `0x1404a1676`, `c7 47 08 00 00 80 3f`, initialize the weights. See `asm/shaft-group-initialize.asm`. This is group initialization, not a claim that every connected engine or moving vehicle is physically stopped by rebuilding.
+
+Member order is discovery order, with pointer-duplicate rejection and append into a circular array. It is not a sort by world coordinates or speed. `0x1402ee65a`, `89 4b 20`, updates member count; `0x1402ee661`, `41 f7 f0`, takes the circular-array remainder; `0x1402ee668`, `48 89 34 d0`, appends the member; `0x1402ee66c`, `48 89 5e 20`, assigns its group pointer. The component enumeration and connection traversal determine which seed and member are encountered first. This describes the recovered local builder, not a promise that rebuilding the same geometry after different edit histories gives the same floating-point summation order.
+
+An isolated temporary group is also discarded. `0x1404a1d09`, `83 f8 02`, compares its member count with 2; `0x1404a1d0c`, `0f 83 7d 01 00 00`, retains groups at or above that count. Below it, `0x1404a1d35`, `48 c7 41 20 00 00 00 00`, clears member group pointers before cleanup. See `asm/singleton-drop.asm`.
+
+### What remains open
+
+The wrapper `0x140546b10` calls the full reconstruction routine `0x1404bbca0`, but this pass does not enumerate every connector edit or attachment event that schedules that wrapper. It also does not establish the scheduler barriers between reconstruction and component updates. Clearing pointers before free is demonstrated; absence of stale-membership execution across all scheduling paths is not. The helper's ordinary null-pointer test is not evidence of a generation or lifetime check.
+
+These are further static call-graph and scheduling questions. Rebuilding example vehicles in the running game would validate observed behavior but would not replace that proof. A measured torque-difference experiment could test the tooltip, but no unit or threshold is asserted from static evidence here.
+
+### Wiki-ready replacements
+
+For the 4000 item: "The legacy gearbox tooltip claims a torque-difference limit of 4000, but neither its enforcing path nor the internal unit has been identified. The recovered gearbox update and shaft solver do not establish that threshold."
+
+For damage events: "Damage disables the gearbox or clutch bridge. Both use a shared capped damage setter, and the generic repair path can subtract damage to zero. The complete damage triggers, repair cadence and any torque-triggered breakage remain untraced."
+
+For membership: "The rebuild path clears registered shaft-node group pointers before freeing old groups, then forms new groups in connection-discovery order and appends members in that order. Temporary groups with fewer than two members are discarded. The complete connector-change triggers and update scheduling still need tracing to rule out stale membership."
+
+## 2. Mechanical joints #9
+
+Verdict: partly answered.
+
+### Plain and power pivot stops
+
+The shipped plain and power pivot base definitions both have flags 64 and range 0.5. See `multibody_pivot_a.xml:2` and `multibody_pivot_torque_a.xml:2`, retained in `tools/selected-definitions.txt`.
+
+The hinge setup's explicit angle-limit installation is conditional on definition flag `0x100` being set and `0x200` being clear. At `0x140357877`, `48 f7 c1 00 01 00 00`, it tests the former; `0x14035787e`, `76 43`, skips limit installation when clear. `0x140357880`, `48 f7 c1 00 02 00 00`, and `0x140357887`, `77 3a`, skip it for the latter flag. The limit setter call is `0x1403578be`, `e8 8d 14 e5 ff`.
+
+When that branch is admitted, range R becomes angular bounds `[-pi*R,+pi*R]`, subject to the separate one-sided flag. `0x140357891`, `f3 0f 59 15 23 84 85 00`, multiplies R by 0.5; `0x1403578a4`, `f3 0f 59 1d a4 8c 85 00`, multiplies the positive bound by the stored `2*pi`. The constants are `0x140bafcbc`, `00 00 00 3f`, and `0x140bb0550`, `db 0f c9 40`. A range of 0.5 in this admitted branch corresponds to a quarter turn each way.
+
+However, the two unpowered pivot definitions above do not admit this branch. Their tooltip stop is therefore not implemented by this explicit range-to-hinge-limit setter. This is a stronger, narrower result than saying the stop was simply not located. It does not exclude collision geometry, another constraint path or later limit modification. The full physical travel of an assembled pivot has not been established. See `asm/joint-setup-complete.asm`.
+
+### Fluid passage
+
+For an ordinary connected joint, `0x140357a60` calls the shared two-port fluid solver with zero pressure bias, factor 1, the one-way flag clear and an all-species mask. `0x140357c0e`, `f3 0f 10 1d b6 82 85 00`, loads factor 1 from `0x140bafecc`, `00 00 80 3f`; `0x140357c40`, `0f 57 d2`, supplies zero bias; `0x140357c38`, `c7 44 24 28 ff ff ff ff`, supplies the all-species mask; `0x140357c7a`, `c6 44 24 20 00`, clears the one-way flag; `0x140357c7f`, `e8 4c 5c f9 ff`, calls `0x1402ed8d0`. See `asm/joint-fluid-pass.asm`.
+
+Thus this ordinary joint call imposes no extra one-way restriction or fractional conductance reduction. It still uses the network solver, which depends on both network states and earlier flow allocation. This is not a guarantee of zero pressure drop or a fixed delivered flow. The special flag-`0x4000` branch instead exchanges with a component compartment; the requested ordinary pivot definitions do not select it.
+
+### What remains open
+
+The world-space mapping of sigma for every placement and reflected orientation is not completed. The local flip alone does not establish whether an assembled placement moves clockwise about a particular world axis. Recovering the frame transforms and body ordering is a static task; no running-game-only limitation has been demonstrated.
+
+The mechanical shaft pass-through across paired joint parts has not been traced through group construction and all shaft submissions. No independent joint torque, speed-loss or power-loss coefficient is asserted. Actual fluid flow and pressure drop require a specified network state or measurements, although their update rule is static code.
+
+### Wiki-ready replacements
+
+For sigma: "The local sign flip is decoded, but its world-axis direction for each placement and reflected orientation still needs the joint-frame and body-order transforms traced."
+
+For the stop: "The plain and power pivot definitions skip the hinge setup's explicit angle-limit branch, so their tooltip quarter-turn stop is not established by that setter. Actual assembled travel and any other stop mechanism remain unverified."
+
+For passage: "Ordinary joint fluid passage uses the shared bidirectional, all-species two-port solver with zero bias and factor 1. Delivered flow depends on network pressure and allocation history. Mechanical shaft speed, torque and any joint-specific losses remain untraced."
+
+## 3. Steam #13, #155 and #156
+
+Verdict: partly answered. Final piston-group integration is answered; the complete ignition and rupture lifecycles remain open.
+
+### Ignition is not demonstrated to be a countdown
+
+The ignition write is integer 3600 at component `+0x754`, `0x14040e08a`, `41 c7 86 54 07 00 00 10 0e 00 00`. The other firebox branch has the same write at `0x14040e6f9`. The recovered combustion paths test this state for zero or nonzero, rather than scaling combustion by its magnitude.
+
+The whole-disassembly displacement search is retained in `tools/ignition-offset-all.txt`. In the steam update, it finds comparisons and the ignition writes, but no decrement, subtraction or zero store to that displacement. The nearby `0x1404134a7`, `89 8e 54 07 00 00`, is a binary restore writer, not a countdown. Its surrounding serializer distinguishes write and read modes; see `asm/ignition-serialize.asm` and the fragment in `pseudocode/14041316a.c`.
+
+This does not justify interpreting 3600 as a demonstrated ignition duration. Within the recovered combustion update it acts as a nonzero enable state. An indirect writer through a shifted base or escaped pointer has not been ruled out, so this report does not upgrade that local observation into an assertion that the state can never clear. Exactly what counts it down or clears it during gameplay remains open to further static writer tracing.
+
+### Piston-group integration
+
+The piston group has phase, speed and accumulated drive in successive float fields. The final integration is in the same overall manager update as the modular crank update, but it is a separate loop over steam piston groups. The real function entry is `0x1404cb790`; the integration block begins at `0x1404cc078`. Chained unwind records confirm the relationship in `tools/unwind-entries.txt`.
+
+For group phase `p`, speed `r` and accumulated drive `a`, the finite-input equations are:
+
+```
+r_next = clamp(0.99 * (r + a), -10, 10)
+a_next = 0
+x = p + r_next / 60
+p_next = x - floor(x)
+```
+
+There is no division of `a` by an inertia accumulator in this loop. The speed clamp, decay and phase update happen after the component has accumulated its pressure-driven contribution. The formula does not turn that contribution into calibrated physical torque.
+
+The decisive instructions are:
+
+| Address | Exact bytes | Operation |
+| --- | --- | --- |
+| `0x1404cc0b0` | `f3 0f 10 73 04` | Load group speed |
+| `0x1404cc0b5` | `f3 0f 58 73 08` | Add accumulated drive |
+| `0x1404cc0ba` | `f3 41 0f 59 f0` | Multiply by the loaded 0.99 constant |
+| `0x1404cc0bf` | `f3 41 0f 5f f1` | Apply lower bound |
+| `0x1404cc0c4` | `f3 41 0f 5d f7` | Apply upper bound |
+| `0x1404cc0c9` | `f3 0f 11 73 04` | Store speed |
+| `0x1404cc0ce` | `f3 41 0f 5e f2` | Divide speed by 60 |
+| `0x1404cc0d3` | `44 89 7b 08` | Clear accumulated drive using the zero register |
+| `0x1404cc0d7` | `f3 0f 58 33` | Add old phase |
+| `0x1404cc0e2` | `e8 f1 96 50 00` | Call floor helper |
+| `0x1404cc0e7` | `f3 0f 5c f0` | Subtract floor |
+| `0x1404cc0f1` | `f3 0f 11 33` | Store phase |
+
+Constant bytes are `0x140bafeac`, `a4 70 7d 3f`, for 0.99; `0x140bb0f94`, `00 00 20 c1`, for -10; `0x140bb064c`, `00 00 20 41`, for +10; and `0x140bb0760`, `00 00 70 42`, for 60. The loads at `0x1404cc078`, `0x1404cc081` and `0x1404cc08a` select the decay, lower bound and divisor. The upper-bound register loads +10 at `0x1404cc017`, `f3 44 0f 10 3d 2c 46 6e 00`. The zero register is established at `0x1404cb7b0`, `45 33 ff`; the zero phase-offset register at `0x1404cb7d6`, `0f 57 ff`. `asm/piston-group-integrate.asm`, `pseudocode/1404cb790.c` and `tools/piston-constants.txt` retain the chain.
+
+The helper at `0x1409d57d8` is floor, including negative inputs. In its magnitude-below-one branch, a nonzero negative value returns -1, while a positive value returns zero. The sign test is `0x1409d5811`, `45 85 c0`; `0x1409d5816`, `f3 0f 10 05 0a b4 1d 00`, loads -1 from `0x140bb0c28`, `00 00 80 bf`; `0x1409d5820`, `0f 57 c0`, supplies zero for the positive branch. See `asm/phase-floor-helper.asm`. This gives a genuine wrap for reverse rotation, not the component renderer's one-step correction.
+
+### Shaft feedback changes the speed used by integration
+
+The group speed is also exchanged with both piston shaft ports during the component update. `0x14040dd3e`, `f3 0f 10 73 04`, loads group speed. `0x14040dd5d`, `f3 0f 59 0d 63 29 7a 00`, multiplies the voxel-count result by 20, whose bytes are `0x140bb06c8`, `00 00 a0 41`. `0x14040dd6c`, `4c 8d 4b 04`, supplies group speed as the feedback destination. `0x14040dd73`, `e8 a8 09 ee ff`, calls `0x1402ee720`; the second port repeats this exchange later in the same block.
+
+That helper, when the port has a group, stores weight at node `+0x28`, stores the submitted speed at `+0x2c`, and copies published shaft speed at `+0x30` back to the supplied destination. The respective stores are `0x1402ee72a`, `f3 0f 11 49 28`; `0x1402ee72f`, `f3 0f 11 51 2c`; and `0x1402ee734`, `41 89 01`. `0x1402ee727`, `8b 41 30`, reads the feedback. `0x1402ee720`, `48 83 79 20 00`, and `0x1402ee725`, `74 10`, provide the null-group guard. Its null-group branch performs none of these stores. Consequently, integration does not simply run from last tick's piston speed independently of the shaft network. The first port can overwrite group speed with its published result before the second port loads and submits it. A disconnected port does not overwrite it.
+
+The evidence is `asm/piston-shaft-submit.asm`, `asm/shaft-feedback-helper.asm` and `pseudocode/1402ee720.c`. Port feedback and pressure drive use cached network values, so a complete vehicle trajectory still needs topology, update order and initial state.
+
+### Rupture and explosion scope
+
+The previously found hot-firebox damage callback is not evidence of a pressure-triggered boiler burst. Its post-update function clears the pending flag at `0x140411eb6`, `c6 81 b0 07 00 00 00`, then tail-calls the shared event helper at `0x140411ec2`, `e9 b9 37 f1 ff`. That helper tests `vehicle_damage`, correctly identified as settings `+0x4a`, at `0x1403256a6`, `80 78 4a 00`, and tests a separate caller flag at `0x1403256ac`, `40 84 ff`. An admitted event appends a component/body pair to its caller's event container. This pass preserves `pseudocode/140411ea0.c` but does not identify the final event consumer and blast propagation. The unrelated vehicle queue at `0x140499af0` must not be silently substituted for that pair container.
+
+No global pressure threshold, explosion magnitude or exhaustive rupture exclusion is established. The existing bounded absence of a rupture comparison inside boiler and condenser updates remains just that bounded result.
+
+### Wiki-ready replacements
+
+For ignition: "Ignition writes 3600 to a state that the recovered firebox combustion paths test as a nonzero enable. No countdown was found in those paths, and the complete gameplay clear or decrement writer remains untraced."
+
+For piston integration: "Each piston group adds its accumulated drive to speed, multiplies by 0.99, clamps speed to -10 through +10, clears the drive accumulator and advances crank turns by speed divided by 60 with floor-based wrapping. Connected piston ports also exchange this speed with cached shaft-group results before final integration."
+
+For rupture: "Hot damaged fireboxes can queue a component/body event when vehicle damage is enabled. The event consumer, global blast propagation and any pressure-triggered boiler rupture remain untraced."

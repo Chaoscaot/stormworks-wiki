@@ -1,0 +1,41 @@
+   1402ed4b4:	76 0b                	jbe    0x1402ed4c1
+   1402ed4b6:	f3 0f 58 62 3c       	addss  xmm4,DWORD PTR [rdx+0x3c]
+   1402ed4bb:	f3 41 0f 58 58 3c    	addss  xmm3,DWORD PTR [r8+0x3c]
+   1402ed4c1:	f3 0f 10 05 cf 23 8c 00 	movss  xmm0,DWORD PTR [rip+0x8c23cf]        # 0x140baf898
+   1402ed4c9:	0f 2f e0             	comiss xmm4,xmm0
+   1402ed4cc:	0f 86 e2 03 00 00    	jbe    0x1402ed8b4
+   1402ed4d2:	0f 2f d8             	comiss xmm3,xmm0
+   1402ed4d5:	0f 86 d9 03 00 00    	jbe    0x1402ed8b4
+   1402ed4db:	0f 29 34 24          	movaps XMMWORD PTR [rsp],xmm6
+   1402ed4df:	0f 28 c4             	movaps xmm0,xmm4
+   1402ed4e2:	f3 0f 10 35 d2 27 8c 00 	movss  xmm6,DWORD PTR [rip+0x8c27d2]        # 0x140bafcbc
+   1402ed4ea:	f3 0f 5d c3          	minss  xmm0,xmm3
+   1402ed4ee:	f3 0f 5d e8          	minss  xmm5,xmm0
+   1402ed4f2:	85 db                	test   ebx,ebx
+   1402ed4f4:	74 57                	je     0x1402ed54d
+   1402ed4f6:	f3 0f 10 42 0c       	movss  xmm0,DWORD PTR [rdx+0xc]
+   1402ed4fb:	0f 28 d5             	movaps xmm2,xmm5
+   1402ed4fe:	f3 41 0f 59 50 0c    	mulss  xmm2,DWORD PTR [r8+0xc]
+   1402ed54f:	74 57                	je     0x1402ed5a8
+   1402ed5a2:	f3 41 0f 11 50 10    	movss  DWORD PTR [r8+0x10],xmm2
+   1402ed5a8:	45 85 d2             	test   r10d,r10d
+   1402ed5ab:	74 57                	je     0x1402ed604
+   1402ed5ad:	f3 0f 10 42 14       	movss  xmm0,DWORD PTR [rdx+0x14]
+   1402ed5b2:	0f 28 d5             	movaps xmm2,xmm5
+   1402ed5b5:	f3 41 0f 59 50 14    	mulss  xmm2,DWORD PTR [r8+0x14]
+   1402ed5bb:	0f 28 c8             	movaps xmm1,xmm0
+   1402ed5be:	f3 0f 59 cd          	mulss  xmm1,xmm5
+   1402ed5c2:	f3 0f 5e d3          	divss  xmm2,xmm3
+   1402ed5c6:	f3 0f 5e cc          	divss  xmm1,xmm4
+   1402ed5ca:	f3 0f 5c c1          	subss  xmm0,xmm1
+   1402ed5ce:	f3 0f 11 42 14       	movss  DWORD PTR [rdx+0x14],xmm0
+   1402ed5d3:	f3 41 0f 10 40 14    	movss  xmm0,DWORD PTR [r8+0x14]
+   1402ed5d9:	f3 0f 5c c2          	subss  xmm0,xmm2
+   1402ed5dd:	f3 0f 58 d1          	addss  xmm2,xmm1
+   1402ed5e1:	f3 41 0f 11 40 14    	movss  DWORD PTR [r8+0x14],xmm0
+   1402ed5e7:	f3 0f 59 d6          	mulss  xmm2,xmm6
+   1402ed5eb:	0f 28 c2             	movaps xmm0,xmm2
+   1402ed5ee:	f3 0f 58 42 14       	addss  xmm0,DWORD PTR [rdx+0x14]
+   1402ed5f3:	f3 0f 11 42 14       	movss  DWORD PTR [rdx+0x14],xmm0
+   1402ed5f8:	f3 41 0f 58 50 14    	addss  xmm2,DWORD PTR [r8+0x14]
+   1402ed5fe:	f3 41 0f 11 50 14    	movss  DWORD PTR [r8+0x14],xmm2

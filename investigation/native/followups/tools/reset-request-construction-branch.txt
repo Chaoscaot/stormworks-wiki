@@ -1,0 +1,34 @@
+            pcVar41[0x19] = '\0';
+            pcVar41[0x1a] = '\0';
+            pcVar41[0x1b] = '\0';
+            pcVar41[0x1c] = '\0';
+            pcVar41[0x1d] = '\0';
+            pcVar41[0x1e] = '\0';
+            pcVar41[0x1f] = '\0';
+            pcVar41[0x10] = '\x05';
+            pcVar41[0x11] = '\0';
+            pcVar41[0x12] = '\0';
+            pcVar41[0x13] = '\0';
+            plVar25 = *(longlong **)(pcVar41 + 8);
+            if ((((int)plVar25[2] != 0) &&
+                (lVar23 = *(longlong *)
+                           (*(longlong *)
+                             (*plVar25 +
+                             ((ulonglong)*(uint *)((longlong)plVar25 + 0xc) %
+                             (ulonglong)*(uint *)(plVar25 + 1)) * 8) + 0x718), lVar23 != 0)) &&
+               (*pcVar41 == '\0')) {
+              plVar25 = plVar25 + 0x32;
+              lVar23 = (lVar23 + 0x18) - (longlong)plVar25;
+              lVar34 = 4;
+              do {
+                lVar43 = 4;
+                do {
+                  *plVar25 = *(longlong *)(lVar23 + (longlong)plVar25);
+                  plVar25 = plVar25 + 1;
+                  lVar43 = lVar43 + -1;
+                } while (lVar43 != 0);
+                lVar34 = lVar34 + -1;
+              } while (lVar34 != 0);
+              plVar25 = *(longlong **)(pcVar41 + 8);
+            }
+            *(undefined8 *)(puVar44 + 0x90) = *(undefined8 *)((longlong)plVar25 + 0x184);

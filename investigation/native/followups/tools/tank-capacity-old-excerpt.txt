@@ -1,0 +1,26 @@
+48-- `0x1405dc4bd`, bytes `f3 41 0f 59 fe`: multiply by 0.99.
+49-- `0x1405dc5bf`, bytes `f3 0f 5d bc 8b 4c 01 00 00`: cap to available inventory.
+50-- `0x1405dc5f1`, bytes `f3 0f 11 84 8b 4c 01 00 00`: subtract inventory.
+51-- `0x1405dc62d`, bytes `f3 0f 11 84 8b a4 05 00 00`: add selected species.
+52-- `0x1405dc687`, bytes `f3 44 0f 11 80 d8 05 00 00`: add ambient air to total.
+53-
+54:## 2. Saved compartments and rebuilding, issues #29 and #30
+55-
+56:Water component serializer `0x1403f6150`, virtual slot +0x260, applies to both fixed fluid tanks and gas tanks. It serializes configuration under context flag 1 and runtime fields under context flag 4, from context+0x10. Runtime state includes the pending-fill Boolean, tagged `spawner_pending`, default true. It then invokes the shared compartment serializer for:
+57-
+58-- `contained_volume`, component+0x598.
+59-- `contained_volume_secondary`, component+0x5e4.
+60-
+--
+62-
+63-- `vol_total`: binary32 at state+0x40. For the primary tank this is component+0x5d8.
+64-- `temp`: binary32 at state+0x44, primary component+0x5dc.
+65-- `rad`: binary32 at state+0x48, primary component+0x5e0.
+66:- `vol_0` through `vol_12`: thirteen binary32 species amounts at state+0x0c + 4*i, primary component+0x5a4 + 4*i. These are the same internal amount units used by the prior pressure and content calculations, not an extra save-time conversion to litres.
+67-
+68:The serializer's text branch uses these names. Its binary branch transfers four bytes per scalar and per species. Temperature validation maps nonfinite input to 0 and bounds finite values to [-273,100000]. Those numbers bound the temperature field, not pressure. Species amounts and `vol_total` have no analogous pressure/rupture threshold in this routine. The geometric volume at state+8 is not among these serialized fields.
+69-
+70:The initializer `0x1403ef450` recalculates state+8 from the tank definition for water types 8 and 20. It does not replace the thirteen amounts or temperature in those tank branches. The component-loading/build window contains virtual serializer calls at `0x1404b8502` and `0x1404b87d4`; the water vtable at `0x140b08f18` resolves slot +0x260 to `0x1403f6150`. Thus this is a native component-state restore path, not just a standalone unused serializer.
+71-
+72:There is also a distinct reset method `0x1403eebf0`, water virtual slot +0x3c8. It zeros primary and secondary species and totals and sets pending-fill true. It does not zero the temperature fields. A rebuild that preserves the component object or reloads runtime fields must therefore be distinguished from a reset that deliberately clears its inventory. The prior build caller `0x1404bc38a` invokes pending fill after network reconstruction. An already restored false pending-fill byte prevents that operation from refilling the gas tank. A restored true byte allows its existing pending-fill behavior. For diesel/jet fuel, the separate request-gated operation in section 1 still requires its own caller analysis.
+73-

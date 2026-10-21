@@ -1,0 +1,17 @@
+torque_gearbox_2 {'name': 'Gearbox', 'type': '33', 'flags': '536887296', 'constraint_type': '0', 'constraint_range_of_motion': '0', 'trans_conn_type': '0', 'logic_gate_type': '0', 'torque_component_type': '1'}
+  <logic_node orientation="3" label="RPS A" mode="1" type="2" description="Power connection A." flags="0">
+  <logic_node orientation="2" label="RPS B" mode="1" type="2" description="Power connection B." flags="0">
+  <logic_node orientation="0" label="Gear Switch" mode="1" type="0" description="Toggle between the two gear ratios." flags="0">
+  <logic_node orientation="0" label="Electric" mode="1" type="4" description="The electric connection to power the component." flags="0">
+torque_gearbox {'name': 'Gearbox', 'type': '33', 'flags': '536887296', 'constraint_type': '0', 'constraint_range_of_motion': '0', 'trans_conn_type': '0', 'logic_gate_type': '0', 'torque_component_type': '1'}
+  <logic_node orientation="3" label="RPS A" mode="1" type="2" description="Power connection A." flags="0">
+  <logic_node orientation="2" label="RPS B" mode="1" type="2" description="Power connection B." flags="0">
+  <logic_node orientation="0" label="Gear Switch" mode="1" type="0" description="Toggle between the two gear ratios." flags="0">
+  <logic_node orientation="0" label="Electric" mode="1" type="4" description="The electric connection to power the component." flags="0">
+gate_torque_add {'name': 'Power Add', 'type': '16', 'flags': '536870912', 'constraint_type': '0', 'constraint_range_of_motion': '0', 'trans_conn_type': '0', 'logic_gate_type': '24', 'torque_component_type': '0'}
+  <logic_node orientation="3" label="Combined Power" mode="0" type="2" description="Outputs the combined power of engine 1 and 2." flags="0">
+gate_torque_multimeter {'name': 'Power Meter', 'type': '16', 'flags': '536870912', 'constraint_type': '0', 'constraint_range_of_motion': '0', 'trans_conn_type': '0', 'logic_gate_type': '25', 'torque_component_type': '0'}
+  <logic_node orientation="3" label="Relay" mode="0" type="2" description="Relays the power received from an engine." flags="0">
+multibody_pivot_a {'name': 'Pivot', 'type': '7', 'flags': '64', 'constraint_type': '0', 'constraint_range_of_motion': '0.5', 'trans_conn_type': '0', 'logic_gate_type': '0', 'torque_component_type': '0'}
+multibody_pivot_torque_a {'name': 'Pivot (Power)', 'type': '7', 'flags': '64', 'constraint_range_of_motion': '0.5'}
+  <logic_node orientation="3" label="RPS" type="2" description="Power connection for transfering mechanical energy.">

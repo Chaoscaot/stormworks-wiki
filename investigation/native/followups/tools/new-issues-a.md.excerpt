@@ -1,0 +1,28 @@
+## #167 Jet Exhaust Afterburner
+
+**Verdict: partly.** The offset audit found no new demonstrated afterburner combustion debit. It also found that the current jet serializer does not serialize the private fuel buffer. However, this work does not establish a complete alias-sensitive inventory of every possible external writer, so it does not close the quoted universal-writer limitation.
+
+The private liquid container starts at component `+0x3b8`. Its jet-fuel member is container `+0x14`, hence component `+0x3cc`. The constructor clears it as part of a wider store. The only direct jet-fuel debit identified in the shared jet update remains the combustion-chamber branch, not the exhaust branch.
+
+| Meaning | Address and exact bytes |
+|---|---|
+| Constructor wider zero store covering jet fuel | `0x14034fea0`: `48 89 ae c8 03 00 00` (mov    QWORD PTR [rsi+0x3c8],rbp) |
+| Afterburner passes private container to exchange | `0x140351d89`: `48 8d 97 b8 03 00 00` (lea    rdx,[rdi+0x3b8]) |
+| Afterburner reads stored jet fuel | `0x140351eab`: `f3 0f 10 97 cc 03 00 00` (movss  xmm2,DWORD PTR [rdi+0x3cc]) |
+| Chamber fuel debit in the other subtype | `0x1403533f8`: `f3 0f 11 8f cc 03 00 00` (movss  DWORD PTR [rdi+0x3cc],xmm1) |
+| Exchange helper writes the fuel member relative to its container | `0x1402ecb61`: `f3 41 0f 11 43 14` (movss  DWORD PTR [r11+0x14],xmm0) |
+
+The exchange and purge helpers in the prior work remain relevant: they can transfer fuel across the port, while the purge preserves the jet-fuel species. They do not turn the afterburner's multiplier into a combustion debit. This report does not repeat a new whole-network fuel-flow prediction from those local operations.
+
+The new audit covers whole-executable textual references to the buffer base, jet-fuel member and total-content member, plus direct jet-fuel-offset stores grouped by PE unwind-function ownership. See `tools/buffer-all-offsets.txt`, `tools/direct-jet-fuel-writers.txt`, `tools/direct-writer-primary.txt`, and the newly retained candidate pseudocode. Same-offset stores exist in other object types; an offset match alone is not an afterburner writer. For example, `0x140356e10` initializes a different component's bound property, and `0x1405407d0` copies/reset fields of a larger simulation object. Neither establishes a new debit from the jet exhaust's private container.
+
+The serializer `0x140350020` delegates the fluid-port state and other component state, but never passes the private container to a serializer. The fluid-port argument is a different address from the private container. This rules out silently treating serialized port state as proof that the private stored-fuel amount is restored from a save. `asm/jet-serialization.asm` contains the complete relevant serializer body including chained unwind fragments. The newly exported port serializer helpers are `0x140901d50.c`, `0x140901b10.c`, and `0x140901f90.c`; their bounded port-member serialization is separate from the private buffer.
+
+| Serializer operation | Address and exact bytes |
+|---|---|
+| Pass fluid-port state, rather than private buffer | `0x1403501b8`: `48 8d 86 30 03 00 00` (lea    rax,[rsi+0x330]) |
+| Call its serializer | `0x1403501d1`: `e8 7a 1b 5b 00` (call   0x140901d50) |
+
+**What stays open:** writes reached through escaped container pointers, generic copies or rebased/indexed addresses have not all been proved impossible. The complete direct-offset candidate list has been saved, but not every candidate's receiver type and every alias path has been established. Therefore “no additional external writer exists anywhere in the binary” is not a result of this report. Closing that claim needs more static type/alias and caller analysis, not necessarily the running game. A specified connected fuel network's transient port flow would require a network model or a controlled game measurement; an unspecified network has no unique flow curve to measure.
+
+**Wiki-ready replacement:** “The exhaust update and its exchange and purge helpers contain no intrinsic jet-fuel burn, and the current jet serializer does not save its private fuel buffer. A wider offset search found no additional demonstrated afterburner fuel debit, but indirect external buffer writers are not exhaustively ruled out. Fuel-port flow can still occur while the connected network fills or drains the buffer.”

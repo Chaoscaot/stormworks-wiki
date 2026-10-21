@@ -1,0 +1,17 @@
+## 3. Power Add and Power Meter
+
+Verdict: partly. No transmission-network formula for either legacy definition was recovered. In particular, this investigation does not substantiate a sum-of-power, weighted-RPS, torque-times-RPS or efficiency formula for either block.
+
+Both shipped definitions select the logic-gate vehicle class. Their gate types select the default exit in the physical tick and a no-calculation branch in the binder. The dispatch-table entries and instructions below settle that narrow point rather than deriving a formula from their names. The files expose only one mechanical output apiece, labelled "Combined Power" and "Relay". The retained XML slices are `tools/power-add-ports.txt` and `tools/power-meter-ports.txt`. No engine input ports occur in those shipped logic-node lists. This is a reason to distrust the old tooltip as a specification of a currently implemented two-input addition operation.
+
+- Gate dispatch: `0x1403c4e88`, `48 63 81 70 0e 00 00` (movsxd rax,DWORD PTR [rcx+0xe70]); `0x1403c4e9f`, `8b 84 82 54 95 3c 00` (mov    eax,DWORD PTR [rdx+rax*4+0x3c9554]); `0x1403c4ea9`, `ff e0` (jmp    rax).
+- Gate type 24: table entry `0x1403c95b4`, `f2 94 3c 00`, resolving to `0x1403c94f2`.
+- Gate type 25: table entry `0x1403c95b8`, `f2 94 3c 00`, resolving to `0x1403c94f2`.
+
+The gate binder `0x1403c3730` binds mechanical input ordinals into the component's mechanical input nodes. It does not bind a mechanical output for these two definitions in the inspected path. The update cases for these types do not submit a new RPS/weight or publish a measured number. Power Meter's tooltip method `0x1403cc6d0` references four retained text/value fields, but reading those fields in UI code is not evidence of a solver formula. The constructor initializes them. Searches within the gate-class address range found construction, serialization, destruction and tooltip references, not an arithmetic producer. Search results are retained in `tools/meter-field-xrefs.txt`; this is a bounded negative search because external code can access the fields indirectly.
+
+The shaft-group collection, traversal and publication model from the prior transmission report was consulted. Its generic weighted-speed formulas cannot be assigned to these named blocks without a call or data-flow connection. The whole-binary definition-type access search and all gate vtable methods examined are retained in `tools/gate-type-all.txt`, `tools/gate-vtable.txt` and their pseudocode. None of those searches proves executable-wide absence of external or obsolete support.
+
+Still open: mechanical port registration and all indirect users of the gate's mechanical members, including whether the two definitions are entirely obsolete in this build. This is unfinished static work. Running the game is not logically necessary to trace it, and absence of a local formula does not justify inventing a transmission formula.
+
+Wiki-ready replacement: "Power Add and Power Meter select no-calculation branches in the logic tick. Their shipped definitions each expose a mechanical output, but no transmission formula has been recovered, so their names and old tooltips do not establish addition or measurement behavior."

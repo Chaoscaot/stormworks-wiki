@@ -3157,6 +3157,7 @@ def transmission_native(E):
 
 def transmission(B, E):
     T = transmission_native(E)
+    fu = followups_native(E)
     f, nums = T["f"], T["nums"]
     meter = electricity_native(E)["f"]
     sel = [E.string(F_GEAR_UI, a, s, "Gearbox ratio option %s" % s, "Offered in both ratio selectors when torque_component_type is 1.")
@@ -3224,9 +3225,10 @@ def transmission(B, E):
     B.category("Transmission",
                "Gearboxes pull RPS B toward the selected ratio × RPS A, so for an N:1 option RPS A is the fast side. Ratio changes apply at once while the gearbox has power, and a bridge mixes the two shaft groups' speeds by solver weight with no slip threshold.",
                [orientation, coupling, networks, rebuild, switching, damage, meter_sec, clutch_sec],
-               common + types + list(forces.values()) + T["clutch"] + [f["force"]] + [lo[k] for k in ("sh_visit", "sh_quot", "sh_lo", "sh_hi", "sh_zero", "sh_brake", "sh_self")] + dg_rebuild,
+               common + types + list(forces.values()) + T["clutch"] + [f["force"], fu["g4000_use"], fu["g4000_scan"]] + [lo[k] for k in ("sh_visit", "sh_quot", "sh_lo", "sh_hi", "sh_zero", "sh_brake", "sh_self")] + dg_rebuild,
                ["SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
-                "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but its enforcing path and internal unit were not established. The recovered gearbox update, ratio helper and shaft solver hold no 4000 and compare the copied force_emitter_max_force with nothing.",
+                "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but no enforcing code and no internal unit for it were established. Whole-executable searches for 4000 as a binary32 constant or an integer immediate found no use in the gearbox binder, update and ratio helper or the shaft collect and publish code, and those paths compare the copied force_emitter_max_force with nothing. "
+                "A threshold computed from another constant or a definition value, or applied through a shared damage path, was not traced.",
                 "Damage disables the gearbox or clutch bridge. Both use the shared capped damage setter, and the shared repair routine can subtract damage to 0. The complete damage triggers, repair cadence and any torque-triggered breakage were not traced.",
                 "The rebuild clears registered shaft-node group pointers before freeing the old groups, then forms new groups and appends members in connection-discovery order. "
                 "Which connector changes schedule a rebuild, and the update ordering that would rule out a pass on stale membership, were not traced, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
@@ -3242,10 +3244,11 @@ def transmission(B, E):
              [orientation, coupling, switching, damage,
               section("Legacy definitions",
                       "Both legacy definitions carry torque_component_type 1 and run the gearbox code above. Their force_emitter_max_force values, %s for torque_gearbox and %s for torque_gearbox_2, are copied to the RPS A connection at binding and not submitted as a solver weight. "
-                      "Only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference, without a unit. The gearbox update, ratio helper and shaft solve hold no 4000 and compare the copied value with nothing, so the limit is not enforced in those paths. Where it is enforced is an open item under Transmission on the parts index." % (
+                      "Only torque_gearbox_2's tooltip states an operating limit of 4000 torque difference, without a unit. Whole-executable searches for the constant 4000 found it only outside the gearbox and shaft code, for example in a propulsion division, "
+                      "and the gearbox update, ratio helper and shaft solve compare the copied value with nothing. So this build does not enforce the limit in those paths. Whether a computed threshold or a shared damage path enforces it is an open item under Transmission on the parts index." % (
                           fv["torque_gearbox"], fv["torque_gearbox_2"])),
               meter_sec],
-             common + types[1:] + [E.tooltip("torque_gearbox_2")] + [forces[b] for b in GEARBOXES[3:]] + [f["force"]],
+             common + types[1:] + [E.tooltip("torque_gearbox_2")] + [forces[b] for b in GEARBOXES[3:]] + [f["force"], fu["g4000_use"], fu["g4000_scan"]],
              [shared, TICK])
     c_force = E.attr("torque_clutch", "force_emitter_max_force", "No read in the clutch branch, which submits no solver weight.")
     B.family("part-torque-clutch",
@@ -3572,6 +3575,7 @@ def mechanical(B, E):
     rows = joint_table(E)
     f = joint_motor(E)
     D = drivetrain_gaps_native(E)
+    fu = followups_native(E)
     rep = " Report: %s." % MJ_REPORT
     opts = [E.string(F_MULTI_UI, a, s, "Joint gear ratio option %s" % s, "Offered by the Gear Ratio selector for multibody components with definition flag 0x100.")
             for a, s in ((0x140B632D8, "1:1"), (0x140B632F0, "1:2"), (0x140B632EC, "1:4"), (0x140B632FC, "1:8"), (0x140B632F4, "1:16"), (0x140B63314, "1:32"))]
@@ -3659,17 +3663,16 @@ def mechanical(B, E):
                 section("Choosing a joint",
                         "Robotic pivots and hinges are position servos: the input sets an angle within ±0.25 turns and the motor slows as it closes in. "
                         "Velocity pivots and turret rings are speed motors: the input sets turns per second, capped at 10, with no angle limit, and they brake at an input of 0. "
-                        "Suspensions are force-limited sliders without Gear Ratio or electricity. Plain and power pivots are unpowered hinges. Turret rings also extend a sealed volume through the ring.")],
+                        "Suspensions are force-limited sliders without Gear Ratio or electricity. Plain and power pivots are unpowered hinges with no angular stop. Turret rings also extend a sealed volume through the ring.")],
                ui + ratio + common + [f[x] for x in ("rp_target", "rp_gain", "rp_cap", "rp_cap_r", "rp_cap_p", "rp_power", "rp_limits", "hinge_store",
                                                      "rv_clamp", "rv_omega", "rv_cap", "rv_power", "lp_scale", "lp_gain", "lp_cap", "lin_power",
                                                      "lp_limits", "slider_store", "s_offset", "s_force", "s_speed", "passive")]
-               + [D["hinge_gate"], D["j_fluid"], D["j_factor"]] + D["pivots"],
+               + [D["hinge_gate"], D["j_fluid"], D["j_factor"], fu["pv_minus"], fu["pv_test"]] + D["pivots"],
                ["Hinge impulse and slider force are internal game units; their conversion to SI torque or force was not recovered.",
                 "An equivalent spring rate and damping for the suspensions was not recovered; the update is a speed motor with a position-dependent force cap.",
                 "Ordinary joint fluid passage uses the shared bidirectional, all-species two-port solver with zero bias and factor 1, and delivered flow depends on network pressure and allocation history. "
                 "Mechanical shaft speed, torque and any joint-specific losses across a joint were not traced.",
                 "The local sign flip of σ is decoded, but its world-axis direction for each placement and reflected orientation was not traced; that needs the joint-frame and body-order transforms.",
-                "The plain and power pivot definitions skip the hinge setup's explicit angle-limit branch, so their tooltip quarter-turn stop does not come from that setter. Their assembled travel and any other stop mechanism remain unverified.",
                 TICK, "Static analysis only; no game process was run."])
 
     # Families: every joint definition, driven by joints.json and checked against the definitions above.
@@ -3714,9 +3717,10 @@ def mechanical(B, E):
         if bid in PIVOT_STOPS:
             sections.append(section("Stops",
                                     "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, "
-                                    "so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The tooltip stop therefore does not come from that setter; "
-                                    "the assembled travel is listed as open under Mechanical joints."))
-            findings = findings + [D["hinge_gate"]] + [x for x in D["pivots"] if x["source"]["path"].endswith("/%s.xml" % bid)]
+                                    "so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. "
+                                    "The hinge starts with its angular half-range at −1, and the solver applies an angular limit only when the half-range is 0 or more, so the pivot has no angular stop. "
+                                    "Only the surrounding vehicle geometry can block its travel."))
+            findings = findings + [D["hinge_gate"], fu["pv_minus"], fu["pv_test"]] + [x for x in D["pivots"] if x["source"]["path"].endswith("/%s.xml" % bid)]
         if row["id"].startswith("multibody_turret"):
             tail = (tail + " " if tail else "") + "The gap inside the ring forms a door seal, so a sealed compartment can continue through it."
         if tail:
@@ -4136,7 +4140,7 @@ def fluids(B, E):
                p + [spawn, tank_leak, tank_s] + meters + N["damping"] + T["solver"] + T["electric"][:2] + T["impeller"][:2] + T["modular"][:1] + R +
                vols + links + law + start + manual + rooms + [tanks_ports_native(E)[k] for k in ("sp_099", "sp_60", "sp_cap", "sv_species", "sv_loop", "sv_pending")],
                ["Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. "
-                "Custom-compartment volume from wall geometry and hull flooding were not decoded. Which editor, mission, career or creative and save-loading workflows enable the diesel and jet-fuel fill or keep restored contents, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
+                "Custom-compartment volume from wall geometry and hull flooding were not decoded. Which mission and editor commands set the first-spawn flag that enables the diesel and jet-fuel fill, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
                 "The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.", TICK])
     B.family("electric-fluid-pump",
              "Pushes fluid with a bias of electrical supply × pump_pressure × Max Power; at equal pressure the small pump moves at most 200 L/s and the large one 400 L/s.",
@@ -4169,14 +4173,19 @@ def fluids(B, E):
     t = tanks_ports_native(E)
     spawn_fuel = [t[k] for k in ("sp_gate", "sp_type", "sp_fuel", "sp_099", "sp_60", "sp_cap", "sp_add", "sp_air", "sp_litres")]
     fg = fluid_gaps_native(E)
+    fu = followups_native(E)
+    lifecycle = [fu[k] for k in ("ld_build", "ld_file", "ld_init", "ld_net", "ed_reset")] + [N["v_liquid"]]
     saved = [t[k] for k in ("sv_pending", "sv_primary", "sv_secondary", "sv_total", "sv_temp", "sv_species", "sv_loop", "sv_hi", "sv_lo", "sv_call", "rs_clear", "rs_arm", "ct_temp")] + [fg["b_mask"], N["fill_call"]]
-    request = [fg[k] for k in ("r_default", "r_arg", "r_job", "r_lua", "r_set", "r_mode")]
+    request = [fg[k] for k in ("r_default", "r_arg", "r_job", "r_lua", "r_set", "r_mode")] + [fu[k] for k in ("fs_name", "fs_event", "fs_false", "im_name")]
     saved_s = section("Saved contents and reset",
                       "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. "
                       "The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.",
                       "A separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. "
                       "The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. "
-                      "A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again.")
+                      "A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again.",
+                      "Vehicle construction and vehicle file loading read saved components with runtime fields admitted, so a tank restores its saved contents and fill-pending flag when the saved data holds them. "
+                      "Each tank then rebuilds its capacity from the definition without touching the contents. "
+                      "Entering the vehicle editor, and the editor's file-load paths, run the reset on every component after loading, so tanks there lose their saved contents and are marked for the pending fill again.")
     B.family("fluid-tank",
              "Small, medium and large tanks have 31.25, 187.5 and 703.125 L compartments that exchange with each port's pipe network; liquid pressure stays low until the last 80 L of room fills; contents drift toward ambient temperature with a time constant of 16.7 simulated seconds.",
              [section("Operating conditions",
@@ -4189,14 +4198,14 @@ def fluids(B, E):
                       "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. "
                       "On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. "
                       "This operation adds to the existing contents and does not clear them.",
-                      "The fill runs only when the spawn request's fuel-fill byte is set. Request construction clears it and then copies the caller's argument, and the shared spawn job passes a byte from another object, so a fresh spawn does not always fill. "
-                      "One identified path sets it: the Lua call resetVehicleState marks the vehicle's pending request and enables the fuel fill. "
-                      "The stock-capped branch also needs request mode 1, a second request flag, an inventory record and a cleared settings byte. The limitations below cover which workflows and options set them."),
+                      "The fill runs only when the spawn request's fuel-fill byte is set. Request construction clears it and then copies the caller's argument. "
+                      "That argument is the spawn record's first-spawn flag, saved as is_first_spawn with a default of on, so a restored record keeps its saved choice. Some spawn producers pass off, and the Lua call resetVehicleState sets it. "
+                      "The stock-capped branch also needs infinite_money off, request mode 1, a second request flag and a qualifying inventory record; otherwise the whole request is added."),
               saved_s],
-             liquid + tank_common + spawn_fuel + saved + request + [N["start_liquid"], N["v_liquid"], N["v_gas_100"], E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"),
+             liquid + tank_common + spawn_fuel + saved + request + lifecycle + [N["start_liquid"], N["v_liquid"], N["v_gas_100"], E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"),
                                      E.attr("fluid_tank_small", "water_component_type", "Selects case 8 of the fluid update.")],
-             ["Diesel and jet fuel use a separate request-gated fill, and resetVehicleState is one identified path that enables it; which editor, mission, career or creative and save-loading workflows enable it is not yet mapped. "
-              "The pending fill follows network reconstruction, while the fuel fill has its own request gate; the reset and restore choices each loading and editor workflow makes are not yet mapped.", TICK])
+             ["Diesel and jet fuel use the spawn request's first-spawn flag. Which mission, editor and other user commands pass it on or off was not mapped; several spawn producers in the large event dispatchers 0x1406bb400 and 0x1407dd990 pass a variable value. "
+              "Whether every mission spawn and editor command follows one of the construction, file-load and editor paths above, or adds its own reset, was not mapped either.", TICK])
     B.family("gas-tank",
              "Small, medium, large and huge gas tanks have 46.875, 109.375, 984.375 and 3515.625 L compartments; pressure is 60 × amount ÷ volume, and a fresh tank starts at 59.4 atm at full fill.",
              [section("Operating conditions",
@@ -4209,9 +4218,9 @@ def fluids(B, E):
               section("Pressure limits",
                       "No maximum safe pressure, rupture threshold or pressure damage rule was found. The pressure law has no limit, the tank update moves contents and sets its outputs without a pressure test, and the saved fields and the shipped definitions have no pressure limit. "
                       "The 59.4 atm start and the 100000 temperature bound are not safety ratings. General vehicle damage code lies outside these checks, so they do not show that tanks cannot fail.")],
-             gas + tank_common + saved + [N["start_gas"], N["species_60"], N["gas_air"], N["v_gas_k"], N["v_gas_100"], spawn,
+             gas + tank_common + saved + lifecycle + [N["start_gas"], N["species_60"], N["gas_air"], N["v_gas_k"], N["v_gas_100"], spawn,
                                   E.attr("fluid_tank_compressed_gas_1_3", "water_component_type", "Selects case 0x14 of the fluid update."), E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")],
-             ["Gas-tank contents and the fill-pending flag are saved, a reset clears the contents and sets fill pending, and the pending fill follows network reconstruction; which loading and editor workflows run each of these is not yet mapped.",
+             ["Whether every mission spawn and editor command follows one of the construction, file-load and editor paths in Saved contents and reset, or adds its own reset, was not mapped.",
               "No maximum safe pressure or pressure-triggered gas-tank damage threshold was found. A generic damage path or inlined pressure logic elsewhere in the executable was not traced, so this static investigation has not established that none exists.", TICK])
 
 
@@ -4568,7 +4577,7 @@ MAGNETS = (("part-connector-small", "connector_small"), ("part-connector-hinge",
 FLAGGED = (("part-connector-electric", "connector_electric"), ("part-connector-torque", "connector_torque"))
 HARDPOINTS = (("part-connector-hardpoint-a", "connector_hardpoint_a"), ("part-connector-hardpoint-b", "connector_hardpoint_b"),
               ("part-connector-hardpoint-b-round", "connector_hardpoint_b_round"))
-CONNECTOR_OPEN = ("Conversion of the pull, body weight and joint impulse to newtons and kilograms, signal and video timing across a link, the electrical link of small, hinge and large connectors, "
+CONNECTOR_OPEN = ("Conversion of the pull, body weight and joint impulse to newtons and kilograms, video timing across a link, "
                   "the Mag All's contact filtering and what ordnance does after Launch are listed as open items in the Magnetic connectors, transfers and hardpoints mechanics article.")
 CONNECTOR_STATIC = "Static analysis of one build. Forces and impulses are in the game's internal units; no attachment, pull or break was measured in a running game."
 
@@ -4846,13 +4855,16 @@ def connectors(B, E):
     tol, twist, hold, ups = _g(C["tol"], 4), _g(C["twist"], 3), C["hold"], update_rate(E)["ups"]
     breaks = [f["b_point"], f["b_fixed"], f["b_hinge"]]
     pull = [f[x] for x in ("a_gate", "a_power", "a_60", "a_cut", "a_law", "a_gain", "a_event", "weight", "u_power")] + [surface_air(E)["f"]["accum"]]
-    copies = [f[x] for x in ("u_onoff", "u_number", "u_comp", "u_video")]
+    co = composite_native(E)
+    fu = followups_native(E)
+    copies = [f[x] for x in ("u_onoff", "u_number", "u_comp", "u_video")] + [co[x] for x in ("flush", "fl_bool", "fl_co")]
     flagged = [f[x] for x in ("u_counter", "u_count", "a_gate")] + [fig["release"]]
     limits = [CONNECTOR_OPEN, CONNECTOR_STATIC]
     release = ("Release starts a %d-update count, %s simulated seconds. While it runs the connector cannot attach and the scene pass detaches it. "
                "Holding Release keeps restarting the count, so it can attach again %d updates after the input goes off." % (hold, _g(hold / ups), hold))
     signals = ("While linked, each update copies the composite signal, 32 on/off channels and 32 numbers, straight into the partner's Composite Data Receive and hands its video source to the partner's Video Data Receive. "
-               "The copy has no buffer, scaling or averaging.")
+               "The copy has no buffer, scaling or averaging. It lands in the partner's outputs during the connector's update, and outputs reach wired logic after all component updates, "
+               "so logic on the partner side uses an on/off, number or composite value on the update after the connector sampled it. A value that logic upstream of the connector computes in one update is copied in the next and used downstream in the one after.")
     for fid, bid in MAGNETS:
         d, nm = C["parts"][bid], E.block(bid)["name"]
         mf, t = d["magnet_force"], d["connector_type"]
@@ -4884,14 +4896,15 @@ def connectors(B, E):
                          "and exchanges fluid between the two Fluid ports with factor 0.5 and bias 0, like the Fluid Connector. The networks stay separate.")
             N = fluid_network(E)
             extra = [f["m_bridge"], N["c_half"], N["c_call"]] + [P(bid, x) for x in ("On/Off Sent", "Number Sent", "RPS", "Fluid")]
-        transfer += (" The Electric port powers the magnet. This connector does not run the direct pool bridge that Electric Connectors and hardpoints use, so the port label alone does not show that electricity crosses the link.")
+        transfer += (" The Electric port only powers the magnet. The connector's electrical bridge starts empty and this connector's attach branch never sets it, so no electricity crosses the link. "
+                     "A separate electric connector or cable can still join the two electrical networks.")
         B.family(fid,
                  "Attaches to another %s whose centre is under %s m away%s, then holds with a %s. magnet_force %s scales only the pull before attaching." % (
                      nm, "0.5" if t == 1 else "0.25", "" if t == 1 else " and whose samples line up", joint, _g(mf)),
                  [section("Attaching", attach), section("Pull before attaching", pull_text), section("Holding and release", hold_text), section("Signals and transfers", transfer)],
                  common + [fig[bid], f["c_direct"] if t == 1 else f["c_square"]] + ([f["sample"], f["sample_k"]] + ([f["rim"]] if t == 0 else []) if t != 1 else [])
                  + pull + [f["j_large"] if t == 0 else f["j_hinge"] if t == 2 else f["j_point"]] + breaks + [f["u_power"]] + copies + extra
-                 + [T(bid), P(bid, "Magnet Toggle"), P(bid, "Electric"), A(bid, "magnet_force", "Scales the pull before attaching.")],
+                 + [fu["cn_null"], f["e_bridge"], f["h_bridge"], T(bid), P(bid, "Magnet Toggle"), P(bid, "Electric"), A(bid, "magnet_force", "Scales the pull before attaching.")],
                  limits)
 
     # Electric and torque connectors: no pull, point joint, release counter.
@@ -5797,7 +5810,7 @@ def jet_engines(B, E):
                        "Under the water surface it is also multiplied by 0.8, and an undamaged intake above 0.5 RPS first sends a damage request of 1 to the routine that spreads overspeed damage through the joined jet parts.")
     open_units = "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units."
     FC_ = force_cap(E)["refs"]
-    open_ab = ("Writes to the exhaust's fuel buffer through escaped pointers, generic copies or computed addresses were not traced, so an indirect writer elsewhere is not ruled out. "
+    open_ab = ("Writes to the exhaust's fuel buffer through pointers loaded from other objects, interior pointers kept elsewhere or generic bulk copies were not traced, so a complete exclusion of other writers is not established. "
                "Transient Fuel port flow while the buffer fills or returns fuel depends on the connected network.")
     lo = leftovers_native(E)
     na = new_issues_native(E)
@@ -5904,14 +5917,16 @@ def jet_engines(B, E):
                       "0.001 amount (0.01 L) gives 1.5; a full 0.4 amount (4 L) buffer gives 201. The ratio has no upper clamp, so a full buffer multiplies thrust far beyond the tooltip's description, until the 100 × S cap."),
               section("Fuel",
                       "Jet fuel reaches the 4 L buffer through the Fuel port. Each update the port exchange moves liquid between the pipe network and the buffer with a pressure bias of -10, in either direction, so it can fill the buffer or send fuel back. "
+                      "Inside that exchange a mixing step also moves jet fuel between the buffer and the network toward equal jet-fuel shares: J' = J + 0.5 × m × (N ÷ S_N − J ÷ S_P), "
+                      "with J and N the jet fuel and S_P and S_N the exchanged totals of buffer and network and m the step amount. It conserves the combined jet fuel, so it moves fuel and burns none. "
                       "A purge then removes up to 0.001 of every other liquid and skips jet fuel. The multiplier reads the stored jet fuel and subtracts none.",
                       "So the afterburner burns no fuel of its own: 0 L/s at a steady buffer level. Fuel flows through the port only while the buffer fills, drains back or the network changes. "
                       "The tooltip's increased fuel consumption has no counterpart in this update; more stored fuel gives more thrust, not more burn.",
                       "Outside the update, the constructor empties the buffer and the jet serializer saves the Fuel port state but not the buffer. "
-                      "A whole-executable search for stores to the buffer's jet fuel found no other debit of the afterburner's fuel."),
+                      "A whole-executable search for direct stores to the buffer's jet fuel, and the buffer's pointer followed through the exchange, mixing and purge calls, found no other debit of the afterburner's fuel."),
               section("Force units and limit", cap_body),
               section("Example", example + " An enabled afterburner holding 0.01 L gives 720000 before the cap.")],
-             ex_common + J["afterburner"] + [J["f"]["x_port"], J["f"]["x_purge"]] + ab_fuel + [na["ab_ctor"], na["ab_save"], na["ab_scan"]] + [kind("jet_engine_exhaust_afterburner"), T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel"),
+             ex_common + J["afterburner"] + [J["f"]["x_port"], J["f"]["x_purge"]] + ab_fuel + [na["ab_ctor"], na["ab_save"], na["ab_scan"]] + [followups_native(E)[k] for k in ("ab_pass", "ab_mixcall", "ab_half", "ab_mix")] + [kind("jet_engine_exhaust_afterburner"), T("jet_engine_exhaust_afterburner"), P("jet_engine_exhaust_afterburner", "Fuel"),
                                              P("jet_engine_exhaust_afterburner", "Afterburner")],
              ex_limits[:2] + [open_ab, TICK])
     B.family("part-jet-engine-exhaust-rotating",
@@ -6695,8 +6710,9 @@ def steam(B, E):
     S = steam_native(E)
     f, fig, parts = S["f"], S["fig"], S["parts"]
     D = drivetrain_gaps_native(E)
-    ignition = [D["ign_restore"]]
-    events = [D["fire_event"], D["event_gate"]]
+    fu = followups_native(E)
+    ignition = [D["ign_restore"], fu["ig_name"]]
+    events = [D["fire_event"], D["event_gate"], fu["ev_consume"], fu["ev_geom"]]
     crank = [D[k] for k in ("pi_keep", "pi_lo", "pi_hi", "pi_div", "pi_clear", "pi_floor", "floor_neg", "pi_port", "fb_guard", "pi_steady")]
     R = update_rate(E)["findings"]
     sh = electricity_native(E)["f"]
@@ -6725,7 +6741,7 @@ def steam(B, E):
 
     coal_body = ("Ducts and hoppers add one item slot per voxel to the inventory they share with every connected firebox: 27, 125 and 225 for the small, medium and large sizes. Each firebox adds 10 more. "
                  "Slots count whole items, and the firebox takes whole coal from them. The ducts' steam_component_capacity values 42.1875, 195.3125 and 351.5625 are 1.5625 times their voxel counts; the traced capacity code does not read them.")
-    burn_body = ("Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. "
+    burn_body = ("Ignition takes one coal and sets the ignition state, saved as ignition_counter, to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. "
                  "The fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. "
                  "Each update it requests b = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal, T being the fire temperature: at most 0.054 coal per simulated second for the small firebox and 0.21 for the large. "
                  "Air limits the burn. A fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of the Air chamber moves to the Exhaust chamber, r = b × 200 ÷ 60, and the burn is cut to the share that oxygen covers at a 0.21 reference fraction. "
@@ -6739,8 +6755,10 @@ def steam(B, E):
     exchange_body = ("Each update the phase and coolant chambers exchange heat with k = 0.1 × (1 - D), D = clamp(0.1 × damage, 0, 1), each side moving by k times the other side's share of the liquid amount. "
                      "The condenser counts its whole phase chamber, steam included. Both chambers then lose 0.0001 of their gap to the surroundings per update. "
                      "The phase chamber holds 0.1 × voxels, 17.5 in the boiler and 7.5 in the condenser, and the coolant chamber 1 per voxel, 175 and 75.")
-    open_body = ("Ignition writes 3600 to a state that the recovered firebox combustion paths test as a nonzero enable. No countdown was found in those paths, and the complete gameplay writer that clears or decrements it was not traced. "
-                 "Hot damaged fireboxes can queue a component and body event when vehicle damage is on. The event consumer, any global blast and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. "
+    open_body = ("Ignition writes 3600 to a saved state named ignition_counter, and combustion tests only whether it is nonzero. No countdown has been decoded: the steam update, the steam reset and the serializer hold no decrement. "
+                 "Writes through generic copies or rebased pointers elsewhere in the executable were not traced. "
+                 "A hot damaged firebox queues a component and body event when vehicle damage is on, and the scene later submits that component's geometry to a shared geometry-change queue. "
+                 "How those records end in damage or destruction, any blast radius or energy and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. "
                  "Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.")
     turbine_body = ("The turbine passes gas from Steam In to Steam Out one way, through the pump solver with flow factor 0.0025 and no bias, so it needs inlet pressure above exhaust pressure and consumes no steam. "
                     "Each update it adds 1000 × the steam moved to its speed, 600 × when damaged and nothing at damage 20 or more, multiplies by 0.985 and submits the result as target RPS on both RPS ports with weight 65. "
@@ -6788,7 +6806,7 @@ def steam(B, E):
              [shared, static])
     B.family("steam-firebox",
              "Burns at most 0.00002 × voxels coal per update, 0.054 or 0.21 per simulated second, adding 200 to the fire temperature per unit of coal burned and heating its coolant at k = 0.0008 × voxels.",
-             [section("Ignition and coal", "Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. "
+             [section("Ignition and coal", "Ignition takes one coal and sets the ignition state, saved as ignition_counter, to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. "
                                            "The fire also keeps burning while it is hotter than 150. "
                                            "Burning draws on a fractional reserve, refilled one coal at a time from the shared inventory, to which a firebox adds 10 slots."),
               section("Burn rate", "Each update it requests 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal: 0.0009 per update for the small firebox and 0.0035 for the large while far below 600. "
@@ -6797,7 +6815,7 @@ def steam(B, E):
               section("Heat and coolant", loss_body),
               section("Outputs", "Temperature reads the fire temperature, not the coolant temperature its description names, sampled before the update's burn. Coal Level is the inventory's whole item count."),
               section("Damage", "Damage raises the ambient loss toward 0.01. A hot damaged firebox sets a pending flag, and after the update a shared helper queues a component damage event when the vehicle_damage setting is on. "
-                                "What that event does downstream is listed under Steam on the parts index.")],
+                                "After the component updates the scene passes the firebox's geometry to a shared geometry-change queue. What that queue finally damages is listed under Steam on the parts index.")],
              burn + fire_heat + fires + coal[:2] + ignition + events + [parts[b]["voxel_finding"] for b in ("steam_coal_firebox", "steam_coal_firebox_l")] + [T("steam_coal_firebox"), P("steam_coal_firebox", "Ignition"), P("steam_coal_firebox", "Temperature"),
                                                      P("steam_coal_firebox", "Coolant In"), P("steam_coal_firebox", "Air"), P("steam_coal_firebox", "Exhaust")] + R,
              [shared, static, TICK])
@@ -9690,16 +9708,18 @@ def logic(B, E):
                     A("gate_pid_controller", "logic_gate_type", "Selects case 29 of the logic update."), f["dispatch"]] + R,
              [TICK])
     # Transmission and train parts that sit in the logic update.
+    fu = followups_native(E)
     for fid, key, name in (("part-gate-torque-add", "torque_add", "Power Add"), ("part-gate-torque-multimeter", "torque_meter", "Power Meter")):
         bid = GATES[key][0]
         port = "Combined Power" if key == "torque_add" else "Relay"
-        B.family(fid, "%s selects a case that computes nothing in the logic update; no code that adds or measures power for it was found." % name,
+        B.family(fid, "%s is a legacy gate with one passive mechanical connection. It adds or measures no power, but the connection can join a shaft network." % name,
                  [section("How it updates",
                           "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. "
-                          "The definition lists a single mechanical output, %s, and no engine inputs. No transmission formula for this part was found, so its name and tooltip are no evidence that it adds or measures anything. "
-                          "The Logic category lists what remains open." % port)] +
-                 ([section("Setup and interactions", "The tooltip asks for it in series between engine and consumer. No code found so far relays or measures power through it.")] if key == "torque_meter" else []),
+                          "The definition has one port, the mechanical connection %s. The shared port lookup skips the input or output mode test for mechanical ports, so the gate binder still binds that connection and registers it as a shaft node. "
+                          "A shaft network can include it and write the group's speed into it, but the gate itself adds nothing, measures nothing and has no numeric output. Its name and tooltip describe a calculation this build does not perform." % port)] +
+                 ([section("Setup and interactions", "The tooltip asks for it in series between engine and consumer. With one connection and no reading output it can neither relay power between two shafts nor report a measurement.")] if key == "torque_meter" else []),
                  [case(key, "no logic calculation", "Types 24 and 25 both lead to the common exit 0x1403c94f2."), A(bid, "logic_gate_type", "Selects a case with no calculation."), f["dispatch"], P(bid, port)]
+                 + [fu[k] for k in ("pg_type", "pg_filter", "pg_skip", "pg_bind")]
                  + ([T(bid)] if E.block(bid).get("description") else []),
                  [])
     gate("part-gate-train-junction", "train", "Binds once to the nearest train junction within 30 units and flips that junction's route on each rising edge of Toggle Signal.",
@@ -9792,8 +9812,6 @@ def logic(B, E):
                [f["dispatch"], f["sanitize"], f["sixty"], f["graph_in"], div, trig, jk_guard, lgap["mod_trunc"], lgap["pow_guard"], lgap["x_pi"], T("gate_float_threshold"), T("gate_float_greater_than"), T("gate_sr_latch")] + R
                + [co[k] for k in ("fl_bool", "fl_f32", "fl_co", "set_co", "flush", "transport", "getb", "getn", "setb", "setn", "readb", "readn", "b_co_in", "a_comp")],
                ["Timing between vehicles and through cables is listed with the open questions of the Composite data over electrical cables mechanics article.",
-                "Power Add and Power Meter select a case that computes nothing in the logic update. Their transmission-network formulas were not recovered, "
-                "and whether the two definitions are obsolete in this build was not traced.",
                 "A Train Junction Controller's writes replace the junction's route bit, so the last write wins, but the order in which controllers on different vehicles update was not traced: "
                 "a stable priority between controllers has not been established. Which bit value means the left or right branch for each track orientation was not established either.",
                 TICK])
@@ -12277,6 +12295,172 @@ def physics_core_native(E):
     t["mp_mass"] = code(F_MP_MASS, "mass-getter-microprocessor.asm", 0x140393B19, "0faf8188010000", "Microprocessor mass", "width × height",
                         "The microprocessor's mass getter multiplies its two grid dimensions (+0x18c × +0x188) and converts the product to float (0x140393b20). Other components use the base getter, which reads definition mass.")
     E.physics_core = t
+    return t
+
+
+# Follow-up pass: Power Add and Power Meter ports, pivot stops, the gearbox 4000 search, the firebox ignition state and damage queue,
+# tank lifecycle, connector electricity and signal timing, and afterburner buffer writers; files under investigation/native/followups/.
+FU_REPORT = "investigation/followups.md"
+_FU = "followups/"
+F_PORT_LOOKUP = 0x1403224F0    # shared port lookup: the mode filter is off for port types 2 to 4
+F_GATE_BIND = 0x1403C3730      # logic gate binder: mechanical ordinals to component+0x2c0, +0x310, +0x5b0
+F_HINGE_CMD = 0x1401A0C30      # deferred hinge creation command, vtable entry 0x140b6ae58
+F_HINGE_LIMIT = 0x140125620    # solver-side hinge angular limit test
+F_PROP_DIV = 0x14033E200       # propulsion routine that divides by the shared binary32 4000
+F_EVENT_GEOM = 0x140490C69     # chained unwind chunk of 0x140490c20: queued component geometry to 0x1404923c0
+F_SPAWN_RECORD = 0x140545D10   # spawn record serializer: is_first_spawn
+F_SPAWN_EVENT = 0x14066ED90    # spawn event builder: first-spawn argument to +0xd4
+F_SPAWN_DISPATCH = 0x1406BB400  # large event dispatcher with spawn event producers
+F_BUILD = 0x1404BBCA0          # asynchronous vehicle construction
+F_FILE_LOAD = 0x1404C16B0      # vehicle file loader
+F_EDITOR_PATH = 0x1407D1F00    # editor load of a supplied vehicle path
+F_EDITOR_DEBRIS = 0x1407D1A50  # editor reload of a data/debris/ vehicle path
+F_CN_REGISTER = 0x1403D0710    # connector node registration: electrical node at component+0x908
+F_EXCHANGE_MIX = 0x1402ED308   # chained unwind chunk of the port exchange 0x1402ec710: calls the mixing step
+F_MIX = 0x1402ED4DB            # chained unwind chunk of the mixing step 0x1402ed390
+HINGE_CMD_SLOT = 0x140B6AE58
+STEAM_RESET_SLOT = 0x140AF7190  # steam component vtable entry holding the reset 0x140408f30
+F_STEAM_RESET = 0x140408F30
+FU_PSEUDO = {
+    F_PORT_LOOKUP: "0x1403224f0.c", F_HINGE_CMD: "1401a0c30.c", F_HINGE_LIMIT: "140125620.c", F_STEAM_SAVE: "14041316a.c", F_DISPATCH: "140549240.c",
+    F_EVENT_GEOM: "140490c20.c", F_SPAWN_RECORD: "140545d10.c", F_SPAWN_EVENT: "14066ed90.c", F_SETTINGS: "140292d60.c", F_BUILD: "prior-1404bbca0.c",
+    F_FILE_LOAD: "1404c16b0.c", F_COMP_LOAD: "1404b81f0.c", F_EDITOR_LOAD: "1407d09b0.c", F_EDITOR_PATH: "1407d1f00.c", F_EDITOR_DEBRIS: "1407d1a50.c",
+    F_JET: "prior-140350f40.c", F_EXCHANGE_MIX: "prior-1402ec710.c", F_MIX: "1402ed390.c",
+}
+FU_4000_REFS = "investigation/native/followups/tools/constant4000-refs.txt"
+
+
+def _fu_cite(E, func, address, hexbytes, listing, key=None):
+    """Cite followups listing lines of the cited bytes, refusing to replace another listing's citation."""
+    k = (func, address if key is None else key)
+    old = WHERE.pop(k, None)
+    _wheel_cite(E, func, address, hexbytes, key=key, listing=_FU + "asm/" + listing)
+    if FU_PSEUDO.get(func):
+        WHERE[k] += "; ../" + _FU + "pseudocode/" + FU_PSEUDO[func]
+    if old is not None and old != WHERE[k]:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+
+
+def followups_native(E):
+    """Power Add and Power Meter ports, pivot stops, the gearbox 4000 search, firebox ignition and damage queue, tank lifecycle,
+    connector electricity and afterburner buffer writers, verified once and shared."""
+    if hasattr(E, "followups"):
+        return E.followups
+    n = E.native
+    if not (E.root / FU_REPORT).is_file():
+        raise ValueError("Report missing: " + FU_REPORT)
+    for slot, target in ((HINGE_CMD_SLOT, F_HINGE_CMD), (STEAM_RESET_SLOT, F_STEAM_RESET)):
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Vtable entry %#x does not point to %#x" % (slot, target))
+    # Bytes the findings below name without citing them separately.
+    for va, hexbytes in ((0x1403C386D, "48898710030000"), (0x1403C397C, "488987b0050000"), (0x14019F2D7, "4c89a380050000"),
+                         (0x14012563D, "f20f10b388050000"), (0x14041347A, "c744242000000000"), (0x1407D2241, "ff90c8030000"),
+                         (0x1407D1E12, "ff90c8030000"), (0x1403D27B8, "83bb7c0e000004"), (0x1402ECB61, "f3410f114314"), (0x1402ECFA5, "f3410f114314"),
+                         (0x1402ED4C1, "f30f1005cf238c00"), (0x140BAF898, "17b7d138"), (WATER_VTABLE + 0x18, "50f43e4001000000")):
+        if n.raw(va, len(hexbytes) // 2).hex() != hexbytes:
+            raise ValueError("Bytes at %#x changed" % va)
+    # The complete steam reset stores nothing at the ignition state's displacement +0x754.
+    if bytes.fromhex("54070000") in n.body(F_STEAM_RESET)[1]:
+        raise ValueError("The steam reset now addresses +0x754")
+    rep = " Report: %s." % FU_REPORT
+
+    def code(func, listing, address, hexbytes, label, value, detail):
+        if listing:
+            _fu_cite(E, func, address, hexbytes, listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, listing, address, hexbytes, target, label, detail):
+        _fu_cite(E, func, address, hexbytes, listing)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    def name(func, listing, lea, hexbytes, target, expected, label, detail):
+        if lea + 7 + struct.unpack("<i", n.raw(lea + 3, 4))[0] != target:
+            raise ValueError("lea at %#x does not address %#x" % (lea, target))
+        _fu_cite(E, func, lea, hexbytes, listing, key=target)
+        return E.string(func, target, expected, label, detail + rep)
+
+    t = {}
+    # Power Add and Power Meter: one passive mechanical connection.
+    t["pg_type"] = code(F_PORT_LOOKUP, "port-lookup-prologue.asm", 0x1403224FC, "418d41fe", "Port lookup type offset", "port type − 2",
+                        "The shared port lookup forms the port type minus 2 before it decides whether to compare port modes.")
+    t["pg_filter"] = code(F_PORT_LOOKUP, "port-lookup-prologue.asm", 0x140322509, "0f97442468", "Port lookup mode filter", "on only outside port types 2 to 4",
+                          "cmp with 2 (0x140322503) and seta store the filter flag, so mechanical, fluid and electrical ports, types 2 to 4, are looked up without a mode test.")
+    t["pg_skip"] = code(F_PORT_LOOKUP, "port-lookup-mode-exception.asm", 0x140322675, "740b", "Port lookup skips the mode test", "no mode comparison for types 2 to 4",
+                        "With the flag clear (test at 0x140322670) the lookup jumps over the mode comparison at 0x14032267b. The gate binder's input-mode argument therefore does not exclude the mode-0 mechanical port of Power Add or Power Meter.")
+    t["pg_bind"] = code(F_GATE_BIND, "gate-mechanical-binding.asm", 0x1403C3849, "488987c0020000", "Gate mechanical binding", "first mechanical port → component+0x2c0",
+                        "The logic gate binder resolves mechanical ordinals into component+0x2c0, +0x310 (0x1403c386d) and +0x5b0 (0x1403c397c). Power Add and Power Meter define one mechanical port, so only +0x2c0 resolves. "
+                        "Registration 0x1403c2fd0 lists that node with the component's shaft nodes and the shaft lookup 0x1404c2550 accepts it, so the connection can join a shaft network. No second port, bridge, submission or numeric output follows.")
+    # Plain and power pivots: no default angular stop.
+    t["pv_minus"] = code(F_HINGE_CTOR, "1401a0c30.asm", 0x14019F2DE, "48b8000000000000f0bf", "Hinge default angular half-range", "-1",
+                         "The deferred hinge creation command 0x1401a0c30 (vtable entry 0x140b6ae58, re-read by the extractor) runs the shared hinge constructor block, which builds binary64 -1 here and stores it at constraint+0x588 (0x14019f2e8). "
+                         "The centre angle at +0x580 is 0 (0x14019f2d7).")
+    t["pv_test"] = code(F_HINGE_LIMIT, "140125620.asm", 0x140125660, "0f8293000000", "Hinge angular limit test", "limit only when the half-range is 0 or more",
+                        "The solver-side test loads the half-range (0x14012563d), compares it with 0 (0x140125648) and skips the angular-limit calculation when it is negative. "
+                        "A pivot whose setup skips the limit setter keeps -1, so it has no angular stop.")
+    # Gearbox 4000: the shared binary32 4000 is used outside the gearbox and shaft code.
+    t["g4000_use"] = E.operand(F_PROP_DIV, 0x14033E319, "f30f5e0573258700", 0x140BB0894, "Binary32 4000 use outside the gearbox",
+                               "A propulsion routine divides by the shared binary32 4000. It is one of the 10 instruction references to that constant listed in investigation/native/followups/tools/constant4000-refs.txt; none lies in the gearbox or shaft code." + rep)
+    gear_funcs = {F_TORQUE, F_TORQUE_BIND, F_RATIO, F_NET_ALLOC, F_PUBLISH, F_PUBLISH_Q}
+    rows = [line.split() for line in (E.root / FU_4000_REFS).read_text().splitlines() if line.strip()]
+    if len(rows) != 10:
+        raise ValueError("The binary32 4000 reference inventory changed")
+    for row in rows:
+        owner, at = int(row[0], 16), int(row[1].rstrip(":"), 16)
+        if n.function(owner)[0] != owner or not any(at < r < at + 10 for r in n.references(owner, 0x140BB0894)):
+            raise ValueError("4000 reference %#x does not address 0x140bb0894" % at)
+        if any(n.function(g)[0] <= at < n.function(g)[1] for g in gear_funcs):
+            raise ValueError("A 4000 reference now lies in the gearbox or shaft code")
+    t["g4000_scan"] = E.derived("Whole-executable 4000 search", "no use in the gearbox or shaft code",
+                                "Every byte occurrence of binary32 4000 and integer 4000 in the PE sections is inventoried in tools/constant4000-locations.txt, the instruction references to the shared binary32 4000 at 0x140bb0894 in tools/constant4000-refs.txt "
+                                "and integer immediates in tools/int4000-immediates.txt (investigation/native/followups). The extractor re-checks the 10 references and that none lies in the gearbox binder, update or ratio helper or the shaft collect and publish code. "
+                                "The integer comparison at 0x1402c81aa belongs to another class. A computed or indirectly supplied threshold is not covered by a literal search." + rep,
+                                [t["g4000_use"]])
+    # Firebox ignition state and the queued damage event.
+    t["ig_name"] = name(F_STEAM_SAVE, "14041316a.asm", 0x140413473, "4c8d058ebf7500", 0x140B6F408, "ignition_counter", "Saved ignition state name",
+                        "The steam serializer passes component+0x754 (0x14041346c) under this name to its scalar reader (call at 0x140413485) with a default of 0 (0x14041347a). "
+                        "The name does not show a countdown: the steam update writes 3600 and tests only zero or nonzero, and the complete steam reset 0x140408f30 (vtable entry 0x140af7190, re-read) holds no access to +0x754.")
+    t["ev_consume"] = code(F_DISPATCH, "scene-phase-final.asm", 0x140549DEC, "e82f6ef4ff", "Queued damage event consumer", "call 0x140490c20 per component and body pair",
+                           "The scene worker passes its event queue (0x1405499b5) through the vehicle worker to the body pass, where the firebox post-update appends its pair. After the updates it hands each queued component and body pair to this consumer.")
+    t["ev_geom"] = code(F_EVENT_GEOM, "140490c20.asm", 0x140490F6F, "e84c140000", "Queued damage event geometry", "records to 0x1404923c0",
+                        "The consumer enumerates the component's geometry and submits coordinate and index records to the shared geometry-change routine 0x1404923c0 (also at 0x140491003). "
+                        "These calls set no blast radius or blast energy.")
+    # Tank lifecycle: first-spawn flag, infinite_money, load flags, restore order and editor resets.
+    t["fs_name"] = name(F_SPAWN_RECORD, "140545d10.asm", 0x14054634C, "4c8d052d1d6400", 0x140B88080, "is_first_spawn", "Saved first-spawn flag",
+                        "The spawn record serializer binds record+0xd4 to this name (lea r9 at 0x140546345) with a named default of 1 (0x140546340); binary restore writes the saved byte at 0x1405463bc. "
+                        "The request producers copy this byte into the spawn request's fuel-fill gate +0x45, so a saved record keeps its own choice.")
+    t["fs_event"] = code(F_SPAWN_EVENT, "14066ed90.asm", 0x14066EF93, "8883d4000000", "Spawn event first-spawn store", "argument → +0xd4",
+                         "The spawn event builder stores its caller's first-spawn argument in the record byte that becomes the fuel-fill gate.")
+    t["fs_false"] = code(F_SPAWN_DISPATCH, None, 0x1406C342D, "c644245800", "Spawn producer passing false", "first-spawn argument 0",
+                         "One producer in the dispatcher 0x1406bb400 passes 0 before the spawn event call at 0x1406c3475; another does the same at 0x1406c5c45. Other producers pass a variable byte "
+                         "(tools/first-spawn-producer-windows.txt under investigation/native/followups).")
+    t["im_name"] = name(F_SETTINGS, "140292d60.asm", 0x140292E63, "4c8d058ed38700", 0x140B101F8, "infinite_money", "Stock-cap setting",
+                        "The settings serializer binds settings+8 to this name (lea r9 at 0x140292e5f). It is the settings byte the stock-capped fuel branch requires to be 0.")
+    t["ld_build"] = code(F_BUILD, "construction-load-final.asm", 0x1404BBE9A, "c745f705000000", "Construction read flags", "5: configuration and runtime fields",
+                         "Asynchronous vehicle construction installs read flags 5 in its reader context, so saved runtime fields such as tank contents and spawner_pending are read when the data holds them; missing named fields keep their defaults.")
+    t["ld_file"] = code(F_FILE_LOAD, "file-load-final.asm", 0x1404C1BCC, "c745f805000000", "Vehicle file read flags", "5",
+                        "The vehicle file loader installs the same flags.")
+    t["ld_init"] = code(F_COMP_LOAD, "component-load-final.asm", 0x1404B850B, "ff5018", "Capacity rebuild after restore", "slot +0x18 after the serializer",
+                        "The named component reader calls the component serializer (0x1404b8502) and then slot +0x18 (the binary reader at 0x1404b8cc5). For tanks that slot is 0x1403ef450, "
+                        "which recomputes the capacity from the definition and does not clear species amounts, total, temperature or fill pending.")
+    t["ld_net"] = code(F_BUILD, "construction-load-final.asm", 0x1404BC377, "e8d44bfeff", "Network reconstruction before the pending fill", "restore, capacity, networks, pending fill",
+                       "Construction reconstructs the networks (this call and 0x1404bc382) and then calls the pending fill at 0x1404bc38a. The request-gated diesel and jet-fuel fill runs later.")
+    t["ed_reset"] = code(F_EDITOR_LOAD, "1407d09b0.asm", 0x1407D0FA6, "ff90c8030000", "Editor entry resets components", "slot +0x3c8 of each component",
+                         "Entering the vehicle editor calls slot +0x3c8 on each component after any load or copy; for tanks that is the reset 0x1403eebf0, which clears contents and re-arms the pending fill. "
+                         "The editor's supplied-path load 0x1407d1f00 (0x1407d2241) and data/debris/ reload 0x1407d1a50 (0x1407d1e12) call the same slot after a successful file load.")
+    # Connectors: no electrical bridge for small, hinge and large connectors.
+    t["cn_null"] = code(F_CN_CTOR, "connector-construct-final.asm", 0x1403D05A8, "4889bb38090000", "Connector electrical bridge at construction", "component+0x938 = 0",
+                        "The constructor clears the bridge of the electrical node at component+0x908 (registered at 0x1403d0a71), so the pool traversal 0x1404c9d20 finds no partner. "
+                        "Only the electric-subtype branch (test at 0x1403d27b8) and the hardpoint branch set it; small, hinge and large connectors take other attachment branches, so their Electric port serves only the magnet.")
+    # Afterburner buffer: exchange and mixing writers.
+    t["ab_pass"] = code(F_JET, "afterburner-exchange-arguments.asm", 0x140351D89, "488d97b8030000", "Exhaust passes its private buffer", "P = component+0x3b8",
+                        "The exhaust passes its private container to the port exchange 0x1402ec710 (call at 0x140351d90). That exchange stores jet fuel at P+0x14, the buffer's jet fuel, in its incoming (0x1402ecb61) and outgoing (0x1402ecfa5) branches.")
+    t["ab_mixcall"] = code(F_EXCHANGE_MIX, "jet-exchange-final.asm", 0x1402ED34E, "e83d000000", "Exchange calls the mixing step", "call 0x1402ed390 with the private buffer",
+                           "Passes the private container as the second argument (0x1402ed343) with the original species mask (0x1402ed33c).")
+    t["ab_half"] = op(F_MIX, "jet-diffusion-final.asm", 0x1402ED4E2, "f30f1035d2278c00", 0x140BAFCBC, "Mixing half factor",
+                      "With both selected totals above 0.0001 the step removes a = m × J ÷ S_P from the buffer and b = m × N ÷ S_N from the network, m being the exchange amount capped to both totals (minss at 0x1402ed4ea and 0x1402ed4ee), and adds (a + b) × this to each.")
+    t["ab_mix"] = code(F_MIX, "jet-diffusion-final.asm", 0x1402ED5CE, "f30f114214", "Mixing store to the buffer", "J + 0.5 × m × (N ÷ S_N − J ÷ S_P)",
+                       "Stores the buffer's new jet fuel (again at 0x1402ed5f3); the network side is stored at 0x1402ed5e1 and 0x1402ed5fe. The combined jet fuel is conserved apart from rounding, so this moves fuel and burns none.")
+    E.followups = t
     return t
 
 

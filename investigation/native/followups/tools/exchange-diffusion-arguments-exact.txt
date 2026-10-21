@@ -1,0 +1,35 @@
+   1402ed2d0:	41 0f 28 d2          	movaps xmm2,xmm10
+   1402ed2d4:	48 8b d3             	mov    rdx,rbx
+   1402ed2d7:	48 8b cf             	mov    rcx,rdi
+   1402ed2da:	e8 31 ef ff ff       	call   0x1402ec210
+   1402ed2df:	44 0f 28 6c 24 40    	movaps xmm13,XMMWORD PTR [rsp+0x40]
+   1402ed2e5:	45 84 ff             	test   r15b,r15b
+   1402ed2e8:	4c 8b bc 24 b0 00 00 00 	mov    r15,QWORD PTR [rsp+0xb0]
+   1402ed2f0:	44 0f 28 4c 24 70    	movaps xmm9,XMMWORD PTR [rsp+0x70]
+   1402ed2f6:	48 8b b4 24 e0 00 00 00 	mov    rsi,QWORD PTR [rsp+0xe0]
+   1402ed2fe:	48 8b ac 24 d8 00 00 00 	mov    rbp,QWORD PTR [rsp+0xd8]
+   1402ed306:	75 4b                	jne    0x1402ed353
+   1402ed308:	45 84 f6             	test   r14b,r14b
+   1402ed30b:	75 46                	jne    0x1402ed353
+   1402ed30d:	f3 0f 10 43 40       	movss  xmm0,DWORD PTR [rbx+0x40]
+   1402ed312:	41 0f 28 ca          	movaps xmm1,xmm10
+   1402ed316:	f3 0f 5e 05 3a 26 8c 00 	divss  xmm0,DWORD PTR [rip+0x8c263a]        # 0x140baf958
+   1402ed31e:	0f 54 c6             	andps  xmm0,xmm6
+   1402ed321:	f3 0f 5c c8          	subss  xmm1,xmm0
+   1402ed325:	0f 2f cc             	comiss xmm1,xmm4
+   1402ed328:	76 29                	jbe    0x1402ed353
+   1402ed32a:	44 0f 2f d1          	comiss xmm10,xmm1
+   1402ed32e:	77 04                	ja     0x1402ed334
+   1402ed330:	41 0f 28 ca          	movaps xmm1,xmm10
+   1402ed334:	f3 0f 59 0d 94 27 8c 00 	mulss  xmm1,DWORD PTR [rip+0x8c2794]        # 0x140bafad0
+   1402ed33c:	44 8b c8             	mov    r9d,eax
+   1402ed33f:	4c 8b 47 20          	mov    r8,QWORD PTR [rdi+0x20]
+   1402ed343:	49 8b d3             	mov    rdx,r11
+   1402ed346:	f3 41 0f 59 cf       	mulss  xmm1,xmm15
+   1402ed34b:	0f 28 c1             	movaps xmm0,xmm1
+   1402ed34e:	e8 3d 00 00 00       	call   0x1402ed390
+   1402ed353:	0f 28 b4 24 a0 00 00 00 	movaps xmm6,XMMWORD PTR [rsp+0xa0]
+   1402ed35b:	4c 8b b4 24 b8 00 00 00 	mov    r14,QWORD PTR [rsp+0xb8]
+   1402ed363:	48 8b 9c 24 d0 00 00 00 	mov    rbx,QWORD PTR [rsp+0xd0]
+   1402ed36b:	44 0f 28 54 24 60    	movaps xmm10,XMMWORD PTR [rsp+0x60]
+   1402ed371:	44 0f 28 64 24 50    	movaps xmm12,XMMWORD PTR [rsp+0x50]

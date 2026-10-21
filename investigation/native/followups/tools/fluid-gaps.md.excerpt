@@ -1,0 +1,45 @@
+## 5. #29 Fluid Tank
+
+**Verdict: partly.** A concrete producer of the fuel-fill flag is identified, but the full editor, mission, career/creative and save-load matrix is not.
+
+Request construction at `0x1405470d0` accepts the fuel-fill gate as an argument and stores it at request byte `+0x45`. The temporary constructor default is false; the argument then overwrites it. The shared spawn-job callers propagate another object's byte `+0xd4` into that argument. It is therefore not valid to equate `+0x45` with a universally true fresh-spawn condition.
+
+A named public path is now mapped. Lua registry binding associates `resetVehicleState` with wrapper `0x1405a1680`, whose operators call selects `0x140727580`. That routine marks the pending vehicle request and sets its fuel-fill gate. This proves that explicit vehicle-state reset can request the separate fuel-fill operation. It does not prove that it has the same stock policy as every editor or mission spawn.
+
+The inventory predicate can be stated without guessing its UI meaning. The fuel-fill pass requires request `+0x45`. Its stock-limited arm additionally requires the singleton getter's byte `+8` to be false, a non-null inventory record, the qualifying request mode, the request's additional `+0x47` flag, and the surrounding inventory-origin condition. The retained pseudocode spells out the string comparison and conjunction. The association of these fields with every career/creative option remains open.
+
+The shared construction path also establishes an ordering boundary: pending fill is called after network reconstruction at `0x1404bc38a`. The later request-gated fuel arm in `0x1405dafa0` is distinct from that pending fill. The ordinary pending-fill arm skips diesel and jet fuel; the separate arm can add them. Neither fact identifies every workflow's earlier reset/restore flags.
+
+Exact evidence:
+
+- `0x14054712f`, `66 c7 40 44 01 00`, initializes the adjacent bytes with `+0x45` clear; `0x14054727f`, `88 47 45`, stores the caller's argument. See [request-construction.asm](native/fluid-gaps/asm/request-construction.asm).
+- `0x1405d7621`, `41 0f b6 84 24 d4 00 00 00`, reads the propagated flag; `0x1405d762a`, `88 44 24 50`, supplies it as the constructor argument; `0x1405d7676`, `e8 55 fa f6 ff`, calls request construction. See [spawn-request-call1.asm](native/fluid-gaps/asm/spawn-request-call1.asm).
+- `0x140599ccc`, `48 8d 05 bd 7b 5f 00`, selects the registry name at `0x140b91890`, `resetVehicleState`; `0x140599cda`, `48 8d 05 9f 79 00 00`, selects wrapper `0x1405a1680`. Operators slot `+0xb0` at `0x140b11ad8` contains `80 75 72 40 01 00 00 00`, target `0x140727580`. `0x1405a177d`, `ff 90 b0 00 00 00`, calls that slot. `0x140727ed2`, `c6 40 45 01`, and `0x140727eff`, `c6 43 45 01`, enable the gate on the relevant request paths. See [reset-api-binding.asm](native/fluid-gaps/asm/reset-api-binding.asm), [reset-fuel-request.asm](native/fluid-gaps/asm/reset-fuel-request.asm), and [140727580.c](native/fluid-gaps/pseudocode/140727580.c).
+- `0x1405dbcf7`, `44 38 66 45`, tests the fill gate. `0x1405dbd83`, `83 7e 30 01`, and `0x1405dbd89`, `80 7e 47 00`, are additional request tests in the stock predicate. See [fuel-fill-gate.asm](native/fluid-gaps/asm/fuel-fill-gate.asm).
+- `0x1404bc377`, `e8 d4 4b fe ff`, and `0x1404bc382`, `e8 a9 5d fe ff`, perform the preceding reconstruction calls; `0x1404bc38a`, `e8 b1 b2 ff ff`, invokes pending fill. See [build-fill-order.asm](native/fluid-gaps/asm/build-fill-order.asm).
+
+What stays open: assigning every request argument and serializer mode to editor placement/rebuild, stored vehicles, mission spawning and saved-world restoration, including all relevant settings. This is a caller-provenance problem, not something shown to be statically unrecoverable.
+
+Wiki-ready replacement for the fill-trigger limitation: "Diesel and jet fuel use a separate request-gated fill, and resetVehicleState is one identified path that enables it; the full mapping to editor, mission, career/creative and save-loading workflows remains incomplete."
+
+Wiki-ready replacement for the ordering limitation: "Pending fill follows network reconstruction, while fuel fill has a separate request gate; the reset and restore choices made by every loading and editor workflow are not yet mapped."
+
+## 6. #30 Gas Tank
+
+**Verdict: partly.** The shared restore/reset/fill distinctions are confirmed, but the requested workflow matrix and a maximum safe pressure are not established.
+
+The gas tank uses the water-component runtime serializer and the same explicit reset method as fixed fluid tanks. Restoring runtime state can restore the species, total and pending-fill flag. Reset deliberately clears primary and secondary contents and re-arms pending fill. Recomputing geometric capacity is a separate operation. A restored false pending flag suppresses the ordinary pending-fill refill, provided no later reset re-arms it. That conditional statement is supported; an unconditional assertion about all saved worlds or all editor rebuilds is not.
+
+Exact evidence:
+
+- Runtime serialization is `0x1403f6150`, selected by the water vtable's serializer slot. The runtime mask is tested at `0x1403f65ad`, `f6 45 10 04`, before the `spawner_pending` and contained-volume serialization calls. See [tank-serializer.asm](native/fluid-gaps/asm/tank-serializer.asm), [1403f6150.c](native/fluid-gaps/pseudocode/1403f6150.c) and shared [1402eb750.c](native/fluid-gaps/pseudocode/1402eb750.c).
+- Reset starts by establishing zero at `0x1403eebf4`, `45 33 c0`. `0x1403eec18`, `4c 89 81 a4 05 00 00`, and following stores clear primary species; `0x1403eec11`, `4c 89 81 d4 05 00 00`, includes its total. The secondary clear stores and `0x1403eec73`, `c6 81 8c 05 00 00 01`, re-arm pending fill. See [tank-reset.asm](native/fluid-gaps/asm/tank-reset.asm). Temperature fields are not among those clear stores.
+- The shared post-reconstruction pending-fill call is `0x1404bc38a`, `e8 b1 b2 ff ff`. The pending check and branch are retained in [1404b7640.c](native/fluid-gaps/pseudocode/1404b7640.c). This is the same ordering boundary described in section 5.
+
+No maximum safe pressure or pressure-triggered gas-tank damage threshold was recovered. In particular, a fill target, the pump's pressure bias, a display saturation, or a serialized-temperature bound is not evidence of a rupture threshold. The bounded definition search for pressure-damage/max-pressure names found no matching rule, but a negative string search cannot rule out a generic mechanical-damage path or inlined pressure logic elsewhere.
+
+What stays open: the precise workflow matrix and an exhaustive damage-path trace. Both are static-analysis gaps. An actual failure-pressure measurement would require running a controlled pressure test, recording settings and initial contents, and separating pressure failure from heat, collision or other damage. Such a measurement would establish behavior under those conditions; it would not prove that no pressure threshold exists anywhere in the binary.
+
+Wiki-ready replacement for lifecycle: "Gas-tank contents and pending fill are serialized, explicit reset clears contents and re-arms fill, and pending fill follows reconstruction; which loading and editor workflows select each operation remains incompletely mapped."
+
+Wiki-ready replacement for pressure safety: "No maximum safe pressure or pressure-triggered gas-tank damage threshold has been established by this static investigation."

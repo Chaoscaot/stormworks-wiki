@@ -1,0 +1,151 @@
+investigation/native/followups/asm/140545d10.asm:   14054629e:	0f 84 82 00 00 00                               	je     0x140546326
+investigation/native/followups/asm/140545d10.asm:   1405462c3:	eb 61                                           	jmp    0x140546326
+investigation/native/followups/asm/140545d10.asm:   1405462c8:	75 5c                                           	jne    0x140546326
+investigation/native/followups/asm/140545d10.asm:   1405462e5:	72 32                                           	jb     0x140546319
+investigation/native/followups/asm/140545d10.asm:   1405462fd:	eb 1a                                           	jmp    0x140546319
+investigation/native/followups/asm/140545d10.asm:   140546303:	72 21                                           	jb     0x140546326
+investigation/native/followups/asm/140545d10.asm:   140546305:	48 8b 41 08                                     	mov    rax,QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140545d10.asm:   140546309:	44 88 08                                        	mov    BYTE PTR [rax],r9b
+investigation/native/followups/asm/140545d10.asm:   14054630c:	48 ff 41 08                                     	inc    QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140545d10.asm:   140546310:	ff 49 10                                        	dec    DWORD PTR [rcx+0x10]
+investigation/native/followups/asm/140545d10.asm:   140546313:	44 38 71 14                                     	cmp    BYTE PTR [rcx+0x14],r14b
+investigation/native/followups/asm/140545d10.asm:   140546317:	75 0d                                           	jne    0x140546326
+investigation/native/followups/asm/140545d10.asm:   140546319:	41 80 f9 01                                     	cmp    r9b,0x1
+investigation/native/followups/asm/140545d10.asm:   14054631d:	0f 94 c0                                        	sete   al
+investigation/native/followups/asm/140545d10.asm:   140546320:	88 87 d3 00 00 00                               	mov    BYTE PTR [rdi+0xd3],al
+investigation/native/followups/asm/140545d10.asm:   140546326:	8b 43 20                                        	mov    eax,DWORD PTR [rbx+0x20]
+investigation/native/followups/asm/140545d10.asm:   140546329:	85 c0                                           	test   eax,eax
+investigation/native/followups/asm/140545d10.asm:   14054632b:	75 34                                           	jne    0x140546361
+investigation/native/followups/asm/140545d10.asm:   14054632d:	80 7b 24 01                                     	cmp    BYTE PTR [rbx+0x24],0x1
+investigation/native/followups/asm/140545d10.asm:   140546331:	75 0d                                           	jne    0x140546340
+investigation/native/followups/asm/140545d10.asm:   140546333:	80 bf d4 00 00 00 01                            	cmp    BYTE PTR [rdi+0xd4],0x1
+investigation/native/followups/asm/140545d10.asm:   14054633a:	0f 84 82 00 00 00                               	je     0x1405463c2
+investigation/native/followups/asm/140545d10.asm:   140546340:	c6 44 24 20 01                                  	mov    BYTE PTR [rsp+0x20],0x1
+investigation/native/followups/asm/140545d10.asm:   140546345:	4c 8d 8f d4 00 00 00                            	lea    r9,[rdi+0xd4]
+investigation/native/followups/asm/140545d10.asm:   14054634c:	4c 8d 05 2d 1d 64 00                            	lea    r8,[rip+0x641d2d]        # 0x140b88080
+investigation/native/followups/asm/140545d10.asm:   140546353:	48 8b d6                                        	mov    rdx,rsi
+investigation/native/followups/asm/140545d10.asm:   140546356:	48 8b 4b 18                                     	mov    rcx,QWORD PTR [rbx+0x18]
+investigation/native/followups/asm/140545d10.asm:   14054635a:	e8 31 cb c4 ff                                  	call   0x140192e90
+investigation/native/followups/asm/140545d10.asm:   14054635f:	eb 61                                           	jmp    0x1405463c2
+investigation/native/followups/asm/140545d10.asm:   140546361:	83 f8 01                                        	cmp    eax,0x1
+investigation/native/followups/asm/140545d10.asm:   140546364:	75 5c                                           	jne    0x1405463c2
+investigation/native/followups/asm/140545d10.asm:   140546366:	48 8b 4b 10                                     	mov    rcx,QWORD PTR [rbx+0x10]
+investigation/native/followups/asm/140545d10.asm:   14054636a:	38 87 d4 00 00 00                               	cmp    BYTE PTR [rdi+0xd4],al
+investigation/native/followups/asm/140545d10.asm:   140546370:	41 0f 94 c1                                     	sete   r9b
+investigation/native/followups/asm/140545d10.asm:   140546374:	44 8b 41 10                                     	mov    r8d,DWORD PTR [rcx+0x10]
+investigation/native/followups/asm/140545d10.asm:   140546378:	44 38 71 14                                     	cmp    BYTE PTR [rcx+0x14],r14b
+investigation/native/followups/asm/140545d10.asm:   14054637c:	75 1d                                           	jne    0x14054639b
+investigation/native/followups/asm/140545d10.asm:   14054637e:	44 3b c0                                        	cmp    r8d,eax
+investigation/native/followups/asm/140545d10.asm:   140546381:	72 32                                           	jb     0x1405463b5
+investigation/native/followups/asm/140545d10.asm:   140546383:	48 8b 41 08                                     	mov    rax,QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140545d10.asm:   140546387:	44 0f b6 08                                     	movzx  r9d,BYTE PTR [rax]
+investigation/native/followups/asm/140545d10.asm:   14054638b:	48 ff c0                                        	inc    rax
+investigation/native/followups/asm/140545d10.asm:   14054638e:	48 89 41 08                                     	mov    QWORD PTR [rcx+0x8],rax
+investigation/native/followups/asm/140545d10.asm:   140546392:	41 8d 40 ff                                     	lea    eax,[r8-0x1]
+investigation/native/followups/asm/140545d10.asm:   140546396:	89 41 10                                        	mov    DWORD PTR [rcx+0x10],eax
+investigation/native/followups/asm/140545d10.asm:   140546399:	eb 1a                                           	jmp    0x1405463b5
+investigation/native/followups/asm/140545d10.asm:   14054639b:	41 83 f8 01                                     	cmp    r8d,0x1
+investigation/native/followups/asm/140545d10.asm:   14054639f:	72 21                                           	jb     0x1405463c2
+investigation/native/followups/asm/140545d10.asm:   1405463a1:	48 8b 41 08                                     	mov    rax,QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140545d10.asm:   1405463a5:	44 88 08                                        	mov    BYTE PTR [rax],r9b
+investigation/native/followups/asm/140545d10.asm:   1405463a8:	48 ff 41 08                                     	inc    QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140545d10.asm:   1405463ac:	ff 49 10                                        	dec    DWORD PTR [rcx+0x10]
+investigation/native/followups/asm/140545d10.asm:   1405463af:	44 38 71 14                                     	cmp    BYTE PTR [rcx+0x14],r14b
+investigation/native/followups/asm/140545d10.asm:   1405463b3:	75 0d                                           	jne    0x1405463c2
+investigation/native/followups/asm/140545d10.asm:   1405463b5:	41 80 f9 01                                     	cmp    r9b,0x1
+investigation/native/followups/asm/140545d10.asm:   1405463b9:	0f 94 c0                                        	sete   al
+investigation/native/followups/asm/140545d10.asm:   1405463bc:	88 87 d4 00 00 00                               	mov    BYTE PTR [rdi+0xd4],al
+investigation/native/followups/asm/140545d10.asm:   1405463c2:	8b 43 20                                        	mov    eax,DWORD PTR [rbx+0x20]
+investigation/native/followups/asm/140545d10.asm:   1405463c5:	85 c0                                           	test   eax,eax
+investigation/native/followups/asm/140545d10.asm:   1405463c7:	75 34                                           	jne    0x1405463fd
+investigation/native/followups/asm/140545d10.asm:   1405463c9:	80 7b 24 01                                     	cmp    BYTE PTR [rbx+0x24],0x1
+investigation/native/followups/asm/140545d10.asm:   1405463cd:	75 0d                                           	jne    0x1405463dc
+investigation/native/followups/asm/140545d10.asm:   1405463cf:	44 38 b7 d5 00 00 00                            	cmp    BYTE PTR [rdi+0xd5],r14b
+investigation/native/followups/asm/140545d10.asm:   1405463d6:	0f 84 82 00 00 00                               	je     0x14054645e
+investigation/native/followups/asm/140545d10.asm:   1405463dc:	44 88 74 24 20                                  	mov    BYTE PTR [rsp+0x20],r14b
+investigation/native/followups/asm/140545d10.asm:   1405463e1:	4c 8d 8f d5 00 00 00                            	lea    r9,[rdi+0xd5]
+investigation/native/followups/asm/140545d10.asm:   1405463e8:	4c 8d 05 81 1c 64 00                            	lea    r8,[rip+0x641c81]        # 0x140b88070
+investigation/native/followups/asm/140545d10.asm:   1405463ef:	48 8b d6                                        	mov    rdx,rsi
+investigation/native/followups/asm/140545d10.asm:   1405463f2:	48 8b 4b 18                                     	mov    rcx,QWORD PTR [rbx+0x18]
+investigation/native/followups/asm/140545d10.asm:   1405463f6:	e8 95 ca c4 ff                                  	call   0x140192e90
+investigation/native/followups/asm/140545d10.asm:   1405463fb:	eb 61                                           	jmp    0x14054645e
+investigation/native/followups/asm/140545d10.asm:   1405463fd:	83 f8 01                                        	cmp    eax,0x1
+investigation/native/followups/asm/14066ed90.asm:   14066ef93:	88 83 d4 00 00 00                               	mov    BYTE PTR [rbx+0xd4],al
+investigation/native/followups/asm/140292d60.asm:   140292de7:	75 2d                                           	jne    0x140292e16
+investigation/native/followups/asm/140292d60.asm:   140292df3:	74 53                                           	je     0x140292e48
+investigation/native/followups/asm/140292d60.asm:   140292e01:	4c 8d 05 60 d2 87 00                            	lea    r8,[rip+0x87d260]        # 0x140b10068
+investigation/native/followups/asm/140292d60.asm:   140292e08:	48 8b d6                                        	mov    rdx,rsi
+investigation/native/followups/asm/140292d60.asm:   140292e0b:	48 8b 4b 18                                     	mov    rcx,QWORD PTR [rbx+0x18]
+investigation/native/followups/asm/140292d60.asm:   140292e0f:	e8 1c c8 65 00                                  	call   0x1408ef630
+investigation/native/followups/asm/140292d60.asm:   140292e14:	eb 32                                           	jmp    0x140292e48
+investigation/native/followups/asm/140292d60.asm:   140292e16:	83 f8 01                                        	cmp    eax,0x1
+investigation/native/followups/asm/140292d60.asm:   140292e19:	75 2d                                           	jne    0x140292e48
+investigation/native/followups/asm/140292d60.asm:   140292e1b:	48 8b 53 10                                     	mov    rdx,QWORD PTR [rbx+0x10]
+investigation/native/followups/asm/140292d60.asm:   140292e1f:	83 7a 10 04                                     	cmp    DWORD PTR [rdx+0x10],0x4
+investigation/native/followups/asm/140292d60.asm:   140292e23:	72 23                                           	jb     0x140292e48
+investigation/native/followups/asm/140292d60.asm:   140292e25:	80 7a 14 00                                     	cmp    BYTE PTR [rdx+0x14],0x0
+investigation/native/followups/asm/140292d60.asm:   140292e29:	75 0b                                           	jne    0x140292e36
+investigation/native/followups/asm/140292d60.asm:   140292e2b:	48 8b 42 08                                     	mov    rax,QWORD PTR [rdx+0x8]
+investigation/native/followups/asm/140292d60.asm:   140292e2f:	8b 08                                           	mov    ecx,DWORD PTR [rax]
+investigation/native/followups/asm/140292d60.asm:   140292e31:	89 4f 04                                        	mov    DWORD PTR [rdi+0x4],ecx
+investigation/native/followups/asm/140292d60.asm:   140292e34:	eb 09                                           	jmp    0x140292e3f
+investigation/native/followups/asm/140292d60.asm:   140292e36:	48 8b 4a 08                                     	mov    rcx,QWORD PTR [rdx+0x8]
+investigation/native/followups/asm/140292d60.asm:   140292e3a:	8b 47 04                                        	mov    eax,DWORD PTR [rdi+0x4]
+investigation/native/followups/asm/140292d60.asm:   140292e3d:	89 01                                           	mov    DWORD PTR [rcx],eax
+investigation/native/followups/asm/140292d60.asm:   140292e3f:	48 83 42 08 04                                  	add    QWORD PTR [rdx+0x8],0x4
+investigation/native/followups/asm/140292d60.asm:   140292e44:	83 42 10 fc                                     	add    DWORD PTR [rdx+0x10],0xfffffffc
+investigation/native/followups/asm/140292d60.asm:   140292e48:	8b 43 20                                        	mov    eax,DWORD PTR [rbx+0x20]
+investigation/native/followups/asm/140292d60.asm:   140292e4b:	85 c0                                           	test   eax,eax
+investigation/native/followups/asm/140292d60.asm:   140292e4d:	75 29                                           	jne    0x140292e78
+investigation/native/followups/asm/140292d60.asm:   140292e4f:	80 7b 24 01                                     	cmp    BYTE PTR [rbx+0x24],0x1
+investigation/native/followups/asm/140292d60.asm:   140292e53:	75 05                                           	jne    0x140292e5a
+investigation/native/followups/asm/140292d60.asm:   140292e55:	38 47 08                                        	cmp    BYTE PTR [rdi+0x8],al
+investigation/native/followups/asm/140292d60.asm:   140292e58:	74 79                                           	je     0x140292ed3
+investigation/native/followups/asm/140292d60.asm:   140292e5a:	c6 44 24 20 00                                  	mov    BYTE PTR [rsp+0x20],0x0
+investigation/native/followups/asm/140292d60.asm:   140292e5f:	4c 8d 4f 08                                     	lea    r9,[rdi+0x8]
+investigation/native/followups/asm/140292d60.asm:   140292e63:	4c 8d 05 8e d3 87 00                            	lea    r8,[rip+0x87d38e]        # 0x140b101f8
+investigation/native/followups/asm/140292d60.asm:   140292e6a:	48 8b d6                                        	mov    rdx,rsi
+investigation/native/followups/asm/140292d60.asm:   140292e6d:	48 8b 4b 18                                     	mov    rcx,QWORD PTR [rbx+0x18]
+investigation/native/followups/asm/140292d60.asm:   140292e71:	e8 1a 00 f0 ff                                  	call   0x140192e90
+investigation/native/followups/asm/140292d60.asm:   140292e76:	eb 5b                                           	jmp    0x140292ed3
+investigation/native/followups/asm/140292d60.asm:   140292e78:	83 f8 01                                        	cmp    eax,0x1
+investigation/native/followups/asm/140292d60.asm:   140292e7b:	75 56                                           	jne    0x140292ed3
+investigation/native/followups/asm/140292d60.asm:   140292e7d:	48 8b 4b 10                                     	mov    rcx,QWORD PTR [rbx+0x10]
+investigation/native/followups/asm/140292d60.asm:   140292e81:	38 47 08                                        	cmp    BYTE PTR [rdi+0x8],al
+investigation/native/followups/asm/140292d60.asm:   140292e84:	41 0f 94 c1                                     	sete   r9b
+investigation/native/followups/asm/140292d60.asm:   140292e88:	44 8b 41 10                                     	mov    r8d,DWORD PTR [rcx+0x10]
+investigation/native/followups/asm/140292d60.asm:   140292e8c:	80 79 14 00                                     	cmp    BYTE PTR [rcx+0x14],0x0
+investigation/native/followups/asm/140292d60.asm:   140292e90:	75 1d                                           	jne    0x140292eaf
+investigation/native/followups/asm/140292d60.asm:   140292e92:	44 3b c0                                        	cmp    r8d,eax
+investigation/native/followups/asm/140292d60.asm:   140292e95:	72 32                                           	jb     0x140292ec9
+investigation/native/followups/asm/140292d60.asm:   140292e97:	48 8b 41 08                                     	mov    rax,QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140292d60.asm:   140292e9b:	44 0f b6 08                                     	movzx  r9d,BYTE PTR [rax]
+investigation/native/followups/asm/140292d60.asm:   140292e9f:	48 ff c0                                        	inc    rax
+investigation/native/followups/asm/140292d60.asm:   140292ea2:	48 89 41 08                                     	mov    QWORD PTR [rcx+0x8],rax
+investigation/native/followups/asm/140292d60.asm:   140292ea6:	41 8d 40 ff                                     	lea    eax,[r8-0x1]
+investigation/native/followups/asm/140292d60.asm:   140292eaa:	89 41 10                                        	mov    DWORD PTR [rcx+0x10],eax
+investigation/native/followups/asm/140292d60.asm:   140292ead:	eb 1a                                           	jmp    0x140292ec9
+investigation/native/followups/asm/140292d60.asm:   140292eaf:	41 83 f8 01                                     	cmp    r8d,0x1
+investigation/native/followups/asm/140292d60.asm:   140292eb3:	72 1e                                           	jb     0x140292ed3
+investigation/native/followups/asm/140292d60.asm:   140292eb5:	48 8b 41 08                                     	mov    rax,QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140292d60.asm:   140292eb9:	44 88 08                                        	mov    BYTE PTR [rax],r9b
+investigation/native/followups/asm/140292d60.asm:   140292ebc:	48 ff 41 08                                     	inc    QWORD PTR [rcx+0x8]
+investigation/native/followups/asm/140292d60.asm:   140292ec0:	ff 49 10                                        	dec    DWORD PTR [rcx+0x10]
+investigation/native/followups/asm/140292d60.asm:   140292ec3:	80 79 14 00                                     	cmp    BYTE PTR [rcx+0x14],0x0
+investigation/native/followups/asm/140292d60.asm:   140292ec7:	75 0a                                           	jne    0x140292ed3
+investigation/native/followups/asm/140292d60.asm:   140292ec9:	41 80 f9 01                                     	cmp    r9b,0x1
+investigation/native/followups/asm/140292d60.asm:   140292ecd:	0f 94 c0                                        	sete   al
+investigation/native/followups/asm/140292d60.asm:   140292ed0:	88 47 08                                        	mov    BYTE PTR [rdi+0x8],al
+investigation/native/followups/asm/140292d60.asm:   140292ed3:	8b 43 20                                        	mov    eax,DWORD PTR [rbx+0x20]
+investigation/native/followups/asm/140292d60.asm:   140292ed6:	85 c0                                           	test   eax,eax
+investigation/native/followups/asm/140292d60.asm:   140292ed8:	75 29                                           	jne    0x140292f03
+investigation/native/followups/asm/140292d60.asm:   140292eda:	80 7b 24 01                                     	cmp    BYTE PTR [rbx+0x24],0x1
+investigation/native/followups/asm/140292d60.asm:   140292ede:	75 05                                           	jne    0x140292ee5
+investigation/native/followups/asm/140292d60.asm:   140292ee0:	38 47 0a                                        	cmp    BYTE PTR [rdi+0xa],al
+investigation/native/followups/asm/140292d60.asm:   140292ee3:	74 79                                           	je     0x140292f5e
+investigation/native/followups/asm/140292d60.asm:   140292ee5:	c6 44 24 20 00                                  	mov    BYTE PTR [rsp+0x20],0x0
+investigation/native/followups/asm/140292d60.asm:   140292eea:	4c 8d 4f 0a                                     	lea    r9,[rdi+0xa]
+investigation/native/followups/asm/140292d60.asm:   140292eee:	4c 8d 05 3b fd 8b 00                            	lea    r8,[rip+0x8bfd3b]        # 0x140b52c30
+investigation/native/followups/asm/140292d60.asm:   140292ef5:	48 8b d6                                        	mov    rdx,rsi
+investigation/native/followups/asm/140292d60.asm:   140292ef8:	48 8b 4b 18                                     	mov    rcx,QWORD PTR [rbx+0x18]
+investigation/native/followups/asm/140292d60.asm:   140292efc:	e8 8f ff ef ff                                  	call   0x140192e90
