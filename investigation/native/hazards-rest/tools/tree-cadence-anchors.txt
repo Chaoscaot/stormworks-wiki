@@ -1,0 +1,12 @@
+   140558534:	83 bb 10 01 00 00 00                            	cmp    DWORD PTR [rbx+0x110],0x0
+   14055853b:	75 49                                           	jne    0x140558586
+   14055853d:	48 8b 55 60                                     	mov    rdx,QWORD PTR [rbp+0x60]
+   140558581:	e8 ca 39 00 00                                  	call   0x14055bf50
+   140558593:	f7 e1                                           	mul    ecx
+   140558595:	c1 ea 04                                        	shr    edx,0x4
+   140558598:	6b c2 1e                                        	imul   eax,edx,0x1e
+   14055859b:	2b c8                                           	sub    ecx,eax
+   14055859d:	89 8b 10 01 00 00                               	mov    DWORD PTR [rbx+0x110],ecx
+   1405585a3:	45 33 ed                                        	xor    r13d,r13d
+   1405585a6:	45 8b f5                                        	mov    r14d,r13d
+   1405585a9:	44 8b a3 f0 00 00 00                            	mov    r12d,DWORD PTR [rbx+0xf0]

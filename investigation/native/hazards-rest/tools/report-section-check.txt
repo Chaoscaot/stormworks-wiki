@@ -1,0 +1,28 @@
+11:**Verdict: partly answered.** The tornado queue consumer and the volcano vehicle-message route now reach component damage. Volcano character HP integration is also traced. Tornado character damage and an exhaustive exclusion of special tsunami/whirlpool damage remain open.
+13:### Tornado queue consumer
+21:### Shared vehicle message and component damage
+47:### Volcano character HP
+66:### What remains open
+72:Wiki-ready replacement: "Tornado hit requests are drained by the scene and sent through the same component-damage message used by volcano hits. The component handler applies a voxel-distance rule and increases stored component damage, rather than subtracting the request amount as HP. Volcano character messages contribute a damage rate that is integrated into HP using elapsed simulation time; tornado character damage and any special tsunami or whirlpool damage beyond their other physical effects remain untraced."
+76:**Verdict: partly answered.** The finite shared explosion lifetime and the main meteor's radial water-effect support are now established. An exhaustive inventory of explosion consumers and a meteor-specific block-damage amount/falloff route remain open.
+78:### Shared explosion lifetime
+97:### Main meteor's radial water event
+124:Wiki-ready replacement: "The shared explosion shell lasts through 271 updates and reaches about 1548.60 world units; its tree-processing branch is further limited to less than 20 times capped strength. Other explosion consumers and meteor block-damage falloff are not yet fully traced. The main meteor creates a radial tsunami band whose reach grows with elapsed scene ticks and ends when its amplitude fades, so its water effect has no single time-independent blast radius."
+128:**Verdict: partly answered.** The spatial weight and height-map sampler are decoded. The complete damage eligibility path and physical projectile/contact attribution remain open.
+130:### Spatial weight
+155:### Height-map helper
+171:### Lava and projectiles
+177:Wiki-ready replacement: "The eruption uses a height-map-dependent spatial weight, an angularly irregular expanding front and height and progress fades. Its object-effects handler applies a further steep threshold before damage eligibility tests. Rendered eruption particles have not yet been connected to physical lava or projectile contact damage."
+181:**Verdict: partly answered.** The manager cadence, explosion ignition test and a multi-generation geometric bound are established. Lightning ignition probability, complete initial-fire scheduling and final heat/HP paths remain open.
+183:### Update cadence
+189:### Explosion ignition probability
+207:### Initial fires and lightning
+213:### Several generations of spread
+231:Wiki-ready replacement: "The native tree simulation runs every 30 forest-manager updates. Explosion ignition uses a one-in-four draw for eligible trees, preceded by a destruction draw inside half the current explosion radius, and can be tested on several updates. Fire spread searches around a wind-offset point each generation, so its local search radius does not bound total spread. Lightning ignition, other initial-fire scheduling and final vehicle and character heat damage remain untraced."
+235:**Verdict: partly answered.** Volcano activation and save restoration are identified correctly. Absence of another native scheduler has not been proved.
+237:### Correction to the earlier receiver attribution
+251:Wiki-ready replacement: "The addons are demonstrated disaster schedulers, but an exhaustive exclusion of native scheduling remains open. Volcano activation uses event 115 and receiver 0x14077dcf0, and its triggered and erupting flags can also be restored from a save; the previously cited 0x14077d6c0 receiver does not establish volcano scheduling."
+255:**Verdict: partly answered.** The suppressing byte is dynamically derived from a vehicle enclosure query. Numeric state names, authoring names for the static boxes and an equivalent character force branch remain unresolved.
+271:Wiki-ready replacement: "The vehicle wind-force suppression byte is set by a successful query into another vehicle's compartment and is recomputed during the update. Separate weather suppression boxes are registered from tile-loaded geometry. The eligible state numbers are known, but their names, the boxes' XML authoring name and an equivalent character force path remain unestablished."
+275:**Verdict: partly investigated, not answered.** This optional question did not yield a defensible calendar mapping in the bounded search.
+281:Wiki-ready replacement: "The seasonal temperature equation uses the serialized numeric month, but its mapping to displayed calendar labels is still untraced, so the warmest named in-game month is not established."

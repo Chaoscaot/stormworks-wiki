@@ -47,6 +47,7 @@ WEATHER_EXAMPLES = 'investigation/native/weather/tools/examples.json'
 HAZARDS = 'investigation/hazards.md'
 HAZARD_SUMS = 'investigation/native/hazards/SHA256SUMS'
 TORNADO_FORCE = 'investigation/tornado-force.md'
+HAZARDS_REST = 'investigation/hazards-rest.md'
 NATURAL = 'rom/data/missions/default_natural_disasters/script.lua'
 LOCATIONS = 'rom/data/missions/default_mission_locations/script.lua'
 FIRE = 'rom/data/missions/default_forest_fire_missions/script.lua'
@@ -649,7 +650,7 @@ def lua(label, val, detail, path, needle, end=None, status='observed'):
 
 def hazards():
     """Natural disaster spawning from the shipped addons and hazard bounds from the hazard decode, re-read from the executable."""
-    for report in (HAZARDS, TORNADO_FORCE):
+    for report in (HAZARDS, TORNADO_FORCE, HAZARDS_REST):
         if not (ROOT / report).is_file():
             raise ValueError(f'Hazard report missing: {report}')
     sums = dict(reversed(line.split('  ', 1)) for line in (ROOT / HAZARD_SUMS).read_text().splitlines())
@@ -658,6 +659,7 @@ def hazards():
         if CACHE[path][1] != sums[copy]:
             raise ValueError(f'{path} differs from the copy the hazard decode cites ({copy})')
     r = HAZARDS
+    q = HAZARDS_REST
     spawning = [
         lua('Natural addon: frequency', '1 to 60 min, default 15; a new save starts at 54000',
             'doomsday_frequency is the slider value × 60 × 60 onTick calls. A new save starts the countdown at 15 × 60 × 60 = 54000 calls whatever the slider says; a loaded save keeps its own value.',
@@ -758,9 +760,46 @@ def hazards():
                '0x1404bad1e', 'e8 0d 6b e0 ff', report=r, literals={'0x1404baded': 'e8 1e f8 fc ff', '0x14048bf6e': 'e8 3d fc e2 ff'}),
     ]
     tornado.append(native('Deferred damage record', 'ring append 0x1408aee00',
-                          'The server handler\'s call at 0x1408582ac appends the record to a ring buffer at request context +0x12200: it grows the capacity when needed and advances the count (0x1408aee39). '
-                          'Nothing here applies damage. A direct-call scan finds no other caller of the append, and no instruction outside the producer uses the literal offset +0x12200, so the reader is open.',
+                          'The server handler\'s call at 0x1408582ac appends the record to a ring buffer at server +0x12200: it grows the capacity when needed and advances the count (0x1408aee39). '
+                          'The record holds the hit vehicle and component, the amount and the scalar. Nothing here applies damage; the scene update reads the buffer, listed below.',
                           '0x1408aee39', '89 4b 10', report=r, literals={'0x1408582ac': 'e8 4f 6b 05 00'}))
+    damage = [
+        native('Tornado record drain', 'scene update sends every queued record, then clears the queue',
+               'Server +0x12200 is +0x140 of the scene embedded at server +0x120c0, whose update the server calls at 0x140846c90. That update walks the records in 0x30-byte steps (0x1405ebe47), '
+               'loads the scalar (0x1405ebe97) and amount (0x1405ebeaa) and sends each one as the component-damage message through 0x14022c520 (0x1405ebec9). The reader was missed earlier because it uses the scene base, not the server offset.',
+               '0x1405ebec9', 'e8 52 06 c4 ff', report=q,
+               literals={'0x140846c89': '49 8d 8e c0 20 01 00', '0x140846c90': 'e8 1b 12 da ff', '0x1405ebe47': '49 03 9d 40 01 00 00', '0x1405ebe97': 'f3 0f 10 43 0c', '0x1405ebeaa': 'f3 0f 10 43 10'}),
+        native('Component-damage message', 'network event 52 → component damage queue',
+               'The sender 0x14022c520 builds event 52; its table entry 0x140863aa8 selects a dispatcher that resolves the vehicle and component and queues the request on the component (call at 0x14085f3a1). '
+               'Tornado records and volcano vehicle hits both use this message. The component drains its queue in 0x14049e300: a damage record first has a value from the struck component\'s definition (+0x134) subtracted from the amount A, '
+               'and only a positive result reaches the damage rule. The meaning of that definition value is open.',
+               '0x14022c550', '48 c7 40 08 34 00 00 00', report=q, literals={'0x140863aa8': '19 f3 85 00', '0x14085f3a1': 'e8 fa 19 c4 ff'}),
+        native('Component damage rule', {'search cells': 'clamp(1 − trunc(−4 × s), 0, 16)', 'b': '4 × trunc(A ÷ 2000)', 'added units': 'max(0, trunc((b − d) ÷ 3) + 1)'},
+               '0x14049f2b0 gathers components from voxel cells inside an integer search sphere around the hit, 4 cells per world unit, keeping each component\'s nearest cell. '
+               'd is that distance in cells rounded with floor(√q + 0.5) (floorf call at 0x14049fd28, subtraction at 0x14049fd34) and the division by 3 is a multiply-high sequence (0x14049fd36). '
+               'The bound loads −4 (0x14049f67d), starts from 1 (0x14049f689) and caps at 16 (0x14049f698). The result goes to the component\'s damage setter (0x14049fd58). trunc rounds toward zero.',
+               '0x14049f67d', 'f3 0f 59 0d 63 18 71 00', report=q,
+               literals={'0x140bb0ee8': '00 00 80 c0', '0x14049f689': 'b9 01 00 00 00', '0x14049f698': 'b9 10 00 00 00', '0x14049fd28': 'e8 ab 5a 53 00', '0x14049fd34': '2b d0', '0x14049fd36': 'b8 56 55 55 55', '0x14049fd58': 'ff 50 20'}),
+        native('Component damage setter', 'stored damage = min(old + added, 50)',
+               'The block and base-component vtables share the setter 0x140325ab0, which loads 50, takes the unsigned minimum with the requested value and stores it at component +0x08. '
+               'These are component damage units, not character HP.',
+               '0x140325ab0', 'b8 32 00 00 00', report=q, literals={'0x140325ab5': '3b d0', '0x140325ab7': '0f 42 c2', '0x140325aba': '89 41 08'}),
+        native('Tornado damage example', 'A = 2500, s = 1.25: search 6 cells, b = 4, 2 units at d = 0',
+               'Arithmetic on the rule for a fresh tornado with no definition deduction. A component the search selects at d = 0 gets 2 damage units. This is a conditional example, not damage to every block inside the tornado\'s wind radius.',
+               '0x14049fd36', 'b8 56 55 55 55', status='inferred', report=q),
+        native('Volcano character damage message', 'event 102 with amount 3',
+               'For a character hit (collision kind 2) the eruption sends event 102 (0x140560a1f) with float 3 (0x140560a4f) and its first mode byte set. '
+               'The table entry 0x140863b70 leads to the receiver 0x14077bfe0 (call at 0x14085f2cb), which subtracts the amount from the character\'s pending health rate at +0x6f0 (0x14077c223, store 0x14077c227) after authority and state checks.',
+               '0x140560a1f', 'c7 40 08 66 00 00 00', report=q,
+               literals={'0x140560a4f': 'c7 47 14 00 00 40 40', '0x140863b70': '2f f2 85 00', '0x14085f2cb': 'e8 10 cd f1 ff', '0x14077c223': 'f3 0f 5c c7', '0x14077c227': 'f3 0f 11 83 f0 06 00 00'}),
+        native('Character HP integration', 'hp += rate × dt × K, dt = elapsed ticks × 0.0166666675 (1 ÷ 60)',
+               'The character update 0x140762f80 adds the pending term to its health-change rate (0x1407632fc), multiplies by dt (0x1407640b7) and by a scene integer K at +0xbaeb8 (0x1407640bc), and adds the result to +0x3f4 (0x1407640d1), '
+               'the value returned to Lua under the key hp (name at 0x140b87b40, loaded at 0x1405373b3, read at 0x1405373f3). The pending term is cleared afterwards (0x140764bd3). '
+               'One accepted volcano event therefore removes 3 × dt × K HP on the next integrating update, not 3 HP at once, and events before that update add together.',
+               '0x1407640d1', 'f3 0f 11 80 f4 03 00 00', report=q,
+               literals={'0x1407630b7': 'f3 44 0f 59 3d cc c8 44 00', '0x140baf98c': '89 88 88 3c', '0x1407632fc': 'f3 44 0f 58 a7 f0 06 00 00', '0x1407640b7': 'f3 41 0f 59 c7',
+                         '0x1407640bc': 'f3 0f 59 44 24 68', '0x140764bd3': '48 c7 87 ec 06 00 00 00 00 00 00', '0x140b87b40': '68 70 00', '0x1405373b3': '48 8d 15 86 07 65 00', '0x1405373f3': 'f3 0f 10 86 f4 03 00 00'}),
+    ]
     meteor = [
         native('Meteor shower count', 'one main and trunc(10 × M) secondaries per recipient',
                'The script operator 0x140726580 clamps the magnitude M to 0 to 1 (min with 1 at 0x14072678a), multiplies it by 10 and truncates (0x140726943). '
@@ -792,17 +831,33 @@ def hazards():
                '0x14077d7ee', 'f3 0f 59 15 9a 2b 43 00', report=r,
                literals={'0x140bb0390': '00 00 40 40', '0x14077d7e5': '45 84 c9', '0x14077d801': 'e8 1a 0f 00 00', '0x140593cf6': 'f3 0f 10 05 4e c9 61 00', '0x140bb064c': '00 00 20 41'}),
         native('Explosion amplitude', 'amplitude × (1 − clamp(R ÷ (250 × strength), 0, 1)), R = 343 × age',
-               'The explosion update 0x140593ec0 advances age by 0.0166599992663 per update (0x14059416f), grows R = 343 × age (0x14059417c) and stores the amplitude at record +0x24. It is 0 from 250 × strength, 2500 m at strength 10. '
-               'Explosion creation sets a lifetime of 270 counts (0x140593dc6). This amplitude is not shown to be a block-damage cutoff.',
+               'The explosion update 0x140593ec0 advances age by 0.0166599992663 per update (0x14059416f), grows R = 343 × age (0x14059417c) and stores the amplitude at record +0x24. It is 0 from 250 × strength, 2500 m at strength 10, '
+               'which lies beyond the record\'s lifetime, listed below. This amplitude is not shown to be a block-damage cutoff.',
                '0x1405941be', 'f3 0f 11 46 24', report=r,
                literals={'0x14059416f': 'f3 0f 58 35 11 b8 61 00', '0x140baf988': '8d 7a 88 3c', '0x14059417c': 'f3 0f 59 35 7c c6 61 00', '0x140bb0800': '00 80 ab 43',
                          '0x140593f66': 'f3 44 0f 10 2d 79 c8 61 00', '0x140bb07e8': '00 00 7a 43', '0x140593dc6': '48 c7 43 1c 0e 01 00 00'}),
         native('Explosion body push and tree range', 'min(500000 × strength ÷ R, 30000 × body mass) in a shell; trees within 20 × strength',
                'The body helper 0x140594620 pushes bodies whose distance lies between max(0, R − 5.714379787) and R (0x1405941cf) and does not read the amplitude. '
-               'Tree processing 0x14055a970 (called at 0x1405944a2) has its own R < 20 × strength gate (20 loaded at 0x140593f78). Each consumer has its own bound; none is a radius beyond which nothing happens.',
+               'Tree processing 0x14055a970 (called at 0x1405944a2) has its own R < 20 × strength gate (20 loaded at 0x140593f78), so under 200 m at the strength cap. Each consumer has its own bound; none is a radius beyond which nothing happens.',
                '0x1405946b4', 'f3 0f 59 35 c4 c2 61 00', report=r,
                literals={'0x140bb0980': '00 24 f4 48', '0x1405946e5': 'f3 0f 59 05 17 c2 61 00', '0x140bb0904': '00 60 ea 46', '0x1405941cf': 'f3 0f 5c 05 4d c3 61 00',
                          '0x140bb0524': '33 dc b6 40', '0x1405944a2': 'e8 c9 64 fc ff', '0x140593f78': 'f3 44 0f 10 25 47 c7 61 00', '0x140bb06c8': '00 00 a0 41'}),
+        native('Explosion lifetime', '271 updates, final R about 1548.60 m',
+               'Creation sets a countdown of 270 (0x140593dc6) and an age of 0. Each update advances the age, runs every consumer and only then tests the countdown (read at 0x14059455a), removing the record at 0 and decrementing it otherwise. '
+               'A fresh record is therefore processed 271 times. Replaying the float32 steps gives a final age of 4.514861583709717 and R = 1548.5975341796875, so no consumer of this record acts beyond that shell.',
+               '0x14059455a', '8b 46 1c', report=q, literals={'0x140593dc6': '48 c7 43 1c 0e 01 00 00', '0x14059416f': 'f3 0f 58 35 11 b8 61 00', '0x14059417c': 'f3 0f 59 35 7c c6 61 00'}),
+        native('Main meteor tsunami', 'type 0 ocean event at the impact; magnitude 0.5 → F, hold 18000, then fade',
+               'With the tsunami flag, the impact receiver starts a tsunami event only when the impact is below the sampled water height + 3 (0x14077d98d), the factor F exceeds 0.13 (0x14077daea), and the previous ocean event has faded to 0 or has a target below 0.5. '
+               'F is a bilinear byte-texture sample at the impact ÷ 255, 1 when the texture is absent. The receiver stores the horizontal impact position, magnitude 0.5 (0x14077dba7), target F, a hold count of 18000 (0x14077dbd2) and a start tick 30 ticks in the past (0x14077db91). '
+               'It is the same band as the tsunami: nothing outside abs(0.01 × r − 0.2 × t) < 3.04159283638, t the elapsed ticks ÷ 60, so the outer edge is at (0.2 × t + 3.04159283638) ÷ 0.01 m and moves outward with time.',
+               '0x14077dbd2', 'c7 80 70 a4 0b 00 50 46 00 00', report=q,
+               literals={'0x14077d98d': 'f2 0f 58 05 db 28 43 00', '0x140bb0270': '00 00 00 00 00 00 08 40', '0x14077daea': '0f 2f 35 1b 20 43 00', '0x140bafb0c': 'b8 1e 05 3e',
+                         '0x14077dba7': 'c7 80 64 a4 0b 00 00 00 00 3f', '0x14077db91': '83 e9 1e'}),
+        native('Meteor tsunami fade', 'magnitude step 0.0005555556 per ocean update',
+               'The ocean update 0x1402bc810 moves the magnitude from 0.5 toward F by this step (0x1402bc86a), counts the hold down, and then subtracts the same step to 0 (0x1402bc93b). '
+               'For F = 1 that is 900 rise updates, 18000 hold updates, one transition and 1800 fade updates, so the last nonzero update is the 20700th. With one tick per ocean update the band\'s outer edge is then about 7214.16 m from the impact (inference). '
+               'Other values of F change the rise length, and a new ocean event can overwrite this one.',
+               '0x1402bc86a', 'f3 0f 58 05 6a 30 8f 00', status='inferred', report=q, literals={'0x140baf8dc': 'b4 a2 11 3a', '0x1402bc93b': 'f3 0f 5c 0d 99 2f 8f 00'}),
     ]
     tiles = ROOT / 'rom/data/tiles'
     markers = []
@@ -825,8 +880,8 @@ def hazards():
                '0x140560572', 'f3 0f 59 51 68', report=r,
                literals={'0x140560561': 'f3 0f 10 51 44', '0x140560566': 'f3 0f 10 35 de 00 65 00', '0x140bb064c': '00 00 20 41', '0x1405605a9': 'e8 72 45 c4 ff', '0x140560adf': 'a8 0f'}),
         native('Volcano damage message', 'amount 500 + 500 × U, scalar min(amount ÷ 2000, 4)',
-               'With the vehicle_damage setting on (test at 0x140560ac3), an accepted hit picks a component or block and sends a damage message through 0x14022c520 (0x140560f85) carrying an amount from 500 to 1000. '
-               'This is a direct damage path besides collisions; how the message becomes HP is open.',
+               'With the vehicle_damage setting on (test at 0x140560ac3), an accepted hit picks a component or block and sends the component-damage message through 0x14022c520 (0x140560f85) carrying an amount from 500 to 1000. '
+               'This is a direct damage path besides collisions. In the component damage rule b = 4 × trunc(A ÷ 2000) is 0 for this range, so without a definition deduction a hit adds at most 1 unit, only to components within 2 cells (inference).',
                '0x140560eea', 'f3 0f 59 35 3e f9 64 00', report=r,
                literals={'0x140560ef2': 'f3 0f 58 35 36 f9 64 00', '0x140bb0830': '00 00 fa 43', '0x140560f1e': 'f3 0f 5e 05 4e f9 64 00', '0x140bb0874': '00 00 fa 44',
                          '0x140560f26': 'f3 0f 5d 05 5a f5 64 00', '0x140bb0488': '00 00 80 40', '0x140560f85': 'e8 96 b5 cc ff', '0x140560ac3': '80 78 4a 00'}),
@@ -834,6 +889,23 @@ def hazards():
                'An active volcano adds an exterior-fluid source that lowers the air exchange factor of parts such as the Air Scoop Intake 1x1 to max(0.01, 1 − volcanic_heat² × eruption_radius ÷ (2 × distance)). '
                'The inverse-distance term has no distance cutoff, so eruption_radius does not bound every volcano effect.',
                '0x14055fbde', 'f3 0f 59 c0 48 8b 00 f3 0f 11 40 18', report=r, literals={'0x14055fb62': 'f3 0f 59 05 52 01 65 00', '0x140bafcbc': '00 00 00 3f'}),
+        native('Eruption spatial weight', 'W = (1 − C((f − 0.7) ÷ 0.3)^5) × (1 − C((y − h) ÷ 50)) × C((y + 10) ÷ 10) × (1 − C((r − front − 2) ÷ 498))',
+               '0x140560160 returns W, with C a clamp to 0 to 1; it draws no random number and returns 0 unless is_erupting (+0x61) is set (0x14056016f). '
+               'r is the horizontal distance and y the height of the query point, f the volcano float at +0x68, front = 10 + (eruption_radius − 10) × (f − 0.2 × min(4 × f, 1) × B) and h = heightmap + 0.25 × (y0 + 100) − 10, y0 the volcano centre height. '
+               'B is an angular byte table interpolated at the point\'s bearing and ÷ 255 (0x1405602f8), which makes the front irregular around the crater. The radial fade runs from front + 2 to front + 500, a width of 498. '
+               'Constants: π (0x140560280), 0.2 (0x140560344), 0.7 (0x14056036d), 0.3 (0x140560387), 0.25 (0x1405603a1), exponent 5 (0x1405603b2), 500 (0x1405603fc); the height map is called at 0x140560368.',
+               '0x14056016f', '80 79 61 00', report=q,
+               literals={'0x140560280': 'f3 0f 5e 05 28 01 65 00', '0x1405602f8': 'f3 0f 5e 15 ec 04 65 00', '0x140560344': 'f3 0f 59 15 24 f8 64 00', '0x140560368': 'e8 23 0d 00 00',
+                         '0x14056036d': 'f3 44 0f 5c 15 06 fa 64 00', '0x140560387': 'f3 44 0f 5e 15 64 f8 64 00', '0x1405603a1': 'f3 0f 59 0d 13 f8 64 00', '0x1405603b2': 'f3 0f 10 0d 26 01 65 00', '0x1405603fc': 'f3 44 0f 58 1d 2b 04 65 00'}),
+        native('Eruption threshold', 'Q = C((W − 0.9) ÷ 0.1)^10',
+               'The object-effects path calls the weight at 0x14056063c, subtracts 0.9 (0x140560641) and divides by 0.1 (0x140560649). A positive Q drives a push; the damage branch needs Q of at least 1 and a valid collision payload, '
+               'and random draws inside it pick contact points, hits and amounts. W is a weight, not a per-update chance.',
+               '0x14056063c', 'e8 1f fb ff ff', report=q,
+               literals={'0x140560641': 'f3 0f 5c 05 eb f7 64 00', '0x140bafe34': '66 66 66 3f', '0x140560649': 'f3 0f 5e 05 83 f4 64 00', '0x140bafad4': 'd0 cc cc 3d'}),
+        native('Volcano height map', 'bilinear byte sample ÷ 255 × height field +0x3c',
+               '0x140561090 returns 0 when either map dimension (+0xbc, +0xc0, test at 0x1405610ab) is 0. Otherwise it maps world X and Z onto a rectangle centred on the volcano\'s tile, with tile coordinates × 1000 (0x1405610d5), '
+               'interpolates the four neighbouring bytes, wrapping the upper neighbours, and multiplies by the float height field (0x1405612c3).',
+               '0x1405610d5', 'f2 0f 59 25 db f3 64 00', report=q, literals={'0x140bb04b8': '00 00 00 00 00 40 8f 40', '0x1405610ab': '83 b9 c0 00 00 00 00', '0x1405612c3': 'f3 0f 59 67 3c'}),
     ]
     fire = [
         native('Tree ignition', '0x140559870 sets the intensity byte and lists the tree as burning',
@@ -842,25 +914,49 @@ def hazards():
                '0x1405598eb', '40 88 3c 68', report=r),
         native('Native ignition producers', 'position ignition 0x14055b090; explosions with intensity 100 to 199',
                'The scene calls 0x14055b090 (0x1405eae61) for an unspent type-3 entry in scene +0xbb288; it lights an unlit tree inside the given radius. The origin of that entry is unclassified. '
-               'Explosion tree processing gives an eligible tree a random intensity of 100 + rand() % 100 (0x14055adbf, 0x14055adc5) before ignition (0x14055addc); its full ignition chance is open.',
+               'Explosion tree processing gives an eligible tree a random intensity of 100 + rand() % 100 (0x14055adbf, 0x14055adc5) before ignition (0x14055addc); its draw order is listed below.',
                '0x1405eae61', 'e8 2a 02 f7 ff', report=r, literals={'0x14055adbf': '6b ca 64', '0x14055adc5': '45 8d 48 64', '0x14055addc': 'e8 8f ea ff ff'}),
         native('Fire rain threshold', 'trunc(100 × rain + 100)',
                'The tree update 0x14055bf50, called from the manager update (0x140558581), reads rain from the full weather output 0x1402c1830 (0x14055c02a). A burning tree\'s intensity rises to 255, then falls; it can spread only while the intensity exceeds this threshold.',
                '0x14055c038', 'f3 41 0f 59 c0', report=r,
                literals={'0x14055bf97': 'f3 44 0f 10 05 f0 47 65 00', '0x140bb0790': '00 00 c8 42', '0x14055c03d': 'f3 41 0f 58 c0', '0x14055c02a': 'e8 01 58 d6 ff', '0x140558581': 'e8 ca 39 00 00'}),
         native('Fire spread attempt', 'rand() % 25 = 0 per tree update',
-               'Also required: nonzero intensity, bit 2 of the tree state clear (0x14055c3ef) and the tree not removed. The modulo test is close to 1 in 25 per tree update, not a per-second chance; how often the tree update runs is open.',
+               'Also required: nonzero intensity, bit 2 of the tree state clear (0x14055c3ef) and the tree not removed. The modulo test is close to 1 in 25 per tree update, not a per-second chance.',
                '0x14055c412', '6b ca 19', report=r, literals={'0x14055c400': 'b8 1f 85 eb 51', '0x14055c3ef': 'f6 c1 04', '0x14055c6da': '6b ca 19'}),
         native('Fire spread target', 'horizontal distance² < 100 around source + 5 × offset vector',
                'Spread 0x14055cb70 moves the source point by 5 × the manager vector at +0x70 (0x14055cbde), which the manager writes from the horizontal weather wind, and lights one unlit tree under 10 m horizontally from that point with intensity 1 (0x14055cf51, call 0x14055cf5d). '
                'A failed search sets state bit 2 and the tree stops trying. 10 m is a search radius around an offset point, not a fire safe distance.',
                '0x14055ce00', 'f3 0f 10 15 88 39 65 00', report=r,
                literals={'0x140bb0790': '00 00 c8 42', '0x14055cbde': 'f2 0f 10 05 da 36 65 00', '0x140bb02c0': '00 00 00 00 00 00 14 40', '0x14055cf51': '41 b1 01', '0x14055cf5d': 'e8 0e c9 ff ff'}),
+        native('Fire spread over generations', 'distance from the first source < Σ (10 + 5 × |a|) over the generations',
+               'The manager writes a, at +0x70, as the horizontal sampled-wind direction times a sampled scalar, with Y = 0, and spread 0x14055cb70 loads it at 0x14055cbde. '
+               'Each generation searches around its own wind-offset point, so the 10 m search radius does not bound total spread; the triangle inequality gives only this sum, which depends on the forest, rain and the wind of each update.',
+               '0x14055cbde', 'f2 0f 10 05 da 36 65 00', report=q),
+        native('Tree update cadence', 'once per 30 forest-manager updates',
+               'The manager 0x140557fa0 calls the tree update (0x140558581) when its counter at +0x110 is 0 (0x140558534) and the simulation-authority path is taken, then stores (counter + 1) mod 30 (0x140558598, 0x14055859d). '
+               'At 60 manager updates per second that is two tree updates per second (inference).',
+               '0x140558598', '6b c2 1e', report=q, literals={'0x140558534': '83 bb 10 01 00 00 00', '0x140558581': 'e8 ca 39 00 00', '0x14055859d': '89 8b 10 01 00 00'}),
+        native('Explosion ignition order', 'inside half the radius: rand() % 10 = 0 destroys; otherwise rand() % 4 = 0 ignites',
+               'For a tree without flag bit 1 inside the current explosion radius, 0x14055a970 first tests the inner half (0.5 × r at 0x14055abfa): there a rand() % 10 = 0 draw (0x14055ad06) takes the destruction branch. '
+               'A tree that is not destroyed, or lies in the outer half, then gets a rand() % 4 = 0 draw (0x14055ad81) and ignites if it is unlit and has flag bit 0 clear. '
+               'The explosion repeats these draws on each update that reaches the tree, so they are per-visit chances, not the chance over a whole explosion. Over rand() outputs 0 to 32767 the inner-half ignition share per visit is 29491 ÷ 32768 × 1 ÷ 4, about 22.4998474 percent.',
+               '0x14055ad81', '25 03 00 00 80', report=q, literals={'0x14055abfa': 'f3 44 0f 59 2d b9 50 65 00', '0x140bafcbc': '00 00 00 3f', '0x14055ad06': 'b8 67 66 66 66'}),
     ]
     scheduling = [
-        native('Meteor and volcano spawn handlers', 'one direct caller each, the event dispatch',
-               'The meteor handler 0x14077d710 is called only at 0x14085f718 and the volcano activation handler 0x14077d6c0 only at 0x14085f6ec. The meteor pool append also has two callers in save loading, so the handler is not the only producer.',
-               '0x14085f6ec', 'e8 cf df f1 ff', report=r, literals={'0x14085f718': 'e8 f3 df f1 ff'}),
+        native('Meteor spawn handler', 'one direct caller, the event dispatch',
+               'The meteor handler 0x14077d710 is called only at 0x14085f718. The meteor pool append also has two callers in save loading, so the handler is not the only producer.',
+               '0x14085f718', 'e8 f3 df f1 ff', report=r),
+        native('Volcano activation', 'spawnVolcano → event 115 → 0x14077dcf0',
+               'The spawnVolcano operator 0x140725ab0 calls the sender 0x14022cdd0, which writes event 115; table entry 0x140863ba4 leads to the receiver 0x14077dcf0 (call at 0x14085f754). '
+               'The receiver finds the volcano in the scene collection at +0xbb3a0 (0x14077dd2f) and, only when both +0x60 and +0x61 are clear (0x14077dd36, 0x14077dd3b), sets +0x60 (0x14077dd50) and the update-dirty byte +0x78 (0x14077dd58). '
+               'That starts the buildup; the volcano update later writes 0x0100 to the pair (0x14055f174), clearing +0x60 and setting +0x61. The earlier attribution of activation to 0x14077d6c0 was wrong: that routine clears a field of another scene collection.',
+               '0x14022cdf7', '48 c7 40 08 73 00 00 00', report=q,
+               literals={'0x140863ba4': '45 f7 85 00', '0x14085f754': 'e8 97 e5 f1 ff', '0x14077dd2f': '49 03 90 a0 b3 0b 00', '0x14077dd36': '38 5a 60', '0x14077dd3b': '38 5a 61',
+                         '0x14077dd50': 'c6 42 60 01', '0x14077dd58': 'c6 42 78 01', '0x14055f174': '66 c7 47 60 00 01'}),
+        native('Volcano save flags', '+0x60 is_eruption_triggered, +0x61 is_erupting',
+               'The volcano serializer 0x14055e7d0 binds both bytes by these names (0x14055e9a3, 0x14055ea2f) and restores them on load, so a loaded save can resume a buildup or an eruption without a new scheduling decision.',
+               '0x14055e9a3', '4c 8d 05 be 9a 62 00', report=q,
+               literals={'0x140b88468': '69 73 5f 65 72 75 70 74 69 6f 6e 5f 74 72 69 67 67 65 72 65 64 00', '0x14055ea2f': '4c 8d 05 72 9a 62 00', '0x140b884a8': '69 73 5f 65 72 75 70 74 69 6e 67 00'}),
         native('Ocean event replication', 'copies stored ocean events to one client',
                'The ocean event send at 0x14084eda2 belongs to connection state replication 0x14084e6e0. It forwards the server\'s stored ocean event fields to one recipient\'s queue and draws no new disaster. '
                'The other ocean, meteor and volcano sends found sit in request handlers with permission checks.',
@@ -898,7 +994,7 @@ def hazards():
                          '0x1404d65ca': 'e8 11 ab de ff', '0x1404d65d2': 'f3 0f 5c d0', '0x1404d65db': 'f3 41 0f 59 dc', '0x1404d65e0': 'f3 41 0f 59 d8', '0x1404d65ee': 'f3 41 0f 59 cc',
                          '0x1404d6604': 'f3 41 0f 59 c4', '0x1404d6609': 'f3 41 0f 59 c0'}),
         native('Tornado force vehicle flag', 'E = 0 when vehicle byte +0x61c is set, else 1',
-               'The test at 0x1404d659f selects 1 when the byte is zero (0x1404d65a6) and otherwise a zeroed register (0x1404d65a8). What sets the byte is open.',
+               'The test at 0x1404d659f selects 1 when the byte is zero (0x1404d65a6) and otherwise a zeroed register (0x1404d65a8).',
                '0x1404d659f', '44 38 a7 1c 06 00 00', report=t, literals={'0x1404d65a6': '74 06', '0x1404d65a8': '41 0f 28 f2'}),
         native('Uncapped tornado force submission', 'force event 0x1401a7470, not the joined-mass cap 0x1401a7ad0',
                'The call at 0x1404d6644 goes to the plain force-event helper, which skips a zero vector and copies F unchanged with a zero lever arm (0x1404d6625), so it adds no torque. '
@@ -910,8 +1006,17 @@ def hazards():
                'Solver setup 0x140128560 reads the body\'s inverse mass (0x14012865a) and multiplies it into the accumulated force (0x140128734) with its integration factor. '
                'F itself does not scale with mass, so at the same wind a lighter body gains more speed from it. A body with zero inverse mass gets no linear change.',
                '0x14012865a', 'f2 41 0f 10 90 d0 03 00 00', report=t, literals={'0x140128734': 'f2 41 0f 59 80 60 04 00 00'}),
+        native('Vehicle compartment flag', 'byte +0x61c set while the vehicle is inside another vehicle\'s compartment',
+               'Later in the same update 0x1404d61f0 clears the byte (0x1404d771b) and tests candidate vehicles with 0x14048e810 (0x1404d77c0), which maps the point into the candidate\'s voxel grid and looks up its compartment. '
+               'A hit sets the byte (0x1404d77cd) and stores the candidate and compartment index at +0x620 to +0x628. The force reads the byte before this recomputation, so it uses the previous update\'s result. '
+               'The description is inferred from the compartment lookup; no field name was recovered.',
+               '0x1404d77cd', 'c6 87 1c 06 00 00 01', report=q, literals={'0x1404d771b': 'c6 87 1c 06 00 00 00', '0x1404d77c0': 'e8 4b 70 fb ff'}),
+        native('Weather suppression boxes', 'registered from tile-loaded geometry',
+               'Tile loading 0x14056e2c0 walks its +0x1a8 entries, keeps those with +0x200 = 0, and registers each transform and inner and outer bounds with the weather manager (call at 0x14056e566). '
+               '0x1402c10e0 evaluates the stored boxes and takes the largest suppression. Which tile XML element authors these boxes is open.',
+               '0x14056e566', 'e8 85 29 d5 ff', report=q),
     ]
-    return dict(spawning=spawning, tornado=tornado, ocean=ocean, meteor=meteor, volcano=volcano, fire=fire, scheduling=scheduling, force=force, push=push, radii=radii)
+    return dict(spawning=spawning, tornado=tornado, damage=damage, ocean=ocean, meteor=meteor, volcano=volcano, fire=fire, scheduling=scheduling, force=force, push=push, radii=radii)
 
 
 def build_articles():
@@ -1209,24 +1314,30 @@ def build_articles():
             'volcano with chance 0.1 + 0.7 × D if a volcano is within 2000 m, meteor 0.1 + 0.3 × D, whirlpool 0.1 + 0.3 × D on a tile with an empty name (open ocean, inference), tsunami 0.1 + 0.3 × D, and tornado 0.1 + 0.9 × D if the wind there exceeds 70. '
             'The disaster spawns 60 × 60 × random(30, 60) onTick calls later, 30 to 60 minutes at 60 calls per second. Tornado and meteor spawn 1500 to 2500 m from the mission; the tsunami spawns at the mission position itself once an ocean point 4000 to 8000 m away is found. '
             'Neither addon starts forest fires: the fire addon only marks fires the game reports, and native code ignites and spreads them. '
-            'No other automatic scheduler for the large disasters was found. The meteor and volcano spawn handlers each have one direct caller, the network event dispatch, and the other ocean event sends either answer player requests or copy an existing event to a client. '
-            'Indirect calls and save loading were not ruled out.'
+            'The two addons are the demonstrated disaster schedulers. spawnVolcano sends network event 115, and its receiver 0x14077dcf0 sets the volcano\'s is_eruption_triggered flag only when both it and is_erupting are clear; the buildup later clears the first flag and sets the second. '
+            'Both flags are saved and restored, so a loaded save can resume an eruption without a new scheduling decision. The meteor spawn handler has one direct caller, the network event dispatch, and the other ocean event sends either answer player requests or copy an existing event to a client. '
+            'A complete exclusion of native scheduling is still open.'
             '\n\n'
             'Table: Hazard spawning, reach and damage\n'
             '| Hazard | Natural addon | Mission addon | Direct reach | Damage | Still open |\n'
             '| --- | --- | --- | --- | --- | --- |\n'
             '| Large wave | weight 0.5, tsunami of magnitude 0.1 | none | the tsunami band | none in the water sampler | vehicle and character damage |\n'
-            '| Tornado | weight 0.2 | 0.1 + 0.9 × D, wind above 70 | wind 0 from 3000 m off the top (fresh spawn); the vehicle force it enables has no distance test | raycast request of 2500 × S, queued as a deferred record | final component and character damage |\n'
+            '| Tornado | weight 0.2 | 0.1 + 0.9 × D, wind above 70 | wind 0 from 3000 m off the top (fresh spawn); the vehicle force it enables has no distance test | raycast request of 2500 × S, turned into stored component damage | character damage |\n'
             '| Whirlpool | weight 0.1, magnitude 1 | 0.1 + 0.3 × D, ocean tile | current 0 from 200π ≈ 628.32 m | none in the water sampler | collision, flooding and drowning damage |\n'
             '| Tsunami | weight 0.1, magnitude 0.9 | 0.1 + 0.3 × D, magnitude 1 | 0 unless abs(q) < 3.04159283638 | none in the water sampler | collision, flooding and drowning damage |\n'
-            '| Meteor shower | weight 0.05 | 0.1 + 0.3 × D | one main and ten secondaries at M = 1; blast amplitude 0 from 250 × strength | explosion of strength size, or 3 × size with the tsunami flag, capped at 10 | block damage falloff and the tsunami reach |\n'
-            '| Volcano | weight 0.05, nearest volcano | 0.1 + 0.7 × D within 2000 m | query radius 10 + (eruption_radius − 10) × f; heat field without cutoff | damage message of 500 to 1000 | lava and projectile contact, final damage |\n'
+            '| Meteor shower | weight 0.05 | 0.1 + 0.3 × D | one main and ten secondaries at M = 1; explosion shell up to about 1548.60 m; the main\'s tsunami band grows until it fades | explosion of strength size, or 3 × size with the tsunami flag, capped at 10 | block damage falloff, other explosion consumers |\n'
+            '| Volcano | weight 0.05, nearest volcano | 0.1 + 0.7 × D within 2000 m | query radius 10 + (eruption_radius − 10) × f, weighted by the eruption front; heat field without cutoff | component-damage message of 500 to 1000; character damage rate of 3 | lava and projectile contact |\n'
             '| Lightning EMP | from the weather update | none | 0 from 300 m | electrical interference, not HP | other effects of a strike |\n'
-            '| Forest fire | none | marker only | spread looks 10 m around an offset point | open | initial ignition, heat and damage, total spread |'
+            '| Forest fire | none | marker only | spread looks 10 m around a wind-offset point each generation | open | lightning and other initial ignition, heat and damage |'
             '\n\n'
             'Tornado damage: with vehicle_damage on, each pass of the tornado\'s damage branch picks two points near the lower column and sends one damage raycast request carrying 2500 × S, 2500 for a fresh tornado with S = 1. '
-            'The server raycasts that segment, drops misses, and appends a damage record holding the amount and min(amount ÷ 2000, 4), which is 1.25 at S = 1, to a ring buffer for later processing. '
-            'The damage lands on what the segment hits; it is not 2500 HP per update and not damage to everything inside 3000 m. No other caller of the append and no reader of the buffer was found, so how the record becomes component or character damage is still open.'
+            'The server raycasts that segment, drops misses, and queues a record holding the hit vehicle and component, the amount A and s = min(A ÷ 2000, 4), which is 1.25 at S = 1. '
+            'The scene update drains that queue and sends each record as the component-damage message that volcano hits also use.'
+            '\n\n'
+            'Component damage: the component\'s handler first subtracts a value from the struck component\'s definition from A and stops unless A stays positive. '
+            'It then searches voxel cells, 4 per world unit, within clamp(1 − trunc(−4 × s), 0, 16) cells of the hit. Each component found at a rounded distance of d cells gets max(0, trunc((b − d) ÷ 3) + 1) damage units, with b = 4 × trunc(A ÷ 2000) and trunc rounding toward zero, and its stored damage is capped at 50. '
+            'This is a stepped voxel-distance rule that raises stored component damage; it does not subtract the amount as HP. For a fresh tornado with no deduction, A = 2500 and s = 1.25 give a 6-cell search and b = 4, so a component at d = 0 gets 2 units. '
+            'The damage lands on what the segment hits, not on everything inside 3000 m. No tornado path to character HP is known.'
             '\n\n'
             'Tsunami and large wave: both use event type 0 of the water sampler. With r the horizontal distance from the event and A its age in ocean counter steps, q = 0.01 × r − 0.2 × A ÷ 60, and the event adds nothing unless abs(q) < 3.04159283638. '
             'That is a ring about 304.16 m either side of r = A ÷ 3, moving outward at 20 m/s if the counter runs 60 steps per second (inference). '
@@ -1243,20 +1354,38 @@ def build_articles():
             '\n\n'
             'A meteor that hits land or water reports an impact and is removed. The impact queues an explosion whose strength is the size, or 3 × size with the tsunami flag, and explosion creation caps strength at 10: the main reaches 10 and the secondaries 2 to 8. Strength is an explosion parameter, not HP. '
             'The blast radius grows as R = 343 × age, the age advancing 0.0166599992663 per update, and the amplitude falls as 1 − clamp(R ÷ (250 × strength), 0, 1), reaching 0 at 2500 m for strength 10. '
-            'Other consumers have other bounds: the body push is min(500000 × strength ÷ R, 30000 × body mass) on bodies between max(0, R − 5.714379787) and R from the centre, and tree processing stops at 20 × strength. '
-            'None of these is a radius beyond which nothing happens. Block damage falloff and the reach of the main meteor\'s ocean event are still open.'
+            'The shared explosion record lasts 271 updates: creation sets a countdown of 270, and each update runs every consumer before the zero test that removes the record. Its final R is about 1548.60 m, so the amplitude\'s zero at 2500 m is never reached. '
+            'Within that shell the body push is min(500000 × strength ÷ R, 30000 × body mass) on bodies between max(0, R − 5.714379787) and R from the centre, and tree processing runs only while R < 20 × strength, under 200 m at the strength cap. '
+            'Other explosion consumers and meteor block-damage falloff remain open.'
+            '\n\n'
+            'The main meteor also starts a tsunami event when it lands less than 3 m above the sampled water height, a texture factor F at the impact exceeds 0.13 and the previous ocean event has faded or has a target below 0.5. '
+            'F is a byte-texture sample ÷ 255, 1 where the texture is absent, so it is not 1 everywhere. The event is the radial tsunami band above, centred on the impact and started 30 ticks in the past. '
+            'Its magnitude starts at 0.5, moves toward F by 0.0005555556 per ocean update, holds for 18000 updates and then fades to 0 at the same step. '
+            'With t the elapsed ticks ÷ 60, the band\'s outer edge is at (0.2 × t + 3.04159283638) ÷ 0.01 m, so its reach grows with time and ends when the magnitude fades; there is no single time-independent blast radius. '
+            'For F = 1 the last nonzero update is the 20700th, when the outer edge is about 7214.16 m from the impact if one tick passes per ocean update (inference).'
             '\n\n'
             f'Volcano: each volcano marker in the tile files sets a crater radius and an eruption_radius; the {len(hz["radii"])} shipped markers use eruption radii from {hz["radii"][0]} to {hz["radii"][-1]} m. '
+            'Spawning the volcano sets its is_eruption_triggered flag, which starts a buildup; the volcano update later switches to is_erupting. '
             'During an eruption the volcano update queries objects within 10 + (eruption_radius − 10) × f, f a per-volcano float. Queried objects pass collision-type, random and phase tests, the phase test being (update counter + body index) & 15 = 0, so a body is tested at most once per 16 updates (inference). '
-            'With vehicle_damage on, an accepted hit sends a damage message for a component or block carrying 500 to 1000 and min(amount ÷ 2000, 4), the same pair the tornado\'s record holds. How the message becomes HP is open. '
+            'Each object gets a spatial weight W = (1 − C((f − 0.7) ÷ 0.3)^5) × (1 − C((y − h) ÷ 50)) × C((y + 10) ÷ 10) × (1 − C((r − front − 2) ÷ 498)), C a clamp to 0 to 1, r the horizontal distance and y the height. '
+            'The front is 10 + (eruption_radius − 10) × (f − 0.2 × min(4 × f, 1) × B), B an angular byte table ÷ 255, so it is irregular around the crater. '
+            'h is a height-map sample, a bilinear byte map ÷ 255 times a height field, plus 0.25 × (y0 + 100) − 10, y0 being the volcano centre height. '
+            'The object-effects handler then forms Q = C((W − 0.9) ÷ 0.1)^10: a positive Q pushes the object and only Q = 1 opens the damage branch, where further random draws pick contact points, hits and amounts. W is a weight, not a per-update chance. '
+            'With vehicle_damage on, an accepted hit sends the component-damage message with an amount from 500 to 1000 and min(amount ÷ 2000, 4). There b = 0, so without a definition deduction a hit adds at most 1 unit, only to components within 2 cells (inference from the rule above). '
+            'Characters get a separate message, event 102 with amount 3. It adds −3 to the character\'s health-change rate for the next character update, which multiplies the rate by dt = elapsed ticks ÷ 60 and a scene integer K and adds the result to the hp value Lua reads. '
+            'One accepted event therefore removes 3 × dt × K HP, not 3 HP at once, and other health terms and state checks still apply. '
             'An active volcano also lowers the air exchange factor of nearby parts such as the Air Scoop Intake 1x1 to max(0.01, 1 − volcanic_heat² × eruption_radius ÷ (2 × distance)), with no distance cutoff, so eruption_radius is not a safe distance. '
-            'Lava and projectile paths and their contact damage are open.'
+            'Rendered eruption particles have not yet been connected to physical lava or projectile contact damage.'
             '\n\n'
             'Forest fire: native code ignites a tree by setting a per-tree intensity byte and adding the tree to its chunk\'s burning list. '
             'Explosions can light an eligible tree with a random intensity of 100 to 199, a position-and-radius ignition lights trees for a queued scene entry of unclassified origin, and burning trees spread. '
+            'An explosion tests each tree inside its current radius on every update that reaches it: a tree within half the radius first gets a rand() % 10 = 0 destruction draw, and a tree that survives it, or lies in the outer half, gets a rand() % 4 = 0 ignition draw that lights it if it is unlit. '
+            'These are per-visit chances, not the chance over a whole explosion. '
+            'The forest manager runs the tree simulation once every 30 manager updates, two per second at 60 manager updates per second (inference). '
             'Each tree update reads the rain value R from the full weather output and sets a threshold trunc(100 × R + 100). A burning tree\'s intensity rises to 255, then falls. '
             'While it exceeds the threshold, each tree update tries to spread with a rand() % 25 = 0 test, close to 1 in 25 per tree update. '
-            'A spread attempt moves the source point by 5 × a wind-derived vector and lights one unlit tree under 10 m horizontally from that point, at intensity 1; a tree whose search finds none stops trying. '
+            'A spread attempt moves the source point by 5 × a, a the manager\'s wind-derived vector, and lights one unlit tree under 10 m horizontally from that point, at intensity 1; a tree whose search finds none stops trying. '
+            'Each generation searches around its own wind-offset point, so the 10 m search radius does not bound total spread: after several generations the distance from the first source is only bounded by the sum of 10 + 5 × |a| over them. '
             'Rain raises the threshold and so shortens the time each tree can spread (inference). The intensity is a tree state, not a temperature or HP, and 10 m is a search radius, not a fire safe distance.'
             '\n\n'
             '## How hazard wind and current push a vehicle'
@@ -1268,7 +1397,8 @@ def build_articles():
             '\n\n'
             'The second route is a direct force that exists only while a tornado does. When the weather list holds at least one flagged tornado entry, the vehicle update adds F = E × (1 − A) × (7.5 × W.x, 30 × W.y, 7.5 × W.z) to vehicles in states 0, 2, 3, 5 and 7. '
             'W is the full wind at the vehicle position, ordinary weather wind plus the wind of every tornado; it is not made relative to the vehicle\'s motion. '
-            'A is a spatial suppression factor, 1 inside the inner box of a configured volume and blending to 0 across its outer box, and E is 0 when a vehicle flag byte is set and 1 otherwise. '
+            'A is a spatial suppression factor, 1 inside the inner box of a suppression volume and blending to 0 across its outer box; tile loading registers these volumes from tile geometry. '
+            'E is 0 while the vehicle sits inside another vehicle\'s compartment and 1 otherwise: each vehicle update recomputes that flag with a compartment query, and the force uses the result from the previous update. '
             'The update tests no distance to the tornado, so once a tornado exists, ordinary wind pushes eligible vehicles this way even outside every tornado\'s wind radius. '
             'F goes to the vehicle body with no lever arm, so it adds no torque, and it bypasses the joined-mass cap that part forces such as jet exhaust and propellers pass through. '
             'F has no mass factor: the solver multiplies it by inverse mass, so at the same wind a lighter vehicle gains more speed. No vehicle_damage test was found on this route, so it acts with vehicle damage off. '
@@ -1278,16 +1408,16 @@ def build_articles():
             'Each reach above bounds one direct contribution, except the tornado-enabled vehicle force, which has no distance test. None is a safe distance from debris, projectiles, collisions, secondary events or ordinary weather.',
             [config(n) for n in ['sunrise_start_hour','sunrise_hour','sunrise_end_hour','sunset_start_hour','sunset_hour','sunset_end_hour','tornado_base_radius_inner','tornado_base_radius_outer','tornado_wind_component_vertical','tornado_wind_component_radial','tornado_wind_component_tangential','whirlpool_vertical_force','whirlpool_radial_force','whirlpool_tangent_force']] +
             [absent([n for n in env_names if n.startswith(('sunrise_', 'sunset_', 'tornado_', 'whirlpool_'))], 'Lighting and hazard names', 'None of the sunrise, sunset, tornado or whirlpool names in the environment file occurs in the executable.'),
-             realtime_loader()] + wx['temperature'] + wx['lighting'] + wx['tornado'] + wx['whirlpool'] + hz['spawning'] + hz['tornado'] + hz['ocean'] + hz['meteor'] + hz['volcano'] + hz['fire'] + hz['scheduling'] + hz['force'] + hz['push'],
+             realtime_loader()] + wx['temperature'] + wx['lighting'] + wx['tornado'] + wx['whirlpool'] + hz['spawning'] + hz['tornado'] + hz['damage'] + hz['ocean'] + hz['meteor'] + hz['volcano'] + hz['fire'] + hz['scheduling'] + hz['force'] + hz['push'],
             [native_limit,
-             'The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.',
-             'Final vehicle and character damage was not traced: the consumer of the tornado\'s deferred damage record, how the volcano damage message becomes HP, and any damage from whirlpool and tsunami water beyond collision, flooding or drowning.',
-             'Meteor block damage falloff, the largest radius of every explosion consumer and the reach of the main meteor\'s ocean event were not established.',
-             'Volcano lava and projectile paths and their contact damage, the full eruption acceptance test and its height-map helper were not decoded.',
-             'Forest fire scheduling and damage were not established: how initial fires start, including the lightning and explosion ignition chances, how often the tree update runs, vehicle and character heat and damage, and how far a fire spreads over several generations.',
-             'Whether native code schedules natural disasters besides the two addons was not established: indirect calls, save restore paths and every writer of the volcano activation flag were not ruled out.',
+             'The texture values at named map sites were not recovered, so no site-specific temperature is given. The seasonal term uses the serialized numeric month, but its mapping to displayed calendar labels was not traced, so the warmest named in-game month is not established.',
+             'Tornado character damage was not traced, and neither was any tsunami or whirlpool damage beyond their physical water effects. The meaning of the component-definition value subtracted before component damage, and the scene multiplier K in character HP integration, were not established.',
+             'Meteor block-damage falloff and the bounds of explosion consumers outside the shared record, such as the separate record the impact queues through 0x14077e720, were not traced. The main meteor\'s texture factor F was not mapped across the world.',
+             'Rendered eruption particles were not connected to physical lava or projectile contact damage, and the object-kind, update-phase and raycast tests that still qualify the eruption damage branch were not decoded.',
+             'Lightning ignition, the origin of the scene\'s queued position ignitions, any other initial-fire scheduling and vehicle and character heat damage from fires were not traced.',
+             'An exhaustive exclusion of native disaster scheduling was not established: indirect calls, script operator invocations, load and clone paths and every writer of the volcano flags were not ruled out.',
              'The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.',
-             'The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, of the vehicle flag that zeroes the force and of the suppression volumes, '
+             'The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, '
              'the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update.'])
     article('jet-engines', 'Jet startup, turbines and afterburners', 'Engines',
             'Jet component descriptions separate electrical startup, combustion and exhaust controls.',

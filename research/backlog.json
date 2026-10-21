@@ -875,37 +875,37 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/1",
-        "text": "The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.",
+        "text": "The texture values at named map sites were not recovered, so no site-specific temperature is given. The seasonal term uses the serialized numeric month, but its mapping to displayed calendar labels was not traced, so the warmest named in-game month is not established.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/2",
-        "text": "Final vehicle and character damage was not traced: the consumer of the tornado's deferred damage record, how the volcano damage message becomes HP, and any damage from whirlpool and tsunami water beyond collision, flooding or drowning.",
+        "text": "Tornado character damage was not traced, and neither was any tsunami or whirlpool damage beyond their physical water effects. The meaning of the component-definition value subtracted before component damage, and the scene multiplier K in character HP integration, were not established.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/3",
-        "text": "Meteor block damage falloff, the largest radius of every explosion consumer and the reach of the main meteor's ocean event were not established.",
+        "text": "Meteor block-damage falloff and the bounds of explosion consumers outside the shared record, such as the separate record the impact queues through 0x14077e720, were not traced. The main meteor's texture factor F was not mapped across the world.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/4",
-        "text": "Volcano lava and projectile paths and their contact damage, the full eruption acceptance test and its height-map helper were not decoded.",
+        "text": "Rendered eruption particles were not connected to physical lava or projectile contact damage, and the object-kind, update-phase and raycast tests that still qualify the eruption damage branch were not decoded.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/5",
-        "text": "Forest fire scheduling and damage were not established: how initial fires start, including the lightning and explosion ignition chances, how often the tree update runs, vehicle and character heat and damage, and how far a fire spreads over several generations.",
+        "text": "Lightning ignition, the origin of the scene's queued position ignitions, any other initial-fire scheduling and vehicle and character heat damage from fires were not traced.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/6",
-        "text": "Whether native code schedules natural disasters besides the two addons was not established: indirect calls, save restore paths and every writer of the volcano activation flag were not ruled out.",
+        "text": "An exhaustive exclusion of native disaster scheduling was not established: indirect calls, script operator invocations, load and clone paths and every writer of the volcano flags were not ruled out.",
         "scope": "Shipped-resource mechanics article"
       },
       {
@@ -917,7 +917,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/8",
-        "text": "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, of the vehicle flag that zeroes the force and of the suppression volumes, the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update.",
+        "text": "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

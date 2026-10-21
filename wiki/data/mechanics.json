@@ -2953,7 +2953,7 @@
       "title": "Weather temperature, lighting and hazards",
       "category": "Environment",
       "summary": "Parts sample a weather temperature that blends air and water by depth: air follows a warmth fraction from world Z, scrolling weather textures, month and time of day, minus rain cooling and 6.5 °C per 1000 m of height. The native lighting table and the tornado, whirlpool and tsunami vectors are decoded; the realtime environment file's hour markers and force terms are not what the game uses. While a tornado exists, vehicles also get a direct wind force that skips the joined-mass force cap. Two shipped addons spawn natural disasters and native code spreads forest fires; each hazard has a decoded reach or an open item.",
-      "body": "Every part that samples its surroundings outside an enclosed compartment (heat exchangers, radiators, engines, fluid tanks, steam and nuclear parts) uses one weather routine. It blends an air temperature Ta and a water temperature Tw by f = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so the sample is pure air from 0.25 m above the surface and pure water from 23.75 m below it.\n\nBoth temperatures start from a regional sampler that returns a warmth fraction W and a rain value R, each 0 to 1. W = clamp(1 − 6 × |z ÷ 256000 + 0.5 − 0.35| + a + 0.475 × season + 0.05 × day, 0, 1). The first term is a band along world Z, highest at z = −38400 m (inference: a latitude-like climate band). a is the product of two red samples of the noise texture weather_1.txtr, read at a fast and a slow scrolling offset; R comes from its green samples as clamp(5 × (g1 − 0.15), 0, 1). World X enters only through the textures. day = 0.5 + 0.5 × sin(2π × q − π/2) is 0 at midnight and 1 at noon, with q the fraction of the game day. season = 0.5 + 0.5 × sin(0.5711987 × (month + q) − π/2) peaks at month + q = 5.5. It reads the saved month and the fraction of the day but not the day of the month, so it advances over each day and steps back at midnight unless the month changes (inference from the formula).\n\nAir: Ta = max(−270, lerp(−15 − 15k, 30 − 10k, W) − 6.5 × max(y, 0) ÷ 1000), with k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.2 × w)³. Parts pass a flag that fixes w at 0.1, so wind never changes a part's sample (12 of the 13 calls found pass it). Dry air therefore runs from −15 °C at W = 0 to 30 °C at W = 1 at sea level, and heavy rain (R = 1) moves those ends to −23.27 and 24.49 °C. Height above world zero costs 6.5 °C per 1000 m. Water: Tw = lerp(1 − 4R, 8 − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero, not below the local wave surface. There is no depth clamp and no lower floor; depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m.\n\nWithout rain a part reads −15 + 45 × W to within 0.001 °C. At a location where W = 0.5 at midnight, noon adds 0.05 to W and raises sea-level air from 7.5 to 9.75 °C; at 1000 m the same samples give 1 and 3.25 °C. Dry water at W = 0 is 1 °C at the surface and 2.5 °C 1000 m down; at W = 1 it is 8 and 6.5 °C. These are conditional examples: W depends on the texture samples at the position, so no fixed temperature follows from the hour alone. The samplers read the regional sampler directly, not the full weather output that adds custom weather and local hazard effects, so those additions do not enter these equations.\n\nLighting: the update divides the time of day by 3600 × day_length and interpolates a native keyframe table linearly between the first key at or after q and the one before it. The keys sit at 0, 5.76, 7.26, 8.76, 12, 15.48, 16.98, 18.48 and 24 h. The environment file instead places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19; those names do not occur in the executable and are not the keys. The keys are lighting keyframes, not astronomical or mission sunrise times.\n\nTable: Native lighting keys\n| q | Hour | Role (inference from the record order) |\n| --- | --- | --- |\n| 0.24 | 5.76 | dawn start |\n| 0.3025 | 7.26 | dawn middle |\n| 0.365 | 8.76 | dawn end |\n| 0.5 | 12 | noon |\n| 0.645 | 15.48 | dusk start |\n| 0.7075 | 16.98 | dusk middle |\n| 0.77 | 18.48 | dusk end |\n\nTornado: each tornado adds a wind vector, capped at length 100, to the weather wind. Outside its core it is I × S × (−100 × a⁸ × (1 − u)² × e + 50 × a² × tangent), with a = 1 − clamp(d ÷ R, 0, 1) for horizontal distance d from the tornado top and outer radius R, u the height fraction from base to top, e the outward horizontal direction and I and S its active factor and strength. The inward pull falls with the eighth power and the swirl with the square, and the pull vanishes at the top; there is no inverse-square law. Inside the core, between base and top, gain = 12 × u³ + 10 ÷ (100 × u + 10) sizes the inner and outer core and the core adds radial, swirl and upward terms with coefficients 200, 200 and 100. The active factor moves by 0.0005 per update, and a damage branch reads the vehicle_damage setting.\n\nWhirlpool: for horizontal distance r from the centre and z = r ÷ 100, the current inside r < 200π is 50 × M × g × (n + tangent), with h = 0.33 ÷ (z² + 0.33) − 0.033, n the normalized vector (−e.x, −h, −e.z) and g = sin(1 ÷ ((z ÷ 2)² + 0.35)) − 0.1. Inside r < 100π the surface drops by 100 × M × h metres and a narrow downward term 500 × M × (0.01 ÷ (z² + 0.01) − 0.001) is added. The whole vector fades linearly from full strength at the depressed surface to 0 at 100 m below it. The environment file's whirlpool forces, 400 vertical, 60 radial and 50 tangential, are not these coefficients. These vectors are wind and current in native units, not forces on a vehicle: what a hull feels depends on the code that consumes them, its shape and its relative motion.\n\nNatural disasters: two shipped addons spawn them. The natural disaster addon lowers a countdown by 1 per onTick call; a slider sets it from 1 to 60 minutes, default 15, and a new save starts at 54000 calls, 15 minutes at 60 calls per second. At 0 it resets and accepts an event with chance D = min(1, (date − 20) ÷ 60), or always with no_clip on, so with no_clip off nothing spawns before date value 20 (inference: the date value counts in-game days). An accepted event is a large wave with weight 0.5, a tornado 0.2, a whirlpool 0.1, a tsunami 0.1, a meteor shower 0.05 or a volcano 0.05, placed 5000 m from player 0 at a random angle; a volcano event erupts the nearest volcano instead. This addon tests no weather, rain or wind.\n\nThe mission addon chooses a disaster when it creates a mission, if its Natural Disaster Missions switch is on (the default) and no disaster is pending. With D = min(1, date ÷ 60) it tries, in order and each only if every earlier draw failed: volcano with chance 0.1 + 0.7 × D if a volcano is within 2000 m, meteor 0.1 + 0.3 × D, whirlpool 0.1 + 0.3 × D on a tile with an empty name (open ocean, inference), tsunami 0.1 + 0.3 × D, and tornado 0.1 + 0.9 × D if the wind there exceeds 70. The disaster spawns 60 × 60 × random(30, 60) onTick calls later, 30 to 60 minutes at 60 calls per second. Tornado and meteor spawn 1500 to 2500 m from the mission; the tsunami spawns at the mission position itself once an ocean point 4000 to 8000 m away is found. Neither addon starts forest fires: the fire addon only marks fires the game reports, and native code ignites and spreads them. No other automatic scheduler for the large disasters was found. The meteor and volcano spawn handlers each have one direct caller, the network event dispatch, and the other ocean event sends either answer player requests or copy an existing event to a client. Indirect calls and save loading were not ruled out.\n\nTable: Hazard spawning, reach and damage\n| Hazard | Natural addon | Mission addon | Direct reach | Damage | Still open |\n| --- | --- | --- | --- | --- | --- |\n| Large wave | weight 0.5, tsunami of magnitude 0.1 | none | the tsunami band | none in the water sampler | vehicle and character damage |\n| Tornado | weight 0.2 | 0.1 + 0.9 × D, wind above 70 | wind 0 from 3000 m off the top (fresh spawn); the vehicle force it enables has no distance test | raycast request of 2500 × S, queued as a deferred record | final component and character damage |\n| Whirlpool | weight 0.1, magnitude 1 | 0.1 + 0.3 × D, ocean tile | current 0 from 200π ≈ 628.32 m | none in the water sampler | collision, flooding and drowning damage |\n| Tsunami | weight 0.1, magnitude 0.9 | 0.1 + 0.3 × D, magnitude 1 | 0 unless abs(q) < 3.04159283638 | none in the water sampler | collision, flooding and drowning damage |\n| Meteor shower | weight 0.05 | 0.1 + 0.3 × D | one main and ten secondaries at M = 1; blast amplitude 0 from 250 × strength | explosion of strength size, or 3 × size with the tsunami flag, capped at 10 | block damage falloff and the tsunami reach |\n| Volcano | weight 0.05, nearest volcano | 0.1 + 0.7 × D within 2000 m | query radius 10 + (eruption_radius − 10) × f; heat field without cutoff | damage message of 500 to 1000 | lava and projectile contact, final damage |\n| Lightning EMP | from the weather update | none | 0 from 300 m | electrical interference, not HP | other effects of a strike |\n| Forest fire | none | marker only | spread looks 10 m around an offset point | open | initial ignition, heat and damage, total spread |\n\nTornado damage: with vehicle_damage on, each pass of the tornado's damage branch picks two points near the lower column and sends one damage raycast request carrying 2500 × S, 2500 for a fresh tornado with S = 1. The server raycasts that segment, drops misses, and appends a damage record holding the amount and min(amount ÷ 2000, 4), which is 1.25 at S = 1, to a ring buffer for later processing. The damage lands on what the segment hits; it is not 2500 HP per update and not damage to everything inside 3000 m. No other caller of the append and no reader of the buffer was found, so how the record becomes component or character damage is still open.\n\nTsunami and large wave: both use event type 0 of the water sampler. With r the horizontal distance from the event and A its age in ocean counter steps, q = 0.01 × r − 0.2 × A ÷ 60, and the event adds nothing unless abs(q) < 3.04159283638. That is a ring about 304.16 m either side of r = A ÷ 3, moving outward at 20 m/s if the counter runs 60 steps per second (inference). Inside it the surface rises by H = 100 × M × (1 ÷ (q² + 1) − 0.1) and the current is 12 × (1 + cos φ) × (e.x, clamp(10 × q, −1, 1), e.z), with φ from a 512-entry table that solves φ − 0.8 × sin φ = target. The current fades to 0 at 100 m below the raised surface. At q = 0, H = 90 × M: a 9 m crest for the large wave, 81 m for the natural tsunami and 90 m for the mission tsunami, if M reaches the requested magnitude (inference). No radius is safe at every age: a point the ring has passed gets nothing more from this event, and a point ahead of it is still to be reached.\n\nMeteor shower: the script operator clamps the magnitude M to 0 to 1 and sends one main meteor and trunc(10 × M) secondaries; each recipient gets a copy of the same shower, not extra meteors. With d the randomized incoming direction, the main starts 30000 back along d from the target, with size max(1, 20 × M) and velocity 20 × d. Each secondary aims within ±500 × M of the target horizontally, starts 20000 + U × 15000 × M back, and has size max(1, (0.1 + 0.3 × U) × 20 × M) and velocity (19 + U) × d, each U a separate random draw from 0 to 1. At M = 1, the value both addons pass, that is one size-20 meteor and ten of size 2 to 8. The velocity is a step per scene update: the update raycasts from the position to position + velocity and then adds it, so at a nominal 60 updates per second the main moves at 1200 m/s and the secondaries at 1140 to 1200 m/s (inference). Only the main keeps the caller's tsunami flag, which both addons set; the secondaries pass false.\n\nA meteor that hits land or water reports an impact and is removed. The impact queues an explosion whose strength is the size, or 3 × size with the tsunami flag, and explosion creation caps strength at 10: the main reaches 10 and the secondaries 2 to 8. Strength is an explosion parameter, not HP. The blast radius grows as R = 343 × age, the age advancing 0.0166599992663 per update, and the amplitude falls as 1 − clamp(R ÷ (250 × strength), 0, 1), reaching 0 at 2500 m for strength 10. Other consumers have other bounds: the body push is min(500000 × strength ÷ R, 30000 × body mass) on bodies between max(0, R − 5.714379787) and R from the centre, and tree processing stops at 20 × strength. None of these is a radius beyond which nothing happens. Block damage falloff and the reach of the main meteor's ocean event are still open.\n\nVolcano: each volcano marker in the tile files sets a crater radius and an eruption_radius; the 8 shipped markers use eruption radii from 1000 to 5000 m. During an eruption the volcano update queries objects within 10 + (eruption_radius − 10) × f, f a per-volcano float. Queried objects pass collision-type, random and phase tests, the phase test being (update counter + body index) & 15 = 0, so a body is tested at most once per 16 updates (inference). With vehicle_damage on, an accepted hit sends a damage message for a component or block carrying 500 to 1000 and min(amount ÷ 2000, 4), the same pair the tornado's record holds. How the message becomes HP is open. An active volcano also lowers the air exchange factor of nearby parts such as the Air Scoop Intake 1x1 to max(0.01, 1 − volcanic_heat² × eruption_radius ÷ (2 × distance)), with no distance cutoff, so eruption_radius is not a safe distance. Lava and projectile paths and their contact damage are open.\n\nForest fire: native code ignites a tree by setting a per-tree intensity byte and adding the tree to its chunk's burning list. Explosions can light an eligible tree with a random intensity of 100 to 199, a position-and-radius ignition lights trees for a queued scene entry of unclassified origin, and burning trees spread. Each tree update reads the rain value R from the full weather output and sets a threshold trunc(100 × R + 100). A burning tree's intensity rises to 255, then falls. While it exceeds the threshold, each tree update tries to spread with a rand() % 25 = 0 test, close to 1 in 25 per tree update. A spread attempt moves the source point by 5 × a wind-derived vector and lights one unlit tree under 10 m horizontally from that point, at intensity 1; a tree whose search finds none stops trying. Rain raises the threshold and so shortens the time each tree can spread (inference). The intensity is a tree state, not a temperature or HP, and 10 m is a search radius, not a fire safe distance.\n\n## How hazard wind and current push a vehicle\n\nHazard wind and current reach a vehicle by two routes. In the surface route they enter as velocities, not forces. The vehicle update samples the weather wind, tornado wind included, and the hull air callback uses the point velocity v + ω × r minus that wind at each surface point; the water callback subtracts the sampled current the same way. Each callback writes a force and lever arm per surface point. A pass sums the forces and the torques r × F, and the vehicle submits both to its Bullet body, which adds them to the body's total force and torque. The solver turns total force into a velocity change: for a free body with unit linear factors, Δv = F × dt ÷ m, which is F ÷ (60 × m) at dt = 1/60 s. The push therefore depends on the hull's surfaces, shielding, air or water density, drag and lift terms and its own motion. A stationary, unshielded surface sees air moving at minus the sampled wind.\n\nThe second route is a direct force that exists only while a tornado does. When the weather list holds at least one flagged tornado entry, the vehicle update adds F = E × (1 − A) × (7.5 × W.x, 30 × W.y, 7.5 × W.z) to vehicles in states 0, 2, 3, 5 and 7. W is the full wind at the vehicle position, ordinary weather wind plus the wind of every tornado; it is not made relative to the vehicle's motion. A is a spatial suppression factor, 1 inside the inner box of a configured volume and blending to 0 across its outer box, and E is 0 when a vehicle flag byte is set and 1 otherwise. The update tests no distance to the tornado, so once a tornado exists, ordinary wind pushes eligible vehicles this way even outside every tornado's wind radius. F goes to the vehicle body with no lever arm, so it adds no torque, and it bypasses the joined-mass cap that part forces such as jet exhaust and propellers pass through. F has no mass factor: the solver multiplies it by inverse mass, so at the same wind a lighter vehicle gains more speed. No vehicle_damage test was found on this route, so it acts with vehicle damage off. This route was traced for vehicles only.\n\nNo single force or acceleration applies to every vehicle at a given distance from a tornado; to isolate a tornado's push on one vehicle, compare both routes with and without its wind (inference). The wind cap of 100 bounds each tornado's wind vector, not either force. Each reach above bounds one direct contribution, except the tornado-enabled vehicle force, which has no distance test. None is a safe distance from debris, projectiles, collisions, secondary events or ordinary weather.",
+      "body": "Every part that samples its surroundings outside an enclosed compartment (heat exchangers, radiators, engines, fluid tanks, steam and nuclear parts) uses one weather routine. It blends an air temperature Ta and a water temperature Tw by f = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so the sample is pure air from 0.25 m above the surface and pure water from 23.75 m below it.\n\nBoth temperatures start from a regional sampler that returns a warmth fraction W and a rain value R, each 0 to 1. W = clamp(1 − 6 × |z ÷ 256000 + 0.5 − 0.35| + a + 0.475 × season + 0.05 × day, 0, 1). The first term is a band along world Z, highest at z = −38400 m (inference: a latitude-like climate band). a is the product of two red samples of the noise texture weather_1.txtr, read at a fast and a slow scrolling offset; R comes from its green samples as clamp(5 × (g1 − 0.15), 0, 1). World X enters only through the textures. day = 0.5 + 0.5 × sin(2π × q − π/2) is 0 at midnight and 1 at noon, with q the fraction of the game day. season = 0.5 + 0.5 × sin(0.5711987 × (month + q) − π/2) peaks at month + q = 5.5. It reads the saved month and the fraction of the day but not the day of the month, so it advances over each day and steps back at midnight unless the month changes (inference from the formula).\n\nAir: Ta = max(−270, lerp(−15 − 15k, 30 − 10k, W) − 6.5 × max(y, 0) ÷ 1000), with k = (0.8 × clamp((R − 0.4) ÷ 0.6, 0, 1) + 0.2 × w)³. Parts pass a flag that fixes w at 0.1, so wind never changes a part's sample (12 of the 13 calls found pass it). Dry air therefore runs from −15 °C at W = 0 to 30 °C at W = 1 at sea level, and heavy rain (R = 1) moves those ends to −23.27 and 24.49 °C. Height above world zero costs 6.5 °C per 1000 m. Water: Tw = lerp(1 − 4R, 8 − 5R, W) + 3 × (D ÷ 1000) × (0.5 − W), with D = max(−y, 0) metres below world zero, not below the local wave surface. There is no depth clamp and no lower floor; depth warms water where W < 0.5 and cools it where W > 0.5, by at most 1.5 °C per 1000 m.\n\nWithout rain a part reads −15 + 45 × W to within 0.001 °C. At a location where W = 0.5 at midnight, noon adds 0.05 to W and raises sea-level air from 7.5 to 9.75 °C; at 1000 m the same samples give 1 and 3.25 °C. Dry water at W = 0 is 1 °C at the surface and 2.5 °C 1000 m down; at W = 1 it is 8 and 6.5 °C. These are conditional examples: W depends on the texture samples at the position, so no fixed temperature follows from the hour alone. The samplers read the regional sampler directly, not the full weather output that adds custom weather and local hazard effects, so those additions do not enter these equations.\n\nLighting: the update divides the time of day by 3600 × day_length and interpolates a native keyframe table linearly between the first key at or after q and the one before it. The keys sit at 0, 5.76, 7.26, 8.76, 12, 15.48, 16.98, 18.48 and 24 h. The environment file instead places sunrise markers at 6, 7.5 and 9 hours and sunset markers at 16, 17.5 and 19; those names do not occur in the executable and are not the keys. The keys are lighting keyframes, not astronomical or mission sunrise times.\n\nTable: Native lighting keys\n| q | Hour | Role (inference from the record order) |\n| --- | --- | --- |\n| 0.24 | 5.76 | dawn start |\n| 0.3025 | 7.26 | dawn middle |\n| 0.365 | 8.76 | dawn end |\n| 0.5 | 12 | noon |\n| 0.645 | 15.48 | dusk start |\n| 0.7075 | 16.98 | dusk middle |\n| 0.77 | 18.48 | dusk end |\n\nTornado: each tornado adds a wind vector, capped at length 100, to the weather wind. Outside its core it is I × S × (−100 × a⁸ × (1 − u)² × e + 50 × a² × tangent), with a = 1 − clamp(d ÷ R, 0, 1) for horizontal distance d from the tornado top and outer radius R, u the height fraction from base to top, e the outward horizontal direction and I and S its active factor and strength. The inward pull falls with the eighth power and the swirl with the square, and the pull vanishes at the top; there is no inverse-square law. Inside the core, between base and top, gain = 12 × u³ + 10 ÷ (100 × u + 10) sizes the inner and outer core and the core adds radial, swirl and upward terms with coefficients 200, 200 and 100. The active factor moves by 0.0005 per update, and a damage branch reads the vehicle_damage setting.\n\nWhirlpool: for horizontal distance r from the centre and z = r ÷ 100, the current inside r < 200π is 50 × M × g × (n + tangent), with h = 0.33 ÷ (z² + 0.33) − 0.033, n the normalized vector (−e.x, −h, −e.z) and g = sin(1 ÷ ((z ÷ 2)² + 0.35)) − 0.1. Inside r < 100π the surface drops by 100 × M × h metres and a narrow downward term 500 × M × (0.01 ÷ (z² + 0.01) − 0.001) is added. The whole vector fades linearly from full strength at the depressed surface to 0 at 100 m below it. The environment file's whirlpool forces, 400 vertical, 60 radial and 50 tangential, are not these coefficients. These vectors are wind and current in native units, not forces on a vehicle: what a hull feels depends on the code that consumes them, its shape and its relative motion.\n\nNatural disasters: two shipped addons spawn them. The natural disaster addon lowers a countdown by 1 per onTick call; a slider sets it from 1 to 60 minutes, default 15, and a new save starts at 54000 calls, 15 minutes at 60 calls per second. At 0 it resets and accepts an event with chance D = min(1, (date − 20) ÷ 60), or always with no_clip on, so with no_clip off nothing spawns before date value 20 (inference: the date value counts in-game days). An accepted event is a large wave with weight 0.5, a tornado 0.2, a whirlpool 0.1, a tsunami 0.1, a meteor shower 0.05 or a volcano 0.05, placed 5000 m from player 0 at a random angle; a volcano event erupts the nearest volcano instead. This addon tests no weather, rain or wind.\n\nThe mission addon chooses a disaster when it creates a mission, if its Natural Disaster Missions switch is on (the default) and no disaster is pending. With D = min(1, date ÷ 60) it tries, in order and each only if every earlier draw failed: volcano with chance 0.1 + 0.7 × D if a volcano is within 2000 m, meteor 0.1 + 0.3 × D, whirlpool 0.1 + 0.3 × D on a tile with an empty name (open ocean, inference), tsunami 0.1 + 0.3 × D, and tornado 0.1 + 0.9 × D if the wind there exceeds 70. The disaster spawns 60 × 60 × random(30, 60) onTick calls later, 30 to 60 minutes at 60 calls per second. Tornado and meteor spawn 1500 to 2500 m from the mission; the tsunami spawns at the mission position itself once an ocean point 4000 to 8000 m away is found. Neither addon starts forest fires: the fire addon only marks fires the game reports, and native code ignites and spreads them. The two addons are the demonstrated disaster schedulers. spawnVolcano sends network event 115, and its receiver 0x14077dcf0 sets the volcano's is_eruption_triggered flag only when both it and is_erupting are clear; the buildup later clears the first flag and sets the second. Both flags are saved and restored, so a loaded save can resume an eruption without a new scheduling decision. The meteor spawn handler has one direct caller, the network event dispatch, and the other ocean event sends either answer player requests or copy an existing event to a client. A complete exclusion of native scheduling is still open.\n\nTable: Hazard spawning, reach and damage\n| Hazard | Natural addon | Mission addon | Direct reach | Damage | Still open |\n| --- | --- | --- | --- | --- | --- |\n| Large wave | weight 0.5, tsunami of magnitude 0.1 | none | the tsunami band | none in the water sampler | vehicle and character damage |\n| Tornado | weight 0.2 | 0.1 + 0.9 × D, wind above 70 | wind 0 from 3000 m off the top (fresh spawn); the vehicle force it enables has no distance test | raycast request of 2500 × S, turned into stored component damage | character damage |\n| Whirlpool | weight 0.1, magnitude 1 | 0.1 + 0.3 × D, ocean tile | current 0 from 200π ≈ 628.32 m | none in the water sampler | collision, flooding and drowning damage |\n| Tsunami | weight 0.1, magnitude 0.9 | 0.1 + 0.3 × D, magnitude 1 | 0 unless abs(q) < 3.04159283638 | none in the water sampler | collision, flooding and drowning damage |\n| Meteor shower | weight 0.05 | 0.1 + 0.3 × D | one main and ten secondaries at M = 1; explosion shell up to about 1548.60 m; the main's tsunami band grows until it fades | explosion of strength size, or 3 × size with the tsunami flag, capped at 10 | block damage falloff, other explosion consumers |\n| Volcano | weight 0.05, nearest volcano | 0.1 + 0.7 × D within 2000 m | query radius 10 + (eruption_radius − 10) × f, weighted by the eruption front; heat field without cutoff | component-damage message of 500 to 1000; character damage rate of 3 | lava and projectile contact |\n| Lightning EMP | from the weather update | none | 0 from 300 m | electrical interference, not HP | other effects of a strike |\n| Forest fire | none | marker only | spread looks 10 m around a wind-offset point each generation | open | lightning and other initial ignition, heat and damage |\n\nTornado damage: with vehicle_damage on, each pass of the tornado's damage branch picks two points near the lower column and sends one damage raycast request carrying 2500 × S, 2500 for a fresh tornado with S = 1. The server raycasts that segment, drops misses, and queues a record holding the hit vehicle and component, the amount A and s = min(A ÷ 2000, 4), which is 1.25 at S = 1. The scene update drains that queue and sends each record as the component-damage message that volcano hits also use.\n\nComponent damage: the component's handler first subtracts a value from the struck component's definition from A and stops unless A stays positive. It then searches voxel cells, 4 per world unit, within clamp(1 − trunc(−4 × s), 0, 16) cells of the hit. Each component found at a rounded distance of d cells gets max(0, trunc((b − d) ÷ 3) + 1) damage units, with b = 4 × trunc(A ÷ 2000) and trunc rounding toward zero, and its stored damage is capped at 50. This is a stepped voxel-distance rule that raises stored component damage; it does not subtract the amount as HP. For a fresh tornado with no deduction, A = 2500 and s = 1.25 give a 6-cell search and b = 4, so a component at d = 0 gets 2 units. The damage lands on what the segment hits, not on everything inside 3000 m. No tornado path to character HP is known.\n\nTsunami and large wave: both use event type 0 of the water sampler. With r the horizontal distance from the event and A its age in ocean counter steps, q = 0.01 × r − 0.2 × A ÷ 60, and the event adds nothing unless abs(q) < 3.04159283638. That is a ring about 304.16 m either side of r = A ÷ 3, moving outward at 20 m/s if the counter runs 60 steps per second (inference). Inside it the surface rises by H = 100 × M × (1 ÷ (q² + 1) − 0.1) and the current is 12 × (1 + cos φ) × (e.x, clamp(10 × q, −1, 1), e.z), with φ from a 512-entry table that solves φ − 0.8 × sin φ = target. The current fades to 0 at 100 m below the raised surface. At q = 0, H = 90 × M: a 9 m crest for the large wave, 81 m for the natural tsunami and 90 m for the mission tsunami, if M reaches the requested magnitude (inference). No radius is safe at every age: a point the ring has passed gets nothing more from this event, and a point ahead of it is still to be reached.\n\nMeteor shower: the script operator clamps the magnitude M to 0 to 1 and sends one main meteor and trunc(10 × M) secondaries; each recipient gets a copy of the same shower, not extra meteors. With d the randomized incoming direction, the main starts 30000 back along d from the target, with size max(1, 20 × M) and velocity 20 × d. Each secondary aims within ±500 × M of the target horizontally, starts 20000 + U × 15000 × M back, and has size max(1, (0.1 + 0.3 × U) × 20 × M) and velocity (19 + U) × d, each U a separate random draw from 0 to 1. At M = 1, the value both addons pass, that is one size-20 meteor and ten of size 2 to 8. The velocity is a step per scene update: the update raycasts from the position to position + velocity and then adds it, so at a nominal 60 updates per second the main moves at 1200 m/s and the secondaries at 1140 to 1200 m/s (inference). Only the main keeps the caller's tsunami flag, which both addons set; the secondaries pass false.\n\nA meteor that hits land or water reports an impact and is removed. The impact queues an explosion whose strength is the size, or 3 × size with the tsunami flag, and explosion creation caps strength at 10: the main reaches 10 and the secondaries 2 to 8. Strength is an explosion parameter, not HP. The blast radius grows as R = 343 × age, the age advancing 0.0166599992663 per update, and the amplitude falls as 1 − clamp(R ÷ (250 × strength), 0, 1), reaching 0 at 2500 m for strength 10. The shared explosion record lasts 271 updates: creation sets a countdown of 270, and each update runs every consumer before the zero test that removes the record. Its final R is about 1548.60 m, so the amplitude's zero at 2500 m is never reached. Within that shell the body push is min(500000 × strength ÷ R, 30000 × body mass) on bodies between max(0, R − 5.714379787) and R from the centre, and tree processing runs only while R < 20 × strength, under 200 m at the strength cap. Other explosion consumers and meteor block-damage falloff remain open.\n\nThe main meteor also starts a tsunami event when it lands less than 3 m above the sampled water height, a texture factor F at the impact exceeds 0.13 and the previous ocean event has faded or has a target below 0.5. F is a byte-texture sample ÷ 255, 1 where the texture is absent, so it is not 1 everywhere. The event is the radial tsunami band above, centred on the impact and started 30 ticks in the past. Its magnitude starts at 0.5, moves toward F by 0.0005555556 per ocean update, holds for 18000 updates and then fades to 0 at the same step. With t the elapsed ticks ÷ 60, the band's outer edge is at (0.2 × t + 3.04159283638) ÷ 0.01 m, so its reach grows with time and ends when the magnitude fades; there is no single time-independent blast radius. For F = 1 the last nonzero update is the 20700th, when the outer edge is about 7214.16 m from the impact if one tick passes per ocean update (inference).\n\nVolcano: each volcano marker in the tile files sets a crater radius and an eruption_radius; the 8 shipped markers use eruption radii from 1000 to 5000 m. Spawning the volcano sets its is_eruption_triggered flag, which starts a buildup; the volcano update later switches to is_erupting. During an eruption the volcano update queries objects within 10 + (eruption_radius − 10) × f, f a per-volcano float. Queried objects pass collision-type, random and phase tests, the phase test being (update counter + body index) & 15 = 0, so a body is tested at most once per 16 updates (inference). Each object gets a spatial weight W = (1 − C((f − 0.7) ÷ 0.3)^5) × (1 − C((y − h) ÷ 50)) × C((y + 10) ÷ 10) × (1 − C((r − front − 2) ÷ 498)), C a clamp to 0 to 1, r the horizontal distance and y the height. The front is 10 + (eruption_radius − 10) × (f − 0.2 × min(4 × f, 1) × B), B an angular byte table ÷ 255, so it is irregular around the crater. h is a height-map sample, a bilinear byte map ÷ 255 times a height field, plus 0.25 × (y0 + 100) − 10, y0 being the volcano centre height. The object-effects handler then forms Q = C((W − 0.9) ÷ 0.1)^10: a positive Q pushes the object and only Q = 1 opens the damage branch, where further random draws pick contact points, hits and amounts. W is a weight, not a per-update chance. With vehicle_damage on, an accepted hit sends the component-damage message with an amount from 500 to 1000 and min(amount ÷ 2000, 4). There b = 0, so without a definition deduction a hit adds at most 1 unit, only to components within 2 cells (inference from the rule above). Characters get a separate message, event 102 with amount 3. It adds −3 to the character's health-change rate for the next character update, which multiplies the rate by dt = elapsed ticks ÷ 60 and a scene integer K and adds the result to the hp value Lua reads. One accepted event therefore removes 3 × dt × K HP, not 3 HP at once, and other health terms and state checks still apply. An active volcano also lowers the air exchange factor of nearby parts such as the Air Scoop Intake 1x1 to max(0.01, 1 − volcanic_heat² × eruption_radius ÷ (2 × distance)), with no distance cutoff, so eruption_radius is not a safe distance. Rendered eruption particles have not yet been connected to physical lava or projectile contact damage.\n\nForest fire: native code ignites a tree by setting a per-tree intensity byte and adding the tree to its chunk's burning list. Explosions can light an eligible tree with a random intensity of 100 to 199, a position-and-radius ignition lights trees for a queued scene entry of unclassified origin, and burning trees spread. An explosion tests each tree inside its current radius on every update that reaches it: a tree within half the radius first gets a rand() % 10 = 0 destruction draw, and a tree that survives it, or lies in the outer half, gets a rand() % 4 = 0 ignition draw that lights it if it is unlit. These are per-visit chances, not the chance over a whole explosion. The forest manager runs the tree simulation once every 30 manager updates, two per second at 60 manager updates per second (inference). Each tree update reads the rain value R from the full weather output and sets a threshold trunc(100 × R + 100). A burning tree's intensity rises to 255, then falls. While it exceeds the threshold, each tree update tries to spread with a rand() % 25 = 0 test, close to 1 in 25 per tree update. A spread attempt moves the source point by 5 × a, a the manager's wind-derived vector, and lights one unlit tree under 10 m horizontally from that point, at intensity 1; a tree whose search finds none stops trying. Each generation searches around its own wind-offset point, so the 10 m search radius does not bound total spread: after several generations the distance from the first source is only bounded by the sum of 10 + 5 × |a| over them. Rain raises the threshold and so shortens the time each tree can spread (inference). The intensity is a tree state, not a temperature or HP, and 10 m is a search radius, not a fire safe distance.\n\n## How hazard wind and current push a vehicle\n\nHazard wind and current reach a vehicle by two routes. In the surface route they enter as velocities, not forces. The vehicle update samples the weather wind, tornado wind included, and the hull air callback uses the point velocity v + ω × r minus that wind at each surface point; the water callback subtracts the sampled current the same way. Each callback writes a force and lever arm per surface point. A pass sums the forces and the torques r × F, and the vehicle submits both to its Bullet body, which adds them to the body's total force and torque. The solver turns total force into a velocity change: for a free body with unit linear factors, Δv = F × dt ÷ m, which is F ÷ (60 × m) at dt = 1/60 s. The push therefore depends on the hull's surfaces, shielding, air or water density, drag and lift terms and its own motion. A stationary, unshielded surface sees air moving at minus the sampled wind.\n\nThe second route is a direct force that exists only while a tornado does. When the weather list holds at least one flagged tornado entry, the vehicle update adds F = E × (1 − A) × (7.5 × W.x, 30 × W.y, 7.5 × W.z) to vehicles in states 0, 2, 3, 5 and 7. W is the full wind at the vehicle position, ordinary weather wind plus the wind of every tornado; it is not made relative to the vehicle's motion. A is a spatial suppression factor, 1 inside the inner box of a suppression volume and blending to 0 across its outer box; tile loading registers these volumes from tile geometry. E is 0 while the vehicle sits inside another vehicle's compartment and 1 otherwise: each vehicle update recomputes that flag with a compartment query, and the force uses the result from the previous update. The update tests no distance to the tornado, so once a tornado exists, ordinary wind pushes eligible vehicles this way even outside every tornado's wind radius. F goes to the vehicle body with no lever arm, so it adds no torque, and it bypasses the joined-mass cap that part forces such as jet exhaust and propellers pass through. F has no mass factor: the solver multiplies it by inverse mass, so at the same wind a lighter vehicle gains more speed. No vehicle_damage test was found on this route, so it acts with vehicle damage off. This route was traced for vehicles only.\n\nNo single force or acceleration applies to every vehicle at a given distance from a tornado; to isolate a tornado's push on one vehicle, compare both routes with and without its wind (inference). The wind cap of 100 bounds each tornado's wind vector, not either force. Each reach above bounds one direct contribution, except the tornado-enabled vehicle force, which has no distance test. None is a safe distance from debris, projectiles, collisions, secondary events or ordinary weather.",
       "findings": [
         {
           "label": "sunrise_start_hour",
@@ -3842,12 +3842,107 @@
         {
           "label": "Deferred damage record",
           "value": "ring append 0x1408aee00",
-          "detail": "The server handler's call at 0x1408582ac appends the record to a ring buffer at request context +0x12200: it grows the capacity when needed and advances the count (0x1408aee39). Nothing here applies damage. A direct-call scan finds no other caller of the append, and no instruction outside the producer uses the literal offset +0x12200, so the reader is open. Bytes 89 4b 10 at 0x1408aee39, literal e8 4f 6b 05 00 at 0x1408582ac. Report: investigation/hazards.md.",
+          "detail": "The server handler's call at 0x1408582ac appends the record to a ring buffer at server +0x12200: it grows the capacity when needed and advances the count (0x1408aee39). The record holds the hit vehicle and component, the amount and the scalar. Nothing here applies damage; the scene update reads the buffer, listed below. Bytes 89 4b 10 at 0x1408aee39, literal e8 4f 6b 05 00 at 0x1408582ac. Report: investigation/hazards.md.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408aee39",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1408aee39"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tornado record drain",
+          "value": "scene update sends every queued record, then clears the queue",
+          "detail": "Server +0x12200 is +0x140 of the scene embedded at server +0x120c0, whose update the server calls at 0x140846c90. That update walks the records in 0x30-byte steps (0x1405ebe47), loads the scalar (0x1405ebe97) and amount (0x1405ebeaa) and sends each one as the component-damage message through 0x14022c520 (0x1405ebec9). The reader was missed earlier because it uses the scene base, not the server offset. Bytes e8 52 06 c4 ff at 0x1405ebec9, literal 49 8d 8e c0 20 01 00 at 0x140846c89, literal e8 1b 12 da ff at 0x140846c90, literal 49 03 9d 40 01 00 00 at 0x1405ebe47, literal f3 0f 10 43 0c at 0x1405ebe97, literal f3 0f 10 43 10 at 0x1405ebeaa. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405ebec9",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405ebec9"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Component-damage message",
+          "value": "network event 52 → component damage queue",
+          "detail": "The sender 0x14022c520 builds event 52; its table entry 0x140863aa8 selects a dispatcher that resolves the vehicle and component and queues the request on the component (call at 0x14085f3a1). Tornado records and volcano vehicle hits both use this message. The component drains its queue in 0x14049e300: a damage record first has a value from the struck component's definition (+0x134) subtracted from the amount A, and only a positive result reaches the damage rule. The meaning of that definition value is open. Bytes 48 c7 40 08 34 00 00 00 at 0x14022c550, literal 19 f3 85 00 at 0x140863aa8, literal e8 fa 19 c4 ff at 0x14085f3a1. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14022c550",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14022c550"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Component damage rule",
+          "value": {
+            "search cells": "clamp(1 − trunc(−4 × s), 0, 16)",
+            "b": "4 × trunc(A ÷ 2000)",
+            "added units": "max(0, trunc((b − d) ÷ 3) + 1)"
+          },
+          "detail": "0x14049f2b0 gathers components from voxel cells inside an integer search sphere around the hit, 4 cells per world unit, keeping each component's nearest cell. d is that distance in cells rounded with floor(√q + 0.5) (floorf call at 0x14049fd28, subtraction at 0x14049fd34) and the division by 3 is a multiply-high sequence (0x14049fd36). The bound loads −4 (0x14049f67d), starts from 1 (0x14049f689) and caps at 16 (0x14049f698). The result goes to the component's damage setter (0x14049fd58). trunc rounds toward zero. Bytes f3 0f 59 0d 63 18 71 00 at 0x14049f67d, literal 00 00 80 c0 at 0x140bb0ee8, literal b9 01 00 00 00 at 0x14049f689, literal b9 10 00 00 00 at 0x14049f698, literal e8 ab 5a 53 00 at 0x14049fd28, literal 2b d0 at 0x14049fd34, literal b8 56 55 55 55 at 0x14049fd36, literal ff 50 20 at 0x14049fd58. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049f67d",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049f67d"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Component damage setter",
+          "value": "stored damage = min(old + added, 50)",
+          "detail": "The block and base-component vtables share the setter 0x140325ab0, which loads 50, takes the unsigned minimum with the requested value and stores it at component +0x08. These are component damage units, not character HP. Bytes b8 32 00 00 00 at 0x140325ab0, literal 3b d0 at 0x140325ab5, literal 0f 42 c2 at 0x140325ab7, literal 89 41 08 at 0x140325aba. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325ab0"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tornado damage example",
+          "value": "A = 2500, s = 1.25: search 6 cells, b = 4, 2 units at d = 0",
+          "detail": "Arithmetic on the rule for a fresh tornado with no definition deduction. A component the search selects at d = 0 gets 2 damage units. This is a conditional example, not damage to every block inside the tornado's wind radius. Bytes b8 56 55 55 55 at 0x14049fd36. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049fd36",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049fd36"
+          },
+          "status": "inferred",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Volcano character damage message",
+          "value": "event 102 with amount 3",
+          "detail": "For a character hit (collision kind 2) the eruption sends event 102 (0x140560a1f) with float 3 (0x140560a4f) and its first mode byte set. The table entry 0x140863b70 leads to the receiver 0x14077bfe0 (call at 0x14085f2cb), which subtracts the amount from the character's pending health rate at +0x6f0 (0x14077c223, store 0x14077c227) after authority and state checks. Bytes c7 40 08 66 00 00 00 at 0x140560a1f, literal c7 47 14 00 00 40 40 at 0x140560a4f, literal 2f f2 85 00 at 0x140863b70, literal e8 10 cd f1 ff at 0x14085f2cb, literal f3 0f 5c c7 at 0x14077c223, literal f3 0f 11 83 f0 06 00 00 at 0x14077c227. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140560a1f",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140560a1f"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Character HP integration",
+          "value": "hp += rate × dt × K, dt = elapsed ticks × 0.0166666675 (1 ÷ 60)",
+          "detail": "The character update 0x140762f80 adds the pending term to its health-change rate (0x1407632fc), multiplies by dt (0x1407640b7) and by a scene integer K at +0xbaeb8 (0x1407640bc), and adds the result to +0x3f4 (0x1407640d1), the value returned to Lua under the key hp (name at 0x140b87b40, loaded at 0x1405373b3, read at 0x1405373f3). The pending term is cleared afterwards (0x140764bd3). One accepted volcano event therefore removes 3 × dt × K HP on the next integrating update, not 3 HP at once, and events before that update add together. Bytes f3 0f 11 80 f4 03 00 00 at 0x1407640d1, literal f3 44 0f 59 3d cc c8 44 00 at 0x1407630b7, literal 89 88 88 3c at 0x140baf98c, literal f3 44 0f 58 a7 f0 06 00 00 at 0x1407632fc, literal f3 41 0f 59 c7 at 0x1407640b7, literal f3 0f 59 44 24 68 at 0x1407640bc, literal 48 c7 87 ec 06 00 00 00 00 00 00 at 0x140764bd3, literal 68 70 00 at 0x140b87b40, literal 48 8d 15 86 07 65 00 at 0x1405373b3, literal f3 0f 10 86 f4 03 00 00 at 0x1405373f3. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407640d1",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407640d1"
           },
           "status": "observed",
           "evidenceType": "native-static"
@@ -4024,7 +4119,7 @@
         {
           "label": "Explosion amplitude",
           "value": "amplitude × (1 − clamp(R ÷ (250 × strength), 0, 1)), R = 343 × age",
-          "detail": "The explosion update 0x140593ec0 advances age by 0.0166599992663 per update (0x14059416f), grows R = 343 × age (0x14059417c) and stores the amplitude at record +0x24. It is 0 from 250 × strength, 2500 m at strength 10. Explosion creation sets a lifetime of 270 counts (0x140593dc6). This amplitude is not shown to be a block-damage cutoff. Bytes f3 0f 11 46 24 at 0x1405941be, literal f3 0f 58 35 11 b8 61 00 at 0x14059416f, literal 8d 7a 88 3c at 0x140baf988, literal f3 0f 59 35 7c c6 61 00 at 0x14059417c, literal 00 80 ab 43 at 0x140bb0800, literal f3 44 0f 10 2d 79 c8 61 00 at 0x140593f66, literal 00 00 7a 43 at 0x140bb07e8, literal 48 c7 43 1c 0e 01 00 00 at 0x140593dc6. Report: investigation/hazards.md.",
+          "detail": "The explosion update 0x140593ec0 advances age by 0.0166599992663 per update (0x14059416f), grows R = 343 × age (0x14059417c) and stores the amplitude at record +0x24. It is 0 from 250 × strength, 2500 m at strength 10, which lies beyond the record's lifetime, listed below. This amplitude is not shown to be a block-damage cutoff. Bytes f3 0f 11 46 24 at 0x1405941be, literal f3 0f 58 35 11 b8 61 00 at 0x14059416f, literal 8d 7a 88 3c at 0x140baf988, literal f3 0f 59 35 7c c6 61 00 at 0x14059417c, literal 00 80 ab 43 at 0x140bb0800, literal f3 44 0f 10 2d 79 c8 61 00 at 0x140593f66, literal 00 00 7a 43 at 0x140bb07e8, literal 48 c7 43 1c 0e 01 00 00 at 0x140593dc6. Report: investigation/hazards.md.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405941be",
           "source": {
             "path": "stormworks64.exe",
@@ -4037,7 +4132,7 @@
         {
           "label": "Explosion body push and tree range",
           "value": "min(500000 × strength ÷ R, 30000 × body mass) in a shell; trees within 20 × strength",
-          "detail": "The body helper 0x140594620 pushes bodies whose distance lies between max(0, R − 5.714379787) and R (0x1405941cf) and does not read the amplitude. Tree processing 0x14055a970 (called at 0x1405944a2) has its own R < 20 × strength gate (20 loaded at 0x140593f78). Each consumer has its own bound; none is a radius beyond which nothing happens. Bytes f3 0f 59 35 c4 c2 61 00 at 0x1405946b4, literal 00 24 f4 48 at 0x140bb0980, literal f3 0f 59 05 17 c2 61 00 at 0x1405946e5, literal 00 60 ea 46 at 0x140bb0904, literal f3 0f 5c 05 4d c3 61 00 at 0x1405941cf, literal 33 dc b6 40 at 0x140bb0524, literal e8 c9 64 fc ff at 0x1405944a2, literal f3 44 0f 10 25 47 c7 61 00 at 0x140593f78, literal 00 00 a0 41 at 0x140bb06c8. Report: investigation/hazards.md.",
+          "detail": "The body helper 0x140594620 pushes bodies whose distance lies between max(0, R − 5.714379787) and R (0x1405941cf) and does not read the amplitude. Tree processing 0x14055a970 (called at 0x1405944a2) has its own R < 20 × strength gate (20 loaded at 0x140593f78), so under 200 m at the strength cap. Each consumer has its own bound; none is a radius beyond which nothing happens. Bytes f3 0f 59 35 c4 c2 61 00 at 0x1405946b4, literal 00 24 f4 48 at 0x140bb0980, literal f3 0f 59 05 17 c2 61 00 at 0x1405946e5, literal 00 60 ea 46 at 0x140bb0904, literal f3 0f 5c 05 4d c3 61 00 at 0x1405941cf, literal 33 dc b6 40 at 0x140bb0524, literal e8 c9 64 fc ff at 0x1405944a2, literal f3 44 0f 10 25 47 c7 61 00 at 0x140593f78, literal 00 00 a0 41 at 0x140bb06c8. Report: investigation/hazards.md.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405946b4",
           "source": {
             "path": "stormworks64.exe",
@@ -4045,6 +4140,45 @@
             "address": "0x1405946b4"
           },
           "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Explosion lifetime",
+          "value": "271 updates, final R about 1548.60 m",
+          "detail": "Creation sets a countdown of 270 (0x140593dc6) and an age of 0. Each update advances the age, runs every consumer and only then tests the countdown (read at 0x14059455a), removing the record at 0 and decrementing it otherwise. A fresh record is therefore processed 271 times. Replaying the float32 steps gives a final age of 4.514861583709717 and R = 1548.5975341796875, so no consumer of this record acts beyond that shell. Bytes 8b 46 1c at 0x14059455a, literal 48 c7 43 1c 0e 01 00 00 at 0x140593dc6, literal f3 0f 58 35 11 b8 61 00 at 0x14059416f, literal f3 0f 59 35 7c c6 61 00 at 0x14059417c. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14059455a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14059455a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Main meteor tsunami",
+          "value": "type 0 ocean event at the impact; magnitude 0.5 → F, hold 18000, then fade",
+          "detail": "With the tsunami flag, the impact receiver starts a tsunami event only when the impact is below the sampled water height + 3 (0x14077d98d), the factor F exceeds 0.13 (0x14077daea), and the previous ocean event has faded to 0 or has a target below 0.5. F is a bilinear byte-texture sample at the impact ÷ 255, 1 when the texture is absent. The receiver stores the horizontal impact position, magnitude 0.5 (0x14077dba7), target F, a hold count of 18000 (0x14077dbd2) and a start tick 30 ticks in the past (0x14077db91). It is the same band as the tsunami: nothing outside abs(0.01 × r − 0.2 × t) < 3.04159283638, t the elapsed ticks ÷ 60, so the outer edge is at (0.2 × t + 3.04159283638) ÷ 0.01 m and moves outward with time. Bytes c7 80 70 a4 0b 00 50 46 00 00 at 0x14077dbd2, literal f2 0f 58 05 db 28 43 00 at 0x14077d98d, literal 00 00 00 00 00 00 08 40 at 0x140bb0270, literal 0f 2f 35 1b 20 43 00 at 0x14077daea, literal b8 1e 05 3e at 0x140bafb0c, literal c7 80 64 a4 0b 00 00 00 00 3f at 0x14077dba7, literal 83 e9 1e at 0x14077db91. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14077dbd2",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14077dbd2"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Meteor tsunami fade",
+          "value": "magnitude step 0.0005555556 per ocean update",
+          "detail": "The ocean update 0x1402bc810 moves the magnitude from 0.5 toward F by this step (0x1402bc86a), counts the hold down, and then subtracts the same step to 0 (0x1402bc93b). For F = 1 that is 900 rise updates, 18000 hold updates, one transition and 1800 fade updates, so the last nonzero update is the 20700th. With one tick per ocean update the band's outer edge is then about 7214.16 m from the impact (inference). Other values of F change the rise length, and a new ocean event can overwrite this one. Bytes f3 0f 58 05 6a 30 8f 00 at 0x1402bc86a, literal b4 a2 11 3a at 0x140baf8dc, literal f3 0f 5c 0d 99 2f 8f 00 at 0x1402bc93b. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402bc86a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402bc86a"
+          },
+          "status": "inferred",
           "evidenceType": "native-static"
         },
         {
@@ -4212,7 +4346,7 @@
         {
           "label": "Volcano damage message",
           "value": "amount 500 + 500 × U, scalar min(amount ÷ 2000, 4)",
-          "detail": "With the vehicle_damage setting on (test at 0x140560ac3), an accepted hit picks a component or block and sends a damage message through 0x14022c520 (0x140560f85) carrying an amount from 500 to 1000. This is a direct damage path besides collisions; how the message becomes HP is open. Bytes f3 0f 59 35 3e f9 64 00 at 0x140560eea, literal f3 0f 58 35 36 f9 64 00 at 0x140560ef2, literal 00 00 fa 43 at 0x140bb0830, literal f3 0f 5e 05 4e f9 64 00 at 0x140560f1e, literal 00 00 fa 44 at 0x140bb0874, literal f3 0f 5d 05 5a f5 64 00 at 0x140560f26, literal 00 00 80 40 at 0x140bb0488, literal e8 96 b5 cc ff at 0x140560f85, literal 80 78 4a 00 at 0x140560ac3. Report: investigation/hazards.md.",
+          "detail": "With the vehicle_damage setting on (test at 0x140560ac3), an accepted hit picks a component or block and sends the component-damage message through 0x14022c520 (0x140560f85) carrying an amount from 500 to 1000. This is a direct damage path besides collisions. In the component damage rule b = 4 × trunc(A ÷ 2000) is 0 for this range, so without a definition deduction a hit adds at most 1 unit, only to components within 2 cells (inference). Bytes f3 0f 59 35 3e f9 64 00 at 0x140560eea, literal f3 0f 58 35 36 f9 64 00 at 0x140560ef2, literal 00 00 fa 43 at 0x140bb0830, literal f3 0f 5e 05 4e f9 64 00 at 0x140560f1e, literal 00 00 fa 44 at 0x140bb0874, literal f3 0f 5d 05 5a f5 64 00 at 0x140560f26, literal 00 00 80 40 at 0x140bb0488, literal e8 96 b5 cc ff at 0x140560f85, literal 80 78 4a 00 at 0x140560ac3. Report: investigation/hazards.md.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140560eea",
           "source": {
             "path": "stormworks64.exe",
@@ -4236,6 +4370,45 @@
           "evidenceType": "native-static"
         },
         {
+          "label": "Eruption spatial weight",
+          "value": "W = (1 − C((f − 0.7) ÷ 0.3)^5) × (1 − C((y − h) ÷ 50)) × C((y + 10) ÷ 10) × (1 − C((r − front − 2) ÷ 498))",
+          "detail": "0x140560160 returns W, with C a clamp to 0 to 1; it draws no random number and returns 0 unless is_erupting (+0x61) is set (0x14056016f). r is the horizontal distance and y the height of the query point, f the volcano float at +0x68, front = 10 + (eruption_radius − 10) × (f − 0.2 × min(4 × f, 1) × B) and h = heightmap + 0.25 × (y0 + 100) − 10, y0 the volcano centre height. B is an angular byte table interpolated at the point's bearing and ÷ 255 (0x1405602f8), which makes the front irregular around the crater. The radial fade runs from front + 2 to front + 500, a width of 498. Constants: π (0x140560280), 0.2 (0x140560344), 0.7 (0x14056036d), 0.3 (0x140560387), 0.25 (0x1405603a1), exponent 5 (0x1405603b2), 500 (0x1405603fc); the height map is called at 0x140560368. Bytes 80 79 61 00 at 0x14056016f, literal f3 0f 5e 05 28 01 65 00 at 0x140560280, literal f3 0f 5e 15 ec 04 65 00 at 0x1405602f8, literal f3 0f 59 15 24 f8 64 00 at 0x140560344, literal e8 23 0d 00 00 at 0x140560368, literal f3 44 0f 5c 15 06 fa 64 00 at 0x14056036d, literal f3 44 0f 5e 15 64 f8 64 00 at 0x140560387, literal f3 0f 59 0d 13 f8 64 00 at 0x1405603a1, literal f3 0f 10 0d 26 01 65 00 at 0x1405603b2, literal f3 44 0f 58 1d 2b 04 65 00 at 0x1405603fc. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14056016f",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14056016f"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Eruption threshold",
+          "value": "Q = C((W − 0.9) ÷ 0.1)^10",
+          "detail": "The object-effects path calls the weight at 0x14056063c, subtracts 0.9 (0x140560641) and divides by 0.1 (0x140560649). A positive Q drives a push; the damage branch needs Q of at least 1 and a valid collision payload, and random draws inside it pick contact points, hits and amounts. W is a weight, not a per-update chance. Bytes e8 1f fb ff ff at 0x14056063c, literal f3 0f 5c 05 eb f7 64 00 at 0x140560641, literal 66 66 66 3f at 0x140bafe34, literal f3 0f 5e 05 83 f4 64 00 at 0x140560649, literal d0 cc cc 3d at 0x140bafad4. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14056063c",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14056063c"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Volcano height map",
+          "value": "bilinear byte sample ÷ 255 × height field +0x3c",
+          "detail": "0x140561090 returns 0 when either map dimension (+0xbc, +0xc0, test at 0x1405610ab) is 0. Otherwise it maps world X and Z onto a rectangle centred on the volcano's tile, with tile coordinates × 1000 (0x1405610d5), interpolates the four neighbouring bytes, wrapping the upper neighbours, and multiplies by the float height field (0x1405612c3). Bytes f2 0f 59 25 db f3 64 00 at 0x1405610d5, literal 00 00 00 00 00 40 8f 40 at 0x140bb04b8, literal 83 b9 c0 00 00 00 00 at 0x1405610ab, literal f3 0f 59 67 3c at 0x1405612c3. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405610d5",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405610d5"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
           "label": "Tree ignition",
           "value": "0x140559870 sets the intensity byte and lists the tree as burning",
           "detail": "It writes the intensity into a two-byte per-tree state (0x1405598eb) and appends the tree to its chunk's burning list. Its direct callers are explosion tree processing, a position-and-radius ignition, spread and tree-state sync. The intensity is a state byte, not a temperature or HP. Bytes 40 88 3c 68 at 0x1405598eb. Report: investigation/hazards.md.",
@@ -4251,7 +4424,7 @@
         {
           "label": "Native ignition producers",
           "value": "position ignition 0x14055b090; explosions with intensity 100 to 199",
-          "detail": "The scene calls 0x14055b090 (0x1405eae61) for an unspent type-3 entry in scene +0xbb288; it lights an unlit tree inside the given radius. The origin of that entry is unclassified. Explosion tree processing gives an eligible tree a random intensity of 100 + rand() % 100 (0x14055adbf, 0x14055adc5) before ignition (0x14055addc); its full ignition chance is open. Bytes e8 2a 02 f7 ff at 0x1405eae61, literal 6b ca 64 at 0x14055adbf, literal 45 8d 48 64 at 0x14055adc5, literal e8 8f ea ff ff at 0x14055addc. Report: investigation/hazards.md.",
+          "detail": "The scene calls 0x14055b090 (0x1405eae61) for an unspent type-3 entry in scene +0xbb288; it lights an unlit tree inside the given radius. The origin of that entry is unclassified. Explosion tree processing gives an eligible tree a random intensity of 100 + rand() % 100 (0x14055adbf, 0x14055adc5) before ignition (0x14055addc); its draw order is listed below. Bytes e8 2a 02 f7 ff at 0x1405eae61, literal 6b ca 64 at 0x14055adbf, literal 45 8d 48 64 at 0x14055adc5, literal e8 8f ea ff ff at 0x14055addc. Report: investigation/hazards.md.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405eae61",
           "source": {
             "path": "stormworks64.exe",
@@ -4277,7 +4450,7 @@
         {
           "label": "Fire spread attempt",
           "value": "rand() % 25 = 0 per tree update",
-          "detail": "Also required: nonzero intensity, bit 2 of the tree state clear (0x14055c3ef) and the tree not removed. The modulo test is close to 1 in 25 per tree update, not a per-second chance; how often the tree update runs is open. Bytes 6b ca 19 at 0x14055c412, literal b8 1f 85 eb 51 at 0x14055c400, literal f6 c1 04 at 0x14055c3ef, literal 6b ca 19 at 0x14055c6da. Report: investigation/hazards.md.",
+          "detail": "Also required: nonzero intensity, bit 2 of the tree state clear (0x14055c3ef) and the tree not removed. The modulo test is close to 1 in 25 per tree update, not a per-second chance. Bytes 6b ca 19 at 0x14055c412, literal b8 1f 85 eb 51 at 0x14055c400, literal f6 c1 04 at 0x14055c3ef, literal 6b ca 19 at 0x14055c6da. Report: investigation/hazards.md.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055c412",
           "source": {
             "path": "stormworks64.exe",
@@ -4301,14 +4474,79 @@
           "evidenceType": "native-static"
         },
         {
-          "label": "Meteor and volcano spawn handlers",
-          "value": "one direct caller each, the event dispatch",
-          "detail": "The meteor handler 0x14077d710 is called only at 0x14085f718 and the volcano activation handler 0x14077d6c0 only at 0x14085f6ec. The meteor pool append also has two callers in save loading, so the handler is not the only producer. Bytes e8 cf df f1 ff at 0x14085f6ec, literal e8 f3 df f1 ff at 0x14085f718. Report: investigation/hazards.md.",
-          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14085f6ec",
+          "label": "Fire spread over generations",
+          "value": "distance from the first source < Σ (10 + 5 × |a|) over the generations",
+          "detail": "The manager writes a, at +0x70, as the horizontal sampled-wind direction times a sampled scalar, with Y = 0, and spread 0x14055cb70 loads it at 0x14055cbde. Each generation searches around its own wind-offset point, so the 10 m search radius does not bound total spread; the triangle inequality gives only this sum, which depends on the forest, rain and the wind of each update. Bytes f2 0f 10 05 da 36 65 00 at 0x14055cbde. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055cbde",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
-            "address": "0x14085f6ec"
+            "address": "0x14055cbde"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tree update cadence",
+          "value": "once per 30 forest-manager updates",
+          "detail": "The manager 0x140557fa0 calls the tree update (0x140558581) when its counter at +0x110 is 0 (0x140558534) and the simulation-authority path is taken, then stores (counter + 1) mod 30 (0x140558598, 0x14055859d). At 60 manager updates per second that is two tree updates per second (inference). Bytes 6b c2 1e at 0x140558598, literal 83 bb 10 01 00 00 00 at 0x140558534, literal e8 ca 39 00 00 at 0x140558581, literal 89 8b 10 01 00 00 at 0x14055859d. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140558598",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140558598"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Explosion ignition order",
+          "value": "inside half the radius: rand() % 10 = 0 destroys; otherwise rand() % 4 = 0 ignites",
+          "detail": "For a tree without flag bit 1 inside the current explosion radius, 0x14055a970 first tests the inner half (0.5 × r at 0x14055abfa): there a rand() % 10 = 0 draw (0x14055ad06) takes the destruction branch. A tree that is not destroyed, or lies in the outer half, then gets a rand() % 4 = 0 draw (0x14055ad81) and ignites if it is unlit and has flag bit 0 clear. The explosion repeats these draws on each update that reaches the tree, so they are per-visit chances, not the chance over a whole explosion. Over rand() outputs 0 to 32767 the inner-half ignition share per visit is 29491 ÷ 32768 × 1 ÷ 4, about 22.4998474 percent. Bytes 25 03 00 00 80 at 0x14055ad81, literal f3 44 0f 59 2d b9 50 65 00 at 0x14055abfa, literal 00 00 00 3f at 0x140bafcbc, literal b8 67 66 66 66 at 0x14055ad06. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055ad81",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14055ad81"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Meteor spawn handler",
+          "value": "one direct caller, the event dispatch",
+          "detail": "The meteor handler 0x14077d710 is called only at 0x14085f718. The meteor pool append also has two callers in save loading, so the handler is not the only producer. Bytes e8 f3 df f1 ff at 0x14085f718. Report: investigation/hazards.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14085f718",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14085f718"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Volcano activation",
+          "value": "spawnVolcano → event 115 → 0x14077dcf0",
+          "detail": "The spawnVolcano operator 0x140725ab0 calls the sender 0x14022cdd0, which writes event 115; table entry 0x140863ba4 leads to the receiver 0x14077dcf0 (call at 0x14085f754). The receiver finds the volcano in the scene collection at +0xbb3a0 (0x14077dd2f) and, only when both +0x60 and +0x61 are clear (0x14077dd36, 0x14077dd3b), sets +0x60 (0x14077dd50) and the update-dirty byte +0x78 (0x14077dd58). That starts the buildup; the volcano update later writes 0x0100 to the pair (0x14055f174), clearing +0x60 and setting +0x61. The earlier attribution of activation to 0x14077d6c0 was wrong: that routine clears a field of another scene collection. Bytes 48 c7 40 08 73 00 00 00 at 0x14022cdf7, literal 45 f7 85 00 at 0x140863ba4, literal e8 97 e5 f1 ff at 0x14085f754, literal 49 03 90 a0 b3 0b 00 at 0x14077dd2f, literal 38 5a 60 at 0x14077dd36, literal 38 5a 61 at 0x14077dd3b, literal c6 42 60 01 at 0x14077dd50, literal c6 42 78 01 at 0x14077dd58, literal 66 c7 47 60 00 01 at 0x14055f174. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14022cdf7",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14022cdf7"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Volcano save flags",
+          "value": "+0x60 is_eruption_triggered, +0x61 is_erupting",
+          "detail": "The volcano serializer 0x14055e7d0 binds both bytes by these names (0x14055e9a3, 0x14055ea2f) and restores them on load, so a loaded save can resume a buildup or an eruption without a new scheduling decision. Bytes 4c 8d 05 be 9a 62 00 at 0x14055e9a3, literal 69 73 5f 65 72 75 70 74 69 6f 6e 5f 74 72 69 67 67 65 72 65 64 00 at 0x140b88468, literal 4c 8d 05 72 9a 62 00 at 0x14055ea2f, literal 69 73 5f 65 72 75 70 74 69 6e 67 00 at 0x140b884a8. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14055e9a3",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14055e9a3"
           },
           "status": "observed",
           "evidenceType": "native-static"
@@ -4394,7 +4632,7 @@
         {
           "label": "Tornado force vehicle flag",
           "value": "E = 0 when vehicle byte +0x61c is set, else 1",
-          "detail": "The test at 0x1404d659f selects 1 when the byte is zero (0x1404d65a6) and otherwise a zeroed register (0x1404d65a8). What sets the byte is open. Bytes 44 38 a7 1c 06 00 00 at 0x1404d659f, literal 74 06 at 0x1404d65a6, literal 41 0f 28 f2 at 0x1404d65a8. Report: investigation/tornado-force.md.",
+          "detail": "The test at 0x1404d659f selects 1 when the byte is zero (0x1404d65a6) and otherwise a zeroed register (0x1404d65a8). Bytes 44 38 a7 1c 06 00 00 at 0x1404d659f, literal 74 06 at 0x1404d65a6, literal 41 0f 28 f2 at 0x1404d65a8. Report: investigation/tornado-force.md.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404d659f",
           "source": {
             "path": "stormworks64.exe",
@@ -4429,18 +4667,44 @@
           },
           "status": "observed",
           "evidenceType": "native-static"
+        },
+        {
+          "label": "Vehicle compartment flag",
+          "value": "byte +0x61c set while the vehicle is inside another vehicle's compartment",
+          "detail": "Later in the same update 0x1404d61f0 clears the byte (0x1404d771b) and tests candidate vehicles with 0x14048e810 (0x1404d77c0), which maps the point into the candidate's voxel grid and looks up its compartment. A hit sets the byte (0x1404d77cd) and stores the candidate and compartment index at +0x620 to +0x628. The force reads the byte before this recomputation, so it uses the previous update's result. The description is inferred from the compartment lookup; no field name was recovered. Bytes c6 87 1c 06 00 00 01 at 0x1404d77cd, literal c6 87 1c 06 00 00 00 at 0x1404d771b, literal e8 4b 70 fb ff at 0x1404d77c0. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404d77cd",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404d77cd"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Weather suppression boxes",
+          "value": "registered from tile-loaded geometry",
+          "detail": "Tile loading 0x14056e2c0 walks its +0x1a8 entries, keeps those with +0x200 = 0, and registers each transform and inner and outer bounds with the weather manager (call at 0x14056e566). 0x1402c10e0 evaluates the stored boxes and takes the largest suppression. Which tile XML element authors these boxes is open. Bytes e8 85 29 d5 ff at 0x14056e566. Report: investigation/hazards-rest.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14056e566",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14056e566"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Native findings are static readings of this executable build. No game process was executed, and no value here was checked in play.",
-        "The texture values at named map sites were not recovered, so no site-specific temperature is given. The month numbering and calendar labels were not established, so which in-game month has the warmest season term is not known.",
-        "Final vehicle and character damage was not traced: the consumer of the tornado's deferred damage record, how the volcano damage message becomes HP, and any damage from whirlpool and tsunami water beyond collision, flooding or drowning.",
-        "Meteor block damage falloff, the largest radius of every explosion consumer and the reach of the main meteor's ocean event were not established.",
-        "Volcano lava and projectile paths and their contact damage, the full eruption acceptance test and its height-map helper were not decoded.",
-        "Forest fire scheduling and damage were not established: how initial fires start, including the lightning and explosion ignition chances, how often the tree update runs, vehicle and character heat and damage, and how far a fire spreads over several generations.",
-        "Whether native code schedules natural disasters besides the two addons was not established: indirect calls, save restore paths and every writer of the volcano activation flag were not ruled out.",
+        "The texture values at named map sites were not recovered, so no site-specific temperature is given. The seasonal term uses the serialized numeric month, but its mapping to displayed calendar labels was not traced, so the warmest named in-game month is not established.",
+        "Tornado character damage was not traced, and neither was any tsunami or whirlpool damage beyond their physical water effects. The meaning of the component-definition value subtracted before component damage, and the scene multiplier K in character HP integration, were not established.",
+        "Meteor block-damage falloff and the bounds of explosion consumers outside the shared record, such as the separate record the impact queues through 0x14077e720, were not traced. The main meteor's texture factor F was not mapped across the world.",
+        "Rendered eruption particles were not connected to physical lava or projectile contact damage, and the object-kind, update-phase and raycast tests that still qualify the eruption damage branch were not decoded.",
+        "Lightning ignition, the origin of the scene's queued position ignitions, any other initial-fire scheduling and vehicle and character heat damage from fires were not traced.",
+        "An exhaustive exclusion of native disaster scheduling was not established: indirect calls, script operator invocations, load and clone paths and every writer of the volcano flags were not ruled out.",
         "The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.",
-        "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, of the vehicle flag that zeroes the force and of the suppression volumes, the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update."
+        "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update."
       ]
     },
     {
@@ -15811,7 +16075,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 539,
+    "findingCount": 559,
     "sourceCount": 84,
     "categories": [
       "Control",

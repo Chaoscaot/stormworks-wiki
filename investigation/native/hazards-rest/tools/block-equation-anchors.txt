@@ -1,0 +1,30 @@
+   14049fb82:	44 8b 4c 24 78                                  	mov    r9d,DWORD PTR [rsp+0x78]
+   14049fb87:	0f 8c 34 fc ff ff                               	jl     0x14049f7c1
+   14049fb8d:	41 ff c0                                        	inc    r8d
+   14049fb90:	44 89 44 24 6c                                  	mov    DWORD PTR [rsp+0x6c],r8d
+   14049fb95:	48 83 45 a8 21                                  	add    QWORD PTR [rbp-0x58],0x21
+   14049fb9a:	88 54 24 60                                     	mov    BYTE PTR [rsp+0x60],dl
+   14049fb9e:	44 3b c3                                        	cmp    r8d,ebx
+   14049fbb2:	4c 89 6d 60                                     	mov    QWORD PTR [rbp+0x60],r13
+   14049fbb6:	44 89 6d 68                                     	mov    DWORD PTR [rbp+0x68],r13d
+   14049fbba:	85 ff                                           	test   edi,edi
+   14049fbbc:	0f 84 a0 03 00 00                               	je     0x14049ff62
+   14049fd1a:	eb 08                                           	jmp    0x14049fd24
+   14049fd24:	f3 0f 58 c6                                     	addss  xmm0,xmm6
+   14049fd28:	e8 ab 5a 53 00                                  	call   0x1409d57d8
+   14049fd2d:	f3 0f 2c c0                                     	cvttss2si eax,xmm0
+   14049fd31:	41 8b d5                                        	mov    edx,r13d
+   14049fd34:	2b d0                                           	sub    edx,eax
+   14049fd36:	b8 56 55 55 55                                  	mov    eax,0x55555556
+   14049fd3b:	f7 ea                                           	imul   edx
+   14049fd3d:	8b da                                           	mov    ebx,edx
+   14049fd3f:	c1 eb 1f                                        	shr    ebx,0x1f
+   14049fd42:	ff c2                                           	inc    edx
+   14049fd44:	03 da                                           	add    ebx,edx
+   14049fd46:	b8 00 00 00 00                                  	mov    eax,0x0
+   14049fd4b:	0f 48 d8                                        	cmovs  ebx,eax
+   14049fd4e:	48 8b 07                                        	mov    rax,QWORD PTR [rdi]
+   14049fd51:	41 8d 14 1e                                     	lea    edx,[r14+rbx*1]
+   14049fd55:	48 8b cf                                        	mov    rcx,rdi
+   14049fd58:	ff 50 20                                        	call   QWORD PTR [rax+0x20]
+   14049fd5b:	4c 8b 95 a0 00 00 00                            	mov    r10,QWORD PTR [rbp+0xa0]

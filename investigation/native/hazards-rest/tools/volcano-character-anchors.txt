@@ -1,0 +1,66 @@
+173:   1405607cf:	48 c7 40 08 66 00 00 00                         	mov    QWORD PTR [rax+0x8],0x66
+184:   140560800:	c7 47 14 00 00 40 40                            	mov    DWORD PTR [rdi+0x14],0x40400000
+242:   1405608fc:	48 c7 40 08 66 00 00 00                         	mov    QWORD PTR [rax+0x8],0x66
+253:   14056092d:	c7 47 14 00 00 40 40                            	mov    DWORD PTR [rdi+0x14],0x40400000
+308:   140560a1f:	c7 40 08 66 00 00 00                            	mov    DWORD PTR [rax+0x8],0x66
+320:   140560a4f:	c7 47 14 00 00 40 40                            	mov    DWORD PTR [rdi+0x14],0x40400000
+478:   140560d01:	f3 41 0f 5e c3                                  	divss  xmm0,xmm11
+479:   140560d06:	f3 0f 58 c0                                     	addss  xmm0,xmm0
+480:   140560d0a:	f3 41 0f 5c c2                                  	subss  xmm0,xmm10
+481:   140560d0f:	0f 5a f8                                        	cvtps2pd xmm7,xmm0
+482:   140560d12:	e8 09 ed 44 00                                  	call   0x1409afa20
+483:   140560d17:	25 ff 7f 00 00                                  	and    eax,0x7fff
+484:   140560d1c:	0f 57 c0                                        	xorps  xmm0,xmm0
+485:   140560d1f:	f3 0f 2a c0                                     	cvtsi2ss xmm0,eax
+486:   140560d23:	f3 41 0f 5e c3                                  	divss  xmm0,xmm11
+487:   140560d28:	f3 0f 58 c0                                     	addss  xmm0,xmm0
+488:   140560d2c:	f3 41 0f 5c c2                                  	subss  xmm0,xmm10
+489:   140560d31:	44 0f 5a c0                                     	cvtps2pd xmm8,xmm0
+490:   140560d35:	41 0f 28 d0                                     	movaps xmm2,xmm8
+491:   140560d39:	f2 41 0f 59 d0                                  	mulsd  xmm2,xmm8
+492:   140560d3e:	0f 28 c7                                        	movaps xmm0,xmm7
+493:   140560d41:	f2 0f 59 c7                                     	mulsd  xmm0,xmm7
+494:   140560d45:	f2 0f 58 d0                                     	addsd  xmm2,xmm0
+495:   140560d49:	0f 28 ce                                        	movaps xmm1,xmm6
+496:   140560d4c:	f2 0f 59 ce                                     	mulsd  xmm1,xmm6
+497:   140560d50:	f2 0f 58 d1                                     	addsd  xmm2,xmm1
+498:   140560d54:	0f 57 c0                                        	xorps  xmm0,xmm0
+499:   140560d57:	66 0f 2e c2                                     	ucomisd xmm0,xmm2
+500:   140560d5b:	77 06                                           	ja     0x140560d63
+501:   140560d5d:	66 0f 51 c2                                     	sqrtpd xmm0,xmm2
+502:   140560d61:	eb 08                                           	jmp    0x140560d6b
+503:   140560d63:	0f 28 c2                                        	movaps xmm0,xmm2
+504:   140560d66:	e8 ad 65 47 00                                  	call   0x1409d7318
+505:   140560d6b:	45 0f 57 d2                                     	xorps  xmm10,xmm10
+506:   140560d6f:	66 41 0f 2f c2                                  	comisd xmm0,xmm10
+507:   140560d74:	76 0f                                           	jbe    0x140560d85
+508:   140560d76:	f2 44 0f 5e c0                                  	divsd  xmm8,xmm0
+509:   140560d7b:	f2 0f 5e f8                                     	divsd  xmm7,xmm0
+510:   140560d7f:	f2 0f 5e f0                                     	divsd  xmm6,xmm0
+511:   140560d83:	eb 0f                                           	jmp    0x140560d94
+512:   140560d85:	f2 44 0f 10 05 32 f4 64 00                      	movsd  xmm8,QWORD PTR [rip+0x64f432]        # 0x140bb01c0
+513:   140560d8e:	0f 57 ff                                        	xorps  xmm7,xmm7
+514:   140560d91:	0f 57 f6                                        	xorps  xmm6,xmm6
+515:   140560d94:	41 0f 5a c1                                     	cvtps2pd xmm0,xmm9
+516:   140560d98:	f2 0f 59 f0                                     	mulsd  xmm6,xmm0
+517:   140560d9c:	f2 0f 59 f8                                     	mulsd  xmm7,xmm0
+518:   140560da0:	f2 44 0f 59 c0                                  	mulsd  xmm8,xmm0
+519:   140560da5:	f2 44 0f 10 0d 52 f3 64 00                      	movsd  xmm9,QWORD PTR [rip+0x64f352]        # 0x140bb0100
+520:   140560dae:	f2 41 0f 59 f1                                  	mulsd  xmm6,xmm9
+521:   140560db3:	f2 41 0f 59 f9                                  	mulsd  xmm7,xmm9
+522:   140560db8:	f2 45 0f 59 c1                                  	mulsd  xmm8,xmm9
+523:   140560dbd:	0f 28 de                                        	movaps xmm3,xmm6
+524:   140560dc0:	f2 41 0f 58 dd                                  	addsd  xmm3,xmm13
+525:   140560dc5:	0f 28 d7                                        	movaps xmm2,xmm7
+526:   140560dc8:	f2 41 0f 58 d7                                  	addsd  xmm2,xmm15
+527:   140560dcd:	41 0f 28 ce                                     	movaps xmm1,xmm14
+528:   140560dd1:	f2 41 0f 58 c8                                  	addsd  xmm1,xmm8
+529:   140560dd6:	f2 44 0f 5c ee                                  	subsd  xmm13,xmm6
+530:   140560ddb:	f2 44 0f 5c ff                                  	subsd  xmm15,xmm7
+531:   140560de0:	f2 45 0f 5c f0                                  	subsd  xmm14,xmm8
+532:   140560de5:	41 0f 28 c6                                     	movaps xmm0,xmm14
+533:   140560de9:	66 41 0f 14 c7                                  	unpcklpd xmm0,xmm15
+534:   140560dee:	0f 11 45 50                                     	movups XMMWORD PTR [rbp+0x50],xmm0
+535:   140560df2:	f2 44 0f 11 6d 18                               	movsd  QWORD PTR [rbp+0x18],xmm13
+536:   140560df8:	f2 44 0f 11 6d 60                               	movsd  QWORD PTR [rbp+0x60],xmm13
+537:   140560dfe:	0f 28 c1                                        	movaps xmm0,xmm1
