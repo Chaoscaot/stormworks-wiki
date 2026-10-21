@@ -1,0 +1,58 @@
+        uVar17 = *(int *)((longlong)plVar2 + 0x24) + 2;
+        uVar18 = (uVar22 - 4 >> 2) + 1;
+        uVar15 = (ulonglong)uVar18;
+        uVar18 = uVar18 * 4;
+        do {
+          pfVar3 = *(float **)(lVar19 + ((ulonglong)(uVar17 - 2) % (ulonglong)uVar23) * 0x10);
+          fVar27 = *pfVar3;
+          if (fVar34 <= fVar27) {
+            fVar34 = fVar27;
+          }
+          pfVar4 = *(float **)(lVar19 + ((ulonglong)(uVar17 - 1) % (ulonglong)uVar23) * 0x10);
+          fVar27 = *pfVar4;
+          if (fVar34 <= fVar27) {
+            fVar34 = fVar27;
+          }
+          pfVar5 = *(float **)(lVar19 + ((ulonglong)uVar17 % (ulonglong)uVar23) * 0x10);
+          fVar27 = *pfVar5;
+          if (fVar34 <= fVar27) {
+            fVar34 = fVar27;
+          }
+          pfVar6 = *(float **)(lVar19 + ((ulonglong)(uVar17 + 1) % (ulonglong)uVar23) * 0x10);
+          fVar35 = fVar35 + *pfVar3 + *pfVar4 + *pfVar5 + *pfVar6;
+          fVar27 = *pfVar6;
+          if (fVar34 <= fVar27) {
+            fVar34 = fVar27;
+          }
+          uVar17 = uVar17 + 4;
+          uVar15 = uVar15 - 1;
+        } while (uVar15 != 0);
+      }
+      if (uVar18 < uVar22) {
+        uVar23 = *(int *)((longlong)plVar2 + 0x24) + uVar18;
+        uVar15 = (ulonglong)(uVar22 - uVar18);
+        do {
+          pfVar3 = *(float **)
+                    (plVar2[3] + ((ulonglong)uVar23 % (ulonglong)*(uint *)(plVar2 + 4)) * 0x10);
+          fVar35 = fVar35 + *pfVar3;
+          fVar27 = *pfVar3;
+          if (fVar34 <= fVar27) {
+            fVar34 = fVar27;
+          }
+          uVar23 = uVar23 + 1;
+          uVar15 = uVar15 - 1;
+        } while (uVar15 != 0);
+      }
+      fVar27 = fVar34 / fVar10;
+      fVar34 = fVar34 / fVar11;
+      uVar18 = *(uint *)(plVar2 + 2);
+      uVar23 = 0;
+      if (uVar18 < 4) {
+        if (uVar18 != 0) {
+          iVar24 = *(int *)((longlong)plVar2 + 0xc);
+          uVar17 = *(uint *)(plVar2 + 1);
+          lVar19 = *plVar2;
+          goto LAB_1404be6c2;
+        }
+      }
+      else {

@@ -5327,7 +5327,7 @@ def propulsion_native(E):
                         "The helper counts the set bits of the blade mask (+0x304, set to 0xffffffff at binding, 0x14033dfda) among the configured blades (+0x264). The force phase counts B the same way (0x14033f290)." + rep)
     f["w_select"] = code(F_EMIT_WEIGHT, 0x14033E03B, "80b88005000000", "Air weight selector byte", "byte +0x580 behind the definition's first pointer",
                          "For a definition without flag 2 (air parts), a nonzero byte here selects the blade-scaled weight F × B × 0.125, and zero selects F. "
-                         "Which resource field or loaded mesh state sets the byte is an open question listed under Propulsion, so every air figure on these pages is given for both branches." + rep)
+                         "The byte is the loaded state of the definition's mesh_1 slot (investigation/physics-core.md): the rotor and propeller parts, whose mesh_1_name is a blade mesh, take F × B × 0.125, and the ducted fans, whose mesh_1_name is empty, take F." + rep)
     f["w_marine"] = code(F_EMIT_WEIGHT, 0x14033E04D, "488b81b8020000a8027616a8047612", "Marine weight selector", "flags & 2 and flags & 4",
                          "For a definition with flag 2 (marine) the blade-scaled weight applies only when flag 4 is also set. The fixed marine propellers and the azimuth thruster (flags 524291) therefore use F, "
                          "and the pitchable propellers (flags 7) use F × B × 0.125. The air selector byte plays no part for them." + rep)
@@ -5438,7 +5438,21 @@ def emitter_inputs(E, bid):
     f = propulsion_native(E)
     attrs = E.block(bid)["attributes"]
     return [E.attr(bid, name, "Read by the force-emitter update.") if name in attrs else f["bind_" + key] for name, key, _, _, _ in EMIT_FIELDS] + [
-        E.attr(bid, "flags", "Bit 2 marks a marine part; bit 4 with bit 2 selects the blade-scaled weight; bit 0x40000000 adds the coaxial couple.")]
+        E.attr(bid, "flags", "Bit 2 marks a marine part; bit 4 with bit 2 selects the blade-scaled weight; bit 0x40000000 adds the coaxial couple.")] + (
+        [] if f["defs"][bid]["flags"] & 2 else
+        [E.attr(bid, "mesh_1_name", "A nonempty mesh_1_name loads the mesh_1 slot whose loaded byte selects the blade-scaled weight K = F × B ÷ 8000; an empty one leaves K = F ÷ 1000.")] +
+        [physics_core_native(E)[k] for k in ("s_key", "s_route", "s_clear", "s_read", "s_set")])
+
+
+def weight_mode(E, bid):
+    """The weight mode of propulsion.json that this part uses: marine parts have one, air parts follow their mesh_1 selector."""
+    d = propulsion_native(E)["defs"][bid]
+    if d["flags"] & 2:
+        return d["weight_modes"][0]
+    modes = [m for m in d["weight_modes"] if m["blade_scaled"] == air_selector(E, bid)]
+    if len(modes) != 1:
+        raise ValueError("No single weight mode for " + bid)
+    return modes[0]
 
 
 def emitter_figures(E, bid):
@@ -5448,7 +5462,7 @@ def emitter_figures(E, bid):
     a, name = d["parameters"], E.block(bid)["name"]
     marine = bool(d["flags"] & 2)
     runs = [(m["blade_scaled"], emitter_model(a, d["flags"], 10.0, scaled=m["blade_scaled"]), emitter_model(a, d["flags"], 60.0, scaled=m["blade_scaled"]))
-            for m in d["weight_modes"]]
+            for m in [weight_mode(E, bid)]]
     label = {False: "K = F ÷ 1000", True: "K = F × B ÷ 8000"}
     per = lambda r: "%.3f" % (r["raw"] / 10)
     value = " or ".join("%s per RPS" % per(r) for _, r, _ in runs)
@@ -5462,7 +5476,7 @@ def emitter_figures(E, bid):
                   _num(a["max_force"]), _num(a["rotation_speed"]), _num(a["blade_physics_length"]), _num(_f32(a["blade_efficiency"])), _num(a["efficiency"]), d["flags"],
                   "water with the hub submerged" if marine else "air at altitude 0", _num(round(runs[0][1]["w"], 4)), "; ".join(rows),
                   "Internal force units, not newtons. The weight branch is fixed by the marine flags." if marine else
-                  "Which weight branch applies depends on the air selector byte, an open question listed under Propulsion, so both are given."))
+                  "Internal force units, not newtons. The weight branch follows mesh_1_name, %s." % ("a blade mesh" if air_selector(E, bid) else "which is empty")))
     return E.derived("%s force at 10 RPS" % name, value, detail + " Report: %s." % PR_REPORT,
                      emitter_inputs(E, bid) + [f[k] for k in ("w_select", "w_marine", "w_eighth", "k_div", "damp", "k075", "k032", "half", "water", "removed", "k1500")])
 
@@ -5471,7 +5485,7 @@ def _fig(E, bid, scaled=None):
     """K, internal force per RPS and removed RPS at 10 RPS for one branch, as the figures finding formats them."""
     d = propulsion_native(E)["defs"][bid]
     if scaled is None:
-        scaled = d["weight_modes"][0]["blade_scaled"]
+        scaled = weight_mode(E, bid)["blade_scaled"]
     r = emitter_model(d["parameters"], d["flags"], 10.0, scaled=scaled)
     return _num(r["K"]), "%.3f" % (r["raw"] / 10), "%.4f" % r["removed"]
 
@@ -5485,7 +5499,7 @@ def propulsion(B, E):
     core, rotor, coax, shaft = f["core"], f["rotor"], f["coaxial"], f["shaft"]
     rate = update_rate(E)["findings"]
     figs = {bid: emitter_figures(E, bid) for _, bids in PROP_PARTS for bid in bids}
-    air_pair = lambda bid: "%s or %s" % (_fig(E, bid, False)[1], _fig(E, bid, True)[1])
+    air_pair = lambda bid: _fig(E, bid)[1]
     law = ("Each update the part reads its published shaft speed and computes w = RPS × 0.9999, the effective pitch p = clamp(saved pitch + input, -1, 1) and the load "
            "b = (2 × w × rotation_speed × π × blade_physics_length × p × 0.75 + p × U) × blade_efficiency × B × 0.32, where U is the relative flow along the thrust axis and B the number of intact blades. "
            "With q = clamp(b × 0.5 ÷ K, -10, 10), multiplied by 10 when the hub is below the water surface, it removes w × (1 - 1 ÷ (1 + q²)) RPS from its own speed and pushes with T = 1500 × K × removed RPS × efficiency, signed by the pitch.")
@@ -5496,7 +5510,8 @@ def propulsion(B, E):
                         "The part submits K as its shaft weight together with the speed it kept on the previous update, so the shaft group feels the load one update later. "
                         "At low speed in still air or water T grows about with RPS cubed; once q reaches its clamp it grows close to linearly. Zero pitch gives no load and no thrust, and negative pitch or RPS reverses the push."),
                 section("What force_emitter_max_force does",
-                        "K = F ÷ 1000. The pitchable marine propellers use K = F × B ÷ 8000 instead, F ÷ 2000 with 4 intact blades. Air parts use one of the two, chosen by a definition byte that the decode could not tie to a resource field, so their figures come in pairs. "
+                        "K = F ÷ 1000. The pitchable marine propellers use K = F × B ÷ 8000 instead, F ÷ 2000 with 4 intact blades. Air parts choose by their mesh_1 slot: the rotors, rotor propellers, tail rotor and aircraft propeller name a blade mesh as mesh_1_name and use F × B ÷ 8000, "
+                        "while the ducted fans leave it empty and use F ÷ 1000. "
                         "A larger F raises K, which lowers q, so less speed is removed per update while each removed RPS pushes harder. F ratios between sizes are therefore not thrust ratios, and raw force can exceed F: "
                         "the small marine propeller (F = 20000) gives raw force %.3f at 10 RPS." % emitter_model(f["defs"]["propeller"]["parameters"], f["defs"]["propeller"]["flags"], 10.0)["raw"]),
                 section("Water and air",
@@ -5512,15 +5527,17 @@ def propulsion(B, E):
                             _num(round(f["through"][0], 6)), _num(round(f["through"][1], 6)))),
                 section("Application cap",
                         "Every propeller, rotor and fan force is capped at 100 × S on its own, and solid rockets at 1000 × S. " + CAP_RULE + " "
-                        "Each force emitter also adds an auxiliary mass of 10 to the mass adjustment. That changes how the body masses are scaled, but it is not added to S."),
+                        "Each force emitter also adds an auxiliary mass of 10 to the mass adjustment. That changes how the body masses are scaled, but it is not added to S. "
+                        "A vehicle saved with the is_static metadata flag set leaves its first body out of the mass sum, so that body adds 0 to S."),
                 section("Rockets", "Solid rocket boosters burn once. Each update a nozzle of width w uses trunc(400 × w² × burn rate) + 1 fuel units and pushes with 60 times that, so a slower burn rate pushes less for longer, and fuel sections lengthen the burn without adding thrust."),
                 section("Open questions",
-                        "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; "
-                        "for the cap scale S, which code sets the assembly root flag (+0x29c) that drops the first body from the mass sum, and which connector links (connection records of kind 8) join bodies into one S group; "
+                        "Not decoded: for the cap scale S, which connector links (connection records of kind 8) join bodies into one S group, and what sets the adjacent assembly byte (+0x29d) that a rebuild ORs into the is_static root flag; "
                         "the SI calibration of mass, force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, "
-                        "cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); "
+                        "cavitation and other hydrodynamics outside the scalar law; whether a world, airflow or contact path outside the traced force-emitter update adds a near-ground force, since that update has no ground-clearance input; "
                         "the editor-arrow sign table for reflected parts. No figure here was measured in a running game.")],
-               core + rotor + coax + shaft + [f["through_fig"]] + [fe(b) for _, bids in PROP_PARTS for b in bids] + list(figs.values()) + [srb, E.tooltip("propeller")] + [weapons_native(E)[k] for k in ("r_400", "r_60", "r_sum", "r_units")] + rate + force_cap(E)["core"],
+               core + rotor + coax + shaft + [f["through_fig"]] + [fe(b) for _, bids in PROP_PARTS for b in bids] + list(figs.values()) + [srb, E.tooltip("propeller")] + [weapons_native(E)[k] for k in ("r_400", "r_60", "r_sum", "r_units")] + rate + force_cap(E)["core"]
+               + [E.attr(b, "mesh_1_name", "Selects the air weight branch.") for _, bids in PROP_PARTS for b in bids if not propulsion_native(E)["defs"][b]["flags"] & 2]
+               + [physics_core_native(E)[k] for k in ("s_key", "s_route", "s_clear", "s_read", "s_set", "r_key", "r_editor", "r_asm", "r_split", "r_or")],
                ["Static analysis of one build. Forces are in the game's internal force unit before the 100 × S application cap.", TICK])
 
     def family(fid, summary, sections, findings, limits=()):
@@ -5529,13 +5546,12 @@ def propulsion(B, E):
                  [fe(b) for b in bids] + [figs[b] for b in bids] + [x for b in bids for x in emitter_inputs(E, b)] + findings + core + shaft + rate,
                  list(limits) + ["Internal force units before the 100 × S application cap. Open items shared by every propeller and rotor are listed under Propulsion.", TICK])
 
-    def table(bids, air):
-        if air:
-            return "; ".join("%s: K %s or %s, %s per RPS" % (N(b), _fig(E, b, False)[0], _fig(E, b, True)[0], air_pair(b)) for b in bids)
+    def table(bids, air=False):
         return "; ".join("%s: K %s, %s per RPS, %s RPS removed" % ((N(b),) + _fig(E, b)) for b in bids)
 
-    air_note = ("Air parts take one of two solver weights, K = F ÷ 1000 or F × B ÷ 8000, depending on a definition byte the decode could not tie to a resource field; "
-                "each figure gives both, the first for F ÷ 1000.")
+    air_note = ("Their definitions name a blade mesh as mesh_1_name. A successful load sets the mesh_1 slot's loaded byte, which selects the blade-scaled solver weight K = F × B ÷ 8000, F ÷ 2000 with 4 intact blades; "
+                "each lost blade lowers K by a quarter of that.")
+    fan_note = "Their mesh_1_name is empty, so the mesh_1 slot stays unloaded and the solver weight is K = F ÷ 1000."
     still = "Figures are raw internal force per input RPS at 10 published RPS, effective pitch 1, 4 intact blades and no inflow, before the application cap."
     rotor_pitch = ("The saved pitch starts at force_emitter_default_pitch 1, so effective pitch is clamp(1 + Collective): Collective -1 gives zero load and zero thrust, and 0 or more gives full pitch 1. "
                    "Pitch alone cannot reverse their push; reversing the shaft does.")
@@ -5573,7 +5589,7 @@ def propulsion(B, E):
                     "The hub must be at or below the sampled water surface for thrust; under water q is multiplied by 10. U comes from the propeller's own velocity through still water, signed by the pitch.")],
            [E.port("propeller_pitch", "Pitch"), E.tooltip("propeller_pitch")])
     family("helicopter-rotor",
-           "Large and huge rotors on the shared force-emitter law with efficiency 1.25; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap." % (
+           "Large and huge rotors on the shared force-emitter law with efficiency 1.25; at 10 RPS they give %s and %s internal force per RPS, before the application cap." % (
                air_pair("large_rotor"), air_pair("huge_rotor")),
            [section("Thrust and shaft load", law, rotor_pitch),
             section("Sizes", table(dict(PROP_PARTS)["helicopter-rotor"], True) + ". " + still, air_note),
@@ -5581,7 +5597,7 @@ def propulsion(B, E):
             section("Water and altitude", under, alt)],
            rotor + [eff("large_rotor"), eff("huge_rotor"), E.tooltip("large_rotor")])
     family("heavy-helicopter-rotor",
-           "Heavy rotors on the shared force-emitter law with rotation_speed 1.5 and blade_efficiency 0.02; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap." % (
+           "Heavy rotors on the shared force-emitter law with rotation_speed 1.5 and blade_efficiency 0.02; at 10 RPS they give %s and %s internal force per RPS, before the application cap." % (
                air_pair("heavy_rotor"), air_pair("heavy_rotor_large")),
            [section("Thrust and shaft load", law, rotor_pitch),
             section("Sizes", table(dict(PROP_PARTS)["heavy-helicopter-rotor"], True) + ". " + still, air_note),
@@ -5589,16 +5605,16 @@ def propulsion(B, E):
             section("Water and altitude", under, alt)],
            rotor + [E.tooltip("heavy_rotor")])
     family("ducted-fan",
-           "Air fans on the shared force-emitter law with pitch fixed at 1; at 10 RPS they give %s and %s internal force per RPS depending on the air weight branch, before the application cap." % (
+           "Air fans on the shared force-emitter law with pitch fixed at 1; at 10 RPS they give %s and %s internal force per RPS, before the application cap." % (
                air_pair("fan_small"), air_pair("fan_large")),
            [section("Thrust and shaft load", law,
                     "The fans have only an RPS port, so the effective pitch stays at force_emitter_default_pitch 1. Turning the shaft backwards reverses the push."),
-            section("Sizes", table(dict(PROP_PARTS)["ducted-fan"], True) + ". " + still, air_note + " Their small F gives a small K, so they take more speed off the shaft per RPS than the rotors."),
+            section("Sizes", table(dict(PROP_PARTS)["ducted-fan"], True) + ". " + still, fan_note + " Their small F gives a small K, so they take more speed off the shaft per RPS than the rotors."),
             section("Water and altitude",
                     "With the hub below the water surface a fan pushes not at all, and its load ratio is multiplied by 10. " + alt)],
            [E.tooltip("fan_small")])
     family("through-drive-rotor",
-           "Rotors with Power Connection A and B on the shared force-emitter law; the two ports are linked through the shaft solver with fraction 0.95 and ratio 1, and at 10 RPS the rotors give %s, %s and %s internal force per RPS by air weight branch." % (
+           "Rotors with Power Connection A and B on the shared force-emitter law; the two ports are linked through the shaft solver with fraction 0.95 and ratio 1, and at 10 RPS the rotors give %s, %s and %s internal force per RPS." % (
                air_pair("rotor_coaxial_light"), air_pair("rotor_coaxial_small"), air_pair("rotor_coaxial_large")),
            [section("How the two ports share speed",
                     "At binding the rotor links its A and B port nodes to each other. Every update the shaft solver adds each side's speed to the other side with weight × 0.95 at ratio 1, the same bridge a gearbox uses. "
@@ -5610,7 +5626,7 @@ def propulsion(B, E):
             section("Water and altitude", under, alt)],
            rotor + coax + [f["bridge"], f["through_fig"]] + [eff("rotor_coaxial_light")])
     family("through-drive-rotor-propeller",
-           "Rotor propellers with Power Connection A and B on the shared force-emitter law; the ports are linked through the shaft solver with fraction 0.95 and ratio 1, and at 10 RPS they give %s and %s internal force per RPS by air weight branch." % (
+           "Rotor propellers with Power Connection A and B on the shared force-emitter law; the ports are linked through the shaft solver with fraction 0.95 and ratio 1, and at 10 RPS they give %s and %s internal force per RPS." % (
                air_pair("rotor_coaxial_prop_small"), air_pair("rotor_coaxial_prop")),
            [section("How the two ports share speed",
                     "As on the through-drive rotors, the binding links ports A and B and the shaft solver mixes their speeds with weight × 0.95 at ratio 1. The load is submitted on A. "
@@ -5621,7 +5637,7 @@ def propulsion(B, E):
             section("Water and altitude", under, alt)],
            rotor + coax + [f["bridge"], f["through_fig"]])
     family("terminal-rotor-propeller",
-           "End rotor propellers with one power connection on the shared force-emitter law; at 10 RPS they give %s and %s internal force per RPS by air weight branch, the same as their through-drive counterparts." % (
+           "End rotor propellers with one power connection on the shared force-emitter law; at 10 RPS they give %s and %s internal force per RPS, the same as their through-drive counterparts." % (
                air_pair("rotor_coaxial_prop_small_end"), air_pair("rotor_coaxial_prop_end")),
            [section("Thrust and shaft load", law, rotor_pitch),
             section("Sizes", table(dict(PROP_PARTS)["terminal-rotor-propeller"], True) + ". " + still, air_note),
@@ -5630,7 +5646,7 @@ def propulsion(B, E):
             section("Water and altitude", under, alt)],
            rotor + coax + [f["bridge"]])
     family("part-rotor-coaxial-light-end",
-           "Light end rotor with one power connection on the shared force-emitter law; at 10 RPS it gives %s internal force per RPS by air weight branch, like the light through-drive rotor." % air_pair("rotor_coaxial_light_end"),
+           "Light end rotor with one power connection on the shared force-emitter law; at 10 RPS it gives %s internal force per RPS, like the light through-drive rotor." % air_pair("rotor_coaxial_light_end"),
            [section("Thrust and shaft load", law, rotor_pitch),
             section("Figures", table(("rotor_coaxial_light_end",), True) + ". " + still, air_note),
             section("End of a stack", "It has no port B, so the binding installs no A/B link. " + couple),
@@ -5638,7 +5654,7 @@ def propulsion(B, E):
             section("Water and altitude", under, alt)],
            rotor + coax + [f["bridge"]])
     family("part-aircraft-propeller",
-           "Aircraft propeller on the shared force-emitter law with rotation_speed 3; at 10 RPS it gives %s internal force per RPS by air weight branch, before the application cap." % air_pair("aircraft_propeller"),
+           "Aircraft propeller on the shared force-emitter law with rotation_speed 3; at 10 RPS it gives %s internal force per RPS, before the application cap." % air_pair("aircraft_propeller"),
            [section("Thrust and shaft load", law,
                     "Collective drives the pitch input. The saved pitch starts at 1, so Collective -1 gives zero thrust and 0 or more gives full pitch 1; it cannot reverse the push. "
                     "The tooltip's torque wording describes the shaft load: every RPS the propeller removes from its shaft becomes 1500 × K internal force."),
@@ -5646,7 +5662,7 @@ def propulsion(B, E):
             section("Water and altitude", "With the hub below the water surface it pushes not at all and its load ratio is multiplied by 10. " + alt)],
            [E.port("aircraft_propeller", "Collective"), E.tooltip("aircraft_propeller")])
     family("part-tail-rotor",
-           "Tail rotor on the shared force-emitter law whose Yaw input sets a signed pitch from -1 to 1; at 10 RPS and pitch 1 it gives %s internal force per RPS by air weight branch." % air_pair("tail_rotor"),
+           "Tail rotor on the shared force-emitter law whose Yaw input sets a signed pitch from -1 to 1; at 10 RPS and pitch 1 it gives %s internal force per RPS." % air_pair("tail_rotor"),
            [section("Thrust and shaft load", law,
                     "force_emitter_default_pitch is 0, so the Yaw input is the effective pitch: 0 gives no thrust and no load, and the sign sets the push direction. Drive it from the main rotor's engine and feed the gyro's stabilised yaw."),
             section("Figures", table(("tail_rotor",), True) + ". " + still, air_note),
@@ -5703,7 +5719,8 @@ def control_surfaces(B, E):
                     "It then multiplies all of them by r = T ÷ D, so they add back up to the raw total T. Auxiliary masses change r but are not added to S.",
                     "Examples: one body of mass 1000 has S = 1000, so its air forces are capped at 5000. Bodies of 1000 and 1 on a hinge, free or locked, adjust to 976.585366 and 24.414634, and both get S = 1001. "
                     "One body of 1000 with an auxiliary mass of 1 gets S = 992.727273. Bodies of 1000 and 1 with no joint between them keep S = 1000 and S = 1. "
-                    "The cap limits each force separately; it is not a budget for the whole vehicle. Edge cases with connectors and the assembly root flag are listed under Propulsion.")
+                    "The cap limits each force separately; it is not a budget for the whole vehicle. A vehicle saved with the is_static metadata flag set leaves its first body out of the sum, so that body adds 0 to S. "
+                    "Connector edge cases are listed under Propulsion.")
     B.category("Control surfaces",
                "Wings, control surfaces and fins push along their surface normal once airspeed passes 15 m/s, with force proportional to rudder_surface_area (wings 8 to 120, control surfaces 10 to 70, fins 2 to 12). Control surfaces deflect about 45° each way, fins about 14.3°.",
                [section("Sizing",
@@ -5723,7 +5740,7 @@ def control_surfaces(B, E):
                         "Partly under water, the air force is scaled by 1 minus the immersion fraction and a separate water term takes over."),
                 cap_s],
                wings + cs + fins + rot + deg + gyro + [lift_sdk, lift_rt, kind("wing_small"), kind("control_surface_small"), kind("control_fin_small"),
-                                                    wing_ratio, cs_ratio, fin_ratio] + core + wing + deflect + FC_["core"],
+                                                    wing_ratio, cs_ratio, fin_ratio] + core + wing + deflect + FC_["core"] + [physics_core_native(E)[k] for k in ("r_key", "r_asm", "r_or")],
                ["The force equations and the cap scale S come from static decompilation of one build; the game was not run.",
                 "Which visible edge and editor arrow match positive deflection and the sign of the force was not checked in game.",
                 "Internal mass and force units are not calibrated to kilograms and newtons.",
@@ -6067,7 +6084,8 @@ def wheels_native(E):
     f["gain_q"] = op(F_WHEEL, 0x1403AC3DF, "f30f10158d448000", 0x140BB0874, "Contact memory gain",
                      "Each component of q is multiplied by 2000 and added to 100 u, then everything by the scale: Q = (50 × grip_factor × tyre factor ÷ r) × (2000 q + 100 u), stored at component+0x7e0..+0x7e8. "
                      "The terms added at 0x1403ac407 and 0x1403ac40d are multiplied by xmm10, which is zeroed at 0x1403aa560. "
-                     "Longitudinal and lateral slip share one gain, and the request has no normal-load input. Q is an internal impulse request: the helpers 0x1401a7c70 and 0x1401a7ad0 cap it with a caller scale B before it reaches the body, so it is not in newtons.")
+                     "Longitudinal and lateral slip share one gain, and the request has no normal-load input. Q is an internal impulse request: the helpers 0x1401a7c70 and 0x1401a7ad0 bound it with a caller scale B before it reaches the body, "
+                     "B being the cap scale S of the wheel's body, so it is not in newtons.")
     f["brake"] = code(F_WHEEL, 0x1403AA564, "f3410f5fc2f3410f5dc6", "Brake input clamp", "0 to 1",
                       "Variable Brake (component+0x428), or 1 while Brake is on (+0x450), is clamped to 0..1 by maxss and minss and kept at rbp+0x1c.")
     f["tire_base"] = op(F_TIRE, 0x1403AFE47, "f30f10057d008000", 0x140BAFECC, "Tyre factor base",
@@ -6123,7 +6141,7 @@ def wheels_native(E):
                    "and the tyre request 60 × p × (max(0, 0.2 × r + a - l) + 4 × (l_old - l)) (0x1403ab6bc..0x1403ab6ee), both along the ray axis.")
     f["tire_d"] = op(F_WHEEL, 0x1403AB6D6, "f30f5925aa4d8000", 0x140BB0488, "Tyre spring damping factor", "Multiplies l_old - l in the tyre request.")
     f["mode"] = code(F_WHEEL, 0x1403AB92B, "803dcdfd930000", "Wheel physics mode gate", "byte 0x140ceb6ff",
-                     "Both spring requests are submitted only while this global byte is nonzero; the impulse helpers then scale them by B. The report leaves the byte's source and the alternate mode open.")
+                     "Both spring requests are submitted only while this global byte is nonzero; the impulse helpers then scale them by B. Session and world lifecycle routines write the byte, and it also selects the solver substep.")
     # Tracks.
     f["t_rps"] = code(F_TRACK_SYNC, 0x14049E242, "f30f5ec8", "Track RPS average", "Σ s × RPS ÷ count",
                       "The track pass walks each wheel group (vehicle+0x1350, count +0x1360), sums s × RPS (s = -1 for a reversed member, 0x14049e20d) and each member's component+0x808, and divides both by the member count. "
@@ -6298,7 +6316,9 @@ def wheels(B, E):
                     "scales it down to 5 m/s when longer and drops its part along the ray. That slip u asks for Q = (50 × grip_factor × tyre factor ÷ r) × (2000 q + 100 u), "
                     "where q is the drift of the contact point since the last update, multiplied by the brake and at most 0.1 × r. "
                     "Forward and sideways slip share one gain, and no normal load enters it. The tyre factor starts at 1, 1.75 for a double wheel, and is multiplied by 0.25, 0.1875 or 0.125 for tyre type 0, 1 or 2. "
-                    "For a Wheel 3x3 with the default type 1 that is 2678.571 internal units per m/s of slip, capped by the 5 m/s limit. Q is an internal impulse request that the impulse helpers scale and cap with a factor B before it reaches a body, so it is not a force in newtons.")
+                    "For a Wheel 3x3 with the default type 1 that is 2678.571 internal units per m/s of slip, capped by the 5 m/s limit. "
+                    "Q is an internal impulse request. The impulse helper turns it into B × clip(Q ÷ B, 4), at most 4 × B long, where B is S: the summed adjusted mass of the wheel's body and every body joined to it, the cap scale described under Control surfaces. "
+                    "So the grip limit grows with the vehicle's adjusted mass, even with an unchanged wheel, and Q is not a force in newtons.")
     exchange_body = ("Contact also corrects the wheel's RPS: it adds (slip along the tyre) ÷ (2π × r) × tyre factor × grip_factor × 0.5, which moves the RPS toward the ground speed (inference from the sign of the slip term). "
                      "The wheel then joins its shaft group like any member, submitting that RPS with a weight equal to its definition mass, × 0.7 for wheels with suspension: "
                      "10, 20, 40 and 80 without suspension and 10.5, 21, 42 and 84 with it. It takes the group speed back. "
@@ -6307,7 +6327,8 @@ def wheels(B, E):
     spring_body = ("Wheels with suspension push the chassis along the ray with 60 × tyre_pressure × (k × max(0, r + 0.5 × r - l) + c × (l_old - l)), l being the ray distance, "
                    "k = 0.05 + 0.45 × stiffness_factor and c = 0.5 + 4.5 × damping_factor: 0.23 and 0.995 at the defaults 0.4 and 0.11. "
                    "Wheels without suspension carry flag 0x800000, which sets k and c to 0, so this chassis spring adds nothing, and sets L = 0.3 × r and a = 0.8 × r. "
-                   "A second request, 60 × tyre_pressure × (max(0, 0.2 × r + a - l) + 4 × (l_old - l)), uses the hit body's own scale and runs in both. Both are internal requests that the helpers scale by B again, and the wheel's sphere body also collides normally.")
+                   "A second request, 60 × tyre_pressure × (max(0, 0.2 × r + a - l) + 4 × (l_old - l)), runs in both; when it pushes another hit body it uses that body's own mass as its scale. "
+                   "Both are internal requests bounded by their scale as above, and the wheel's sphere body also collides normally. They are submitted only while the global physics mode byte is set: session setup sets it to 1 and a reset clears it.")
     track_body = ("Tank wheels in one track share speed by a plain mean: the track pass adds each member's signed RPS, divides by the count and writes the mean back to every member. "
                   "Two members at 10 and 0 RPS both leave at 5, whatever their radii, so tank wheels of different sizes in one track turn at one RPS but their treads move at different speeds. "
                   "A tank wheel keeps its tyre factor 1 inside a track and halves it outside one, and keeps 0.975 of its RPS per update in a track and 0.7 outside one; the tyre type is ignored.")
@@ -6317,9 +6338,12 @@ def wheels(B, E):
                   "The solver runs fixed substeps at 60, 120 or 180 Hz, up to 1000 per tick, while components update 60 times per simulated second. "
                   "Each solver step multiplies a body's velocity by (1 - d)^dt with d clamped to 0 to 1, so the default vehicle damping 0.1 keeps 0.9 of the speed per simulated second at any solver rate. "
                   "Vehicle linear damping is also multiplied by (1 - 0.0000224138 × y)^5.3595 and is 0 above y = 40000 (inference: y is height in metres). "
-                  "Bullet contact friction is clamp(μA × μB, -10, 10): 0.64 for two vehicle bodies at the default 0.8 and 0.0008 for a wheel's sphere body on a vehicle, so wheels get their grip from the ray request, not from the body contact.")
-    open_body = ("Not measured: vehicle speed and slip under load in a running game. Not recovered: the physical scale B the impulse helpers apply, so wheel grip has no newton or N m figure and no load curve; "
-                 "what sets the physics mode byte that gates the spring requests, and the other contact cases; how wheels are grouped into tracks, what Track Tension changes and how the belt touches the ground; "
+                  "Bullet contact friction is clamp(μA × μB, -10, 10): 0.64 for two vehicle bodies at the default 0.8 and 0.0008 for a wheel's sphere body on a vehicle, so wheels get their grip from the ray request, not from the body contact. "
+                  "Each substep the contact solver runs at most 10 sweeps over the normal and tangent rows, stopping early once a sweep changes nothing, and corrects penetration in a separate split-impulse pass. "
+                  "A tangent row is bounded by ±μ × λn, the friction coefficient times the current normal impulse. A contact bounces only at a normal speed of at least 0.2, by −e × v_n with e = eA × eB, and the bodies start with restitution 0, so they do not bounce. "
+                  "Forces are integrated with the actual substep duration. When the physics mode byte is clear, the substep is 1/60 whatever the solver rate.")
+    open_body = ("Not measured: vehicle speed and slip under load in a running game. Not recovered: a newton or N m figure for wheel grip and a load curve, since B is a native mass scale; "
+                 "which settings, menu actions and network transitions drive each lifecycle writer of the physics mode byte that gates the spring requests; the other contact cases; how wheels are grouped into tracks, what Track Tension changes and how the belt touches the ground; "
                  "what reads the track mean of component+0x808; and the speed law of the legacy Small, Medium and landing wheels, which run a separate update.")
     B.category("Wheels",
                "The tyre surface moves at 2π × r × RPS m/s with r = wheel_radius - 0.125 + 0.125 × wheel_size metres. Grip pulls ground and tread speed together from bounded slip, and the wheel feeds its RPS back into the shaft.",
@@ -6330,7 +6354,8 @@ def wheels(B, E):
                 section("Tracks", track_body),
                 section("Gravity, damping and contact friction", world_body),
                 section("Open questions", open_body)],
-               speed + contact + exchange + springs + tracks + world + every("speed") + every("weight") + every("radius") + every("mass") + R
+               speed + contact + exchange + springs + tracks + world + every("speed") + every("weight") + every("radius") + every("mass") + R + force_cap(E)["refs"]
+               + [physics_core_native(E)[k] for k in ("budget", "outer", "split", "tangent", "bounce_v", "bounce", "dt", "grip_c", "clip", "m_reset", "m_setup", "m_flag", "m_start", "m_load", "m_state", "m_net", "m_dt")]
                + [T("wheel_tank_1"), P("wheel_advanced_3", "Variable Brake")],
                [static, TICK])
 
@@ -8187,8 +8212,11 @@ def sensors_and_radio(B, E):
                         "Every radar and sonar candidate test reads its signature S from the target's physics record, and that value is the mass of the target's physics body. "
                         "Each component contributes its definition mass attribute through a shared getter, the vehicle code sums them per body and hands the sum to the physics object, and the sensors read it back. "
                         "So S is mass in the game's definition mass units, not block count, area or hull length. More blocks raise S only through their mass.",
-                        "A vehicle with several physics bodies presents one record per body, so the figures on this page apply to each body, not to the vehicle's total. "
-                        "The body sum also redistributes and clamps values and some components override the getter, so S is not always the plain sum of the definition masses."),
+                        "A vehicle with several physics bodies presents one record per body. The value is the cap scale S described under Control surfaces: the summed adjusted mass of the body and every body joined to it, so joined bodies share one S. "
+                        "The adjustment lifts each body to at least H ÷ 40, H being the heaviest mass in its group, and each auxiliary mass, such as 10 per force emitter, to at least H ÷ 120, then rescales all of them to the raw total. "
+                        "Auxiliary masses change that scaling but are not added to S. "
+                        "So S can differ from the editor's component mass, and the microprocessor's getter returns width × height instead of a definition mass. "
+                        "Fuel and cargo amounts and damage are not inputs of the sum. Removing parts or changing which bodies are joined changes S when the masses are rebuilt; a vehicle saved as static leaves its first body out."),
                 section("Advanced radar detection",
                         "The Basic, AWACS, Dish, Phalanx and Missile radars turn radar_range P into a working range R = P × 0.02 × 0.02 ÷ (FOV x × FOV y). FOV x and FOV y are 0.02 by default, and the editor sliders set each from 0.01 to 0.25 in steps of 0.01 (3.6 to 90 degrees). "
                         "R is 4 × P at 0.01 per axis, equals radar_range at 0.02 and is 0.0064 × P at 0.25: the AWACS spans 2000000 m to 3200 m, the Missile 80000 m to 128 m. "
@@ -8217,14 +8245,16 @@ def sensors_and_radio(B, E):
                         "Over the generator's full cycle each value occurs equally often, so the error is spread evenly across the band, not bell-shaped, and the draws follow a fixed sequence from the seed rather than being independent. "
                         "The legacy radars and sonars add no noise: logic case 50 writes the geometric distance and angles straight to its outputs."),
                 section("Open questions",
-                        "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; "
+                        "Not decoded: when the mass rebuild runs after part destruction, detachment, cargo or fuel events, and which bodies and auxiliary masses the editor's mass display counts, so S is not tied to that display; "
+                        "which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; "
                         "the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; "
                         "the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. "
                         "For radios: how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; "
                         "payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.")],
-               list(rx.values()) + list(rx_t.values()) + list(radar.values()) + [E.tooltip("radar"), E.tooltip("sonar_advanced")] +
+               list(rx.values()) + list(rx_t.values()) + list(radar.values()) + [E.tooltip("radar"), E.tooltip("sonar_advanced")] + force_cap(E)["core"] +
+               [physics_core_native(E)[k] for k in ("mp_mass", "r_key", "r_or")] +
                radar_core + sonar_core + locator + noise + [rate] + radio + legacy_core + fov_core,
-               ["Signature S is the target's physics-body mass in game mass units, read per physics body. The open items about it are listed under Open questions.",
+               ["Signature S is the cap scale S of the target's physics body in game mass units, shared by joined bodies. The open items about it are listed under Open questions.",
                 "Radio figures come from a static decode of the receive routine 0x14054a780; the radio items under Open questions are what it leaves open.",
                 "Unrelated definitions carry serialized default ranges; only sensor and radio definitions are interpreted here."])
     legacy = (("part-rx-small", "rx_small", "rx_small_v2", "100 m"), ("part-rx-med", "rx_med", "rx_med_v2", "1 km"),
@@ -12098,6 +12128,155 @@ def misc_gaps_native(E):
                          "The cable-system update calls the removal on a branch driven by endpoint and control state, including the endpoint byte +0x1288, not by a measured link force. "
                          "The other callers are endpoint and attachment cleanup and game-side request handlers.")
     E.misc_gaps = t
+    return t
+
+
+# Core physics: contact solver budgets, wheel scale B, the physics mode byte, the air weight selector and the
+# assembly root flag; files under investigation/native/physics-core/.
+PC_REPORT = "investigation/physics-core.md"
+_PCA = "physics-core/asm/"
+F_SOLVER_INFO = 0x1401328B0    # solver-info constructor (leaf): iteration budget, split impulse, restitution threshold
+F_SOLVER_OUTER = 0x14012E370   # outer solver loop: max(joint override, budget) sweeps, early stop
+F_SOLVER_TANGENT = 0x14012DEEE  # chained chunk of the solver iteration: tangent row bounds from the normal impulse
+F_NORMAL_ROW = 0x14012A0A0     # normal contact row setup: restitution speed threshold and bounce
+F_SOLVER_SETUP = 0x140129D30   # solver setup: passes the substep to solver-body setup 0x140128560
+F_IMPULSE = 0x1401A7C70        # vector impulse helper B × clip(Q ÷ B, c)
+F_MODE_RESET = 0x14023E000     # reset: physics mode byte 0x140ceb6ff = 0
+F_MODE_START = 0x140836310     # lifecycle writers of the physics mode byte
+F_MODE_LOAD = 0x140839F90
+F_MODE_STATE = 0x14083C6B0
+F_MODE_SETUP = 0x140841EC0     # session setup: physics mode byte = 1
+F_MODE_FLAG = 0x140847FB0      # physics mode byte = 1 when object flag +0xce390 is set
+F_MODE_NET = 0x140887130
+F_MESH_ROUTE = 0x14031BDB0     # type-2 mesh route: mesh_1_name string to the slot at +0x580
+F_MESH_CTOR = 0x1402CAFC0      # mesh slot constructor: loaded byte 0
+F_MESH_READ = 0x1402CB830      # mesh slot file load: populate only after a successful read
+F_MESH_FILL = 0x1402CB170      # mesh slot population: loaded byte 1
+F_STATIC_META = 0x1402AC5D0    # vehicle metadata serializer: is_static to +0x20c
+F_EDITOR_LOAD = 0x1407D09B0    # editor load: metadata is_static to editor +0xd58, then to assembly +0x29c
+F_EDITOR_ROOT = 0x1407FB4C0    # second editor path writing assembly +0x29c
+F_SPLIT_LOAD = 0x140551DA0     # load/split loop: first assembly copies +0x29c and +0x29d
+F_REBUILD = 0x1404BBCA0        # assembly rebuild: +0x29c |= +0x29d
+F_MP_MASS = 0x140393B10        # microprocessor mass getter (leaf): width × height
+PC_PSEUDO = {
+    F_SOLVER_INFO: "prior-0x1401328b0.c", F_SOLVER_OUTER: "prior-0x14012e370.c", F_SOLVER_TANGENT: "prior-0x14012db40.c", F_NORMAL_ROW: "prior-0x14012a0a0.c",
+    F_SOLVER_SETUP: "prior-0x140129d30.c", F_IMPULSE: "prior-0x1401a7c70.c", F_MODE_RESET: "0x14023e000.c", F_MODE_START: "0x140836310.c", F_MODE_LOAD: "0x140839f90.c",
+    F_MODE_STATE: "0x14083c6b0.c", F_MODE_SETUP: "0x140841ec0.c", F_MODE_FLAG: "0x140847fb0.c", F_MESH_ROUTE: "0x14031bdb0.c", F_MESH_CTOR: "0x1402cafc0.c",
+    F_MESH_READ: "0x1402cb830.c", F_MESH_FILL: "0x1402cb170.c", F_STATIC_META: "0x1402ac5d0.c",
+}
+PC_SELECTORS = "investigation/native/physics-core/tools/air-selectors.json"
+
+
+def _pc_cite(E, func, address, hexbytes, listing, key=None):
+    """Cite physics-core listing lines of the cited bytes, refusing to replace another listing's citation."""
+    k = (func, address if key is None else key)
+    old = WHERE.pop(k, None)
+    _wheel_cite(E, func, address, hexbytes, key=key, listing=_PCA + listing)
+    if PC_PSEUDO.get(func):
+        WHERE[k] += "; ../physics-core/pseudocode/" + PC_PSEUDO[func]
+    if old is not None and old != WHERE[k]:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+
+
+def air_selector(E, bid):
+    """Air weight branch of a force emitter: a nonempty mesh_1_name loads the mesh_1 slot and selects the blade-scaled weight."""
+    return bool(E.block(bid)["attributes"].get("mesh_1_name", ""))
+
+
+def physics_core_native(E):
+    """Contact solver, wheel scale B, physics mode byte, air weight selector and root flag, verified once and shared."""
+    if hasattr(E, "physics_core"):
+        return E.physics_core
+    n = E.native
+    if not (E.root / PC_REPORT).is_file():
+        raise ValueError("Report missing: " + PC_REPORT)
+    # The report's selector table must match the shipped definitions and mesh files.
+    for row in json.loads((E.root / PC_SELECTORS).read_bytes()):
+        bid, mesh = row["id"], row["mesh_1_name"]
+        if E.file(DEFS + bid + ".xml")[0] != row["definition_sha256"] or E.block(bid)["attributes"].get("mesh_1_name", "") != mesh:
+            raise ValueError("Air selector table differs from the definition: " + bid)
+        exists = bool(mesh) and (E.root / "rom" / mesh).is_file()
+        if exists != row["mesh_exists"] or bool(mesh) != exists:
+            raise ValueError("mesh_1 asset presence differs: " + bid)
+    rep = " Report: %s." % PC_REPORT
+
+    def code(func, listing, address, hexbytes, label, value, detail):
+        _pc_cite(E, func, address, hexbytes, listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, listing, address, hexbytes, target, label, detail, kind="f32"):
+        _pc_cite(E, func, address, hexbytes, listing)
+        return E.operand(func, address, hexbytes, target, label, detail + rep, kind=kind)
+
+    def name(func, listing, ref, hexbytes, address, expected, label, detail):
+        if ref + len(hexbytes) // 2 + struct.unpack("<i", n.raw(ref + 3, 4))[0] != address:
+            raise ValueError("lea at %#x does not address %#x" % (ref, address))
+        _pc_cite(E, func, ref, hexbytes, listing, key=address)
+        return E.string(func, address, expected, label, detail + rep)
+
+    t = {}
+    # Contact solver.
+    t["budget"] = code(F_SOLVER_INFO, "solver-defaults.asm", 0x1401328B3, "c741280a000000", "Contact iteration budget", "10 sweeps",
+                       "The solver-info constructor stores 10 at +0x28. The outer loop 0x14012e370 runs up to the larger of this and a joint override, and contact rows are solved only within these 10 sweeps per substep.")
+    t["outer"] = code(F_SOLVER_OUTER, "solver-outer-loops.asm", 0x14012E3FD, "0f4e7d28", "Solver sweep count", "max(joint override, 10)",
+                      "cmovle after the compare at 0x14012e3fa keeps the larger of a joint row's iteration request and the contact budget. "
+                      "The loop stops early when the summed squared residual is at or below the threshold 0 (comisd at 0x14012e463).")
+    t["split"] = code(F_SOLVER_INFO, "solver-defaults.asm", 0x140132988, "c7416801000000", "Split penetration pass", "split impulse 1",
+                      "Penetration is corrected in a separate impulse loop with the same 10-sweep budget and early stop. The mode flags 0x104 (+0x90, 0x140132996) leave the second tangent row per contact off.")
+    t["tangent"] = code(F_SOLVER_TANGENT, "solver-iteration-complete.asm", 0x14012DF82, "f2410f5988d0000000", "Tangent impulse bound", "±μ × λn",
+                        "Multiplies the row friction coefficient μ by the current normal impulse λn and stores +μ × λn and −μ × λn as the tangent row's bounds (0x14012df95, 0x14012dfa2). "
+                        "Rows whose normal impulse is not positive are skipped; only the separate rolling-friction rows add a cap of μ.")
+    t["bounce_v"] = code(F_SOLVER_INFO, "solver-defaults.asm", 0x140132968, "48b8000000a09999c93f", "Restitution speed threshold", "0.2",
+                         "Binary64 0x3fc99999a0000000, binary32 0.2 widened, stored at +0xb8 (0x140132972).")
+    t["bounce"] = code(F_NORMAL_ROW, "normal-row-setup-complete.asm", 0x14012A89C, "660f2fc1", "Contact bounce", "max(0, −e × v_n) when abs(v_n) ≥ 0.2",
+                       "Compares the threshold with the absolute normal speed. Below it the bounce is 0; otherwise −e × v_n (0x14012a8ab), floored at 0, with e = eA × eB enters the normal row's velocity error. "
+                       "Body construction sets restitution to 0, so two default bodies do not bounce.")
+    t["dt"] = code(F_SOLVER_SETUP, "0x140129d30.asm", 0x140129EFB, "e860e6ffff", "Force integration factor", "the solver substep duration",
+                   "The substep copied from solver info +0x18 (0x14012b4f1) is passed in xmm3 (0x140129ef2) to solver-body setup 0x140128560, which forms Δv = F × inverse mass × substep. No extra tuning multiplier enters.")
+    # Wheel scale B and the physics mode byte.
+    t["grip_c"] = op(F_WHEEL, "wheel-grip-limit.asm", 0x1403AC4D1, "f30f1005af3f8000", 0x140BB0488, "Wheel grip limit c",
+                     "Passed as the limit (stored at 0x1403ac4d9) to the impulse helper 0x1401a7c70 (call at 0x1403ac4f3) together with B, the S of the wheel's body: the grip request is bounded by 4 × B. "
+                     "The opposite-body suspension branch uses the hit body's own wrapper mass (+8) as its scale instead.")
+    t["clip"] = code(F_IMPULSE, "impulse-vector-helper.asm", 0x1401A7CB3, "f30f5ee7", "Impulse helper scaling", "B × clip(Q ÷ B, c)",
+                     "Divides the request by B (0x1401a7cb3 to 0x1401a7cc8), limits the vector to length c and multiplies by B again (0x1401a7d38 to 0x1401a7d40), so a positive B bounds the request at c × B. "
+                     "B is a native mass scale; it is not a timestep, a tyre coefficient or an SI conversion.")
+    t["m_reset"] = code(F_MODE_RESET, "0x14023e221-site.asm", 0x14023E221, "c605d7d4aa0000", "Physics mode byte reset", "0x140ceb6ff = 0", "The reset routine clears the byte.")
+    t["m_setup"] = code(F_MODE_SETUP, "0x140842135-site.asm", 0x140842135, "c605c3954a0001", "Physics mode byte session setup", "0x140ceb6ff = 1", "Session setup sets the byte.")
+    t["m_flag"] = code(F_MODE_FLAG, "0x1408482a0-site.asm", 0x1408482A0, "c60558344a0001", "Physics mode byte conditional set", "0x140ceb6ff = 1",
+                       "Sets the byte when the enclosing object's flag +0xce390 is set.")
+    t["m_start"] = code(F_MODE_START, "0x1408363a3-site.asm", 0x1408363A3, "881d56534b00", "Physics mode byte lifecycle write", "0x140ceb6ff = BL",
+                        "Stores BL, zeroed earlier in the same routine. 0x140839f90 (0x14083ad85), 0x14083c6b0 (0x14083fded, 0x14083feaa) and 0x140887130 (0x14088b07f) store DIL from their own lifecycle state.")
+    t["m_load"] = code(F_MODE_LOAD, "0x14083ad85-site.asm", 0x14083AD85, "40883d73094b00", "Physics mode byte lifecycle write", "0x140ceb6ff = DIL", "Zero in the recovered lifecycle branch.")
+    t["m_state"] = code(F_MODE_STATE, "0x14083fded-site.asm", 0x14083FDED, "40883d0bb94a00", "Physics mode byte lifecycle write", "0x140ceb6ff = DIL", "From the surrounding lifecycle state; the same store follows at 0x14083feaa.")
+    t["m_net"] = code(F_MODE_NET, "0x14088b07f-site.asm", 0x14088B07F, "40883d79064600", "Physics mode byte lifecycle write", "0x140ceb6ff = DIL", "From the enclosing branch.")
+    t["m_dt"] = code(F_WORKER, "0x1405e3a80.asm", 0x1405E3AB7, "803d417c700000", "Physics mode byte and substep", "set: 1 ÷ solver rate; clear: 1/60",
+                     "The physics worker tests the byte. jne at 0x1405e3af2 keeps 1 ÷ the solver rate (0x1405e3add) while it is set and otherwise loads binary32 1/60 (0x1405e3af4).")
+    # Air weight selector.
+    t["s_key"] = name(F_DEFSER, "mesh1-name-load.asm", 0x140317004, "4c8d05654d8400", 0x140B5BD70, "mesh_1_name", "mesh_1_name binding",
+                      "The definition loader reads this key into the string at +0x780 (lea r9 at 0x140316ff4, call 0x140190c40 at 0x140317011).")
+    t["s_route"] = code(F_MESH_ROUTE, "air-mesh-slot-route.asm", 0x14031BFBC, "488d9780050000", "mesh_1 slot", "slot at +0x580",
+                        "When the mesh_1_name string is not empty (0x14031bfa8) the type-2 mesh route passes it (0x14031bfb5) with the slot at +0x580 to the resource loader 0x1403182e0. "
+                        "The force-emitter weight helper reads +0x580 of the same object as the air weight selector byte.")
+    t["s_clear"] = code(F_MESH_CTOR, "mesh-slot-constructor.asm", 0x1402CAFD1, "c60100", "mesh slot loaded byte cleared", "0", "The slot constructor writes 0 to the slot's first byte.")
+    t["s_read"] = code(F_MESH_READ, "mesh-slot-file-load.asm", 0x1402CB8AB, "84c0", "mesh slot read test", "populate only after a successful read",
+                       "Tests the result of the resource read (call 0x1401837a0 at 0x1402cb8a6) and calls the population routine (0x1402cb8ba) only when it succeeded.")
+    t["s_set"] = code(F_MESH_FILL, "mesh-slot-populate.asm", 0x1402CB1A7, "41c6042401", "mesh slot loaded byte set", "1",
+                      "The population routine resets the slot and writes 1 to its first byte. A part whose definition names a shipped mesh_1 therefore takes the blade-scaled weight K = F × B ÷ 8000, F ÷ 2000 with 4 intact blades, on a normal load; "
+                      "an empty mesh_1_name leaves 0 and K = F ÷ 1000. A missing asset or a failed read would also leave 0.")
+    # Assembly root flag.
+    t["r_key"] = name(F_STATIC_META, "static-vehicle-metadata.asm", 0x1402AC64D, "4c8d05848f8a00", 0x140B555D8, "is_static", "is_static metadata",
+                      "The vehicle metadata serializer reads the boolean is_static into metadata +0x20c (lea r9 at 0x1402ac641, call 0x140192e90 at 0x1402ac65a).")
+    t["r_editor"] = code(F_EDITOR_LOAD, "editor-load-static-flag.asm", 0x1407D0D25, "888e580d0000", "is_static to the editor", "editor +0xd58",
+                         "Editor load copies metadata +0x20c (0x1407d0d1e) to editor +0xd58.")
+    t["r_asm"] = code(F_EDITOR_LOAD, "0x1407d11f2-site.asm", 0x1407D1200, "88889c020000", "Root flag from the editor", "assembly +0x29c",
+                      "Copies editor +0xd58 (0x1407d11f2) into assembly +0x29c; 0x1407fb4c0 writes the same field at 0x1407fd1a8 through another editor path.")
+    t["r_split"] = code(F_SPLIT_LOAD, "0x1405525c9-site.asm", 0x1405525D1, "4188879c020000", "Root flag through loading", "first assembly +0x29c",
+                        "The load and split loop gives the first assembly it produces the source assembly's +0x29c (0x1405525c9) and copies the adjacent +0x29d too.")
+    t["r_or"] = code(F_REBUILD, "0x1404bc13d-site.asm", 0x1404BC155, "88879c020000", "Root flag at rebuild", "+0x29c = +0x29c or +0x29d",
+                     "The assembly rebuild tests both bytes (0x1404bc13d, 0x1404bc146) and stores their logical OR in +0x29c. The mass builder then copies +0x29c to the first body's exclusion byte +0x1478 (0x1404be3e8).")
+    t["mp_mass"] = code(F_MP_MASS, "mass-getter-microprocessor.asm", 0x140393B19, "0faf8188010000", "Microprocessor mass", "width × height",
+                        "The microprocessor's mass getter multiplies its two grid dimensions (+0x18c × +0x188) and converts the product to float (0x140393b20). Other components use the base getter, which reads definition mass.")
+    E.physics_core = t
     return t
 
 

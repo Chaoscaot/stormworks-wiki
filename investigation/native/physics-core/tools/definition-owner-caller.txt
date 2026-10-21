@@ -1,0 +1,71 @@
+1213199:   14046ef04:	ff c1                	inc    ecx
+1213200-   14046ef06:	89 4b 10             	mov    DWORD PTR [rbx+0x10],ecx
+1213201-   14046ef09:	8b 43 0c             	mov    eax,DWORD PTR [rbx+0xc]
+1213202-   14046ef0c:	ff c9                	dec    ecx
+1213203-   14046ef0e:	03 c1                	add    eax,ecx
+1213204-   14046ef10:	33 d2                	xor    edx,edx
+1213205-   14046ef12:	41 f7 f0             	div    r8d
+1213206-   14046ef15:	48 8b 03             	mov    rax,QWORD PTR [rbx]
+1213207-   14046ef18:	4c 89 34 d0          	mov    QWORD PTR [rax+rdx*8],r14
+1213208-   14046ef1c:	4c 89 37             	mov    QWORD PTR [rdi],r14
+1213209-   14046ef1f:	48 8d 44 24 68       	lea    rax,[rsp+0x68]
+1213210-   14046ef24:	48 89 44 24 58       	mov    QWORD PTR [rsp+0x58],rax
+1213211-   14046ef29:	48 89 74 24 68       	mov    QWORD PTR [rsp+0x68],rsi
+1213212-   14046ef2e:	89 74 24 74          	mov    DWORD PTR [rsp+0x74],esi
+1213213-   14046ef32:	8b 55 98             	mov    edx,DWORD PTR [rbp-0x68]
+1213214-   14046ef35:	89 54 24 70          	mov    DWORD PTR [rsp+0x70],edx
+1213215-   14046ef39:	ff c2                	inc    edx
+1213216-   14046ef3b:	48 8d 4c 24 68       	lea    rcx,[rsp+0x68]
+1213217-   14046ef40:	e8 6b dc d0 ff       	call   0x14017cbb0
+1213218-   14046ef45:	44 8b 44 24 70       	mov    r8d,DWORD PTR [rsp+0x70]
+1213219-   14046ef4a:	49 ff c0             	inc    r8
+1213220-   14046ef4d:	48 8b 55 90          	mov    rdx,QWORD PTR [rbp-0x70]
+1213221-   14046ef51:	48 8b 4c 24 68       	mov    rcx,QWORD PTR [rsp+0x68]
+1213222-   14046ef56:	e8 55 e4 52 00       	call   0x14099d3b0
+1213223-   14046ef5b:	90                   	nop
+1213224-   14046ef5c:	48 8b 45 a0          	mov    rax,QWORD PTR [rbp-0x60]
+1213225-   14046ef60:	48 89 44 24 28       	mov    QWORD PTR [rsp+0x28],rax
+1213226-   14046ef65:	44 88 64 24 20       	mov    BYTE PTR [rsp+0x20],r12b
+1213227-   14046ef6a:	4d 8b cd             	mov    r9,r13
+1213228-   14046ef6d:	4c 8d 44 24 68       	lea    r8,[rsp+0x68]
+1213229-   14046ef72:	48 8b 55 a8          	mov    rdx,QWORD PTR [rbp-0x58]
+1213230-   14046ef76:	49 8b ce             	mov    rcx,r14
+1213231-   14046ef79:	e8 52 6d ea ff       	call   0x140315cd0
+1213232-   14046ef7e:	41 8b 57 0c          	mov    edx,DWORD PTR [r15+0xc]
+1213233-   14046ef82:	49 8d 8e 88 02 00 00 	lea    rcx,[r14+0x288]
+1213234-   14046ef89:	e8 22 dc d0 ff       	call   0x14017cbb0
+1213235-   14046ef8e:	41 83 7f 0c 00       	cmp    DWORD PTR [r15+0xc],0x0
+1213236-   14046ef93:	74 16                	je     0x14046efab
+1213237-   14046ef95:	45 8b 47 08          	mov    r8d,DWORD PTR [r15+0x8]
+1213238-   14046ef99:	41 ff c0             	inc    r8d
+1213239-   14046ef9c:	49 8b 17             	mov    rdx,QWORD PTR [r15]
+1213240-   14046ef9f:	49 8b 8e 88 02 00 00 	mov    rcx,QWORD PTR [r14+0x288]
+1213241-   14046efa6:	e8 05 e4 52 00       	call   0x14099d3b0
+1213242-   14046efab:	41 8b 47 08          	mov    eax,DWORD PTR [r15+0x8]
+1213243-   14046efaf:	41 89 86 90 02 00 00 	mov    DWORD PTR [r14+0x290],eax
+1213244-   14046efb6:	49 8d 8e e8 02 00 00 	lea    rcx,[r14+0x2e8]
+1213245-   14046efbd:	4d 8d ae f8 02 00 00 	lea    r13,[r14+0x2f8]
+1213246-   14046efc4:	4d 8b c5             	mov    r8,r13
+1213247-   14046efc7:	48 8d 15 f2 db 66 00 	lea    rdx,[rip+0x66dbf2]        # 0x140adcbc0
+1213248-   14046efce:	e8 ad d8 d0 ff       	call   0x14017c880
+1213249-   14046efd3:	8b de                	mov    ebx,esi
+1213250-   14046efd5:	44 8b fe             	mov    r15d,esi
+1213251-   14046efd8:	41 83 be 88 00 00 00 	cmp    DWORD PTR [r14+0x88],0x0
+1213252-   14046efdf:	00 
+1213253-   14046efe0:	0f 86 fd 00 00 00    	jbe    0x14046f0e3
+1213254-   14046efe6:	41 bc 20 00 00 00    	mov    r12d,0x20
+1213255-   14046efec:	0f 1f 40 00          	nop    DWORD PTR [rax+0x0]
+1213256-   14046eff0:	41 8b 86 84 00 00 00 	mov    eax,DWORD PTR [r14+0x84]
+1213257-   14046eff7:	41 03 c7             	add    eax,r15d
+1213258-   14046effa:	33 d2                	xor    edx,edx
+1213259-   14046effc:	41 f7 b6 80 00 00 00 	div    DWORD PTR [r14+0x80]
+1213260-   14046f003:	8b ca                	mov    ecx,edx
+1213261-   14046f005:	48 c1 e1 06          	shl    rcx,0x6
+1213262-   14046f009:	49 8b 46 78          	mov    rax,QWORD PTR [r14+0x78]
+1213263-   14046f00d:	8b 4c 01 34          	mov    ecx,DWORD PTR [rcx+rax*1+0x34]
+1213264-   14046f011:	b8 01 00 00 00       	mov    eax,0x1
+1213265-   14046f016:	d3 e0                	shl    eax,cl
+1213266-   14046f018:	85 c3                	test   ebx,eax
+1213267-   14046f01a:	0f 87 a8 00 00 00    	ja     0x14046f0c8
+1213268-   14046f020:	0f ab cb             	bts    ebx,ecx
+1213269-   14046f023:	8b d1                	mov    edx,ecx

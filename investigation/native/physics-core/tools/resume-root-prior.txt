@@ -1,0 +1,13 @@
+264-## Reproduction
+265-
+266:Run from the repository root against the hash-verified input:
+267-
+268-```sh
+269-sha256sum stormworks64.exe
+--
+278-```
+279-
+280:The collector uses PE reads, XML root attributes and GNU objdump. The reproduction script uses Ghidra 12.1.4 and JDK 21 in a fresh `/tmp` project with `-noanalysis`. It executes no game code and writes all decompiler output to files. `DecompileRange.java` explicitly includes the folded fragment. Inferred helper signatures can omit floating arguments, so retained instructions and call-site arguments take precedence.
+281-
+282-The model rounds scalar arithmetic to float32 in instruction order. Its atmosphere uses host pow then float32 rounding, not a bit-identical CRT powf implementation. Air weight branch, effective pitch and application scale are explicit.
+283-

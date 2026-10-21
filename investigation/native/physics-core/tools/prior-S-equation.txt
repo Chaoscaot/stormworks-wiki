@@ -1,0 +1,10 @@
+The auxiliary factor uses the same last equation with `e_j`. The adjusted vehicle and auxiliary masses together preserve T, subject to floating-point rounding. When assembly `+0x29c` is nonzero, the first assembly vehicle is omitted from D and the vehicle writeback, and the builder first copies that flag to root vehicle `+0x1478`, making its raw mass zero. Its component mass is therefore absent from T and H. The excluded root remains zero; do not include its definition masses in the ordinary examples.
+
+Finally, for each vehicle index `i`, the builder zeroes the float at parallel list `+0x30` and adds adjusted `vehicle_j+0x72c` for every `j` with the same integer label:
+
+```text
+S_i = sum(adjusted_m_j for label[j] == label[i])
+```
+
+Every body in a label group receives the same S. No averaging, division by component count or per-force timestep appears in this final sum. Auxiliary masses have already affected `r`, but their adjusted values are not directly included here.
+

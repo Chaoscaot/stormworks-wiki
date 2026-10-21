@@ -1,0 +1,19 @@
+   14012e3e1:	89 4c 24 20          	mov    DWORD PTR [rsp+0x20],ecx
+   14012e3e5:	4d 8b ce             	mov    r9,r14
+   14012e3e8:	45 8b c7             	mov    r8d,r15d
+   14012e3eb:	49 8b d4             	mov    rdx,r12
+   14012e3ee:	48 8b ce             	mov    rcx,rsi
+   14012e3f1:	ff 50 38             	call   QWORD PTR [rax+0x38]
+   14012e3f4:	8b be 28 01 00 00    	mov    edi,DWORD PTR [rsi+0x128]
+   14012e3fa:	3b 7d 28             	cmp    edi,DWORD PTR [rbp+0x28]
+   14012e3fd:	0f 4e 7d 28          	cmovle edi,DWORD PTR [rbp+0x28]
+   14012e450:	ff 50 48             	call   QWORD PTR [rax+0x48]
+   14012e453:	f2 0f 11 86 70 01 00 	movsd  QWORD PTR [rsi+0x170],xmm0
+   14012e45a:	00 
+   14012e45b:	f2 0f 10 8d b0 00 00 	movsd  xmm1,QWORD PTR [rbp+0xb0]
+   14012e462:	00 
+   14012e463:	66 0f 2f c8          	comisd xmm1,xmm0
+   14012e467:	73 0d                	jae    0x14012e476
+   14012e469:	8d 47 ff             	lea    eax,[rdi-0x1]
+   14012e46c:	3b d8                	cmp    ebx,eax
+   14012e46e:	7d 06                	jge    0x14012e476

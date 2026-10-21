@@ -1,0 +1,36 @@
+```text
+tire_request = B_wheel*60*p * (max(0,0.2*r+a-ell) + 4*(ell_old-ell))
+```
+
+Here `B_wheel` is read from the hit body's wrapper `+8`, while the chassis branch uses caller B. Contact checks can suppress either request. Both share the saved old distance. The exact physical normalization of these two B values remains open. The model keeps B explicit.
+
+Definition flag `0x800000` selects the no-suspension case. It sets `k=c=0`, `L=0.3*r`, and `a=0.8*r` in this ray branch. It does not remove the tire-body contact or change the tread-speed formula. The ordinary `_sus` definitions have flags 1; their matching unsuspended variants and tank wheels have flags 8388609. The values `wheel_suspension_height`, `wheel_wishbone_length`, and offsets are preserved per definition. The complete relation between that geometry, the separate physical wheel body and its constraint is still open. `0x1403a9750` conditionally creates a constraint through `0x1401a69e0`; this pass does not assert it is a slider motor.
+
+The mode flag gates impulse submission and constraint construction. Its selection and the complete alternate-mode behavior were not recovered. The equations above describe the retained branch, not every possible mode.
+
+## Tank wheel and track model
+
+Tank resources use `wheel_type` 1, 2, 3, 4 or 8. They enter the advanced wheel's same radius, slip and grip calculation, with the tank factor and damping branches described above. There is no basis in these paths for a rigid, no-slip belt-speed equation.
+
+`0x14049e060` traverses groups at vehicle `+0x1350`, count `+0x1360`. For a nonempty group:
+
+```text
+sigma_i = -1 if wheel_i[0x460] else +1
+common_RPS = sum(sigma_i * wheel_i[0x458])/count
+common_weight = sum(wheel_i[0x808])/count
+wheel_i[0x458] = sigma_i*common_RPS
+wheel_i[0x808] = common_weight
+wheel_i[0x80c] = true
+```
+
+At `0x14049e242`, bytes `f3 0f 5e c8`, RPS is divided by count. `0x14049e246`, `f3 0f 5e d0`, divides the independently accumulated weights. `0x14049e289` publishes RPS and `0x14049e2a7` publishes weight. `0x14049e2c4`, `c6 81 0c 08 00 00 01`, marks a connected member. The loop's orientation sign comes from the wheel construction/orientation path `0x1403a8e70`.
+
+This average is not weighted by shaft weight or radius. Example, two equally oriented members at 10 and 0 RPS become 5 RPS each; weights 1000 and 2000 become 1500 each. Shared RPS plus unequal radii does not imply equal geometric tread speeds. Group formation, wheel compatibility, belt spans, and the Track Tension setting were not traced to their effects. Track physics is therefore partly decoded, with a precise remaining scope.
+
+## Bullet gravity, damping, friction and integration
+
+At `0x1401a38e9` world construction calls `0x1401281d0`, which installs RTTI-backed `btSequentialImpulseConstraintSolver` vtable `0x140ae2c58`. `0x1401a396e` creates `btSoftRigidDynamicsWorld`. `0x1401a3995`, bytes `0f 28 05 94 e8 a0 00`, loads the first half of the gravity vector at `0x140bb2230`. `0x1401a39b4`, `ff 90 88 00 00 00`, passes it to world slot `+0x88`:
+
+```text
+world_gravity = (0, -10, 0) m/s²
+```

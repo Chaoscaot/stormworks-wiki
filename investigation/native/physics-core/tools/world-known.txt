@@ -1,0 +1,30 @@
+At `0x1401a38e9` world construction calls `0x1401281d0`, which installs RTTI-backed `btSequentialImpulseConstraintSolver` vtable `0x140ae2c58`. `0x1401a396e` creates `btSoftRigidDynamicsWorld`. `0x1401a3995`, bytes `0f 28 05 94 e8 a0 00`, loads the first half of the gravity vector at `0x140bb2230`. `0x1401a39b4`, `ff 90 88 00 00 00`, passes it to world slot `+0x88`:
+
+```text
+world_gravity = (0, -10, 0) m/s²
+```
+
+The four stored doubles are `0,-10,0,0`. The negative Y double at `0x140bb2238` has bytes `00 00 00 00 00 00 24 c0`. This is a world setting, not the projectile integrator's 30.
+
+Bodies can override gravity. `0x1401a75f0` writes a scalar at wrapper `+0x10` and queues an event; `0x1401a1ad0` sets the body's gravity acceleration to `(0,-g,0)` and updates its mass-scaled gravity force. Vehicle construction initializes `vehicle+0x730` from configuration gravity 10 at `0x140497f82..0x140497f8a`. The body-build call at `0x1404a9595..0x1404a95a8` uses that vehicle field. `0x1404be190` can redistribute vehicle mass and write `+0x730` at `0x1404be8aa`; the complete redistribution rule is not summarized as a universal constant. This rules out claiming every vehicle part always accelerates at the bare world setting.
+
+The generic construction-info initializer `0x1401397b0` sets linear/angular damping to 0, friction to 0.5, and restitution to 0. `0x140139910` copies those material values to body `+0x1c0` for friction and `+0x1c8` for restitution. Defaults specific to the traced vehicle/wheel paths are:
+
+| Body path | Linear damping | Angular damping | Friction | Restitution |
+| --- | ---: | ---: | ---: | ---: |
+| Generic construction info | 0 | 0 | 0.5 | 0 |
+| Vehicle configuration | 0.1, with position adjustment in body build | 0.1 | 0.8 | 0 inherited |
+| Advanced wheel child | 0 | 0.3 | 0.001 | 0 inherited |
+
+Vehicle configuration defaults are copied in `0x140294050`: damping floats at `0x140bb18d8` and `0x140bb18dc` are `cd cc cc 3d`; friction at `0x140bb19a0` is `cd cc 4c 3f`. The named loader `0x140293a40` binds `vehicle_linear_damping`, `vehicle_angular_damping`, and `vehicle_friction` to the corresponding fields. `0x1404a9508..0x1404a9590` supplies those values to damping/friction events. Linear damping is multiplied by a position-dependent factor using the transformed body's Y coordinate; the 40000 threshold and power helper are retained. Its environmental interpretation is not needed for the default table and remains open.
+
+`0x1401a1a20` clamps damping values to `[0,1]`. `0x140139de0` applies:
+
+```text
+v_next = v * pow(1-linear_damping, dt)
+omega_next = omega * pow(1-angular_damping, dt)
+```
+
+`0x140139dfb` saves the timestep from XMM1; `0x140139e13`, `f2 0f 5c 81 a0 04 00 00`, subtracts linear damping from 1; `0x140139e1b`, `e8 50 e7 87 00`, calls the power helper `0x1409b8570`; angular damping repeats at `0x140139e4d`. Identifying this CRT helper as `pow` is a static inference from its two-argument arithmetic and special-case handling; its code and math-error helper are retained. With d=0.1, this gives retention 0.9 per simulated second, rather than multiplying by 0.9 on every component update.
+
+Contact material combination is directly visible in `asm/bullet-combine-material.asm`:

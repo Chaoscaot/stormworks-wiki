@@ -1742,7 +1742,7 @@ function PropellerGraph({ family, variant }) {
       uid={uid}
       status={status}
       legend={v.weights.map((s, i) => ({
-        label: v.weights.length > 1 ? `${PROP_BRANCH[s]}, ${s ? 'blade-scaled weight' : 'definition weight'} (the air selector is open)` : `${PROP_BRANCH[s]}, fixed by the marine flags`,
+        label: `${PROP_BRANCH[s]}, ${v.marine ? 'fixed by the marine flags' : s ? 'selected by the loaded blade mesh_1' : 'selected by the empty mesh_1'}`,
         className: PROP_LINES[i],
       }))}
       controls={(

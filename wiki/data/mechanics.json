@@ -5,7 +5,7 @@
       "title": "Gravity, damping and friction",
       "category": "Physics",
       "summary": "The SDK documents world gravity, vehicle damping and surface friction. The game runs a Bullet world with gravity (0, -10, 0) m/s², fixed solver substeps, damping (1 - d)^dt and contact friction clamp(μA × μB, -10, 10).",
-      "body": "The SDK gives gravity as 10.0, linear and angular damping as 0.1, and surface friction as 0.8. Its linear damping comment says the value tends toward zero with atmospheric height. These are SDK defaults and configuration entries, not measurements of the running simulation. A native decode (investigation/wheels.md, shown on the Wheels parts pages) found that the game builds a Bullet btSoftRigidDynamicsWorld with a btSequentialImpulseConstraintSolver and sets world gravity to (0, -10, 0) m/s², with Y up. The game_constants binder reads gravity, vehicle_linear_damping, vehicle_angular_damping and vehicle_friction by name, with built-in defaults 10, 0.1, 0.1 and 0.8, and each vehicle passes its configured gravity to its bodies. Projectiles do not use the world gravity: their own integration applies 30 m/s² (investigation/weapons.md). Time steps are fixed (investigation/update-rate.md). Components update 60 times per simulated second; the solver accumulates elapsed time and runs whole substeps of 1/60, 1/120 or 1/180 s, from the 60, 120 or 180 Hz setting, at most 1000 per tick, keeping the remainder for the next tick. Each solver step multiplies a body's linear and angular velocity by (1 - d)^dt, with d clamped to 0 to 1, so the default 0.1 keeps 0.9 of the speed per simulated second at every solver rate. The vehicle body build multiplies the linear damping by (1 - 0.0000224138 × y)^5.3595 below a transformed height y of 40000 and uses 0 above it, which matches the SDK comment (inference: y is the height in metres). Contact friction combines the two bodies' coefficients as clamp(μA × μB, -10, 10) and restitution as their product, so vehicle on vehicle at the default 0.8 gives 0.64. Bullet's own construction default is 0.5. Wheels add a sphere body with friction 0.001 but take their grip from a separate ray request (see Wheels, grip and suspension).",
+      "body": "The SDK gives gravity as 10.0, linear and angular damping as 0.1, and surface friction as 0.8. Its linear damping comment says the value tends toward zero with atmospheric height. These are SDK defaults and configuration entries, not measurements of the running simulation. A native decode (investigation/wheels.md, shown on the Wheels parts pages) found that the game builds a Bullet btSoftRigidDynamicsWorld with a btSequentialImpulseConstraintSolver and sets world gravity to (0, -10, 0) m/s², with Y up. The game_constants binder reads gravity, vehicle_linear_damping, vehicle_angular_damping and vehicle_friction by name, with built-in defaults 10, 0.1, 0.1 and 0.8, and each vehicle passes its configured gravity to its bodies. Projectiles do not use the world gravity: their own integration applies 30 m/s² (investigation/weapons.md). Time steps are fixed (investigation/update-rate.md). Components update 60 times per simulated second; the solver accumulates elapsed time and runs whole substeps of 1/60, 1/120 or 1/180 s, from the 60, 120 or 180 Hz setting, at most 1000 per tick, keeping the remainder for the next tick. While the global physics mode byte is clear the substep is 1/60 s whatever the setting (investigation/physics-core.md). Each solver step multiplies a body's linear and angular velocity by (1 - d)^dt, with d clamped to 0 to 1, so the default 0.1 keeps 0.9 of the speed per simulated second at every solver rate. The vehicle body build multiplies the linear damping by (1 - 0.0000224138 × y)^5.3595 below a transformed height y of 40000 and uses 0 above it, which matches the SDK comment (inference: y is the height in metres). Contact friction combines the two bodies' coefficients as clamp(μA × μB, -10, 10) and restitution as their product, so vehicle on vehicle at the default 0.8 gives 0.64. Bullet's own construction default is 0.5. Wheels add a sphere body with friction 0.001 but take their grip from a separate ray request (see Wheels, grip and suspension). A later decode of the contact solver (investigation/physics-core.md) found its budgets and bounds. Each substep runs at most 10 sweeps over the normal and tangent contact rows and stops early once a sweep leaves a summed squared residual of 0; joint rows can raise the outer loop count, but contact rows stay within the 10. Penetration is corrected in a separate split-impulse pass with the same budget. Each ordinary tangent row is bounded by −μ × λn to +μ × λn, its friction coefficient times the current normal impulse, and is skipped while λn is not positive; only the separate rolling-friction rows add a cap of μ. A contact bounces only when its normal speed is at least 0.2, by max(0, −e × v_n) with e = eA × eB. Body construction sets restitution to 0, so two default bodies do not bounce. Forces are integrated with the actual substep duration, Δv = F × inverse mass × substep, with no extra tuning factor. The collision dispatcher has specialized handlers for several native shape pairs and a generic fallback for the rest.",
       "findings": [
         {
           "label": "gravity",
@@ -62,12 +62,129 @@
           },
           "status": "observed",
           "evidenceType": "sdk-documented-default"
+        },
+        {
+          "label": "Contact iteration budget",
+          "value": 10,
+          "detail": "The solver-info constructor 0x1401328b0 stores 10 at +0x28. The outer loop 0x14012e370 runs up to the larger of this and a joint override (cmp and cmovle at 0x14012e3fa and 0x14012e3fd), and the iteration routine processes the normal and tangent contact rows only while the sweep index is below this budget (0x14012dc51). So contacts get at most 10 sweeps per substep. Bytes c7 41 28 0a 00 00 00 at 0x1401328b3, literal 3b 7d 28 at 0x14012e3fa, literal 0f 4e 7d 28 at 0x14012e3fd, literal 45 3b 65 28 at 0x14012dc51. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401328b3",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401328b3"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Contact early stop",
+          "value": "summed squared residual ≤ 0",
+          "detail": "The outer loop ends when the summed squared residual of a sweep is at or below the convergence threshold (comisd at 0x14012e463, jae at 0x14012e467). The constructor stores the threshold 0 at +0xb0 (0x1401329b4), so the loop stops early once a sweep changes no impulse. Bytes 66 0f 2f c8 at 0x14012e463, literal 73 0d at 0x14012e467, literal 4c 89 81 b0 00 00 00 at 0x1401329b4. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14012e463",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14012e463"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Split penetration pass",
+          "value": "split impulse 1, solver mode 0x104",
+          "detail": "The constructor sets split impulse to 1 (+0x68), so penetration is corrected in a separate impulse loop, bounded by the same 10-sweep budget and able to stop early. The mode flags 0x104 (+0x90, 0x140132996) leave flag 0x10 clear, so the second tangent row per contact stays off by default. Bytes c7 41 68 01 00 00 00 at 0x140132988, literal c7 81 90 00 00 00 04 01 00 00 at 0x140132996. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140132988",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140132988"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Tangent impulse bound",
+          "value": "−μ × λn to +μ × λn",
+          "detail": "Before each tangent solve the iteration multiplies the row friction coefficient μ by the current accumulated normal impulse λn (+0xd0) and stores +μ × λn as the upper bound (0x14012df95) and −μ × λn as the lower bound (0x14012dfa2). A tangent row whose normal impulse is not positive is skipped. The separate rolling-friction rows use min(μ × λn, μ); ordinary tangent rows have no such cap. Bytes f2 41 0f 59 88 d0 00 00 00 at 0x14012df82, literal f2 41 0f 11 88 f8 00 00 00 at 0x14012df95, literal f2 41 0f 11 80 f0 00 00 00 at 0x14012dfa2. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14012df82",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14012df82"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Restitution speed threshold",
+          "value": 0.2,
+          "detail": "The constructor stores binary64 0x3fc99999a0000000, binary32 0.2 widened to 0.20000000298023224, at +0xb8. Normal-row setup 0x14012a0a0 compares it with abs(v_n) (0x14012a89c): below it the bounce is 0, otherwise it is max(0, −e × v_n) (multiply at 0x14012a8ab, maxsd at 0x14012a8bd), with e the contact restitution eA × eB (0x1400f4753). This is a speed test, equality included, not a penetration depth. Bytes 48 b8 00 00 00 a0 99 99 c9 3f at 0x140132968, literal 48 89 81 b8 00 00 00 at 0x140132972, literal f2 0f 10 83 b8 00 00 00 at 0x14012a886, literal 66 0f 2f c1 at 0x14012a89c, literal f2 0f 59 91 c0 00 00 00 at 0x14012a8ab, literal f2 0f 5f fa at 0x14012a8bd, literal f2 0f 59 81 c8 01 00 00 at 0x1400f4753. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140132968",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140132968"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Default body restitution",
+          "value": 0,
+          "detail": "The generic body construction 0x1401397b0 clears r15 (0x1401397c8) and stores it as the restitution at +0x68, so the product eA × eB is 0 for two default bodies and they do not bounce. Bytes 4c 89 7e 68 at 0x1401398da, literal 45 33 ff at 0x1401397c8. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401398da",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401398da"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Integration factor",
+          "value": "the solver substep duration",
+          "detail": "Solver-body setup 0x140128560 takes its integration factor in xmm3 (0x140129ef2, call at 0x140129efb). 0x140129d30 receives it (0x140129d61) from 0x14012b490, which loads solver info +0x18 (0x14012b4f1); the per-substep world routine stores the substep duration there, as world +0xc0 (0x14013422e). So Δv = F × inverse mass × substep, with no extra tuning multiplier. Bytes e8 60 e6 ff ff at 0x140129efb, literal 0f 28 de at 0x140129ef2, literal 0f 28 f2 at 0x140129d61, literal f2 0f 10 53 18 at 0x14012b4f1, literal f2 0f 11 b3 c0 00 00 00 at 0x14013422e. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140129efb",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140129efb"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Physics mode byte and substep",
+          "value": "1 ÷ solver rate when set, 1/60 when clear",
+          "detail": "The physics worker 0x1405e3a80 tests the byte (0x1405e3ab7). When it is set the substep is 1 ÷ the solver rate (0x1405e3add); when it is clear jne at 0x1405e3af2 falls through to binary32 1/60 (0x1405e3af4). Bytes 80 3d 41 7c 70 00 00 at 0x1405e3ab7, literal f3 0f 5e 83 b8 00 00 00 at 0x1405e3add, literal 75 08 at 0x1405e3af2, literal f3 0f 10 05 90 be 5c 00 at 0x1405e3af4. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3ab7",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3ab7"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Collision dispatch",
+          "value": "specialized shape pairs and a generic fallback",
+          "detail": "The collision algorithm selector 0x1400f16e0 has explicit cases for the native shape IDs (8, 8), (8, 1), (1, 8) and (0, 0), shape 28 with the low-ID group, low-ID pairs below 20, low IDs with IDs 21 to 29, and ID 31 on either side (0x1400f178c); other pairs reach the generic algorithm. Which shipped components, terrain or water use which shape is a separate question. Bytes 83 fa 08 at 0x1400f16e0, literal 41 83 f8 1c at 0x1400f1726, literal 41 8d 40 eb at 0x1400f1757, literal 83 f8 08 at 0x1400f175b, literal 83 fa 1f at 0x1400f1778, literal 41 83 f8 1f at 0x1400f178c. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1400f16e0",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1400f16e0"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "SDK comments describe defaults and editable SDK attributes. Neither proves the active binary uses that value.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: the solver's normal and tangent impulse iterations, its friction-row bounds, collision-shape coverage and restitution threshold, and the rule by which mass redistribution rewrites a vehicle's gravity."
+        "The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: which collision shapes shipped components, terrain and water use, whether special bodies or later material settings give a contact a nonzero restitution, and the rule by which mass redistribution rewrites a vehicle's gravity."
       ]
     },
     {
@@ -75,7 +192,7 @@
       "title": "Air drag and lift tuning",
       "category": "Physics",
       "summary": "Hull air drag and lift read built-in game_constants defaults, including air density 1.225. The executable never reads calculate_air_density, so the realtime 0 switches nothing off.",
-      "body": "The SDK describes linear and quadratic speed factors for pressure and suction drag. The SDK labels 15 m/s as the aerodynamic-force threshold and 50 m/s as the high-speed scaling threshold. A scale of 8 is described as additive. A native decode (investigation/config.md) found where the hull air path reads these values. The vehicle buoyancy and drag routine 0x14048ad30 reads the pressure and suction drag factors 0.05, 0.1, 0.025 and 0.05, the falloff powers 0.6 and 0.4, air_drag_factor 0.2, the three speed settings and air_density from the native constants block. The hull air callback 0x14048e2d0 reads viscous_air_resistance 0.25 and lift_force 0.25. The game sets these constants itself and overrides them only from rom/data/game_constants.xml, which this installation does not ship, so the built-in values apply: air density 1.225, and the same drag and threshold numbers as the SDK. The name calculate_air_density does not occur in the executable as ASCII or UTF-16LE text. The realtime file that sets it to 0 is parsed into a registry that no recovered gameplay code reads. So the 0 does not set a vacuum, switch off air density or disable altitude effects. The realtime file also lists matching drag and threshold values; the hull path reads the native block, not those entries. A separate native decode of the wing, control-surface and fin air routine (investigation/control-surfaces.md, shown on the Control surfaces parts page) found that it multiplies by its own constant 24 and never reads lift_force, so the SDK description of lift_force as surface lift scaling does not hold for those parts. That routine applies an altitude pressure ratio without checking calculate_air_density. The only recovered lift_force read is in the hull air callback.",
+      "body": "The SDK describes linear and quadratic speed factors for pressure and suction drag. The SDK labels 15 m/s as the aerodynamic-force threshold and 50 m/s as the high-speed scaling threshold. A scale of 8 is described as additive. A native decode (investigation/config.md) found where the hull air path reads these values. The vehicle buoyancy and drag routine 0x14048ad30 reads the pressure and suction drag factors 0.05, 0.1, 0.025 and 0.05, the falloff powers 0.6 and 0.4, air_drag_factor 0.2, the three speed settings and air_density from the native constants block. The hull air callback 0x14048e2d0 reads viscous_air_resistance 0.25 and lift_force 0.25. The game sets these constants itself and overrides them only from rom/data/game_constants.xml, which this installation does not ship, so the built-in values apply: air density 1.225, and the same drag and threshold numbers as the SDK. The name calculate_air_density does not occur in the executable as ASCII or UTF-16LE text. The realtime file that sets it to 0 is parsed into a registry that no recovered gameplay code reads. So the 0 does not set a vacuum, switch off air density or disable altitude effects. The realtime file also lists matching drag and threshold values; the hull path reads the native block, not those entries. A separate native decode of the wing, control-surface and fin air routine (investigation/control-surfaces.md, shown on the Control surfaces parts page) found that it multiplies by its own constant 24 and never reads lift_force, so the SDK description of lift_force as surface lift scaling does not hold for those parts. That routine applies an altitude pressure ratio without checking calculate_air_density. The only recovered lift_force read is in the hull air callback.\n\nA later decode (investigation/physics-core.md) recovered the hull air callback term by term. The surface tree described under Buoyancy and water drag supplies, for each of 58 orientation slots of a node, a surface weight A, the slot normal n rotated to the body and a lever arm r. With u = v + ω × r − wind the surface point's velocity relative to the air, w its length and q = (u ÷ w) · n, the callback adds nothing while w² ≤ 225, that is up to w = 15. Above that its terms use s = w − 15, with these defaults:\n\nTable: Hull air callback with the default constants\n| Term | Expression |\n|---|---|\n| Normal pressure, q > 0 | P = A × q^0.6 × (0.1 s² + 0.05 s) |\n| Normal pressure, q ≤ 0 | P = A × abs(q)^0.4 × (0.05 s² + 0.025 s) |\n| Viscous coefficient | R = 0.00075 × (20 ÷ (55248.62109375 × s × L + 10) + 1.5) |\n| Drag along the flow | D = 0.25 × 1.225 × R × A × s² × 0.2 × (1 + 8 × max(w − 50, 0)) |\n| Upward-normal term | U = 0.25 × A × (1 − abs(q)) × clamp(n.y, 0, 1) × min(s², 2500) |\n| Altitude factor | a = (1 − 2.2413793e-5 × h)^5.3595023, and 0 above h = 40000 |\n| Force at r | F = a × (−n × P − (u ÷ w) × D + n × U) |\n\nSo the SDK's 15 m/s threshold is both a cutoff and an offset taken off the speed. The 50 m/s threshold starts the excess-speed factor 1 + 8 × (w − 50) in D and caps s at 50 in U. lift_force scales U, a push along the normal of faces that point up, largest when the flow runs along the face. Both pressure branches push along −n; the sign of q only picks the coefficients, so this is not a signed quadratic drag law. L is the body extent difference from the surface traversal, not a face length. A partly submerged node gets both a water call and an air call with its full weight A. F is in internal force units; it is queued with r and integrated by the solver.",
       "findings": [
         {
           "label": "air_drag_factor_linear_pressure",
@@ -361,12 +478,116 @@
           },
           "status": "observed",
           "evidenceType": "native-static"
+        },
+        {
+          "label": "Surface slot loop",
+          "value": 58,
+          "detail": "The air wrapper 0x14048e030 runs only when context byte +0x9c is set (0x14048e03f) and walks 58 slots (cmp with 0x3a at 0x14048e24a), like the water wrapper 0x14048d210. For each slot with a positive weight A it rotates the table normal, takes the lever arm r from the weighted surface position minus the context reference point and calls the callback. Weights are sums of geometry contributions; they do not sum to 1. Bytes 83 fb 3a at 0x14048e24a, literal 80 b9 9c 00 00 00 00 at 0x14048e03f. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048e24a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048e24a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Hull air cutoff",
+          "value": "w² > 225, s = w − 15",
+          "detail": "The callback compares the squared point speed w² with context +0x64, the square of the dead speed 15 (comiss at 0x14048e3f4), and adds no force at or below it. The force polynomials use s = w − 15 (subss at 0x14048e47f), while q and the flow direction use the unshifted w. Bytes 0f 2f 51 64 at 0x14048e3f4, literal f3 0f 5c 53 68 at 0x14048e47f, literal f3 0f 10 73 68 at 0x14048e630. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048e3f4",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048e3f4"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Hull air normal pressure",
+          "value": "A × q^0.6 × (0.1 s² + 0.05 s) for q > 0; A × abs(q)^0.4 × (0.05 s² + 0.025 s) for q ≤ 0",
+          "detail": "q is the cosine between the surface normal and the point flow. The default coefficients copied by 0x140294050 are 0.05, 0.1, 0.025 and 0.05 (block at 0x140bb18b0, offsets +0x60 to +0x6c) and the powers 0.6 and 0.4 (0x140bb1e80, +0x70 and +0x74). Both branches push along −n with a positive magnitude, so the sign of q picks the coefficients, not the direction. Bytes 0f 28 0d fc d7 91 00 at 0x1402940ad, literal cd cc 4c 3d cd cc cc 3d cd cc cc 3c cd cc 4c 3d at 0x140bb18b0, literal 0f 28 05 be dd 91 00 at 0x1402940bb, literal 9a 99 19 3f cd cc cc 3e at 0x140bb1e80. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402940ad",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402940ad"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Hull air viscous coefficient",
+          "value": "R = 0.00075 × (20 ÷ (55248.62109375 × s × L + 10) + 1.5)",
+          "detail": "Literals 0.00075 (0x140baf8e8, about 0.000750000007), 20, 10 and 1.5; 55248.62109375 multiplies s × L (0x14048e477). L is the body extent difference from the surface traversal. Bytes f3 0f 59 05 a5 24 72 00 at 0x14048e477, literal 9f d0 57 47 at 0x140bb0924, literal f3 0f 10 35 9b 22 72 00 at 0x14048e425, literal 00 00 a0 41 at 0x140bb06c8, literal f3 0f 58 05 c0 21 72 00 at 0x14048e484, literal 00 00 20 41 at 0x140bb064c, literal f3 0f 58 35 8f 1b 72 00 at 0x14048e499, literal 00 00 c0 3f at 0x140bb0030, literal f3 0f 59 35 3a 14 72 00 at 0x14048e4a6, literal a6 9b 44 3a at 0x140baf8e8. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048e477",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048e477"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Hull air drag along the flow",
+          "value": "D = 0.25 × 1.225 × R × A × s² × 0.2 × (1 + 8 × max(w − 50, 0))",
+          "detail": "viscous_air_resistance 0.25 (+0xe8, 0x14048e4c5), air_density 1.225 (+0xc4), air_drag_factor 0.2 (+0x94, 0x14048e46a), air_high_speed_factor_scale 8 (+0xa0) and air_high_speed_threshold 50 (+0x9c) are the defaults copied by 0x140294050. D acts against the flow direction u ÷ w. Bytes f3 0f 10 88 e8 00 00 00 at 0x14048e4c5, literal f3 0f 59 83 94 00 00 00 at 0x14048e46a, literal cd cc 4c 3e 00 00 70 41 00 00 48 42 at 0x140bb1e94, literal 00 00 00 41 at 0x140bb1ef0, literal cd cc 9c 3f at 0x140bb19a4, literal 00 00 80 3e 00 00 80 3e at 0x140bb18e8. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048e4c5",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048e4c5"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Hull air upward-normal term",
+          "value": "U = 0.25 × A × (1 − abs(q)) × clamp(n.y, 0, 1) × min(s², 2500)",
+          "detail": "lift_force 0.25 (+0xec, 0x14048e666) scales a term along +n that grows with the face's upward tilt and with how far the flow runs along the face; s² is capped at 50² = 2500. It has no ground-distance input. Bytes f3 0f 10 80 ec 00 00 00 at 0x14048e666, literal 00 00 80 3e at 0x140bb18ec. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048e666",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048e666"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Hull air altitude factor",
+          "value": "(1 − 2.2413793e-5 × h)^5.3595023, 0 above 40000",
+          "detail": "h is the Y translation of the context transform (0x14048e6af). Above binary64 40000 (comisd at 0x14048e6b4) the factor is 0; below it the multiplier 2.2413792976294644e-05 (0x14048e6cc) and the power 5.35950231552124 (0x14048e6d9) apply. The final force is F = factor × (−n × P − (u ÷ w) × D + n × U), queued with the lever arm r. Bytes 66 0f 2f 05 c4 1e 72 00 at 0x14048e6b4, literal f2 0f 10 40 68 at 0x14048e6af, literal 00 00 00 00 00 88 e3 40 at 0x140bb0580, literal f3 0f 59 0d ac 11 72 00 at 0x14048e6cc, literal 41 05 bc 37 at 0x140baf880, literal f3 0f 10 0d 23 1e 72 00 at 0x14048e6d9, literal 0b 81 ab 40 at 0x140bb0504. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048e6b4",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048e6b4"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Body extent L",
+          "value": "vehicle +0x98 − vehicle +0x80",
+          "detail": "The traversal subtracts the binary64 at vehicle +0x80 from the one at +0x98 (0x14048b0e0, subsd at 0x14048b0ef) and stores the float as context +0x94. It is a body extent difference, not a face edge length. Bytes f2 0f 5c 86 80 00 00 00 at 0x14048b0ef, literal f2 0f 10 86 98 00 00 00 at 0x14048b0e0. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048b0ef",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048b0ef"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "SDK comments describe defaults and editable SDK attributes. Neither proves the active binary uses that value.",
         "Native findings are static readings of this executable build. No game process was executed, and no value here was checked in play.",
-        "Still not recovered for the hull air callback: its term-by-term force equation, the surface weights and normals it receives, and an SI meaning for its tuned factors. No calibration or runtime experiment was performed."
+        "Hull air forces are internal force units; this page gives no SI calibration of the tuned factors. No calibration or runtime experiment was performed."
       ]
     },
     {
@@ -374,7 +595,7 @@
       "title": "Buoyancy and water drag",
       "category": "Physics",
       "summary": "Buoyancy pushes up with water_density × g × V ÷ D, where D rises from 10 to 20 as body mass goes from 2000 to 25000. The unmodified game uses the built-in multiplier 10; the realtime file's 12 has no recovered reader.",
-      "body": "The SDK documents water density as 1000 and exposes separate pressure, suction, viscous and wave-slamming terms. A native decode (investigation/config.md) recovered the buoyancy routine 0x14048ad30 and its water surface callback 0x14048d4d0. Buoyancy: each body gets an upward force water_density × g × V ÷ D. m is the body mass, g its gravity scalar and V a submerged weight summed over an eight-child spatial tree of the body; a partly submerged leaf counts clamp((h - y + r) ÷ 2r, 0, 1) of its weight, h being the sampled water height, y the node centre and r its half-size. D = buoyancy_mass_multiplier + buoyancy_mass_modifier × clamp((m - buoyancy_mass_modifier_lower) ÷ buoyancy_mass_modifier_upper, 0, 1)^buoyancy_mass_modifier_pow. With the defaults 10, 10, 2000, 23000 and 1 this is D = 10 + 10 × clamp((m - 2000) ÷ 23000, 0, 1): D is 10 up to mass 2000 and reaches 20 at 25000, not at 23000. For V = 1 and g = 10 the upward force is 1000 at mass 100, 666.6667 at 13500 and 500 from 25000 on, in internal units. A larger buoyancy_mass_multiplier lowers the force. The force acts at the submerged centroid, so it also makes a torque, and the game adds it to the Bullet force accumulator; it does not set a velocity. Which multiplier applies: the game sets 10 itself and overrides it only from rom/data/game_constants.xml, which this installation does not ship. The SDK copy, also 10, is not on that path. The realtime file's 12 sits in a registry that the release parses but no recovered gameplay code reads, so this build does not use 12. Compartments: a separate loop adds a downward term -g × water_density × 0.01 × (water_compartment_force_factor × W + gas_compartment_force_factor × G) ÷ D. Both factors default to 1 and are missing from the SDK file. W and G are values returned by two fluid compartment getters; G has a stored field ÷ 60 subtracted and is floored at 0. Water drag: the surface callback subtracts 0.5 × the sampled wave velocity from the point velocity, and the vertical part of that term is scaled by 0.3 when it points down (inference: the sampled vector is the wave velocity). With s the relative speed and d the cosine between the flow and the surface normal, a face with d > 0 gets a pressure force A × d^2.5 × (15 s + 17 s²) against its normal and any other face a suction force A × (-d)^0.3 × (12 s + 5 s²) along it, A being the surface weight. Water density does not multiply these two terms. A viscous term opposes motion with viscous_resistance_factor 0.5 × K × 0.00075 × (20 ÷ (s L × 1000000 + 10) + 1.5) × A × water_density × s², L being a body length scalar. K rises from water_drag_factor 1 at mass 2000 to 5 at 25000 (multiplier 4); those two mass thresholds are built into the code and do not follow the buoyancy settings. Partly submerged faces add a slamming term scaled by slamming_force_multiplier 100 and body mass. The sum of the three terms is capped at s × m × 0.5 ÷ 60. The realtime switches apply_drag, apply_viscous_resistance, apply_slamming_force and use_accurate_buoyancy do not occur in the executable; the callback gates its terms by speed and geometry instead.",
+      "body": "The SDK documents water density as 1000 and exposes separate pressure, suction, viscous and wave-slamming terms. A native decode (investigation/config.md) recovered the buoyancy routine 0x14048ad30 and its water surface callback 0x14048d4d0. Buoyancy: each body gets an upward force water_density × g × V ÷ D. m is the body mass, g its gravity scalar and V a submerged weight summed over an eight-child spatial tree of the body; a partly submerged leaf counts clamp((h - y + r) ÷ 2r, 0, 1) of its weight, h being the sampled water height, y the node centre and r its half-size. D = buoyancy_mass_multiplier + buoyancy_mass_modifier × clamp((m - buoyancy_mass_modifier_lower) ÷ buoyancy_mass_modifier_upper, 0, 1)^buoyancy_mass_modifier_pow. With the defaults 10, 10, 2000, 23000 and 1 this is D = 10 + 10 × clamp((m - 2000) ÷ 23000, 0, 1): D is 10 up to mass 2000 and reaches 20 at 25000, not at 23000. For V = 1 and g = 10 the upward force is 1000 at mass 100, 666.6667 at 13500 and 500 from 25000 on, in internal units. A larger buoyancy_mass_multiplier lowers the force. The force acts at the submerged centroid, so it also makes a torque, and the game adds it to the Bullet force accumulator; it does not set a velocity. Which multiplier applies: the game sets 10 itself and overrides it only from rom/data/game_constants.xml, which this installation does not ship. The SDK copy, also 10, is not on that path. The realtime file's 12 sits in a registry that the release parses but no recovered gameplay code reads, so this build does not use 12. Compartments: a separate loop adds a downward term -g × water_density × 0.01 × (water_compartment_force_factor × W + gas_compartment_force_factor × G) ÷ D. Both factors default to 1 and are missing from the SDK file. W and G are values returned by two fluid compartment getters; G has a stored field ÷ 60 subtracted and is floored at 0. Water drag: the surface callback subtracts 0.5 × the sampled wave velocity from the point velocity, and the vertical part of that term is scaled by 0.3 when it points down (inference: the sampled vector is the wave velocity). With s the relative speed and d the cosine between the flow and the surface normal, a face with d > 0 gets a pressure force A × d^2.5 × (15 s + 17 s²) against its normal and any other face a suction force A × (-d)^0.3 × (12 s + 5 s²) along it, A being the surface weight. Water density does not multiply these two terms. A viscous term opposes motion with viscous_resistance_factor 0.5 × K × 0.00075 × (20 ÷ (s L × 1000000 + 10) + 1.5) × A × water_density × s², L being the body extent value described below. K rises from water_drag_factor 1 at mass 2000 to 5 at 25000 (multiplier 4); those two mass thresholds are built into the code and do not follow the buoyancy settings. Partly submerged faces, 0 < φ < 1, add a slamming force n_s × a × (clamp(b, 0, 5) ÷ 5)² × m × (2A ÷ A_total) × slamming_force_multiplier 100. n_s is the sampled water normal, a = −n_s · n and b = −n_s · (relative velocity), and both must be positive. A_total is the sum of every accepted surface weight of the vehicle, so each face gets its weight's share of the hull total. The sum of the three terms is capped at s × m × 0.5 ÷ 60. The realtime switches apply_drag, apply_viscous_resistance, apply_slamming_force and use_accurate_buoyancy do not occur in the executable; the callback gates its terms by speed and geometry instead.\n\nGeometry (investigation/physics-core.md): V comes from a fill tree on a grid of 0.25. The volume builder scans the block surfaces column by column with an inside/outside state and stores each filled cell with weight 0.015625 × f, f being 1 for a full cell and 0.5 for a diagonal boundary half; parent nodes sum their children. A full cell is 0.25 × 0.25 × 0.25 = 0.015625, so the 64 full cells of one geometric cubic metre give V = 1. A hull's bounding box does not set V: only filled cells count, and the water surface decides how much of each. The water and air forces use a separate surface tree. Each node holds one weight per orientation slot, 58 slots in all: 0.0625 for slots 0 to 5, 0.015625 for 6 to 29, 0.125 for 30 to 41 and 0.0883883 for 42 to 57. These are the game's own weights, not polygon areas, and they do not sum to 1. For each slot the traversal rotates a table normal (an axis or a two-axis or three-axis diagonal) to the body and takes the lever arm from the weighted surface position. L = vehicle+0x98 − vehicle+0x80 is a body extent difference, not a face length. The water height, normal and wave vector come from cached wave triangles: the sampler picks one of the two triangles of the X/Z grid cell, takes the height from its plane and its cached normal, and averages its three vertex vectors. A fully submerged node uses an upward normal and no wave vector.",
       "findings": [
         {
           "label": "buoyancy_mass_multiplier",
@@ -987,13 +1208,148 @@
           },
           "status": "observed",
           "evidenceType": "native-static"
+        },
+        {
+          "label": "Fill-tree cell weight",
+          "value": "0.015625 × f, f = 1 or 0.5",
+          "detail": "The volume builder 0x1404864a0 scans the surface occupancy along grid columns with an inside/outside fill state. It multiplies the cell fraction f, 1 for a full cell and 0.5 for a diagonal boundary half (0x1404864fa), by binary32 0.015625 (0x140486507, mulss at 0x140486b58) and inserts only positive weights (call 0x1408e5260 at 0x140486b70). Parent nodes (0x1408e5050) sum their children's weights. Bytes f3 41 0f 59 d0 at 0x140486b58, literal f3 44 0f 10 05 6c 94 72 00 at 0x140486507, literal 00 00 80 3c at 0x140baf97c, literal f3 0f 10 3d ba 97 72 00 at 0x1404864fa, literal 00 00 00 3f at 0x140bafcbc, literal e8 eb e6 45 00 at 0x140486b70. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140486b58",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140486b58"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Fill-tree cell size",
+          "value": "0.25",
+          "detail": "Geometry is expanded on a grid scaled by binary32 0.25 (0x140484a25), so a cell has edge 0.25 and half extent 0.125. 0.25³ = 0.015625 is the full cell weight, and 64 full cells fill one cubic metre, which therefore has V = 1. Bytes f3 44 0f 10 15 8e b1 72 00 at 0x140484a25, literal 00 00 80 3e at 0x140bafbbc. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140484a25",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140484a25"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Surface weight per orientation slot",
+          "value": {
+            "0-5": 0.0625,
+            "6-29": 0.015625,
+            "30-41": 0.125,
+            "42-57": 0.0883883
+          },
+          "detail": "The slot helper 0x1402ef3c0 accepts slots 0 to 57 (cmp with 0x39 at 0x1402ef41b) and maps them through a byte table at 0x1402ef4c0 to four cases: 0.0625, 0.015625, u and 0.5 × t × v, with t = sqrtf(0.125), u = t × t and v = sqrtf(u + u). The extractor re-reads the table. These are the game's effective weights, not polygon areas. Bytes 83 f8 39 at 0x1402ef41b, literal 00 00 80 3d at 0x140bafa78, literal 00 00 80 3c at 0x140baf97c, literal 00 00 00 3e at 0x140bafb00. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ef41b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ef41b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Surface normal table",
+          "value": "axis, two-axis and three-axis normals",
+          "detail": "The table 0x1402ef7d0 gives each of the 58 slots a signed axis normal or a diagonal with components 0x3f3504f3 (0.70710677) or 0x3f13cd3a (0.57735026). The wrappers rotate it by the body orientation. Bytes c7 42 04 f3 04 35 3f at 0x1402ef84d, literal c7 42 08 3a cd 13 3f at 0x1402ef953, literal 83 f8 39 at 0x1402ef7d3. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ef84d",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ef84d"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Surface slot loop",
+          "value": 58,
+          "detail": "The air wrapper 0x14048e030 runs only when context byte +0x9c is set (0x14048e03f) and walks 58 slots (cmp with 0x3a at 0x14048e24a), like the water wrapper 0x14048d210. For each slot with a positive weight A it rotates the table normal, takes the lever arm r from the weighted surface position minus the context reference point and calls the callback. Weights are sums of geometry contributions; they do not sum to 1. Bytes 83 fb 3a at 0x14048e24a, literal 80 b9 9c 00 00 00 00 at 0x14048e03f. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048e24a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048e24a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Slamming normalizer",
+          "value": "A_total = sum of accepted surface weights",
+          "detail": "The geometry producer adds every accepted elementary weight to vehicle +0x798 (0x140485901, store at 0x14048590a). The traversal copies it into the callback context (0x14048b11b), and the slamming term divides by it (0x14048da68). Bytes f3 45 0f 58 8d 98 07 00 00 at 0x140485901, literal f3 45 0f 11 8d 98 07 00 00 at 0x14048590a, literal f3 0f 10 be 98 07 00 00 at 0x14048b11b, literal f3 44 0f 5e a3 98 00 00 00 at 0x14048da68. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140485901",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140485901"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Body extent L",
+          "value": "vehicle +0x98 − vehicle +0x80",
+          "detail": "The traversal subtracts the binary64 at vehicle +0x80 from the one at +0x98 (0x14048b0e0, subsd at 0x14048b0ef) and stores the float as context +0x94. It is a body extent difference, not a face edge length. Bytes f2 0f 5c 86 80 00 00 00 at 0x14048b0ef, literal f2 0f 10 86 98 00 00 00 at 0x14048b0e0. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048b0ef",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048b0ef"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Slamming force",
+          "value": "n_s × a × (clamp(b, 0, 5) ÷ 5)² × m × (2A ÷ A_total) × slamming_force_multiplier",
+          "detail": "With n_s the sampled water normal, n the rotated surface normal, a = −n_s · n and b = −n_s · relative velocity, the water callback clamps b to 5 (minss with 0x140bb04e0), divides by 5, divides 2A by A_total (0x14048da68) and reads slamming_force_multiplier (+0xe4, 0x14048da7f). It runs only for 0 < φ < 1 with a > 0, b > 0 and n_s.y × (h − r.y) < b. The combined water force cap still applies afterwards. Bytes f3 44 0f 5e a3 98 00 00 00 at 0x14048da68, literal f3 0f 10 80 e4 00 00 00 at 0x14048da7f, literal 00 00 a0 40 at 0x140bb04e0. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14048da68",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14048da68"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Surface submersion fraction",
+          "value": "φ = clamp((h − y + r) ÷ 2r, 0, 1)",
+          "detail": "The surface traversal 0x140942840 samples the cached waves (call 0x1402f5210 at 0x140942a09) and passes φ by pointer (0x140942b88) to the water wrapper (0x140942b8e). Fully submerged or dry nodes go in aggregate; the fully submerged path uses an upward normal and a zero wave vector. Bytes f3 0f 11 74 24 20 at 0x140942b88, literal e8 02 28 9b ff at 0x140942a09, literal e8 7d a6 b4 ff at 0x140942b8e. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140942b88",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140942b88"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Cached wave sample",
+          "value": "triangle normal, plane height, mean of three vertex vectors",
+          "detail": "The sampler picks one of the two triangles of the X/Z grid cell, copies its cached normal (+0x78, +0x7c, +0x80; 0x1402f5351 to 0x1402f535e), computes the height (plane_d − nx × x − nz × z) ÷ ny from the plane (+0x70, 0x1402f53b6) and returns the mean of its three stored vertex vectors, divided by 3 (0x1402f5338). Without a valid triangle the height is 0. Bytes f3 0f 10 0d 50 b0 8b 00 at 0x1402f5338, literal 00 00 40 40 at 0x140bb0390, literal 8b 42 78 at 0x1402f5351, literal 8b 42 7c at 0x1402f5357, literal 8b 82 80 00 00 00 at 0x1402f535e, literal f2 0f 10 52 70 at 0x1402f53b6. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402f5338",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402f5338"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "SDK comments describe defaults and editable SDK attributes. Neither proves the active binary uses that value.",
         "Native findings are static readings of this executable build. No game process was executed, and no value here was checked in play.",
-        "Buoyancy is decoded in internal units of the native submerged weight V. Still not recovered: how component geometry builds the tree weights and whether one cubic metre of hull gives V = 1, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So no displacement or mass-to-volume rule for a whole vessel follows yet.",
-        "The surface normal, lever arm, surface weight A, length L, the slamming scalar and the sampled wave vectors come from a surface traversal whose construction was not recovered. No SI meaning is assigned to the drag factors."
+        "Buoyancy is in internal units of the native submerged weight V. Still not recovered: a complete rule for which cells and faces of an arbitrary hull the fill state and exposure classification count, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So a whole vessel's V does not yet follow from its parts list.",
+        "How the cached wave triangles' normals and vertex vectors are generated was not traced. No SI meaning is assigned to the drag factors."
       ]
     },
     {
@@ -1001,7 +1357,7 @@
       "title": "Wheels, grip and suspension",
       "category": "Physics",
       "summary": "Realtime configuration separates tire damping, suspension stiffness and wheel torque scaling, but the executable contains none of these names; the wheel code uses its own constants.",
-      "body": "The shipped tuning includes suspension stiffness 0.2 and damping 1, tire stiffness 1 and damping 4, tire_max_friction 100, tire_grip_multiplier 50 and wheel drive torque multiplier 0.0004. None of these seven names occurs in the executable, in ASCII or UTF-16LE, so nothing shows that this build reads them. A native decode of the advanced wheel update (investigation/wheels.md, shown on the Wheels parts pages) found its own constants instead. Units: the working radius r = wheel_radius - 0.125 + 0.125 × wheel_size is in metres, and the tyre surface moves at 2π × r × RPS m/s, 2.199 to 6.597 m/s per RPS for the road wheels at the default wheel_size 1. Speed dependence: the slip velocity between ground and tyre is capped at 5 m/s, so the grip request grows with slip up to 5 m/s and stays flat beyond it. The request is Q = (50 × grip_factor × tyre factor ÷ r) × (2000 q + 100 u), with u the slip and q the contact drift since the last update, at most 0.1 × r and scaled by the brake. The tyre factor is 1, or 1.75 for a double wheel, times 0.25, 0.1875 or 0.125 by tyre type; tank wheels halve it outside a track. Contact: each wheel casts a ray to the ground and also carries a sphere body with Bullet friction 0.001. The contact feeds the shaft: the wheel adds slip ÷ (2π × r) × tyre factor × grip_factor × 0.5 to its RPS and submits that RPS with a weight equal to its definition mass, × 0.7 with suspension. Suspension: the ray spring pushes with 60 × tyre_pressure × (k × max(0, 1.5 × r - l) + c × (l_old - l)), l being the ray distance, k = 0.05 + 0.45 × stiffness_factor and c = 0.5 + 4.5 × damping_factor; wheels without suspension set k and c to 0. Maximum friction: the file's 100 is not a Coulomb limit the code reads. The wheel code's own 100 is the slip gain and the 100 × r slip cap, and the request has no normal-load input. The file's 50 and 4 equal the code's grip scale and tyre damping factor, but the code holds them as built-in numbers.",
+      "body": "The shipped tuning includes suspension stiffness 0.2 and damping 1, tire stiffness 1 and damping 4, tire_max_friction 100, tire_grip_multiplier 50 and wheel drive torque multiplier 0.0004. None of these seven names occurs in the executable, in ASCII or UTF-16LE, so nothing shows that this build reads them. A native decode of the advanced wheel update (investigation/wheels.md, shown on the Wheels parts pages) found its own constants instead. Units: the working radius r = wheel_radius - 0.125 + 0.125 × wheel_size is in metres, and the tyre surface moves at 2π × r × RPS m/s, 2.199 to 6.597 m/s per RPS for the road wheels at the default wheel_size 1. Speed dependence: the slip velocity between ground and tyre is capped at 5 m/s, so the grip request grows with slip up to 5 m/s and stays flat beyond it. The request is Q = (50 × grip_factor × tyre factor ÷ r) × (2000 q + 100 u), with u the slip and q the contact drift since the last update, at most 0.1 × r and scaled by the brake. The tyre factor is 1, or 1.75 for a double wheel, times 0.25, 0.1875 or 0.125 by tyre type; tank wheels halve it outside a track. Contact: each wheel casts a ray to the ground and also carries a sphere body with Bullet friction 0.001. The contact feeds the shaft: the wheel adds slip ÷ (2π × r) × tyre factor × grip_factor × 0.5 to its RPS and submits that RPS with a weight equal to its definition mass, × 0.7 with suspension. Suspension: the ray spring pushes with 60 × tyre_pressure × (k × max(0, 1.5 × r - l) + c × (l_old - l)), l being the ray distance, k = 0.05 + 0.45 × stiffness_factor and c = 0.5 + 4.5 × damping_factor; wheels without suspension set k and c to 0. Maximum friction: the file's 100 is not a Coulomb limit the code reads. The wheel code's own 100 is the slip gain and the 100 × r slip cap, and the request has no normal-load input. The file's 50 and 4 equal the code's grip scale and tyre damping factor, but the code holds them as built-in numbers. A later decode (investigation/physics-core.md) found the impulse helpers' scale B. It is S, the summed adjusted mass of the wheel's body and every body joined to it, the same value as the force cap. A request Q becomes B × clip(Q ÷ B, c), at most c × B long, with c = 4 for grip, so a heavier vehicle allows a larger grip request. The suspension request on another hit body uses that body's own mass instead. The springs are submitted only while the global physics mode byte is set. Session setup sets it to 1 and a reset clears it, and the same byte switches the solver substep between 1 ÷ solver rate and 1/60.",
       "findings": [
         {
           "label": "suspension_stiffness_factor",
@@ -1100,11 +1456,63 @@
           },
           "status": "observed",
           "evidenceType": "realtime-configuration"
+        },
+        {
+          "label": "Wheel impulse scale B",
+          "value": "S of the wheel's body",
+          "detail": "The component dispatcher loads the body's S from the parallel mass-sum list (0x140549782) and passes it as stack argument 7 (0x1405498b3) to each component update (0x1405498d6). The advanced wheel hands it to the impulse helpers as B. S is the summed adjusted mass of every body with the same connectivity label, so B is that sum. Its opposite-body suspension branch uses the hit body's own wrapper mass (+8) instead. Bytes f3 0f 10 34 90 at 0x140549782, literal f3 0f 11 74 24 30 at 0x1405498b3, literal 41 ff 92 58 03 00 00 at 0x1405498d6. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140549782",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140549782"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Wheel grip limit",
+          "value": "4 × B",
+          "detail": "The grip call loads binary32 4 (0x1403ac4d1, bytes 00 00 80 40 at 0x140bb0488) as the limit c and calls the helper 0x1401a7c70 (0x1403ac4f3). The helper divides the request by B (0x1401a7cb3 to 0x1401a7cc8), limits that vector to length c and multiplies by B again (0x1401a7d38 to 0x1401a7d40): Q_applied = B × clip(Q ÷ B, c), at most c × B long for positive B. B is a native mass scale, not a timestep or a tyre coefficient. Bytes f3 0f 10 05 af 3f 80 00 at 0x1403ac4d1, literal 00 00 80 40 at 0x140bb0488, literal e8 78 b7 df ff at 0x1403ac4f3, literal f3 0f 5e e7 at 0x1401a7cb3, literal f3 0f 5e ef at 0x1401a7cc8, literal f3 0f 59 e7 at 0x1401a7d38, literal f3 0f 59 ef at 0x1401a7d40. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ac4d1",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ac4d1"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Physics mode byte writers",
+          "value": "global byte 0x140ceb6ff, 0 on reset and 1 at session setup",
+          "detail": "Reset 0x14023e000 stores 0 (0x14023e221) and session setup 0x140841ec0 stores 1 (0x140842135); 0x140847fb0 stores 1 when its object flag +0xce390 is set (0x1408482a0). 0x140836310 (0x1408363a3), 0x140839f90 (0x14083ad85), 0x14083c6b0 (0x14083fded, 0x14083feaa) and 0x140887130 (0x14088b07f) store a register from their own lifecycle state. No XML wheel attribute is read into it. Bytes c6 05 c3 95 4a 00 01 at 0x140842135, literal c6 05 d7 d4 aa 00 00 at 0x14023e221, literal c6 05 58 34 4a 00 01 at 0x1408482a0, literal 88 1d 56 53 4b 00 at 0x1408363a3, literal 40 88 3d 73 09 4b 00 at 0x14083ad85, literal 40 88 3d 0b b9 4a 00 at 0x14083fded, literal 40 88 3d 4e b8 4a 00 at 0x14083feaa, literal 40 88 3d 79 06 46 00 at 0x14088b07f. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140842135",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140842135"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Physics mode byte and substep",
+          "value": "1 ÷ solver rate when set, 1/60 when clear",
+          "detail": "The physics worker 0x1405e3a80 tests the byte (0x1405e3ab7). When it is set the substep is 1 ÷ the solver rate (0x1405e3add); when it is clear jne at 0x1405e3af2 falls through to binary32 1/60 (0x1405e3af4). Bytes 80 3d 41 7c 70 00 00 at 0x1405e3ab7, literal f3 0f 5e 83 b8 00 00 00 at 0x1405e3add, literal 75 08 at 0x1405e3af2, literal f3 0f 10 05 90 be 5c 00 at 0x1405e3af4. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405e3ab7",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405e3ab7"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The units, slip limit, grip, shaft and spring figures come from that native decode. Still not recovered: the impulse helpers' scale B, so grip has no newton figure and no curve against normal load; what sets the physics mode byte that gates the springs, and the other contact cases; track grouping and Track Tension; and the legacy wheels' speed law. No speed or slip was measured in a running game."
+        "The units, slip limit, grip, shaft and spring figures come from that native decode. Still not recovered: a newton figure for grip, since B is a native mass scale, and a curve against normal load; which settings and network transitions drive each writer of the physics mode byte that gates the springs, and the other contact cases; track grouping and Track Tension; and the legacy wheels' speed law. No speed or slip was measured in a running game."
       ]
     },
     {
@@ -1893,7 +2301,7 @@
       "title": "Speed, altitude and radar signals",
       "category": "Sensors",
       "summary": "Selected sensor descriptions state their units and radar input ranges.",
-      "body": "Linear speed uses m/s. Angular speed uses rotations per second, and its tooltip names the component y axis. Altitude is metres above sea level. The selected short range radar uses turns for yaw and elevation, with FOV input 0.01 to 0.125 and facing yaw -0.5 to 0.5. Its radar_range field is 5000. That value alone does not guarantee a detection distance for any target. A native decode of the advanced radars (definition type 56: Basic, AWACS, Dish, Phalanx and Missile; investigation/sensors-radio.md, shown on the Other components parts page) found that they also report angles in turns, dividing by 2π. Their working range is R = radar_range × 0.02 × 0.02 ÷ (FOV x × FOV y) on the native FOV fields, a new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates, and a target passes when its distance is at most R and R ÷ 10000 × signature ÷ distance exceeds 0.025. At the SDK defaults reported distances carry up to ±1% noise and angles up to ±0.001 turn. A later decode (investigation/sensors-legacy.md, shown on the Other components and legacy radar parts pages) found that the signature is the target's physics-body mass, built from the components' definition mass, and that the editor's FOV sliders set each advanced axis from 0.01 to 0.25. It also covers the short range radar here, a legacy type-16 radar: a target passes when signature ÷ distance exceeds 0.25, inside a far plane radar_range × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead, about 3875 m at the saved default 0.1, and inside side planes set by the FOV input. No scan counter precedes its candidate collection, so (inference) it collects on every update that passes its power and height gates. A later static decode (investigation/force-cap.md, shown on the Altimeter and Linear Speed Sensor parts pages) found that the altimeter outputs the part's world Y: height above the fixed sea-level datum y = 0, not clearance over terrain or the local wave surface. It outputs 0 above a height of 40000 or at world X above 156000. The linear speed sensor outputs the physics velocity of its own point, body velocity plus angular velocity × lever arm, in m/s. It does not difference positions, smooth or subtract wind; its four modes give the full speed, the component along its axis, the horizontal speed and the vertical speed. Both are recomputed on every logic update, 60 per simulated second, with no sensor timer of their own. The advanced radar's line-of-sight query filters by collision bits: an object can block only when its collision group lacks bit 0x1000 and shares a bit with 0xff, and its object mask shares a bit with 0x7f. Render materials and transparency take no part in that test.",
+      "body": "Linear speed uses m/s. Angular speed uses rotations per second, and its tooltip names the component y axis. Altitude is metres above sea level. The selected short range radar uses turns for yaw and elevation, with FOV input 0.01 to 0.125 and facing yaw -0.5 to 0.5. Its radar_range field is 5000. That value alone does not guarantee a detection distance for any target. A native decode of the advanced radars (definition type 56: Basic, AWACS, Dish, Phalanx and Missile; investigation/sensors-radio.md, shown on the Other components parts page) found that they also report angles in turns, dividing by 2π. Their working range is R = radar_range × 0.02 × 0.02 ÷ (FOV x × FOV y) on the native FOV fields, a new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates, and a target passes when its distance is at most R and R ÷ 10000 × signature ÷ distance exceeds 0.025. At the SDK defaults reported distances carry up to ±1% noise and angles up to ±0.001 turn. A later decode (investigation/sensors-legacy.md, shown on the Other components and legacy radar parts pages) found that the signature is the target's physics-body mass, built from the components' definition mass, and that the editor's FOV sliders set each advanced axis from 0.01 to 0.25. A decode of the mass producer (investigation/physics-core.md) found that this mass is S, the summed adjusted mass of the target body and every body joined to it. The adjustment lifts light bodies to a share of the heaviest and rescales, so S can differ from the editor's component mass. Fuel and cargo amounts and damage are not inputs of the sum; removing parts or changing which bodies are joined changes it when the masses are rebuilt. It also covers the short range radar here, a legacy type-16 radar: a target passes when signature ÷ distance exceeds 0.25, inside a far plane radar_range × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead, about 3875 m at the saved default 0.1, and inside side planes set by the FOV input. No scan counter precedes its candidate collection, so (inference) it collects on every update that passes its power and height gates. A later static decode (investigation/force-cap.md, shown on the Altimeter and Linear Speed Sensor parts pages) found that the altimeter outputs the part's world Y: height above the fixed sea-level datum y = 0, not clearance over terrain or the local wave surface. It outputs 0 above a height of 40000 or at world X above 156000. The linear speed sensor outputs the physics velocity of its own point, body velocity plus angular velocity × lever arm, in m/s. It does not difference positions, smooth or subtract wind; its four modes give the full speed, the component along its axis, the horizontal speed and the vertical speed. Both are recomputed on every logic update, 60 per simulated second, with no sensor timer of their own. The advanced radar's line-of-sight query filters by collision bits: an object can block only when its collision group lacks bit 0x1000 and shares a bit with 0xff, and its object mask shares a bit with 0x7f. Render materials and transparency take no part in that test.",
       "findings": [
         {
           "label": "Linear Speed Sensor: Linear Speed",
@@ -2141,12 +2549,38 @@
           },
           "status": "observed",
           "evidenceType": "native-static"
+        },
+        {
+          "label": "Body mass source",
+          "value": "component mass getter slot +0x298",
+          "detail": "For each body the mass producer clears +0x72c (0x1404be400), skips a body whose root exclusion byte +0x1478 is set (0x1404be406) and adds each component's mass getter (call at 0x1404be439, add at 0x1404be43f). The base getter reads definition mass (+0x2b0 behind the definition pointer, 0x140328ea4); the microprocessor override multiplies its two dimensions (0x140393b19). No fuel amount, cargo amount or damage fraction is read. Bytes ff 90 98 02 00 00 at 0x1404be439, literal 89 af 2c 07 00 00 at 0x1404be400, literal 80 bf 78 14 00 00 00 at 0x1404be406, literal f3 0f 58 87 2c 07 00 00 at 0x1404be43f, literal f3 0f 10 80 b0 02 00 00 at 0x140328ea4, literal 0f af 81 88 01 00 00 at 0x140393b19. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404be439",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404be439"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Signature sum S",
+          "value": "S = sum of adjusted body masses with the same connectivity label",
+          "detail": "After the redistribution r × max(m, H ÷ 40) is stored at +0x72c (0x1404be88b), the producer zeroes each body's entry in a parallel list (0x1404bea4e) and adds +0x72c of every body whose label matches (cmp at 0x1404bea7f, jne at 0x1404bea83, add at 0x1404beaad). Adjusted auxiliary masses, such as a wheel's, change r but are not added. A flagged assembly root keeps adjusted mass 0. Bytes f3 0f 58 04 90 at 0x1404beaad, literal f3 0f 11 8a 2c 07 00 00 at 0x1404be88b, literal 89 2c 90 at 0x1404bea4e, literal 41 39 0c 91 at 0x1404bea7f, literal 75 32 at 0x1404bea83, literal f3 0f 11 04 90 at 0x1404beab2. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404beaad",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404beaad"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The radar formulas and the speed and altitude readings come from those native decodes. How the body-mass producer's adjustments and a vehicle's contents change the signature, which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, and when within a physics step the speed and altitude sensors read the body state were not recovered."
+        "The radar formulas and the speed and altitude readings come from those native decodes. When the mass rebuild runs after part destruction, detachment, cargo or fuel events was not traced for every path, and how the editor's mass display counts bodies and auxiliary masses was not established. Which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, and when within a physics step the speed and altitude sensors read the body state were not recovered."
       ]
     },
     {
@@ -4742,8 +5176,8 @@
         "Rendered eruption particles were not connected to physical lava or projectile contact damage, and the object-kind, update-phase and raycast tests that still qualify the eruption damage branch were not decoded.",
         "Lightning ignition, the origin of the scene's queued position ignitions, any other initial-fire scheduling and vehicle and character heat damage from fires were not traced.",
         "An exhaustive exclusion of native disaster scheduling was not established: indirect calls, script operator invocations, load and clone paths and every writer of the volcano flags were not ruled out.",
-        "The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.",
-        "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update."
+        "The wind and current force chain was not traced in full: the cached current grid, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.",
+        "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, or the scheduling above the vehicle update."
       ]
     },
     {
@@ -6675,7 +7109,7 @@
       "title": "Aircraft propellers and rotor controls",
       "category": "Physics",
       "summary": "Rotor and propeller inputs are normalized pitch and cyclic values in a decoded thrust, shaft-load and force-geometry law.",
-      "body": "The aircraft propeller takes collective from -1 to 1, and its tooltip links thrust to received engine torque without giving an equation. The selected large helicopter rotor has roll, pitch and collective inputs from -1 to 1. Its tooltip describes pitch and roll control through the swashplate and says force decreases underwater. The tail rotor takes yaw from -1 to 1 to control generated force. A native decode (investigation/propulsion.md, shown on the Propulsion parts pages) found one force-emitter update for all of them. The effective pitch is clamp(saved pitch + Collective, -1, 1), a normalized number, not degrees or turns; the saved pitch starts at force_emitter_default_pitch, 1 for the main rotors and the aircraft propeller and 0 for the tail rotor, so Collective -1 gives zero thrust on a main rotor and the tail rotor's Yaw is a signed pitch. From the shaft speed, pitch and air-relative flow the part computes a load b, removes w × (1 - 1 ÷ (1 + q²)) RPS from its shaft with q = clamp(b ÷ 2K, -10, 10), and pushes with 1500 × K × removed RPS × efficiency, where K = force_emitter_max_force ÷ 1000 or ÷ 2000 with 4 intact blades. Roll and Pitch move the force point by -4 × input along local X and Z and tilt its direction by 0.4 × input. Thrust is scaled by (1 - 2.2413793e-5 × altitude)^5.3595023, 0 above 40000. With the hub below the water surface the scalar update gives no thrust and multiplies q by 10, so the rotor brakes its shaft; that is the decreased underwater force. A physical rotor hinge gets a motor with impulse limit 1000, and coaxial rotors add an opposing force pair of 800 × b × clamp(|pitch + Collective + 0.1|, 0, 1) about the rotor axis.",
+      "body": "The aircraft propeller takes collective from -1 to 1, and its tooltip links thrust to received engine torque without giving an equation. The selected large helicopter rotor has roll, pitch and collective inputs from -1 to 1. Its tooltip describes pitch and roll control through the swashplate and says force decreases underwater. The tail rotor takes yaw from -1 to 1 to control generated force. A native decode (investigation/propulsion.md, shown on the Propulsion parts pages) found one force-emitter update for all of them. The effective pitch is clamp(saved pitch + Collective, -1, 1), a normalized number, not degrees or turns; the saved pitch starts at force_emitter_default_pitch, 1 for the main rotors and the aircraft propeller and 0 for the tail rotor, so Collective -1 gives zero thrust on a main rotor and the tail rotor's Yaw is a signed pitch. From the shaft speed, pitch and air-relative flow the part computes a load b, removes w × (1 - 1 ÷ (1 + q²)) RPS from its shaft with q = clamp(b ÷ 2K, -10, 10), and pushes with 1500 × K × removed RPS × efficiency. K = F × B ÷ 8000, F ÷ 2000 with 4 intact blades, for the rotors and the aircraft propeller, whose definitions name a blade mesh as mesh_1_name, and F ÷ 1000 for the ducted fans, which leave it empty (investigation/physics-core.md); F is force_emitter_max_force. Roll and Pitch move the force point by -4 × input along local X and Z and tilt its direction by 0.4 × input. Thrust is scaled by (1 - 2.2413793e-5 × altitude)^5.3595023, 0 above 40000. With the hub below the water surface the scalar update gives no thrust and multiplies q by 10, so the rotor brakes its shaft; that is the decreased underwater force. A physical rotor hinge gets a motor with impulse limit 1000, and coaxial rotors add an opposing force pair of 800 × b × clamp(|pitch + Collective + 0.1|, 0, 1) about the rotor axis.",
       "findings": [
         {
           "label": "Aircraft Propeller: Power Received",
@@ -6830,12 +7264,81 @@
           },
           "status": "observed",
           "evidenceType": "component-interface-description"
+        },
+        {
+          "label": "Aircraft Propeller: mesh_1_name",
+          "value": "meshes/component_aircraft_propeller_blade.mesh",
+          "detail": "A loaded mesh_1 selects the blade-scaled weight K = F × B ÷ 8000. Read on a successful normal load; a missing asset or failed read would leave the selector 0.",
+          "evidenceId": "resource:rom/data/definitions/aircraft_propeller.xml:70064c631b5c:L2-L2",
+          "source": {
+            "path": "rom/data/definitions/aircraft_propeller.xml",
+            "sha256": "70064c631b5ce0ab0fcb5e7385ca76822fdceaa287845f02fae288eb74596067",
+            "lineStart": 2,
+            "lineEnd": 2
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Large Rotor: mesh_1_name",
+          "value": "meshes/component_large_rotor_blade.mesh",
+          "detail": "A loaded mesh_1 selects the blade-scaled weight K = F × B ÷ 8000. Read on a successful normal load; a missing asset or failed read would leave the selector 0.",
+          "evidenceId": "resource:rom/data/definitions/large_rotor.xml:ffc1499114e2:L2-L2",
+          "source": {
+            "path": "rom/data/definitions/large_rotor.xml",
+            "sha256": "ffc1499114e24139f13475b35c55b040f078999198a83bec7e8456ab9d1e054a",
+            "lineStart": 2,
+            "lineEnd": 2
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Rotor (Tail): mesh_1_name",
+          "value": "meshes/component_tail_rotor_blade.mesh",
+          "detail": "A loaded mesh_1 selects the blade-scaled weight K = F × B ÷ 8000. Read on a successful normal load; a missing asset or failed read would leave the selector 0.",
+          "evidenceId": "resource:rom/data/definitions/tail_rotor.xml:2228f7fd393b:L2-L2",
+          "source": {
+            "path": "rom/data/definitions/tail_rotor.xml",
+            "sha256": "2228f7fd393b31b0417cf0af6d4802cb9b45bca3550d7ac7445c20525126efce",
+            "lineStart": 2,
+            "lineEnd": 2
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Small Ducted Fan: mesh_1_name",
+          "value": "(empty)",
+          "detail": "An empty mesh_1 leaves the selector byte 0, so K = F ÷ 1000. Read on a successful normal load; a missing asset or failed read would leave the selector 0.",
+          "evidenceId": "resource:rom/data/definitions/fan_small.xml:9211313a01e7:L2-L2",
+          "source": {
+            "path": "rom/data/definitions/fan_small.xml",
+            "sha256": "9211313a01e72c9109d92c9cad67a6baa4ef9d2f5e12e0bb521d31d7415e40fd",
+            "lineStart": 2,
+            "lineEnd": 2
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Air weight selector source",
+          "value": "loaded state of the mesh_1 slot",
+          "detail": "The definition loader reads the XML key mesh_1_name (lea at 0x140317004, string 0x140b5bd70) into +0x780; the type-2 mesh route passes it with the slot at +0x580 (0x14031bfbc). The slot constructor clears the slot's first byte (0x1402cafd1), and the population routine sets it to 1 (0x1402cb1a7) after a successful resource read (0x1402cb8ab). The weight helper tests that byte (0x14033e03b). A blade mesh therefore selects F × B ÷ 8000 and an empty mesh_1 selects F ÷ 1000. Bytes 80 b8 80 05 00 00 00 at 0x14033e03b, literal 4c 8d 05 65 4d 84 00 at 0x140317004, literal 6d 65 73 68 5f 31 5f 6e 61 6d 65 00 at 0x140b5bd70, literal 48 8d 97 80 05 00 00 at 0x14031bfbc, literal c6 01 00 at 0x1402cafd1, literal 41 c6 04 24 01 at 0x1402cb1a7, literal 84 c0 at 0x1402cb8ab. Report: investigation/physics-core.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14033e03b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14033e03b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The rotor law comes from that native decode. Not recovered: which loaded value selects K = F ÷ 1000 or F ÷ 2000 for air parts, the visible cyclic blade phase, whether the engine adds ground effect outside the scalar law, and the SI calibration of thrust and reaction torque."
+        "The rotor law comes from that native decode. Not recovered: the visible cyclic blade phase and the SI calibration of thrust and reaction torque. The traced force-emitter update has no ground-clearance input; that no other world, airflow or contact path adds a near-ground force is not established."
       ]
     },
     {
@@ -16427,8 +16930,8 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 586,
-    "sourceCount": 84,
+    "findingCount": 624,
+    "sourceCount": 85,
     "categories": [
       "Control",
       "Economy",
@@ -16510,6 +17013,11 @@
         "path": "rom/data/definitions/engine_diesel.xml",
         "sha256": "454c9765cb31b55747f0283bcdc9182bf7757cf116cdcc756ea652ea39c84aeb",
         "lineCount": 2260
+      },
+      {
+        "path": "rom/data/definitions/fan_small.xml",
+        "sha256": "9211313a01e72c9109d92c9cad67a6baa4ef9d2f5e12e0bb521d31d7415e40fd",
+        "lineCount": 414
       },
       {
         "path": "rom/data/definitions/fluid_tank_small.xml",

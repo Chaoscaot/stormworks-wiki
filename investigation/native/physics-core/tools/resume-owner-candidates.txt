@@ -1,0 +1,47 @@
+866646-   140320acc:	49 8b ca             	mov    rcx,r10
+866647-   140320acf:	e8 4c ab 5a 00       	call   0x1408cb620
+866648-   140320ad4:	49 63 4d 70          	movsxd rcx,DWORD PTR [r13+0x70]
+866649-   140320ad8:	4d 8d 45 30          	lea    r8,[r13+0x30]
+866650-   140320adc:	48 c1 e1 04          	shl    rcx,0x4
+866651-   140320ae0:	4c 8b f0             	mov    r14,rax
+866652-   140320ae3:	48 03 cd             	add    rcx,rbp
+866653-   140320ae6:	48 8b 6c 24 20       	mov    rbp,QWORD PTR [rsp+0x20]
+866654:   140320aeb:	48 89 08             	mov    QWORD PTR [rax],rcx
+866655-   140320aee:	48 8d 8c 24 c0 00 00 	lea    rcx,[rsp+0xc0]
+866656-   140320af5:	00 
+866657-   140320af6:	48 8d 95 b0 07 00 00 	lea    rdx,[rbp+0x7b0]
+866658-   140320afd:	e8 8e 7b e5 ff       	call   0x140178690
+866659-   140320b02:	48 8b 54 24 28       	mov    rdx,QWORD PTR [rsp+0x28]
+866660-   140320b07:	4c 8d 44 24 40       	lea    r8,[rsp+0x40]
+--
+868052-   1403220fd:	48 8b d8             	mov    rbx,rax
+868053-   140322100:	41 b9 04 00 00 00    	mov    r9d,0x4
+868054-   140322106:	48 8d 3c c9          	lea    rdi,[rcx+rcx*8]
+868055-   14032210a:	48 8b 0e             	mov    rcx,QWORD PTR [rsi]
+868056-   14032210d:	48 8b 11             	mov    rdx,QWORD PTR [rcx]
+868057-   140322110:	48 8b 4a 08          	mov    rcx,QWORD PTR [rdx+0x8]
+868058-   140322114:	48 8d 14 f9          	lea    rdx,[rcx+rdi*8]
+868059-   140322118:	48 8d 48 08          	lea    rcx,[rax+0x8]
+868060:   14032211c:	48 89 10             	mov    QWORD PTR [rax],rdx
+868061-   14032211f:	4c 2b c1             	sub    r8,rcx
+868062-   140322122:	0f 1f 40 00          	nop    DWORD PTR [rax+0x0]
+868063-   140322126:	66 66 0f 1f 84 00 00 	data16 nop WORD PTR [rax+rax*1+0x0]
+868064-   14032212d:	00 00 00 
+868065-   140322130:	ba 04 00 00 00       	mov    edx,0x4
+868066-   140322135:	66 66 66 0f 1f 84 00 	data16 data16 nop WORD PTR [rax+rax*1+0x0]
+--
+869030-   140322e39:	41 56                	push   r14
+869031-   140322e3b:	41 57                	push   r15
+869032-   140322e3d:	48 8b ec             	mov    rbp,rsp
+869033-   140322e40:	48 81 ec 80 00 00 00 	sub    rsp,0x80
+869034-   140322e47:	4c 8b f2             	mov    r14,rdx
+869035-   140322e4a:	48 8b d9             	mov    rbx,rcx
+869036-   140322e4d:	45 33 ff             	xor    r15d,r15d
+869037-   140322e50:	44 89 7d a0          	mov    DWORD PTR [rbp-0x60],r15d
+869038:   140322e54:	4c 89 3a             	mov    QWORD PTR [rdx],r15
+869039-   140322e57:	4c 89 7a 08          	mov    QWORD PTR [rdx+0x8],r15
+869040-   140322e5b:	41 8d 57 01          	lea    edx,[r15+0x1]
+869041-   140322e5f:	49 8b ce             	mov    rcx,r14
+869042-   140322e62:	e8 49 9d e5 ff       	call   0x14017cbb0
+869043-   140322e67:	45 8b 46 08          	mov    r8d,DWORD PTR [r14+0x8]
+869044-   140322e6b:	49 ff c0             	inc    r8

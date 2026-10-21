@@ -1,0 +1,24 @@
+For each temporary mass group, define `m_i` as vehicle `+0x72c` before adjustment. The builder zeroes it and, unless vehicle byte `+0x1478` is nonzero, sums component mass getter slot `+0x298` over list `+0x3f0`. Base getter `0x140328ea0` reads definition `+0x2b0`. Microprocessor override `0x140393b10` returns its integer dimensions at `+0x188` and `+0x18c` multiplied. This is a component mass sum, not a read of physics-body `+8`.
+
+Auxiliary masses `e_j` come from component getters `+0x310` and their associated factor pointers from `+0x318`, when predicate slot `+0x308` is true. Wheel getter `0x1403a5cc0` copies definition mass to component `+0x148`; its factor pointer is `+0x14c`. Force emitter getter `0x14033d540` sets its auxiliary mass to 10 at `+0x298`, with factor at `+0x29c`. These auxiliary entries affect redistribution but are not directly added to the final S sum.
+
+For ordinary groups, where root-exclusion flag assembly `+0x29c` is zero:
+
+```text
+T = sum(m_i) + sum(e_j)
+H = max(0, all m_i, all e_j)
+D = sum(max(m_i, H/40)) + sum(max(e_j, H/120))
+r = T/D if D > 0 else 1
+adjusted_m_i = r * max(m_i, H/40)
+adjusted_e_j = r * max(e_j, H/120)
+vehicle_i[0x72c] = adjusted_m_i
+vehicle_i[0x730] = 10 * m_i/adjusted_m_i if adjusted_m_i > 0 else 10
+```
+
+The auxiliary factor uses the same last equation with `e_j`. The adjusted vehicle and auxiliary masses together preserve T, subject to floating-point rounding. When assembly `+0x29c` is nonzero, the first assembly vehicle is omitted from D and the vehicle writeback, and the builder first copies that flag to root vehicle `+0x1478`, making its raw mass zero. Its component mass is therefore absent from T and H. The excluded root remains zero; do not include its definition masses in the ordinary examples.
+
+Finally, for each vehicle index `i`, the builder zeroes the float at parallel list `+0x30` and adds adjusted `vehicle_j+0x72c` for every `j` with the same integer label:
+
+```text
+S_i = sum(adjusted_m_j for label[j] == label[i])
+```

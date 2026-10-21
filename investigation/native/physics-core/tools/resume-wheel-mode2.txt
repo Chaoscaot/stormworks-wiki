@@ -1,0 +1,53 @@
+57-   1403aa597:	f3 0f 10 05 11 5e 80 00                         	movss  xmm0,DWORD PTR [rip+0x805e11]        # 0x140bb03b0
+58-   1403aa59f:	f3 0f 10 2d a9 5f 80 00                         	movss  xmm5,DWORD PTR [rip+0x805fa9]        # 0x140bb0550
+59:   1403aa5a7:	80 b9 62 04 00 00 00                            	cmp    BYTE PTR [rcx+0x462],0x0
+60-   1403aa5ae:	0f 84 a2 28 00 00                               	je     0x1403ace56
+61-   1403aa5b4:	0f 57 c0                                        	xorps  xmm0,xmm0
+--
+112-   1403aa6b7:	eb 08                                           	jmp    0x1403aa6c1
+113-   1403aa6b9:	f3 0f 10 87 5c 04 00 00                         	movss  xmm0,DWORD PTR [rdi+0x45c]
+114:   1403aa6c1:	80 bf 61 04 00 00 00                            	cmp    BYTE PTR [rdi+0x461],0x0
+115-   1403aa6c8:	74 04                                           	je     0x1403aa6ce
+116-   1403aa6ca:	f3 0f 59 c4                                     	mulss  xmm0,xmm4
+--
+384-   1403aabe5:	41 0f 28 fa                                     	movaps xmm7,xmm10
+385-   1403aabe9:	45 0f 28 ea                                     	movaps xmm13,xmm10
+386:   1403aabed:	80 bf fc 06 00 00 00                            	cmp    BYTE PTR [rdi+0x6fc],0x0
+387-   1403aabf4:	74 5d                                           	je     0x1403aac53
+388-   1403aabf6:	41 0f b6 50 40                                  	movzx  edx,BYTE PTR [r8+0x40]
+--
+977-   1403ab6ea:	f3 0f 59 e3                                     	mulss  xmm4,xmm3
+978-   1403ab6ee:	f3 0f 59 a7 f8 06 00 00                         	mulss  xmm4,DWORD PTR [rdi+0x6f8]
+979:   1403ab6f6:	80 3d 02 00 94 00 00                            	cmp    BYTE PTR [rip+0x940002],0x0        # 0x140ceb6ff
+980-   1403ab6fd:	0f 84 ce 01 00 00                               	je     0x1403ab8d1
+981-   1403ab703:	41 0f 28 cc                                     	movaps xmm1,xmm12
+--
+1094-   1403ab91f:	f3 0f 59 e3                                     	mulss  xmm4,xmm3
+1095-   1403ab923:	f3 0f 59 a7 f8 06 00 00                         	mulss  xmm4,DWORD PTR [rdi+0x6f8]
+1096:   1403ab92b:	80 3d cd fd 93 00 00                            	cmp    BYTE PTR [rip+0x93fdcd],0x0        # 0x140ceb6ff
+1097-   1403ab932:	0f 84 b9 01 00 00                               	je     0x1403abaf1
+1098-   1403ab938:	f2 0f 10 4d 98                                  	movsd  xmm1,QWORD PTR [rbp-0x68]
+--
+1661-   1403ac464:	f3 0f 11 bf e8 07 00 00                         	movss  DWORD PTR [rdi+0x7e8],xmm7
+1662-   1403ac46c:	4c 8b 7d 08                                     	mov    r15,QWORD PTR [rbp+0x8]
+1663:   1403ac470:	44 38 15 88 f2 93 00                            	cmp    BYTE PTR [rip+0x93f288],r10b        # 0x140ceb6ff
+1664-   1403ac477:	0f 84 19 01 00 00                               	je     0x1403ac596
+1665-   1403ac47d:	f2 0f 10 45 20                                  	movsd  xmm0,QWORD PTR [rbp+0x20]
+--
+1985-   1403acb61:	f2 0f 5c c8                                     	subsd  xmm1,xmm0
+1986-   1403acb65:	f2 0f 11 8d b8 02 00 00                         	movsd  QWORD PTR [rbp+0x2b8],xmm1
+1987:   1403acb6d:	80 3d 8b eb 93 00 00                            	cmp    BYTE PTR [rip+0x93eb8b],0x0        # 0x140ceb6ff
+1988-   1403acb74:	74 1d                                           	je     0x1403acb93
+1989-   1403acb76:	4c 8d 8f e8 04 00 00                            	lea    r9,[rdi+0x4e8]
+--
+2140-   1403ace46:	f3 0f 10 05 62 35 80 00                         	movss  xmm0,DWORD PTR [rip+0x803562]        # 0x140bb03b0
+2141-   1403ace4e:	f3 0f 10 2d fa 36 80 00                         	movss  xmm5,DWORD PTR [rip+0x8036fa]        # 0x140bb0550
+2142:   1403ace56:	80 bf 60 04 00 00 00                            	cmp    BYTE PTR [rdi+0x460],0x0
+2143-   1403ace5d:	75 04                                           	jne    0x1403ace63
+2144-   1403ace5f:	41 0f 28 e6                                     	movaps xmm4,xmm14
+--
+2195-   1403acf57:	41 0f 28 c6                                     	movaps xmm0,xmm14
+2196-   1403acf5b:	eb 1b                                           	jmp    0x1403acf78
+2197:   1403acf5d:	80 bf 0c 08 00 00 00                            	cmp    BYTE PTR [rdi+0x80c],0x0
+2198-   1403acf64:	74 0a                                           	je     0x1403acf70
+2199-   1403acf66:	f3 0f 10 05 2a 2f 80 00                         	movss  xmm0,DWORD PTR [rip+0x802f2a]        # 0x140bafe98

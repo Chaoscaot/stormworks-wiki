@@ -1,0 +1,111 @@
+4:void FUN_14048e2d0(longlong *param_1,float *param_2,double *param_3,float *param_4)
+9:  float *pfVar3;
+10:  float *pfVar4;
+17:  float fVar11;
+18:  float fVar12;
+19:  float fVar13;
+20:  float fVar14;
+21:  float fVar15;
+22:  float fVar16;
+23:  float fVar17;
+24:  float fVar18;
+25:  float fVar19;
+26:  float fVar20;
+27:  float fVar21;
+28:  float fVar22;
+29:  float fVar23;
+30:  float fVar24;
+31:  float fVar25;
+32:  float fVar26;
+33:  float fVar27;
+35:  fVar13 = _DAT_140bafecc;
+36:  fVar19 = 0.0;
+37:  fVar20 = 0.0;
+38:  fVar22 = 0.0;
+39:  pfVar3 = (float *)param_1[2];
+40:  pfVar4 = (float *)param_1[1];
+41:  fVar26 = ((float)(param_3[2] * (double)pfVar3[1] - param_3[1] * (double)pfVar3[2]) + *pfVar4) -
+42:           *(float *)(param_1 + 0xf);
+43:  fVar25 = ((float)(*param_3 * (double)pfVar3[2] - param_3[2] * (double)*pfVar3) + pfVar4[1]) -
+44:           *(float *)((longlong)param_1 + 0x7c);
+45:  fVar24 = ((float)(param_3[1] * (double)*pfVar3 - *param_3 * (double)pfVar3[1]) + pfVar4[2]) -
+46:           *(float *)(param_1 + 0x10);
+47:  fVar14 = fVar25 * fVar25 + fVar26 * fVar26 + fVar24 * fVar24;
+48:  if (*(float *)((longlong)param_1 + 100) <= fVar14 && fVar14 != *(float *)((longlong)param_1 + 100)
+50:    if (fVar14 < 0.0) {
+51:      fVar14 = (float)FUN_1409d73e4(fVar14);
+54:      fVar14 = SQRT(fVar14);
+56:    fVar22 = fVar14 - *(float *)(param_1 + 0xc);
+57:    fVar21 = (fVar25 / fVar14) * param_2[1] + (fVar26 / fVar14) * *param_2 +
+58:             (fVar24 / fVar14) * param_2[2];
+59:    fVar20 = (*(float *)(param_1 + 0xc) + fVar22) - *(float *)(param_1 + 0xd);
+60:    fVar19 = 0.0;
+61:    if (0.0 <= fVar20) {
+62:      fVar19 = fVar20;
+64:    fVar18 = fVar19 * *(float *)((longlong)param_1 + 0x6c) + fVar13;
+65:    fVar20 = (_DAT_140bb06c8 /
+66:              (fVar22 * *(float *)((longlong)param_1 + 0x94) * _DAT_140bb0924 + _DAT_140bb064c) +
+70:    fVar19 = *(float *)((longlong)param_1 + 0x3c);
+71:    fVar27 = (float)((uint)(fVar26 / fVar14) ^ _DAT_140bb1f90);
+72:    fVar26 = (float)((uint)(fVar25 / fVar14) ^ _DAT_140bb1f90);
+73:    fVar25 = (float)((uint)(fVar24 / fVar14) ^ _DAT_140bb1f90);
+74:    fVar14 = fVar22 * fVar22;
+75:    fVar24 = *(float *)(lVar8 + 0xe8) * *(float *)(param_1 + 7) * fVar20 * *param_4 * fVar22 *
+76:             fVar22;
+77:    if (fVar21 <= 0.0) {
+78:      fVar20 = *param_2;
+79:      fVar23 = param_2[1];
+80:      fVar17 = param_2[2];
+81:      fVar11 = (float)FUN_1409b9c10((uint)fVar21 & _DAT_140bb1f20,
+82:                                    *(undefined4 *)((longlong)param_1 + 0x34));
+83:      fVar15 = (float)((uint)fVar23 ^ _DAT_140bb1f90);
+84:      fVar16 = (float)((uint)fVar20 ^ _DAT_140bb1f90);
+85:      fVar11 = fVar11 * (fVar14 * *(float *)(param_1 + 6) +
+86:                        fVar22 * *(float *)((longlong)param_1 + 0x2c)) * *param_4;
+87:      fVar12 = (float)((uint)fVar17 ^ _DAT_140bb1f90);
+90:      fVar11 = (float)FUN_1409b9c10(fVar21,(int)param_1[5]);
+91:      fVar20 = *param_2;
+92:      fVar12 = param_2[2];
+93:      fVar23 = param_2[1];
+94:      fVar11 = fVar11 * (float)((uint)(fVar14 * *(float *)((longlong)param_1 + 0x24) +
+95:                                      fVar22 * *(float *)(param_1 + 4)) ^ uVar10) * *param_4;
+96:      fVar17 = fVar12;
+97:      fVar16 = fVar20;
+98:      fVar15 = fVar23;
+100:    fVar20 = fVar20 * 0.0 + fVar23 + fVar17 * 0.0;
+101:    if (0.0 < fVar20) {
+102:      if (fVar13 <= fVar20) {
+103:        fVar20 = fVar13;
+107:      fVar20 = 0.0;
+109:    fVar22 = *(float *)(param_1 + 0xd);
+111:    fVar22 = fVar22 * fVar22;
+112:    if (fVar22 <= fVar14) {
+113:      fVar14 = fVar22;
+115:    fVar23 = *(float *)(lVar8 + 0xec);
+116:    fVar14 = (fVar13 - (float)((uint)fVar21 & _DAT_140bb1f20)) * fVar20 * fVar14 * *param_4;
+117:    fVar20 = fVar14 * *param_2 * fVar23 + fVar27 * fVar24 * fVar19 * fVar18 + 0.0 + fVar16 * fVar11;
+118:    fVar22 = fVar14 * param_2[1] * fVar23 +
+119:             fVar26 * fVar24 * fVar19 * fVar18 + 0.0 + fVar15 * fVar11;
+120:    fVar19 = fVar14 * param_2[2] * fVar23 +
+121:             fVar25 * fVar24 * fVar19 * fVar18 + 0.0 + fVar12 * fVar11;
+123:  if (*(double *)(param_1[3] + 0x68) <= _DAT_140bb0580) {
+124:    fVar13 = (float)FUN_1409b9c10(fVar13 - ((float)*(double *)(param_1[3] + 0x68) - 0.0) *
+128:    fVar13 = 0.0;
+130:  if (((fVar13 * fVar20 != 0.0) || (fVar22 * fVar13 != 0.0)) || (fVar19 * fVar13 != 0.0)) {
+131:    param_1 = (longlong *)*param_1;
+132:    dVar1 = param_3[2];
+133:    dVar5 = (double)fVar13;
+134:    uVar10 = *(uint *)(param_1 + 2);
+135:    uVar2 = *(uint *)(param_1 + 1);
+136:    dVar6 = *param_3;
+137:    dVar7 = param_3[1];
+139:      FUN_1408e10d0(param_1);
+140:      uVar10 = *(uint *)(param_1 + 2);
+141:      uVar2 = *(uint *)(param_1 + 1);
+143:    *(uint *)(param_1 + 2) = uVar10 + 1;
+145:             (((ulonglong)(*(int *)((longlong)param_1 + 0xc) + -1 + uVar10 + 1) % (ulonglong)uVar2)
+146:              * 0x30 + *param_1);
+150:    pdVar9[3] = (double)fVar20 * dVar5;
+151:    pdVar9[4] = (double)fVar22 * dVar5;
+152:    pdVar9[5] = (double)fVar19 * dVar5;
+154:  return;

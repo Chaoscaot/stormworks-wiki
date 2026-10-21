@@ -1,0 +1,25 @@
+1441693-   1405525a2:	e8 09 bb 38 00       	call   0x1408de0b0
+1441694-   1405525a7:	8b 75 18             	mov    esi,DWORD PTR [rbp+0x18]
+1441695-   1405525aa:	8b 5d 10             	mov    ebx,DWORD PTR [rbp+0x10]
+1441696-   1405525ad:	ff c6                	inc    esi
+1441697-   1405525af:	89 75 18             	mov    DWORD PTR [rbp+0x18],esi
+1441698-   1405525b2:	8b 45 14             	mov    eax,DWORD PTR [rbp+0x14]
+1441699-   1405525b5:	ff c8                	dec    eax
+1441700-   1405525b7:	03 c6                	add    eax,esi
+1441701-   1405525b9:	33 d2                	xor    edx,edx
+1441702-   1405525bb:	f7 f3                	div    ebx
+1441703-   1405525bd:	48 8b 4d 08          	mov    rcx,QWORD PTR [rbp+0x8]
+1441704-   1405525c1:	4c 89 3c d1          	mov    QWORD PTR [rcx+rdx*8],r15
+1441705-   1405525c5:	85 ff                	test   edi,edi
+1441706-   1405525c7:	75 1e                	jne    0x1405525e7
+1441707-   1405525c9:	41 0f b6 85 9c 02 00 	movzx  eax,BYTE PTR [r13+0x29c]
+1441708-   1405525d0:	00 
+1441709:   1405525d1:	41 88 87 9c 02 00 00 	mov    BYTE PTR [r15+0x29c],al
+1441710-   1405525d8:	41 0f b6 85 9d 02 00 	movzx  eax,BYTE PTR [r13+0x29d]
+1441711-   1405525df:	00 
+1441712-   1405525e0:	41 88 87 9d 02 00 00 	mov    BYTE PTR [r15+0x29d],al
+1441713-   1405525e7:	41 0f b6 85 9e 02 00 	movzx  eax,BYTE PTR [r13+0x29e]
+1441714-   1405525ee:	00 
+1441715-   1405525ef:	41 88 87 9e 02 00 00 	mov    BYTE PTR [r15+0x29e],al
+1441716-   1405525f6:	45 33 c9             	xor    r9d,r9d
+1441717-   1405525f9:	41 8b d9             	mov    ebx,r9d

@@ -1,0 +1,97 @@
+321091-   140129d29:	cc                   	int3
+321092-   140129d2a:	cc                   	int3
+321093-   140129d2b:	cc                   	int3
+321094-   140129d2c:	cc                   	int3
+321095-   140129d2d:	cc                   	int3
+321096-   140129d2e:	cc                   	int3
+321097-   140129d2f:	cc                   	int3
+321098:   140129d30:	48 89 5c 24 20       	mov    QWORD PTR [rsp+0x20],rbx
+321099-   140129d35:	55                   	push   rbp
+321100-   140129d36:	56                   	push   rsi
+321101-   140129d37:	57                   	push   rdi
+321102-   140129d38:	41 54                	push   r12
+321103-   140129d3a:	41 55                	push   r13
+321104-   140129d3c:	41 56                	push   r14
+321105-   140129d3e:	41 57                	push   r15
+--
+322561-   14012b4cf:	f2 41 0f 10 50 18    	movsd  xmm2,QWORD PTR [r8+0x18]
+322562-   14012b4d5:	48 8b f9             	mov    rdi,rcx
+322563-   14012b4d8:	48 89 55 f0          	mov    QWORD PTR [rbp-0x10],rdx
+322564-   14012b4dc:	49 8b d5             	mov    rdx,r13
+322565-   14012b4df:	48 89 5c 24 78       	mov    QWORD PTR [rsp+0x78],rbx
+322566-   14012b4e4:	4c 89 6d a0          	mov    QWORD PTR [rbp-0x60],r13
+322567-   14012b4e8:	48 89 75 90          	mov    QWORD PTR [rbp-0x70],rsi
+322568:   14012b4ec:	e8 3f e8 ff ff       	call   0x140129d30
+322569-   14012b4f1:	f2 0f 10 53 18       	movsd  xmm2,QWORD PTR [rbx+0x18]
+322570-   14012b4f6:	48 8b d6             	mov    rdx,rsi
+322571-   14012b4f9:	4c 63 f8             	movsxd r15,eax
+322572-   14012b4fc:	48 8b cf             	mov    rcx,rdi
+322573-   14012b4ff:	44 89 7c 24 74       	mov    DWORD PTR [rsp+0x74],r15d
+322574:   14012b504:	e8 27 e8 ff ff       	call   0x140129d30
+322575-   14012b509:	4c 63 c0             	movsxd r8,eax
+322576-   14012b50c:	49 69 c8 f0 01 00 00 	imul   rcx,r8,0x1f0
+322577-   14012b513:	4d 69 cf f0 01 00 00 	imul   r9,r15,0x1f0
+322578-   14012b51a:	48 03 4f 18          	add    rcx,QWORD PTR [rdi+0x18]
+322579-   14012b51e:	44 89 44 24 70       	mov    DWORD PTR [rsp+0x70],r8d
+322580-   14012b523:	48 89 4d e0          	mov    QWORD PTR [rbp-0x20],rcx
+322581-   14012b527:	4c 03 4f 18          	add    r9,QWORD PTR [rdi+0x18]
+--
+323759-   14012c85f:	0f 8e ed 01 00 00    	jle    0x14012ca52
+323760-   14012c865:	4c 8b ff             	mov    r15,rdi
+323761-   14012c868:	48 8b 7c 24 28       	mov    rdi,QWORD PTR [rsp+0x28]
+323762-   14012c86d:	0f 1f 00             	nop    DWORD PTR [rax]
+323763-   14012c870:	f2 41 0f 10 54 24 18 	movsd  xmm2,QWORD PTR [r12+0x18]
+323764-   14012c877:	4b 8b 54 fd 00       	mov    rdx,QWORD PTR [r13+r15*8+0x0]
+323765-   14012c87c:	48 8b ce             	mov    rcx,rsi
+323766:   14012c87f:	e8 ac d4 ff ff       	call   0x140129d30
+323767-   14012c884:	4b 8b 5c fd 00       	mov    rbx,QWORD PTR [r13+r15*8+0x0]
+323768-   14012c889:	f6 83 f0 01 00 00 02 	test   BYTE PTR [rbx+0x1f0],0x2
+323769-   14012c890:	0f 84 ae 01 00 00    	je     0x14012ca44
+323770-   14012c896:	f2 0f 10 83 d0 03 00 	movsd  xmm0,QWORD PTR [rbx+0x3d0]
+323771-   14012c89d:	00 
+323772-   14012c89e:	66 41 0f 2e c3       	ucomisd xmm0,xmm11
+323773-   14012c8a3:	7a 06                	jp     0x14012c8ab
+--
+324068-   14012cd5d:	48 8b 58 28          	mov    rbx,QWORD PTR [rax+0x28]
+324069-   14012cd61:	48 89 5d 88          	mov    QWORD PTR [rbp-0x78],rbx
+324070-   14012cd65:	4c 8b 70 30          	mov    r14,QWORD PTR [rax+0x30]
+324071-   14012cd69:	4c 89 74 24 58       	mov    QWORD PTR [rsp+0x58],r14
+324072-   14012cd6e:	f2 41 0f 10 54 24 18 	movsd  xmm2,QWORD PTR [r12+0x18]
+324073-   14012cd75:	48 8b d3             	mov    rdx,rbx
+324074-   14012cd78:	48 8b ce             	mov    rcx,rsi
+324075:   14012cd7b:	e8 b0 cf ff ff       	call   0x140129d30
+324076-   14012cd80:	4c 63 f8             	movsxd r15,eax
+324077-   14012cd83:	44 89 7c 24 60       	mov    DWORD PTR [rsp+0x60],r15d
+324078-   14012cd88:	f2 41 0f 10 54 24 18 	movsd  xmm2,QWORD PTR [r12+0x18]
+324079-   14012cd8f:	49 8b d6             	mov    rdx,r14
+324080-   14012cd92:	48 8b ce             	mov    rcx,rsi
+324081:   14012cd95:	e8 96 cf ff ff       	call   0x140129d30
+324082-   14012cd9a:	89 44 24 30          	mov    DWORD PTR [rsp+0x30],eax
+324083-   14012cd9e:	4d 69 f7 f0 01 00 00 	imul   r14,r15,0x1f0
+324084-   14012cda5:	4c 03 76 18          	add    r14,QWORD PTR [rsi+0x18]
+324085-   14012cda9:	4c 89 74 24 68       	mov    QWORD PTR [rsp+0x68],r14
+324086-   14012cdae:	48 63 c8             	movsxd rcx,eax
+324087-   14012cdb1:	4c 69 f9 f0 01 00 00 	imul   r15,rcx,0x1f0
+324088-   14012cdb8:	4c 03 7e 18          	add    r15,QWORD PTR [rsi+0x18]
+--
+325083-   14012de53:	8b e8                	mov    ebp,eax
+325084-   14012de55:	48 8b 16             	mov    rdx,QWORD PTR [rsi]
+325085-   14012de58:	44 38 72 20          	cmp    BYTE PTR [rdx+0x20],r14b
+325086-   14012de5c:	74 53                	je     0x14012deb1
+325087-   14012de5e:	f2 41 0f 10 55 18    	movsd  xmm2,QWORD PTR [r13+0x18]
+325088-   14012de64:	48 8b cf             	mov    rcx,rdi
+325089-   14012de67:	48 8b 52 28          	mov    rdx,QWORD PTR [rdx+0x28]
+325090:   14012de6b:	e8 c0 be ff ff       	call   0x140129d30
+325091-   14012de70:	48 8b 0e             	mov    rcx,QWORD PTR [rsi]
+325092-   14012de73:	f2 41 0f 10 55 18    	movsd  xmm2,QWORD PTR [r13+0x18]
+325093-   14012de79:	48 63 d8             	movsxd rbx,eax
+325094-   14012de7c:	48 8b 51 30          	mov    rdx,QWORD PTR [rcx+0x30]
+325095-   14012de80:	48 8b cf             	mov    rcx,rdi
+325096:   14012de83:	e8 a8 be ff ff       	call   0x140129d30
+325097-   14012de88:	48 8b 0e             	mov    rcx,QWORD PTR [rsi]
+325098-   14012de8b:	f2 41 0f 10 5d 18    	movsd  xmm3,QWORD PTR [r13+0x18]
+325099-   14012de91:	48 63 d0             	movsxd rdx,eax
+325100-   14012de94:	4c 69 c2 f0 01 00 00 	imul   r8,rdx,0x1f0
+325101-   14012de9b:	48 69 d3 f0 01 00 00 	imul   rdx,rbx,0x1f0
+325102-   14012dea2:	4c 8b 11             	mov    r10,QWORD PTR [rcx]
+325103-   14012dea5:	4c 03 47 18          	add    r8,QWORD PTR [rdi+0x18]

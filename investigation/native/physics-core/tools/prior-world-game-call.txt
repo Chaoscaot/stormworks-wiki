@@ -1,0 +1,26 @@
+452454-   1401a3955:	48 89 44 24 40       	mov    QWORD PTR [rsp+0x40],rax
+452455-   1401a395a:	48 85 c0             	test   rax,rax
+452456-   1401a395d:	74 19                	je     0x1401a3978
+452457-   1401a395f:	4c 8b 4f 18          	mov    r9,QWORD PTR [rdi+0x18]
+452458-   1401a3963:	4c 8b 47 10          	mov    r8,QWORD PTR [rdi+0x10]
+452459-   1401a3967:	48 8b 57 08          	mov    rdx,QWORD PTR [rdi+0x8]
+452460-   1401a396b:	48 8b c8             	mov    rcx,rax
+452461:   1401a396e:	e8 dd 61 fb ff       	call   0x140159b50
+452462-   1401a3973:	48 8b d8             	mov    rbx,rax
+452463-   1401a3976:	eb 03                	jmp    0x1401a397b
+452464-   1401a3978:	49 8b de             	mov    rbx,r14
+452465-   1401a397b:	48 8b 4f 20          	mov    rcx,QWORD PTR [rdi+0x20]
+452466-   1401a397f:	48 85 c9             	test   rcx,rcx
+452467-   1401a3982:	74 0a                	je     0x1401a398e
+452468-   1401a3984:	48 8b 01             	mov    rax,QWORD PTR [rcx]
+452469-   1401a3987:	ba 01 00 00 00       	mov    edx,0x1
+452470-   1401a398c:	ff 10                	call   QWORD PTR [rax]
+452471-   1401a398e:	48 89 5f 20          	mov    QWORD PTR [rdi+0x20],rbx
+452472-   1401a3992:	48 8b 03             	mov    rax,QWORD PTR [rbx]
+452473-   1401a3995:	0f 28 05 94 e8 a0 00 	movaps xmm0,XMMWORD PTR [rip+0xa0e894]        # 0x140bb2230
+452474-   1401a399c:	0f 29 44 24 70       	movaps XMMWORD PTR [rsp+0x70],xmm0
+452475-   1401a39a1:	0f 57 c9             	xorps  xmm1,xmm1
+452476-   1401a39a4:	0f 29 8c 24 80 00 00 	movaps XMMWORD PTR [rsp+0x80],xmm1
+452477-   1401a39ab:	00 
+452478-   1401a39ac:	48 8d 54 24 70       	lea    rdx,[rsp+0x70]
+452479-   1401a39b1:	48 8b cb             	mov    rcx,rbx

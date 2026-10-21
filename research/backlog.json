@@ -195,7 +195,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/12/sections/10/body",
-        "text": "Not decoded: how the body-mass producer's redistribution, clamping and linked bodies, and fuel, cargo or damage, change the signature S, and how S compares with the editor's mass total; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
+        "text": "Not decoded: when the mass rebuild runs after part destruction, detachment, cargo or fuel events, and which bodies and auxiliary masses the editor's mass display counts, so S is not tied to that display; which collision bits terrain, water, glass and vehicles register with, and so which of them block the line-of-sight query; the height sampler 0x1402bc7d0 behind the legacy height gates; what else can set a legacy sensor's saved radar_fov; what the legacy Signal Strength output carries; the laser missile radar (radar_type 2) acquisition path; advanced sonar submersion gating and the noisemaker's effect on the sonar. For radios: how the legacy radios' separate send and receive frequencies and their data use the receive routine, whose legacy records carry one frequency and no payload flags; payload and audio effects of a weak signal beyond the clamp(2 × S) level; the exact rounding of the native power routine in the height term. None of the radio figures was checked in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -208,7 +208,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/13/sections/7/body",
-        "text": "Not decoded: which loaded value sets the air weight selector byte (+0x580 behind the definition's first pointer) for each air part, so air figures stay in two branches; for the cap scale S, which code sets the assembly root flag (+0x29c) that drops the first body from the mass sum, and which connector links (connection records of kind 8) join bodies into one S group; the SI calibration of mass, force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether anything elsewhere in the engine adds ground effect (the scalar law has no ground-clearance term); the editor-arrow sign table for reflected parts. No figure here was measured in a running game.",
+        "text": "Not decoded: for the cap scale S, which connector links (connection records of kind 8) join bodies into one S group, and what sets the adjacent assembly byte (+0x29d) that a rebuild ORs into the is_static root flag; the SI calibration of mass, force, torque and shaft power; the visible cyclic blade phase; the separate water-interaction helper 0x1402fe950, cavitation and other hydrodynamics outside the scalar law; whether a world, airflow or contact path outside the traced force-emitter update adds a near-ground force, since that update has no ground-clearance input; the editor-arrow sign table for reflected parts. No figure here was measured in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -278,7 +278,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/19/sections/6/body",
-        "text": "Not measured: vehicle speed and slip under load in a running game. Not recovered: the physical scale B the impulse helpers apply, so wheel grip has no newton or N m figure and no load curve; what sets the physics mode byte that gates the spring requests, and the other contact cases; how wheels are grouped into tracks, what Track Tension changes and how the belt touches the ground; what reads the track mean of component+0x808; and the speed law of the legacy Small, Medium and landing wheels, which run a separate update.",
+        "text": "Not measured: vehicle speed and slip under load in a running game. Not recovered: a newton or N m figure for wheel grip and a load curve, since B is a native mass scale; which settings, menu actions and network transitions drive each lifecycle writer of the physics mode byte that gates the spring requests; the other contact cases; how wheels are grouped into tracks, what Track Tension changes and how the belt touches the ground; what reads the track mean of component+0x808; and the speed law of the legacy Small, Medium and landing wheels, which run a separate update.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -746,19 +746,6 @@
     ]
   },
   {
-    "key": "mechanics:aerodynamics",
-    "title": "Air drag and lift tuning: resolve missing mechanics",
-    "wiki": "https://sw-wiki.maxsp.de/mechanics/aerodynamics",
-    "locations": [
-      {
-        "file": "wiki/data/mechanics.json",
-        "pointer": "/articles/1/limitations/2",
-        "text": "Still not recovered for the hull air callback: its term-by-term force equation, the surface weights and normals it receives, and an SI meaning for its tuned factors. No calibration or runtime experiment was performed.",
-        "scope": "Shipped-resource mechanics article"
-      }
-    ]
-  },
-  {
     "key": "mechanics:air-propellers-rotors",
     "title": "Aircraft propellers and rotor controls: resolve missing mechanics",
     "wiki": "https://sw-wiki.maxsp.de/mechanics/air-propellers-rotors",
@@ -766,7 +753,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/22/limitations/2",
-        "text": "The rotor law comes from that native decode. Not recovered: which loaded value selects K = F ÷ 1000 or F ÷ 2000 for air parts, the visible cyclic blade phase, whether the engine adds ground effect outside the scalar law, and the SI calibration of thrust and reaction torque.",
+        "text": "The rotor law comes from that native decode. Not recovered: the visible cyclic blade phase and the SI calibration of thrust and reaction torque. The traced force-emitter update has no ground-clearance input; that no other world, airflow or contact path adds a near-ground force is not established.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -779,13 +766,13 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/2/limitations/2",
-        "text": "Buoyancy is decoded in internal units of the native submerged weight V. Still not recovered: how component geometry builds the tree weights and whether one cubic metre of hull gives V = 1, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So no displacement or mass-to-volume rule for a whole vessel follows yet.",
+        "text": "Buoyancy is in internal units of the native submerged weight V. Still not recovered: a complete rule for which cells and faces of an arbitrary hull the fill state and exposure classification count, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So a whole vessel's V does not yet follow from its parts list.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/2/limitations/3",
-        "text": "The surface normal, lever arm, surface weight A, length L, the slamming scalar and the sampled wave vectors come from a surface traversal whose construction was not recovered. No SI meaning is assigned to the drag factors.",
+        "text": "How the cached wave triangles' normals and vertex vectors are generated was not traced. No SI meaning is assigned to the drag factors.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -886,13 +873,13 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/7",
-        "text": "The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.",
+        "text": "The wind and current force chain was not traced in full: the cached current grid, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.",
         "scope": "Shipped-resource mechanics article"
       },
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/15/limitations/8",
-        "text": "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update.",
+        "text": "The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, or the scheduling above the vehicle update.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -983,7 +970,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/8/limitations/2",
-        "text": "The radar formulas and the speed and altitude readings come from those native decodes. How the body-mass producer's adjustments and a vehicle's contents change the signature, which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, and when within a physics step the speed and altitude sensors read the body state were not recovered.",
+        "text": "The radar formulas and the speed and altitude readings come from those native decodes. When the mass rebuild runs after part destruction, detachment, cargo or fuel events was not traced for every path, and how the editor's mass display counts bodies and auxiliary masses was not established. Which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, and when within a physics step the speed and altitude sensors read the body state were not recovered.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1048,7 +1035,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/3/limitations/1",
-        "text": "The units, slip limit, grip, shaft and spring figures come from that native decode. Still not recovered: the impulse helpers' scale B, so grip has no newton figure and no curve against normal load; what sets the physics mode byte that gates the springs, and the other contact cases; track grouping and Track Tension; and the legacy wheels' speed law. No speed or slip was measured in a running game.",
+        "text": "The units, slip limit, grip, shaft and spring figures come from that native decode. Still not recovered: a newton figure for grip, since B is a native mass scale, and a curve against normal load; which settings and network transitions drive each writer of the physics mode byte that gates the springs, and the other contact cases; track grouping and Track Tension; and the legacy wheels' speed law. No speed or slip was measured in a running game.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1074,7 +1061,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/0/limitations/2",
-        "text": "The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: the solver's normal and tangent impulse iterations, its friction-row bounds, collision-shape coverage and restitution threshold, and the rule by which mass redistribution rewrites a vehicle's gravity.",
+        "text": "The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: which collision shapes shipped components, terrain and water use, whether special bodies or later material settings give a contact a nonzero restitution, and the rule by which mass redistribution rewrites a vehicle's gravity.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

@@ -1,0 +1,35 @@
+   140942b28:	f3 0f 10 97 90 00 00 	movss  xmm2,DWORD PTR [rdi+0x90]
+   140942b2f:	00 
+   140942b30:	f3 0f 10 4d 6f       	movss  xmm1,DWORD PTR [rbp+0x6f]
+   140942b35:	0f 5a c9             	cvtps2pd xmm1,xmm1
+   140942b38:	0f 5a c2             	cvtps2pd xmm0,xmm2
+   140942b3b:	f2 0f 5c ce          	subsd  xmm1,xmm6
+   140942b3f:	f3 0f 58 d2          	addss  xmm2,xmm2
+   140942b43:	f2 0f 58 c8          	addsd  xmm1,xmm0
+   140942b47:	66 0f 5a f1          	cvtpd2ps xmm6,xmm1
+   140942b4b:	f3 0f 5e f2          	divss  xmm6,xmm2
+   140942b4f:	0f 2f f7             	comiss xmm6,xmm7
+   140942b52:	76 44                	jbe    0x140942b98
+   140942b54:	f3 0f 10 3d 70 d3 26 	movss  xmm7,DWORD PTR [rip+0x26d370]        # 0x140bafecc
+   140942b5b:	00 
+   140942b5c:	0f 2f fe             	comiss xmm7,xmm6
+   140942b5f:	77 03                	ja     0x140942b64
+   140942b61:	0f 28 f7             	movaps xmm6,xmm7
+   140942b64:	48 8d 45 9f          	lea    rax,[rbp-0x61]
+   140942b68:	4c 8b c6             	mov    r8,rsi
+   140942b6b:	48 89 44 24 38       	mov    QWORD PTR [rsp+0x38],rax
+   140942b70:	48 8b d7             	mov    rdx,rdi
+   140942b73:	48 8d 45 af          	lea    rax,[rbp-0x51]
+   140942b77:	49 8b ce             	mov    rcx,r14
+   140942b7a:	48 89 44 24 30       	mov    QWORD PTR [rsp+0x30],rax
+   140942b7f:	48 8d 45 6f          	lea    rax,[rbp+0x6f]
+   140942b83:	48 89 44 24 28       	mov    QWORD PTR [rsp+0x28],rax
+   140942b88:	f3 0f 11 74 24 20    	movss  DWORD PTR [rsp+0x20],xmm6
+   140942b8e:	e8 7d a6 b4 ff       	call   0x14048d210
+   140942b93:	0f 2f fe             	comiss xmm7,xmm6
+   140942b96:	76 0e                	jbe    0x140942ba6
+   140942b98:	4c 8b c6             	mov    r8,rsi
+   140942b9b:	48 8b d7             	mov    rdx,rdi
+   140942b9e:	49 8b ce             	mov    rcx,r14
+   140942ba1:	e8 8a b4 b4 ff       	call   0x14048e030
+   140942ba6:	4c 8b a4 24 b0 00 00 	mov    r12,QWORD PTR [rsp+0xb0]

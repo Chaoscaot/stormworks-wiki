@@ -838,10 +838,11 @@ export const PROPULSION = {
   speedFactor: f32(0.9999), loadFactor: 0.75, loadScale: f32(0.32), ratioHalf: 0.5, ratioClamp: 10, waterFactor: 10, weightDivisor: 1000,
   bladeWeight: 0.125, thrustFactor: 1500, altitudeSlope: f32(2.2413793e-5), altitudeExponent: f32(5.3595023), altitudeCeiling: 40000, capLimit: 100, blades: 4,
 };
-// flags: bit 2 marine, bits 2 and 4 together the blade-scaled weight; air parts (no bit 2) take either weight.
-const emitter = (id, label, family, flags, maxForce, rotationSpeed, length, bladeEfficiency, efficiency, defaultPitch) => ({
+// flags: bit 2 marine, bits 2 and 4 together the blade-scaled weight. Air parts (no bit 2) take the blade-scaled weight when their
+// definition names a mesh_1 (blade), which a successful load marks as loaded (investigation/physics-core.md); the ducted fans name none.
+const emitter = (id, label, family, flags, maxForce, rotationSpeed, length, bladeEfficiency, efficiency, defaultPitch, blade = false) => ({
   id, label, families: [family], flags, maxForce, rotationSpeed, length, bladeEfficiency, efficiency, defaultPitch,
-  marine: (flags & 2) !== 0, weights: (flags & 6) === 6 ? [true] : (flags & 2) ? [false] : [false, true],
+  marine: (flags & 2) !== 0, weights: (flags & 6) === 6 ? [true] : (flags & 2) ? [false] : [blade],
 });
 export const PROPELLER_VARIANTS = [
   emitter('propeller', 'Small Propeller', 'marine-propeller', 524291, 20000, 1, 0.25, 0.075, 1, 1),
@@ -851,20 +852,20 @@ export const PROPELLER_VARIANTS = [
   emitter('propeller_pitch', 'Pitchable Propeller', 'pitchable-marine-propeller', 7, 80000, 1, 1.27, 0.075, 1, 0),
   emitter('propeller_pitch_large', 'Large Pitchable Propeller', 'pitchable-marine-propeller', 7, 160000, 1, 2.27, 0.075, 1, 0),
   emitter('azimuth_thruster', 'Azimuth Thruster', 'part-azimuth-thruster', 524291, 40000, 1, 0.25, 0.15, 1, 1),
-  emitter('large_rotor', 'Large Rotor', 'helicopter-rotor', 536870913, 40000, 1, 4, 0.01, 1.25, 1),
-  emitter('huge_rotor', 'Huge Rotor', 'helicopter-rotor', 536870913, 200000, 1, 8.25, 0.01, 1.25, 1),
-  emitter('heavy_rotor', 'Heavy Rotor', 'heavy-helicopter-rotor', 536870913, 120000, 1.5, 3, 0.02, 1, 1),
-  emitter('heavy_rotor_large', 'Heavy Large Rotor', 'heavy-helicopter-rotor', 536870913, 200000, 1.5, 4.25, 0.02, 1, 1),
-  emitter('rotor_coaxial_light', 'Rotor (Light)', 'through-drive-rotor', 1073741825, 10000, 1, 1.25, 0.01, 1.25, 1),
-  emitter('rotor_coaxial_small', 'Rotor (Small)', 'through-drive-rotor', 1073741825, 50000, 1, 4, 0.01, 1.25, 1),
-  emitter('rotor_coaxial_large', 'Rotor (Large)', 'through-drive-rotor', 1073741825, 200000, 1, 8, 0.01, 1.25, 1),
-  emitter('rotor_coaxial_light_end', 'Rotor End (Light)', 'part-rotor-coaxial-light-end', 1073741825, 10000, 1, 1.25, 0.01, 1.25, 1),
-  emitter('rotor_coaxial_prop_small', 'Rotor Propeller (Small)', 'through-drive-rotor-propeller', 1073741825, 120000, 1, 2.75, 0.01, 1.25, 1),
-  emitter('rotor_coaxial_prop', 'Rotor Propeller (Large)', 'through-drive-rotor-propeller', 1073741825, 200000, 1, 4, 0.01, 1.25, 1),
-  emitter('rotor_coaxial_prop_small_end', 'Rotor Propeller End (Small)', 'terminal-rotor-propeller', 1073741825, 120000, 1, 2.75, 0.01, 1.25, 1),
-  emitter('rotor_coaxial_prop_end', 'Rotor Propeller End (Large)', 'terminal-rotor-propeller', 1073741825, 200000, 1, 4, 0.01, 1.25, 1),
-  emitter('aircraft_propeller', 'Aircraft Propeller', 'part-aircraft-propeller', 5, 70000, 3, 1.25, 0.02, 1, 1),
-  emitter('tail_rotor', 'Rotor (Tail)', 'part-tail-rotor', 5, 4000, 1, 1, 0.01, 1, 0),
+  emitter('large_rotor', 'Large Rotor', 'helicopter-rotor', 536870913, 40000, 1, 4, 0.01, 1.25, 1, true),
+  emitter('huge_rotor', 'Huge Rotor', 'helicopter-rotor', 536870913, 200000, 1, 8.25, 0.01, 1.25, 1, true),
+  emitter('heavy_rotor', 'Heavy Rotor', 'heavy-helicopter-rotor', 536870913, 120000, 1.5, 3, 0.02, 1, 1, true),
+  emitter('heavy_rotor_large', 'Heavy Large Rotor', 'heavy-helicopter-rotor', 536870913, 200000, 1.5, 4.25, 0.02, 1, 1, true),
+  emitter('rotor_coaxial_light', 'Rotor (Light)', 'through-drive-rotor', 1073741825, 10000, 1, 1.25, 0.01, 1.25, 1, true),
+  emitter('rotor_coaxial_small', 'Rotor (Small)', 'through-drive-rotor', 1073741825, 50000, 1, 4, 0.01, 1.25, 1, true),
+  emitter('rotor_coaxial_large', 'Rotor (Large)', 'through-drive-rotor', 1073741825, 200000, 1, 8, 0.01, 1.25, 1, true),
+  emitter('rotor_coaxial_light_end', 'Rotor End (Light)', 'part-rotor-coaxial-light-end', 1073741825, 10000, 1, 1.25, 0.01, 1.25, 1, true),
+  emitter('rotor_coaxial_prop_small', 'Rotor Propeller (Small)', 'through-drive-rotor-propeller', 1073741825, 120000, 1, 2.75, 0.01, 1.25, 1, true),
+  emitter('rotor_coaxial_prop', 'Rotor Propeller (Large)', 'through-drive-rotor-propeller', 1073741825, 200000, 1, 4, 0.01, 1.25, 1, true),
+  emitter('rotor_coaxial_prop_small_end', 'Rotor Propeller End (Small)', 'terminal-rotor-propeller', 1073741825, 120000, 1, 2.75, 0.01, 1.25, 1, true),
+  emitter('rotor_coaxial_prop_end', 'Rotor Propeller End (Large)', 'terminal-rotor-propeller', 1073741825, 200000, 1, 4, 0.01, 1.25, 1, true),
+  emitter('aircraft_propeller', 'Aircraft Propeller', 'part-aircraft-propeller', 5, 70000, 3, 1.25, 0.02, 1, 1, true),
+  emitter('tail_rotor', 'Rotor (Tail)', 'part-tail-rotor', 5, 4000, 1, 1, 0.01, 1, 0, true),
   emitter('fan_small', 'Small Ducted Fan', 'ducted-fan', 524288, 2000, 1, 1.5, 0.01, 1, 1),
   emitter('fan_large', 'Large Ducted Fan', 'ducted-fan', 524288, 10000, 1, 4.1, 0.01, 1, 1),
 ];
@@ -874,13 +875,14 @@ export const propellerVariantFor = (family, variant = null) =>
 // Altitude factor of air parts: (1 - 2.2413793e-5 × y)^5.3595023 of the body altitude y, 0 above 40000.
 export const propellerAltitude = (y) => (y <= PROPULSION.altitudeCeiling ? f32(Math.pow(1 - PROPULSION.altitudeSlope * y, PROPULSION.altitudeExponent)) : 0);
 
-// One update of one part. bladeScaled selects K = F × B ÷ 8000 instead of F ÷ 1000; marine parts have it fixed by flags.
+// One update of one part. bladeScaled selects K = F × B ÷ 8000 instead of F ÷ 1000; marine parts have it fixed by flags. An air part
+// defaults to its mesh_1 branch; the other branch is what a missing mesh_1 asset or failed read would leave.
 export function propellerForce({ variant, rps, pitch = 1, flow = 0, blades = PROPULSION.blades, bladeScaled = null, submerged = null, altitude = 0 }) {
   finite([rps, pitch, flow, blades, altitude]);
   if (blades < 0) throw new RangeError('Blade count must be nonnegative.');
   const v = variant;
   const scaled = bladeScaled ?? v.weights[0];
-  if (!v.weights.includes(scaled)) throw new RangeError(`${v.label} does not use that weight branch.`);
+  if (v.marine && !v.weights.includes(scaled)) throw new RangeError(`${v.label} does not use that weight branch.`);
   const under = submerged ?? v.marine;
   const p = f32(clamp(pitch, -1, 1));
   let F = f32(v.maxForce);

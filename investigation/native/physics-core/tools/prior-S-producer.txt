@@ -1,0 +1,21 @@
+```
+
+Every body in a label group receives the same S. No averaging, division by component count or per-force timestep appears in this final sum. Auxiliary masses have already affected `r`, but their adjusted values are not directly included here.
+
+### Units and worked examples
+
+S has the executable's component-mass units because the operations are mass sums, ratios and dimensionless factors. The getter reads the definition mass value directly. This does not establish kilograms. For positive finite S, helper `0x1401a7ad0` limits vector magnitude to `k*S`; the k values retain the internal force-per-mass convention from the earlier reports. The helper does not integrate time.
+
+Calculated examples, with root-exclusion off and no omitted masses:
+
+- One body with component mass sum 1000 and no auxiliary mass has S=1000. An air-surface force of magnitude 8000 is capped at 5000. A jet/propeller cap is 100000 and a solid-rocket cap is 1000000.
+- Two multibody-connected bodies with component sums 1000 and 1, no auxiliary mass, have `T=1001`, `H=1000`, `D=1025`, `r=1001/1025`. Their adjusted vehicle values are approximately 976.585366 and 24.414634. Both receive S=1001, whether the ordinary joint is free or locked. Each air-surface application has cap 5005. Applying one cap per component does not make that an assembly-wide total-force budget.
+- One vehicle with `m=1000` and one auxiliary mass `e=1` has `D=1000+1000/120`, `r=1001/D`. Its S is approximately 992.727273, while the adjusted auxiliary mass is approximately 8.272727. The total is 1001. This rules out S always equalling the raw component-plus-auxiliary mass sum. Mapping all adjusted auxiliary entries to their final Bullet bodies is outside this pass.
+- Two separate label groups with masses 1000 and 1 receive S=1000 and S=1. They do not share a cap merely because both are present in the scene.
+
+### Instruction evidence
+
+Byte-bearing assembly is retained in `asm/scale-builder.asm`, `group-traversal.asm`, `locked-group-builder.asm`, `group-update.asm`, `mass-getters.asm`, `force-helper.asm` and `component-dispatch.asm`. The name `locked-group-builder.asm` is only a file label; its decoded flood does not test lock state.
+
+- `0x1404be439`, `ff 90 98 02 00 00`, calls the component mass getter. `0x1404be447`, `f3 0f 11 87 2c 07 00 00`, stores the accumulated raw vehicle value.
+- `0x1404be363`, `f3 44 0f 10 25 c0 23 6f 00`, loads 40 from `0x140bb072c`, bytes `00 00 20 42`. `0x1404be36c`, `f3 44 0f 10 2d 33 24 6f 00`, loads 120 from `0x140bb07a8`, bytes `00 00 f0 42`. Divides at `0x1404be588`, `f3 41 0f 5e dc`, and `0x1404be58d`, `f3 41 0f 5e fd`, form the floors.

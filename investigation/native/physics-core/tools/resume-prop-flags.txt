@@ -1,0 +1,19 @@
+49:All 23 shipped type-2 definitions are retained, including `giga_prop_small`, the giant marine propeller, and supplemental azimuth/terminal-light definitions. Source hashes, explicit attributes, defaults, force vectors and logic labels are retained. Root-attribute extraction avoids unrelated malformed tooltip XML.
+56:marine = definition.flags & 2
+57:single_pitch_control = definition.flags & 4
+106:F is not a direct thrust ceiling. The small fixed marine propeller has F=20000 and gives calculated raw force about 22201.426 at 10 published RPS under the reference conditions. Application capping can reduce it. Changing F also changes K and q, so XML max-force ratios are not thrust ratios.
+134:Without flag bit 4, numeric controls 0/1 supply clamped Roll/Pitch at `+0x258/+0x25c`, and numeric control 2 supplies Collective at `+0x260`. With bit 4, numeric control 0 supplies pitch directly. Definitions without these nodes retain zero numeric control values.
+156:Force application additionally requires component `+0x350` null and global `0x140ceb6ff` enabled. `+0x350` is populated through component-grid lookup `0x140329540`. Reference values assume permitted application. That lookup is not treated as ground clearance.
+166:Flag `0x40000000`, present on coaxial through-drive/terminal families, additionally requests equal opposite local-X forces at hub+Z and hub-Z. Each raw magnitude is:
+208:| `azimuth_thruster` | azimuth-thruster | 4440.285 | not selected by flags |
+211:| `giga_prop_small` | marine-propeller | 10290.409 | not selected by flags |
+215:| `large_propeller` | marine-propeller | 7298.928 | not selected by flags |
+217:| `propeller` | marine-propeller | 2220.143 | not selected by flags |
+218:| `propeller_pitch` | pitchable-marine-propeller | not selected by flags | 20411.306 |
+219:| `propeller_pitch_large` | pitchable-marine-propeller | not selected by flags | 35002.234 |
+220:| `propeller_pitch_small` | pitchable-marine-propeller | not selected by flags | 4073.904 |
+246:| Ground effect | No terrain-clearance or rotor-height-above-ground factor appears in scalar thrust or the explicit couple. Atmosphere uses body altitude; grid lookup supplies permission. Neither is a ground-effect formula. Whole-engine absence is not established. |
+255:- #34, [Helicopter Rotor](https://sw-wiki.maxsp.de/parts/helicopter-rotor), partial. Replacement: "Large and huge rotors use the recovered nonlinear collective/RPS law, cyclic offsets, cached shaft feedback and hinge impulse limit. Air weight selection and graphical blade phase remain open; no ground-clearance term appears in the selected scalar law."
+261:- #138, [Aircraft propellers and rotor controls](https://sw-wiki.maxsp.de/mechanics/air-propellers-rotors), partial. Replacement: "Normalized pitch, nonlinear shaft-load/thrust conversion, cached air-relative flow, altitude scaling, hub-medium gate, cyclic force geometry, hinge impulse limit and coaxial force couple are decoded. Visible cyclic phase, the air weight selector and whole-engine ground effect remain open."
+266:Run from the repository root against the hash-verified input:
+280:The collector uses PE reads, XML root attributes and GNU objdump. The reproduction script uses Ghidra 12.1.4 and JDK 21 in a fresh `/tmp` project with `-noanalysis`. It executes no game code and writes all decompiler output to files. `DecompileRange.java` explicitly includes the folded fragment. Inferred helper signatures can omit floating arguments, so retained instructions and call-site arguments take precedence.

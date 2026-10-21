@@ -1,0 +1,41 @@
+805171-   1402e6e0b:	48 8b cf             	mov    rcx,rdi
+805172-   1402e6e0e:	e8 0d 0b db ff       	call   0x140097920
+805173-   1402e6e13:	83 78 08 03          	cmp    DWORD PTR [rax+0x8],0x3
+805174-   1402e6e17:	75 06                	jne    0x1402e6e1f
+805175-   1402e6e19:	f2 0f 10 00          	movsd  xmm0,QWORD PTR [rax]
+805176-   1402e6e1d:	eb 1c                	jmp    0x1402e6e3b
+805177-   1402e6e1f:	48 8d 54 24 60       	lea    rdx,[rsp+0x60]
+805178-   1402e6e24:	48 8b c8             	mov    rcx,rax
+805179-   1402e6e27:	e8 74 76 dd ff       	call   0x1400be4a0
+805180-   1402e6e2c:	85 c0                	test   eax,eax
+805181-   1402e6e2e:	75 05                	jne    0x1402e6e35
+805182-   1402e6e30:	0f 57 c0             	xorps  xmm0,xmm0
+805183-   1402e6e33:	eb 06                	jmp    0x1402e6e3b
+805184-   1402e6e35:	f2 0f 10 44 24 60    	movsd  xmm0,QWORD PTR [rsp+0x60]
+805185:   1402e6e3b:	44 88 b3 9c 02 00 00 	mov    BYTE PTR [rbx+0x29c],r14b
+805186-   1402e6e42:	40 88 ab 9d 02 00 00 	mov    BYTE PTR [rbx+0x29d],bpl
+805187-   1402e6e49:	f2 0f 2c c0          	cvttsd2si eax,xmm0
+805188-   1402e6e4d:	88 83 9e 02 00 00    	mov    BYTE PTR [rbx+0x29e],al
+805189-   1402e6e53:	83 fe 04             	cmp    esi,0x4
+805190-   1402e6e56:	75 37                	jne    0x1402e6e8f
+--
+2015412-   140782b99:	8b 44 24 70          	mov    eax,DWORD PTR [rsp+0x70]
+2015413-   140782b9d:	ff c0                	inc    eax
+2015414-   140782b9f:	89 44 24 70          	mov    DWORD PTR [rsp+0x70],eax
+2015415-   140782ba3:	8b 4c 24 6c          	mov    ecx,DWORD PTR [rsp+0x6c]
+2015416-   140782ba7:	ff c9                	dec    ecx
+2015417-   140782ba9:	03 c1                	add    eax,ecx
+2015418-   140782bab:	33 d2                	xor    edx,edx
+2015419-   140782bad:	41 f7 f4             	div    r12d
+2015420-   140782bb0:	48 8b 4c 24 60       	mov    rcx,QWORD PTR [rsp+0x60]
+2015421-   140782bb5:	48 89 1c d1          	mov    QWORD PTR [rcx+rdx*8],rbx
+2015422-   140782bb9:	85 f6                	test   esi,esi
+2015423-   140782bbb:	75 1c                	jne    0x140782bd9
+2015424-   140782bbd:	41 0f b6 86 9c 02 00 	movzx  eax,BYTE PTR [r14+0x29c]
+2015425-   140782bc4:	00 
+2015426:   140782bc5:	88 83 9c 02 00 00    	mov    BYTE PTR [rbx+0x29c],al
+2015427-   140782bcb:	41 0f b6 86 9d 02 00 	movzx  eax,BYTE PTR [r14+0x29d]
+2015428-   140782bd2:	00 
+2015429-   140782bd3:	88 83 9d 02 00 00    	mov    BYTE PTR [rbx+0x29d],al
+2015430-   140782bd9:	41 0f b6 86 9e 02 00 	movzx  eax,BYTE PTR [r14+0x29e]
+2015431-   140782be0:	00 

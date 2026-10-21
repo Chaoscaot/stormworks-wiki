@@ -1,0 +1,39 @@
+2091589-   1407d0cfa:	f3 41 0f 59 c1       	mulss  xmm0,xmm9
+2091590-   1407d0cff:	f3 0f 11 86 70 0d 00 	movss  DWORD PTR [rsi+0xd70],xmm0
+2091591-   1407d0d06:	00 
+2091592-   1407d0d07:	f3 0f 11 8e 74 0d 00 	movss  DWORD PTR [rsi+0xd74],xmm1
+2091593-   1407d0d0e:	00 
+2091594-   1407d0d0f:	f3 0f 11 96 78 0d 00 	movss  DWORD PTR [rsi+0xd78],xmm2
+2091595-   1407d0d16:	00 
+2091596-   1407d0d17:	49 8b 86 c0 ee 00 00 	mov    rax,QWORD PTR [r14+0xeec0]
+2091597-   1407d0d1e:	0f b6 88 0c 02 00 00 	movzx  ecx,BYTE PTR [rax+0x20c]
+2091598:   1407d0d25:	88 8e 58 0d 00 00    	mov    BYTE PTR [rsi+0xd58],cl
+2091599-   1407d0d2b:	49 8b 9e c0 ee 00 00 	mov    rbx,QWORD PTR [r14+0xeec0]
+2091600-   1407d0d32:	8b 93 1c 02 00 00    	mov    edx,DWORD PTR [rbx+0x21c]
+2091601-   1407d0d38:	48 8b cf             	mov    rcx,rdi
+2091602-   1407d0d3b:	e8 70 be 9a ff       	call   0x14017cbb0
+2091603-   1407d0d40:	83 bb 1c 02 00 00 00 	cmp    DWORD PTR [rbx+0x21c],0x0
+2091604-   1407d0d47:	74 19                	je     0x1407d0d62
+2091605-   1407d0d49:	44 8b 83 18 02 00 00 	mov    r8d,DWORD PTR [rbx+0x218]
+2091606-   1407d0d50:	41 ff c0             	inc    r8d
+2091607-   1407d0d53:	48 8b 93 10 02 00 00 	mov    rdx,QWORD PTR [rbx+0x210]
+--
+2121664-   1407efbf5:	49 8b 8e c8 13 00 00 	mov    rcx,QWORD PTR [r14+0x13c8]
+2121665-   1407efbfc:	e8 bf 13 cd ff       	call   0x1404c0fc0
+2121666-   1407efc01:	48 8b d8             	mov    rbx,rax
+2121667-   1407efc04:	48 85 c0             	test   rax,rax
+2121668-   1407efc07:	0f 84 1e 0a 00 00    	je     0x1407f062b
+2121669-   1407efc0d:	48 8b 48 58          	mov    rcx,QWORD PTR [rax+0x58]
+2121670-   1407efc11:	8b 89 b8 02 00 00    	mov    ecx,DWORD PTR [rcx+0x2b8]
+2121671-   1407efc17:	48 f7 c1 00 08 00 00 	test   rcx,0x800
+2121672-   1407efc1e:	76 0e                	jbe    0x1407efc2e
+2121673:   1407efc20:	41 80 be 58 0d 00 00 	cmp    BYTE PTR [r14+0xd58],0x0
+2121674-   1407efc27:	00 
+2121675-   1407efc28:	0f 85 fd 09 00 00    	jne    0x1407f062b
+2121676-   1407efc2e:	33 c9                	xor    ecx,ecx
+2121677-   1407efc30:	45 8b 86 20 18 00 00 	mov    r8d,DWORD PTR [r14+0x1820]
+2121678-   1407efc37:	45 85 c0             	test   r8d,r8d
+2121679-   1407efc3a:	74 2e                	je     0x1407efc6a
+2121680-   1407efc3c:	44 8b 4f 0c          	mov    r9d,DWORD PTR [rdi+0xc]
+2121681-   1407efc40:	44 8b 57 08          	mov    r10d,DWORD PTR [rdi+0x8]
+2121682-   1407efc44:	4c 8b 1f             	mov    r11,QWORD PTR [rdi]

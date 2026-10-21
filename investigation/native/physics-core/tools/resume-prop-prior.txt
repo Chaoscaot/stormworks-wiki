@@ -1,0 +1,24 @@
+56-marine = definition.flags & 2
+57-single_pitch_control = definition.flags & 4
+58:blade_scaled = (!marine && definition_owner_byte_0x580 != 0)
+59-               || (marine && single_pitch_control)
+60-F_effective = F * (B * 0.125)     if blade_scaled
+61-F_effective = F                   otherwise
+62:K = F_effective / 1000
+63-```
+64-
+65-The owner-byte test follows the runtime definition's first pointer. Its mapping to XML or loaded mesh state is still open. Mesh filenames do not prove that byte's value. Fixed marine definitions use F, and pitchable marine definitions use F*B/8, regardless of the unresolved air selector. With four intact blades, the latter is F/2.
+--
+237-| Shared update and scalar formula | High confidence from RTTI, slots, constant bytes, state stores and force calls. Static transcription does not calibrate SI units. |
+238-| Max-force field | Effective weight and load-ratio role recovered. Direct raw-thrust ceiling and universal raw-F node weight ruled out. |
+239:| Air weight selector | Open. Exact owner-byte `+0x580` test and related read sites retained. Mesh filenames and blade presence do not prove its runtime value; both branches have figures. |
+240-| Blade aerodynamics | Normalized pitch and scalar load recovered. Input-as-degrees/turns and blade-height-as-scalar-area ruled out. Per-blade lift, drag and stall curves remain unsupported. |
+241-| Cyclic phase | Force direction and lever arm recovered. Graphical azimuth phase open; no blade-angle integral in this scalar update, and setup/render trig does not establish phase. |
+242-| Through-drive sharing | Reciprocal links, ratio 1 and 0.95 fraction per edge recovered. Fixed 50/50 watt split and instantaneous equality ruled out. SI shaft power and universal efficiency remain unsupported. |
+--
+259-- #132, [Through-drive Rotor](https://sw-wiki.maxsp.de/parts/through-drive-rotor), speed sharing recovered; SI power open. Replacement: "Ports A/B are reciprocally linked at ratio 1 with a 0.95 traversal fraction per bridge. The rotor submits aerodynamic speed reduction on A; shaft groups mix cached speeds and weights. There is no fixed 50/50 watt split, and SI power accounting remains open."
+260-- #133, [Through-drive Rotor Propeller](https://sw-wiki.maxsp.de/parts/through-drive-rotor-propeller), speed sharing recovered; other boundaries open. Replacement: "Rotor propeller ports A/B use the same reciprocal ratio-1, 0.95-fraction speed bridge, with load submitted on A and an explicit axial reaction-force couple. Fixed watt shares are unsupported; air weight selection and SI power/torque remain open."
+261:- #138, [Aircraft propellers and rotor controls](https://sw-wiki.maxsp.de/mechanics/air-propellers-rotors), partial. Replacement: "Normalized pitch, nonlinear shaft-load/thrust conversion, cached air-relative flow, altitude scaling, hub-medium gate, cyclic force geometry, hinge impulse limit and coaxial force couple are decoded. Visible cyclic phase, the air weight selector and whole-engine ground effect remain open."
+262-- #148, [Underwater propellers and pitch control](https://sw-wiki.maxsp.de/mechanics/marine-propellers), scalar recovered; wider hydrodynamics open. Replacement: "Marine thrust uses hub-underwater gating, normalized effective pitch and a decoded nonlinear RPS/advance law. The scalar path projects body-point velocity without sampled-current subtraction; its smooth load saturation is not a demonstrated cavitation model. SI force and other water-interaction effects remain open."
+263-
+264-## Reproduction

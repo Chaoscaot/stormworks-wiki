@@ -1,0 +1,20 @@
+```text
+v_next = v * pow(1-linear_damping, dt)
+omega_next = omega * pow(1-angular_damping, dt)
+```
+
+`0x140139dfb` saves the timestep from XMM1; `0x140139e13`, `f2 0f 5c 81 a0 04 00 00`, subtracts linear damping from 1; `0x140139e1b`, `e8 50 e7 87 00`, calls the power helper `0x1409b8570`; angular damping repeats at `0x140139e4d`. Identifying this CRT helper as `pow` is a static inference from its two-argument arithmetic and special-case handling; its code and math-error helper are retained. With d=0.1, this gives retention 0.9 per simulated second, rather than multiplying by 0.9 on every component update.
+
+Contact material combination is directly visible in `asm/bullet-combine-material.asm`:
+
+```text
+mu_contact = clamp(mu_A * mu_B, -10, 10)
+restitution_contact = restitution_A * restitution_B
+```
+
+`0x1400f470b` loads body A `+0x1c0`; `0x1400f4713`, `f2 0f 59 82 c0 01 00 00`, multiplies by B `+0x1c0`. `0x1400f4730`, `f2 0f 5f c8`, applies the -10 lower bound; `0x1400f4737`, `f2 0f 5d c1`, applies +10. Restitution multiplication is at `0x1400f474b..0x1400f475b`, using `+0x1c8`. Examples: two default vehicle material coefficients combine to 0.64; a wheel child 0.001 and vehicle material 0.8 combine to 0.0008. These are material coefficients, not the custom wheel request Q. The complete contact solver's normal/tangent impulse iteration, friction-row bounds, collision-shape coverage and restitution velocity threshold were not recovered here.
+
+Integration is already established by [update-rate.md](update-rate.md). The worker at `0x1405e3aea` divides tick count by 60; at `0x1405e3b03` it passes maxSubSteps=1000; `0x1405e3b16` calls the world step. `0x140133ea0` accumulates elapsed time, truncates accumulated/substep at `0x140133ff7..0x140133ffb`, retains the remainder, and calls the single-step virtual method at `0x140134158`. Settings select 60, 120 or 180 solver Hz. Component formulas above still run at 60 Hz. The binary32-derived steps are approximately 0.01666666754, 0.00833333377 or 0.00555555569 seconds. This identifies scheduling and the solver family, not a complete collision solver derivation.
+
+## Search boundaries and remaining gaps
+

@@ -1,0 +1,30 @@
+  if ((*(uint *)(param_1 + 5) == uVar18) && (uVar17 = 0, uVar18 != 0)) {
+    do {
+      *(undefined4 *)
+       (param_1[6] +
+       ((ulonglong)(*(int *)((longlong)param_1 + 0x3c) + uVar17) % (ulonglong)*(uint *)(param_1 + 7)
+       ) * 4) = 0;
+      uVar16 = 0;
+      uVar18 = 0;
+      if ((int)param_1[2] != 0) {
+        do {
+          if (*(int *)(param_1[3] +
+                      ((ulonglong)(*(int *)((longlong)param_1 + 0x24) + uVar17) %
+                      (ulonglong)*(uint *)(param_1 + 4)) * 4) ==
+              *(int *)(param_1[3] +
+                      ((ulonglong)(*(int *)((longlong)param_1 + 0x24) + uVar16) %
+                      (ulonglong)*(uint *)(param_1 + 4)) * 4)) {
+            uVar15 = (ulonglong)(*(int *)((longlong)param_1 + 0x3c) + uVar17) %
+                     (ulonglong)*(uint *)(param_1 + 7);
+            *(float *)(param_1[6] + uVar15 * 4) =
+                 *(float *)(*(longlong *)
+                             (*param_1 +
+                             ((ulonglong)(*(int *)((longlong)param_1 + 0xc) + uVar16) %
+                             (ulonglong)*(uint *)(param_1 + 1)) * 8) + 0x72c) +
+                 *(float *)(param_1[6] + uVar15 * 4);
+          }
+          uVar16 = uVar16 + 1;
+          uVar18 = *(uint *)(param_1 + 2);
+        } while (uVar16 < uVar18);
+      }
+      uVar15 = (ulonglong)uVar18;

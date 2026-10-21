@@ -1,0 +1,44 @@
+        - float_at(compartment + 0x38)/60, 0)
+F_compartment_y = -g * water_density * 0.009999999776482582
+                 * (water_compartment_force_factor*W
+                    + gas_compartment_force_factor*G) / D
+```
+
+The double constant is at `0x140bafee0`. The negative contribution is queued when it is less than zero. The factor reads and multiplication at `0x14048b6ad..0x14048b71d` are retained in `asm/buoyancy.asm`; helper bodies are in `asm/compartment-getters.asm`. The two missing SDK attributes therefore have active force consumers and effective defaults 1. W and G are deliberately defined by the actual getters here. Their mixture classifications, units, storage semantics and the source of the subtracted field are still open. Do not rename this into a complete physical water/gas mass law without tracing those inputs.
+
+### Water surface force
+
+`0x140942840` dispatches submerged/air surface work. Water surface dispatch `0x14048d210` reaches `0x14048d4d0`. The latter reads wave factors at `0x14048d61b`, bytes `f3 0f 10 80 d8 00 00 00`, and `0x14048d65e`, bytes `f3 0f 59 b8 dc 00 00 00`. The defaults are 0.5 and 0.3. Reconstructed relative velocity is:
+
+```text
+v_point = linear_velocity + angular_velocity cross lever_arm
+v.x = v_point.x - 0.5 * sampled_wave_velocity.x
+v.z = v_point.z - 0.5 * sampled_wave_velocity.z
+v.y = v_point.y - 0.5 * sampled_wave_velocity.y
+# If 0.5 * sampled_wave_velocity.y < 0, multiply that subtracted term by 0.3.
+s = length(v)
+d = dot(v/s, surface_normal)   # only when s > 0
+```
+
+Inference: the sampled vector in the last argument is wave velocity; this interpretation agrees with the consumed constant names. The normal, lever arm, surface weight A and wave vectors come from the surface traversal. Their complete construction remains open.
+
+The normal pressure/suction algebra before the shared magnitude cap is:
+
+```text
+if d > 0:
+    F_normal = -normal * A * pow(d, falloff_power_pressure)
+               * (drag_factor_linear_pressure*s + drag_factor_quadratic_pressure*s*s)
+else:
+    F_normal = normal * A * pow(-d, falloff_power_suction)
+               * (drag_factor_linear_suction*s + drag_factor_quadratic_suction*s*s)
+```
+
+Defaults are pressure 15, 17 and 2.5; suction 12, 5 and 0.3. Pressure exponent load/call are at `0x14048d910..0x14048d915`; coefficient multiplies at `0x14048d92b` and `0x14048d934` have bytes `f3 0f 59 4b 40` and `f3 0f 59 53 44`. Suction exponent load/call are `0x14048dc66..0x14048dc6e`; coefficient multiplies are `0x14048dc87` and `0x14048dc94`. Water density is not an extra multiplier on these normal terms.
+
+The viscous vector is parallel to -v and uses:
+
+```text
+C = 0.000750000006519258 * (20/(s*L*1000000 + 10) + 1.5)
+F_viscous = -(v/s) * viscous_resistance_factor * water_drag_factor
+            * C * A * water_density * s*s
+```

@@ -1,0 +1,36 @@
+   1405496c4:	41 3b 9d 30 03 00 00 	cmp    ebx,DWORD PTR [r13+0x330]
+   1405496cb:	72 b3                	jb     0x140549680
+   1405496cd:	33 d2                	xor    edx,edx
+   1405496cf:	44 8d 42 31          	lea    r8d,[rdx+0x31]
+   1405496d3:	48 8b ce             	mov    rcx,rsi
+   1405496d6:	e8 f5 39 c6 ff       	call   0x1401ad0d0
+   1405496db:	33 d2                	xor    edx,edx
+   1405496dd:	44 8d 42 32          	lea    r8d,[rdx+0x32]
+   1405496e1:	48 8b ce             	mov    rcx,rsi
+   1405496e4:	e8 47 39 c6 ff       	call   0x1401ad030
+   1405496e9:	33 c9                	xor    ecx,ecx
+   1405496eb:	89 4d 84             	mov    DWORD PTR [rbp-0x7c],ecx
+   1405496ee:	41 39 8d 30 03 00 00 	cmp    DWORD PTR [r13+0x330],ecx
+   1405496f5:	0f 86 23 02 00 00    	jbe    0x14054991e
+   1405496fb:	0f 1f 44 00 00       	nop    DWORD PTR [rax+rax*1+0x0]
+   140549700:	41 8b 85 2c 03 00 00 	mov    eax,DWORD PTR [r13+0x32c]
+   140549707:	03 c1                	add    eax,ecx
+   140549709:	33 d2                	xor    edx,edx
+   14054970b:	41 f7 b5 28 03 00 00 	div    DWORD PTR [r13+0x328]
+   140549712:	49 8b 85 20 03 00 00 	mov    rax,QWORD PTR [r13+0x320]
+   140549719:	48 8b 14 d0          	mov    rdx,QWORD PTR [rax+rdx*8]
+   14054971d:	83 7a 10 05          	cmp    DWORD PTR [rdx+0x10],0x5
+   140549721:	0f 85 de 01 00 00    	jne    0x140549905
+   140549727:	48 8b 72 08          	mov    rsi,QWORD PTR [rdx+0x8]
+   14054972b:	48 89 75 f8          	mov    QWORD PTR [rbp-0x8],rsi
+   14054972f:	48 85 f6             	test   rsi,rsi
+   140549732:	0f 84 cd 01 00 00    	je     0x140549905
+   140549738:	83 7e 10 00          	cmp    DWORD PTR [rsi+0x10],0x0
+   14054973c:	0f 86 c3 01 00 00    	jbe    0x140549905
+   140549742:	80 3a 00             	cmp    BYTE PTR [rdx],0x0
+   140549745:	0f 85 ba 01 00 00    	jne    0x140549905
+   14054974b:	45 33 ff             	xor    r15d,r15d
+   14054974e:	44 89 7d 88          	mov    DWORD PTR [rbp-0x78],r15d
+   140549752:	44 0f b6 62 48       	movzx  r12d,BYTE PTR [rdx+0x48]
+   140549757:	0f b6 86 9c 02 00 00 	movzx  eax,BYTE PTR [rsi+0x29c]
+   14054975e:	88 45 80             	mov    BYTE PTR [rbp-0x80],al

@@ -1,0 +1,15 @@
+investigation/wheels.md:206:- #159: "Native analysis recovered ray queries plus a physical sphere, bounded m/s slip, tire factors, brake-dependent contact memory, shaft feedback and a gated spring request. Maximum friction 100 is not established as a named live coefficient or Coulomb force limit. SI force normalization, complete suspension/contact modes and load dependence remain open."
+investigation/wheels.md:215:PYTHONDONTWRITEBYTECODE=1 python3 investigation/native/wheels/tools/resources.py
+investigation/wheels.md:216:PYTHONDONTWRITEBYTECODE=1 python3 investigation/native/wheels/tools/map_wheels.py
+investigation/wheels.md:217:PYTHONDONTWRITEBYTECODE=1 python3 investigation/native/wheels/tools/map_physics.py
+investigation/wheels.md:220:PYTHONDONTWRITEBYTECODE=1 python3 investigation/native/wheels/tools/collect.py
+investigation/wheels.md:221:PYTHONDONTWRITEBYTECODE=1 python3 investigation/native/wheels/tools/retain_manual.py
+investigation/wheels.md:222:PYTHONDONTWRITEBYTECODE=1 python3 investigation/native/wheels/tools/model.py
+investigation/wheels.md:223:PYTHONDONTWRITEBYTECODE=1 python3 investigation/native/wheels/tools/verify.py
+investigation/wheels.md:227:The collection script maps each retained Ghidra p-code address to its PE unwind range and retains all reached fragments. Leaf addresses without an unwind owner use bounded 32-byte windows. A listing can include adjacent instructions; this is not a claim they all belong to the named routine. The manual ranges provide stable small excerpts for the report's key instructions.
+investigation/wheels.md:235:- `tools/facts.json`, `tools/rtti.json`, `tools/physics-rtti.json`, `tools/constants.json` and `tools/*ranges.json`: addresses, bytes, data values and extraction coverage.
+investigation/wheels.md:236:- `asm/`: native instructions with bytes, including world construction, wheel updates, shaft/contact corrections, track synchronization, damping and material combination.
+investigation/wheels.md:238:- `tools/model.py` and `tools/worked-examples.json`: executable static model and worked examples. Impulse requests are not labeled as SI forces.
+investigation/wheels.md:239:- `tools/verify.py`, `tools/verification.txt` and `SHA256SUMS`: identity, byte/coverage and model checks; checksums use paths relative to repository root.
+investigation/wheels.md:243:## Correction after byte review
+investigation/wheels.md:245:The wiki agent re-read the cited bytes. Definition `+0x2b0`, which the wheel loads at `0x1403acebc` and `0x1403acede`, is bound to the `mass` attribute (`lea r9,[rsi+0x2b0]` at `0x140316ae6`, name string "mass" at `0x140baeaf4`), not to `force_emitter_max_force` (bound to `+0x848` at `0x1403174c4`). The legacy sensor decode reached the same binding independently. A wheel therefore submits its definition mass as shaft weight: 10/20/40/80 for wheels without suspension and tank wheels, 0.7 x mass for wheels with suspension. The `shaft_weight_resource: 1000` field in `wheels.json` is wrong and should be read as the definition mass. Correction by the parent session.

@@ -1,0 +1,55 @@
+319453-   1401281cd:	cc                   	int3
+319454-   1401281ce:	cc                   	int3
+319455-   1401281cf:	cc                   	int3
+319456-   1401281d0:	48 89 4c 24 08       	mov    QWORD PTR [rsp+0x8],rcx
+319457-   1401281d5:	48 8d 05 e4 aa 9b 00 	lea    rax,[rip+0x9baae4]        # 0x140ae2cc0
+319458-   1401281dc:	48 89 01             	mov    QWORD PTR [rcx],rax
+319459:   1401281df:	48 8d 05 72 aa 9b 00 	lea    rax,[rip+0x9baa72]        # 0x140ae2c58
+319460-   1401281e6:	48 89 01             	mov    QWORD PTR [rcx],rax
+319461-   1401281e9:	c6 41 20 01          	mov    BYTE PTR [rcx+0x20],0x1
+319462-   1401281ed:	33 c0                	xor    eax,eax
+319463-   1401281ef:	48 89 41 18          	mov    QWORD PTR [rcx+0x18],rax
+319464-   1401281f3:	48 89 41 0c          	mov    QWORD PTR [rcx+0xc],rax
+319465-   1401281f7:	c6 41 40 01          	mov    BYTE PTR [rcx+0x40],0x1
+--
+319542-   14012833f:	cc                   	int3
+319543-   140128340:	48 89 5c 24 10       	mov    QWORD PTR [rsp+0x10],rbx
+319544-   140128345:	48 89 4c 24 08       	mov    QWORD PTR [rsp+0x8],rcx
+319545-   14012834a:	57                   	push   rdi
+319546-   14012834b:	48 83 ec 20          	sub    rsp,0x20
+319547-   14012834f:	48 8b d9             	mov    rbx,rcx
+319548:   140128352:	48 8d 05 ff a8 9b 00 	lea    rax,[rip+0x9ba8ff]        # 0x140ae2c58
+319549-   140128359:	48 89 01             	mov    QWORD PTR [rcx],rax
+319550-   14012835c:	48 8b 89 40 01 00 00 	mov    rcx,QWORD PTR [rcx+0x140]
+319551-   140128363:	48 85 c9             	test   rcx,rcx
+319552-   140128366:	74 15                	je     0x14012837d
+319553-   140128368:	80 bb 48 01 00 00 00 	cmp    BYTE PTR [rbx+0x148],0x0
+319554-   14012836f:	74 0c                	je     0x14012837d
+--
+330447-   140133408:	48 83 ec 20          	sub    rsp,0x20
+330448-   14013340c:	4d 8b d1             	mov    r10,r9
+330449-   14013340f:	48 8b fa             	mov    rdi,rdx
+330450-   140133412:	48 8b d9             	mov    rbx,rcx
+330451-   140133415:	e8 a6 f5 ff ff       	call   0x1401329c0
+330452-   14013341a:	90                   	nop
+330453:   14013341b:	48 8d 05 86 fc 9a 00 	lea    rax,[rip+0x9afc86]        # 0x140ae30a8
+330454-   140133422:	48 89 03             	mov    QWORD PTR [rbx],rax
+330455-   140133425:	c6 83 80 01 00 00 01 	mov    BYTE PTR [rbx+0x180],0x1
+330456-   14013342c:	33 f6                	xor    esi,esi
+330457-   14013342e:	48 89 b3 78 01 00 00 	mov    QWORD PTR [rbx+0x178],rsi
+330458-   140133435:	48 89 b3 6c 01 00 00 	mov    QWORD PTR [rbx+0x16c],rsi
+330459-   14013343c:	48 89 b3 88 01 00 00 	mov    QWORD PTR [rbx+0x188],rsi
+--
+330600-   14013368f:	cc                   	int3
+330601-   140133690:	48 89 5c 24 10       	mov    QWORD PTR [rsp+0x10],rbx
+330602-   140133695:	48 89 4c 24 08       	mov    QWORD PTR [rsp+0x8],rcx
+330603-   14013369a:	57                   	push   rdi
+330604-   14013369b:	48 83 ec 20          	sub    rsp,0x20
+330605-   14013369f:	48 8b d9             	mov    rbx,rcx
+330606:   1401336a2:	48 8d 05 ff f9 9a 00 	lea    rax,[rip+0x9af9ff]        # 0x140ae30a8
+330607-   1401336a9:	48 89 01             	mov    QWORD PTR [rcx],rax
+330608-   1401336ac:	80 b9 10 02 00 00 00 	cmp    BYTE PTR [rcx+0x210],0x0
+330609-   1401336b3:	74 26                	je     0x1401336db
+330610-   1401336b5:	48 8b 89 98 01 00 00 	mov    rcx,QWORD PTR [rcx+0x198]
+330611-   1401336bc:	48 8b 01             	mov    rax,QWORD PTR [rcx]
+330612-   1401336bf:	33 d2                	xor    edx,edx

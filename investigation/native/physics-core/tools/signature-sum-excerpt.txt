@@ -1,0 +1,24 @@
+   1404bea72:	33 d2                	xor    edx,edx
+   1404bea74:	f7 73 20             	div    DWORD PTR [rbx+0x20]
+   1404bea77:	4c 8b 4b 18          	mov    r9,QWORD PTR [rbx+0x18]
+   1404bea7b:	43 8b 0c 91          	mov    ecx,DWORD PTR [r9+r10*4]
+   1404bea7f:	41 39 0c 91          	cmp    DWORD PTR [r9+rdx*4],ecx
+   1404bea83:	75 32                	jne    0x1404beab7
+   1404bea85:	8b 43 0c             	mov    eax,DWORD PTR [rbx+0xc]
+   1404bea88:	41 03 c3             	add    eax,r11d
+   1404bea8b:	33 d2                	xor    edx,edx
+   1404bea8d:	f7 73 08             	div    DWORD PTR [rbx+0x8]
+   1404bea90:	48 8b 03             	mov    rax,QWORD PTR [rbx]
+   1404bea93:	48 8b 0c d0          	mov    rcx,QWORD PTR [rax+rdx*8]
+   1404bea97:	f3 0f 10 81 2c 07 00 	movss  xmm0,DWORD PTR [rcx+0x72c]
+   1404bea9e:	00 
+   1404bea9f:	8b 43 3c             	mov    eax,DWORD PTR [rbx+0x3c]
+   1404beaa2:	03 c7                	add    eax,edi
+   1404beaa4:	33 d2                	xor    edx,edx
+   1404beaa6:	f7 73 38             	div    DWORD PTR [rbx+0x38]
+   1404beaa9:	48 8b 43 30          	mov    rax,QWORD PTR [rbx+0x30]
+   1404beaad:	f3 0f 58 04 90       	addss  xmm0,DWORD PTR [rax+rdx*4]
+   1404beab2:	f3 0f 11 04 90       	movss  DWORD PTR [rax+rdx*4],xmm0
+   1404beab7:	41 ff c3             	inc    r11d
+   1404beaba:	8b 43 10             	mov    eax,DWORD PTR [rbx+0x10]
+   1404beabd:	44 3b d8             	cmp    r11d,eax

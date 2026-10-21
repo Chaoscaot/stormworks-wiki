@@ -50,6 +50,7 @@ TORNADO_FORCE = 'investigation/tornado-force.md'
 HAZARDS_REST = 'investigation/hazards-rest.md'
 DRIVETRAIN = 'investigation/drivetrain-gaps.md'
 MISC_GAPS = 'investigation/misc-gaps.md'
+PHYSICS_CORE = 'investigation/physics-core.md'
 NATURAL = 'rom/data/missions/default_natural_disasters/script.lua'
 LOCATIONS = 'rom/data/missions/default_mission_locations/script.lua'
 FIRE = 'rom/data/missions/default_forest_fire_missions/script.lua'
@@ -320,6 +321,18 @@ def definition(name, fields=(), nodes=True, tooltip=False, labels=False, short_t
     return result
 
 
+def mesh_1(name):
+    """The mesh_1_name attribute of a definition tag, which selects the air weight branch of a force emitter."""
+    path = f'rom/data/definitions/{name}.xml'
+    tag = re.search(r'<definition\b[^>]*>', read(path))
+    m = re.search(r'\smesh_1_name="([^"]*)"', tag[0])
+    src = source(path, read(path).count('\n', 0, tag.start() + m.start()) + 1, read(path).count('\n', 0, tag.start() + m.end() - 1) + 1)
+    blade = bool(m[1])
+    return finding(f"{attrs(tag[0])['name']}: mesh_1_name", m[1] or '(empty)',
+                   ('A loaded mesh_1 selects the blade-scaled weight K = F × B ÷ 8000.' if blade else 'An empty mesh_1 leaves the selector byte 0, so K = F ÷ 1000.') +
+                   ' Read on a successful normal load; a missing asset or failed read would leave the selector 0.', src, kind='component-configuration')
+
+
 def storage_native():
     """setVehicleTank binding and request queue, verified against the bytes and the small-parts figures."""
     data = json.loads((ROOT / SMALL_PARTS_DATA).read_text())
@@ -379,6 +392,167 @@ def setter_native():
         native('Tank request store', 'amount[ID] + clamped value', 'After the clear it adds the clamped amount to the requested species (0x140778c09) and stores the sum of all 13 species as the total (0x140778c8f). No temperature is written.',
                '0x140778c09', 'f3 42 0f 11 84 9a a4 05 00 00', report=r),
     ]
+
+
+PHYSICS_CORE_FINDINGS: dict = {}
+
+
+def physics_core():
+    """Contact solver budgets, wheel scale B, physics mode byte, air selector, buoyancy geometry and the hull air callback, from the physics-core decode."""
+    if PHYSICS_CORE_FINDINGS:
+        return PHYSICS_CORE_FINDINGS
+    r = PHYSICS_CORE
+
+    def n(label, val, detail, address, expected, literals=None, status='observed'):
+        return native(label, val, detail, address, expected, status=status, report=r, literals=literals)
+
+    # Surface weight per orientation slot: a byte table maps slots 0..57 to four cases of the jump table.
+    cases = exe_bytes(0x1402ef4c0, 58)
+    targets = struct.unpack('<4I', exe_bytes(0x1402ef4b0, 16))
+    if list(cases) != [0] * 6 + [1] * 24 + [2] * 12 + [3] * 16 or [0x140000000 + t for t in targets] != [0x1402ef43b, 0x1402ef453, 0x1402ef46b, 0x1402ef47e]:
+        raise ValueError('Surface weight slot table changed')
+    f32 = lambda x: struct.unpack('<f', struct.pack('<f', x))[0]
+    t = f32(math.sqrt(f32(0.125)))
+    u = f32(t * t)
+    diag = f32(f32(f32(t * f32(math.sqrt(f32(u + u))))) * 0.5)
+    f = PHYSICS_CORE_FINDINGS
+    # Contact solver.
+    f['budget'] = n('Contact iteration budget', 10,
+                    'The solver-info constructor 0x1401328b0 stores 10 at +0x28. The outer loop 0x14012e370 runs up to the larger of this and a joint override (cmp and cmovle at 0x14012e3fa and 0x14012e3fd), '
+                    'and the iteration routine processes the normal and tangent contact rows only while the sweep index is below this budget (0x14012dc51). So contacts get at most 10 sweeps per substep.',
+                    '0x1401328b3', 'c7 41 28 0a 00 00 00', literals={'0x14012e3fa': '3b 7d 28', '0x14012e3fd': '0f 4e 7d 28', '0x14012dc51': '45 3b 65 28'})
+    f['converge'] = n('Contact early stop', 'summed squared residual ≤ 0',
+                      'The outer loop ends when the summed squared residual of a sweep is at or below the convergence threshold (comisd at 0x14012e463, jae at 0x14012e467). The constructor stores the threshold 0 at +0xb0 (0x1401329b4), '
+                      'so the loop stops early once a sweep changes no impulse.',
+                      '0x14012e463', '66 0f 2f c8', literals={'0x14012e467': '73 0d', '0x1401329b4': '4c 89 81 b0 00 00 00'})
+    f['split'] = n('Split penetration pass', 'split impulse 1, solver mode 0x104',
+                   'The constructor sets split impulse to 1 (+0x68), so penetration is corrected in a separate impulse loop, bounded by the same 10-sweep budget and able to stop early. '
+                   'The mode flags 0x104 (+0x90, 0x140132996) leave flag 0x10 clear, so the second tangent row per contact stays off by default.',
+                   '0x140132988', 'c7 41 68 01 00 00 00', literals={'0x140132996': 'c7 81 90 00 00 00 04 01 00 00'})
+    f['tangent'] = n('Tangent impulse bound', '−μ × λn to +μ × λn',
+                     'Before each tangent solve the iteration multiplies the row friction coefficient μ by the current accumulated normal impulse λn (+0xd0) and stores +μ × λn as the upper bound (0x14012df95) and −μ × λn as the lower bound (0x14012dfa2). '
+                     'A tangent row whose normal impulse is not positive is skipped. The separate rolling-friction rows use min(μ × λn, μ); ordinary tangent rows have no such cap.',
+                     '0x14012df82', 'f2 41 0f 59 88 d0 00 00 00', literals={'0x14012df95': 'f2 41 0f 11 88 f8 00 00 00', '0x14012dfa2': 'f2 41 0f 11 80 f0 00 00 00'})
+    f['bounce'] = n('Restitution speed threshold', 0.2,
+                    'The constructor stores binary64 0x3fc99999a0000000, binary32 0.2 widened to 0.20000000298023224, at +0xb8. Normal-row setup 0x14012a0a0 compares it with abs(v_n) (0x14012a89c): '
+                    'below it the bounce is 0, otherwise it is max(0, −e × v_n) (multiply at 0x14012a8ab, maxsd at 0x14012a8bd), with e the contact restitution eA × eB (0x1400f4753). '
+                    'This is a speed test, equality included, not a penetration depth.',
+                    '0x140132968', '48 b8 00 00 00 a0 99 99 c9 3f',
+                    literals={'0x140132972': '48 89 81 b8 00 00 00', '0x14012a886': 'f2 0f 10 83 b8 00 00 00', '0x14012a89c': '66 0f 2f c1', '0x14012a8ab': 'f2 0f 59 91 c0 00 00 00', '0x14012a8bd': 'f2 0f 5f fa', '0x1400f4753': 'f2 0f 59 81 c8 01 00 00'})
+    f['e_zero'] = n('Default body restitution', 0,
+                    'The generic body construction 0x1401397b0 clears r15 (0x1401397c8) and stores it as the restitution at +0x68, so the product eA × eB is 0 for two default bodies and they do not bounce.',
+                    '0x1401398da', '4c 89 7e 68', literals={'0x1401397c8': '45 33 ff'})
+    f['dt'] = n('Integration factor', 'the solver substep duration',
+                'Solver-body setup 0x140128560 takes its integration factor in xmm3 (0x140129ef2, call at 0x140129efb). 0x140129d30 receives it (0x140129d61) from 0x14012b490, which loads solver info +0x18 (0x14012b4f1); '
+                'the per-substep world routine stores the substep duration there, as world +0xc0 (0x14013422e). So Δv = F × inverse mass × substep, with no extra tuning multiplier.',
+                '0x140129efb', 'e8 60 e6 ff ff', literals={'0x140129ef2': '0f 28 de', '0x140129d61': '0f 28 f2', '0x14012b4f1': 'f2 0f 10 53 18', '0x14013422e': 'f2 0f 11 b3 c0 00 00 00'})
+    f['shapes'] = n('Collision dispatch', 'specialized shape pairs and a generic fallback',
+                    'The collision algorithm selector 0x1400f16e0 has explicit cases for the native shape IDs (8, 8), (8, 1), (1, 8) and (0, 0), shape 28 with the low-ID group, low-ID pairs below 20, low IDs with IDs 21 to 29, and ID 31 on either side (0x1400f178c); '
+                    'other pairs reach the generic algorithm. Which shipped components, terrain or water use which shape is a separate question.',
+                    '0x1400f16e0', '83 fa 08', literals={'0x1400f1726': '41 83 f8 1c', '0x1400f1757': '41 8d 40 eb', '0x1400f175b': '83 f8 08', '0x1400f1778': '83 fa 1f', '0x1400f178c': '41 83 f8 1f'})
+    # Wheel scale and physics mode byte.
+    f['b_pass'] = n('Wheel impulse scale B', 'S of the wheel\'s body',
+                    'The component dispatcher loads the body\'s S from the parallel mass-sum list (0x140549782) and passes it as stack argument 7 (0x1405498b3) to each component update (0x1405498d6). '
+                    'The advanced wheel hands it to the impulse helpers as B. S is the summed adjusted mass of every body with the same connectivity label, so B is that sum. '
+                    'Its opposite-body suspension branch uses the hit body\'s own wrapper mass (+8) instead.',
+                    '0x140549782', 'f3 0f 10 34 90', literals={'0x1405498b3': 'f3 0f 11 74 24 30', '0x1405498d6': '41 ff 92 58 03 00 00'})
+    f['b_clip'] = n('Wheel grip limit', '4 × B',
+                    'The grip call loads binary32 4 (0x1403ac4d1, bytes 00 00 80 40 at 0x140bb0488) as the limit c and calls the helper 0x1401a7c70 (0x1403ac4f3). The helper divides the request by B (0x1401a7cb3 to 0x1401a7cc8), '
+                    'limits that vector to length c and multiplies by B again (0x1401a7d38 to 0x1401a7d40): Q_applied = B × clip(Q ÷ B, c), at most c × B long for positive B. B is a native mass scale, not a timestep or a tyre coefficient.',
+                    '0x1403ac4d1', 'f3 0f 10 05 af 3f 80 00',
+                    literals={'0x140bb0488': '00 00 80 40', '0x1403ac4f3': 'e8 78 b7 df ff', '0x1401a7cb3': 'f3 0f 5e e7', '0x1401a7cc8': 'f3 0f 5e ef', '0x1401a7d38': 'f3 0f 59 e7', '0x1401a7d40': 'f3 0f 59 ef'})
+    f['mode'] = n('Physics mode byte writers', 'global byte 0x140ceb6ff, 0 on reset and 1 at session setup',
+                  'Reset 0x14023e000 stores 0 (0x14023e221) and session setup 0x140841ec0 stores 1 (0x140842135); 0x140847fb0 stores 1 when its object flag +0xce390 is set (0x1408482a0). '
+                  '0x140836310 (0x1408363a3), 0x140839f90 (0x14083ad85), 0x14083c6b0 (0x14083fded, 0x14083feaa) and 0x140887130 (0x14088b07f) store a register from their own lifecycle state. No XML wheel attribute is read into it.',
+                  '0x140842135', 'c6 05 c3 95 4a 00 01',
+                  literals={'0x14023e221': 'c6 05 d7 d4 aa 00 00', '0x1408482a0': 'c6 05 58 34 4a 00 01', '0x1408363a3': '88 1d 56 53 4b 00', '0x14083ad85': '40 88 3d 73 09 4b 00',
+                            '0x14083fded': '40 88 3d 0b b9 4a 00', '0x14083feaa': '40 88 3d 4e b8 4a 00', '0x14088b07f': '40 88 3d 79 06 46 00'})
+    f['mode_dt'] = n('Physics mode byte and substep', '1 ÷ solver rate when set, 1/60 when clear',
+                     'The physics worker 0x1405e3a80 tests the byte (0x1405e3ab7). When it is set the substep is 1 ÷ the solver rate (0x1405e3add); when it is clear jne at 0x1405e3af2 falls through to binary32 1/60 (0x1405e3af4).',
+                     '0x1405e3ab7', '80 3d 41 7c 70 00 00', literals={'0x1405e3add': 'f3 0f 5e 83 b8 00 00 00', '0x1405e3af2': '75 08', '0x1405e3af4': 'f3 0f 10 05 90 be 5c 00'})
+    # Air weight selector and the assembly root flag.
+    f['sel'] = n('Air weight selector source', 'loaded state of the mesh_1 slot',
+                 'The definition loader reads the XML key mesh_1_name (lea at 0x140317004, string 0x140b5bd70) into +0x780; the type-2 mesh route passes it with the slot at +0x580 (0x14031bfbc). '
+                 'The slot constructor clears the slot\'s first byte (0x1402cafd1), and the population routine sets it to 1 (0x1402cb1a7) after a successful resource read (0x1402cb8ab). '
+                 'The weight helper tests that byte (0x14033e03b). A blade mesh therefore selects F × B ÷ 8000 and an empty mesh_1 selects F ÷ 1000.',
+                 '0x14033e03b', '80 b8 80 05 00 00 00',
+                 literals={'0x140317004': '4c 8d 05 65 4d 84 00', '0x140b5bd70': '6d 65 73 68 5f 31 5f 6e 61 6d 65 00', '0x14031bfbc': '48 8d 97 80 05 00 00', '0x1402cafd1': 'c6 01 00', '0x1402cb1a7': '41 c6 04 24 01', '0x1402cb8ab': '84 c0'})
+    # Mass producer 0x1404be190: the signature sum S.
+    f['m_getter'] = n('Body mass source', 'component mass getter slot +0x298',
+                      'For each body the mass producer clears +0x72c (0x1404be400), skips a body whose root exclusion byte +0x1478 is set (0x1404be406) and adds each component\'s mass getter (call at 0x1404be439, add at 0x1404be43f). '
+                      'The base getter reads definition mass (+0x2b0 behind the definition pointer, 0x140328ea4); the microprocessor override multiplies its two dimensions (0x140393b19). No fuel amount, cargo amount or damage fraction is read.',
+                      '0x1404be439', 'ff 90 98 02 00 00', literals={'0x1404be400': '89 af 2c 07 00 00', '0x1404be406': '80 bf 78 14 00 00 00', '0x1404be43f': 'f3 0f 58 87 2c 07 00 00', '0x140328ea4': 'f3 0f 10 80 b0 02 00 00', '0x140393b19': '0f af 81 88 01 00 00'})
+    f['m_sum'] = n('Signature sum S', 'S = sum of adjusted body masses with the same connectivity label',
+                   'After the redistribution r × max(m, H ÷ 40) is stored at +0x72c (0x1404be88b), the producer zeroes each body\'s entry in a parallel list (0x1404bea4e) and adds +0x72c of every body whose label matches (cmp at 0x1404bea7f, jne at 0x1404bea83, add at 0x1404beaad). '
+                   'Adjusted auxiliary masses, such as a wheel\'s, change r but are not added. A flagged assembly root keeps adjusted mass 0.',
+                   '0x1404beaad', 'f3 0f 58 04 90', literals={'0x1404be88b': 'f3 0f 11 8a 2c 07 00 00', '0x1404bea4e': '89 2c 90', '0x1404bea7f': '41 39 0c 91', '0x1404bea83': '75 32', '0x1404beab2': 'f3 0f 11 04 90'})
+    # Buoyancy geometry and surfaces.
+    f['v_leaf'] = n('Fill-tree cell weight', '0.015625 × f, f = 1 or 0.5',
+                    'The volume builder 0x1404864a0 scans the surface occupancy along grid columns with an inside/outside fill state. It multiplies the cell fraction f, 1 for a full cell and 0.5 for a diagonal boundary half (0x1404864fa), '
+                    'by binary32 0.015625 (0x140486507, mulss at 0x140486b58) and inserts only positive weights (call 0x1408e5260 at 0x140486b70). Parent nodes (0x1408e5050) sum their children\'s weights.',
+                    '0x140486b58', 'f3 41 0f 59 d0',
+                    literals={'0x140486507': 'f3 44 0f 10 05 6c 94 72 00', '0x140baf97c': '00 00 80 3c', '0x1404864fa': 'f3 0f 10 3d ba 97 72 00', '0x140bafcbc': '00 00 00 3f', '0x140486b70': 'e8 eb e6 45 00'})
+    f['v_cell'] = n('Fill-tree cell size', '0.25',
+                    'Geometry is expanded on a grid scaled by binary32 0.25 (0x140484a25), so a cell has edge 0.25 and half extent 0.125. 0.25³ = 0.015625 is the full cell weight, and 64 full cells fill one cubic metre, which therefore has V = 1.',
+                    '0x140484a25', 'f3 44 0f 10 15 8e b1 72 00', literals={'0x140bafbbc': '00 00 80 3e'})
+    f['s_weight'] = n('Surface weight per orientation slot', {'0-5': 0.0625, '6-29': 0.015625, '30-41': round(u, 7), '42-57': round(diag, 7)},
+                      'The slot helper 0x1402ef3c0 accepts slots 0 to 57 (cmp with 0x39 at 0x1402ef41b) and maps them through a byte table at 0x1402ef4c0 to four cases: 0.0625, 0.015625, u and 0.5 × t × v, '
+                      'with t = sqrtf(0.125), u = t × t and v = sqrtf(u + u). The extractor re-reads the table. These are the game\'s effective weights, not polygon areas.',
+                      '0x1402ef41b', '83 f8 39', literals={'0x140bafa78': '00 00 80 3d', '0x140baf97c': '00 00 80 3c', '0x140bafb00': '00 00 00 3e'})
+    f['s_normal'] = n('Surface normal table', 'axis, two-axis and three-axis normals',
+                      'The table 0x1402ef7d0 gives each of the 58 slots a signed axis normal or a diagonal with components 0x3f3504f3 (0.70710677) or 0x3f13cd3a (0.57735026). The wrappers rotate it by the body orientation.',
+                      '0x1402ef84d', 'c7 42 04 f3 04 35 3f', literals={'0x1402ef953': 'c7 42 08 3a cd 13 3f', '0x1402ef7d3': '83 f8 39'})
+    f['s_loop'] = n('Surface slot loop', 58,
+                    'The air wrapper 0x14048e030 runs only when context byte +0x9c is set (0x14048e03f) and walks 58 slots (cmp with 0x3a at 0x14048e24a), like the water wrapper 0x14048d210. For each slot with a positive weight A it rotates the table normal, '
+                    'takes the lever arm r from the weighted surface position minus the context reference point and calls the callback. Weights are sums of geometry contributions; they do not sum to 1.',
+                    '0x14048e24a', '83 fb 3a', literals={'0x14048e03f': '80 b9 9c 00 00 00 00'})
+    f['s_total'] = n('Slamming normalizer', 'A_total = sum of accepted surface weights',
+                     'The geometry producer adds every accepted elementary weight to vehicle +0x798 (0x140485901, store at 0x14048590a). The traversal copies it into the callback context (0x14048b11b), and the slamming term divides by it (0x14048da68).',
+                     '0x140485901', 'f3 45 0f 58 8d 98 07 00 00', literals={'0x14048590a': 'f3 45 0f 11 8d 98 07 00 00', '0x14048b11b': 'f3 0f 10 be 98 07 00 00', '0x14048da68': 'f3 44 0f 5e a3 98 00 00 00'})
+    f['s_L'] = n('Body extent L', 'vehicle +0x98 − vehicle +0x80',
+                 'The traversal subtracts the binary64 at vehicle +0x80 from the one at +0x98 (0x14048b0e0, subsd at 0x14048b0ef) and stores the float as context +0x94. It is a body extent difference, not a face edge length.',
+                 '0x14048b0ef', 'f2 0f 5c 86 80 00 00 00', literals={'0x14048b0e0': 'f2 0f 10 86 98 00 00 00'})
+    f['slam'] = n('Slamming force', 'n_s × a × (clamp(b, 0, 5) ÷ 5)² × m × (2A ÷ A_total) × slamming_force_multiplier',
+                  'With n_s the sampled water normal, n the rotated surface normal, a = −n_s · n and b = −n_s · relative velocity, the water callback clamps b to 5 (minss with 0x140bb04e0), divides by 5, '
+                  'divides 2A by A_total (0x14048da68) and reads slamming_force_multiplier (+0xe4, 0x14048da7f). It runs only for 0 < φ < 1 with a > 0, b > 0 and n_s.y × (h − r.y) < b. The combined water force cap still applies afterwards.',
+                  '0x14048da68', 'f3 44 0f 5e a3 98 00 00 00', literals={'0x14048da7f': 'f3 0f 10 80 e4 00 00 00', '0x140bb04e0': '00 00 a0 40'})
+    f['phi'] = n('Surface submersion fraction', 'φ = clamp((h − y + r) ÷ 2r, 0, 1)',
+                 'The surface traversal 0x140942840 samples the cached waves (call 0x1402f5210 at 0x140942a09) and passes φ by pointer (0x140942b88) to the water wrapper (0x140942b8e). Fully submerged or dry nodes go in aggregate; '
+                 'the fully submerged path uses an upward normal and a zero wave vector.',
+                 '0x140942b88', 'f3 0f 11 74 24 20', literals={'0x140942a09': 'e8 02 28 9b ff', '0x140942b8e': 'e8 7d a6 b4 ff'})
+    f['wave'] = n('Cached wave sample', 'triangle normal, plane height, mean of three vertex vectors',
+                  'The sampler picks one of the two triangles of the X/Z grid cell, copies its cached normal (+0x78, +0x7c, +0x80; 0x1402f5351 to 0x1402f535e), computes the height (plane_d − nx × x − nz × z) ÷ ny from the plane (+0x70, 0x1402f53b6) '
+                  'and returns the mean of its three stored vertex vectors, divided by 3 (0x1402f5338). Without a valid triangle the height is 0.',
+                  '0x1402f5338', 'f3 0f 10 0d 50 b0 8b 00',
+                  literals={'0x140bb0390': '00 00 40 40', '0x1402f5351': '8b 42 78', '0x1402f5357': '8b 42 7c', '0x1402f535e': '8b 82 80 00 00 00', '0x1402f53b6': 'f2 0f 10 52 70'})
+    # Hull air callback 0x14048e2d0.
+    f['a_cut'] = n('Hull air cutoff', 'w² > 225, s = w − 15',
+                   'The callback compares the squared point speed w² with context +0x64, the square of the dead speed 15 (comiss at 0x14048e3f4), and adds no force at or below it. '
+                   'The force polynomials use s = w − 15 (subss at 0x14048e47f), while q and the flow direction use the unshifted w.',
+                   '0x14048e3f4', '0f 2f 51 64', literals={'0x14048e47f': 'f3 0f 5c 53 68', '0x14048e630': 'f3 0f 10 73 68'})
+    f['a_p'] = n('Hull air normal pressure', 'A × q^0.6 × (0.1 s² + 0.05 s) for q > 0; A × abs(q)^0.4 × (0.05 s² + 0.025 s) for q ≤ 0',
+                 'q is the cosine between the surface normal and the point flow. The default coefficients copied by 0x140294050 are 0.05, 0.1, 0.025 and 0.05 (block at 0x140bb18b0, offsets +0x60 to +0x6c) and the powers 0.6 and 0.4 (0x140bb1e80, +0x70 and +0x74). '
+                 'Both branches push along −n with a positive magnitude, so the sign of q picks the coefficients, not the direction.',
+                 '0x1402940ad', '0f 28 0d fc d7 91 00', literals={'0x140bb18b0': 'cd cc 4c 3d cd cc cc 3d cd cc cc 3c cd cc 4c 3d', '0x1402940bb': '0f 28 05 be dd 91 00', '0x140bb1e80': '9a 99 19 3f cd cc cc 3e'})
+    f['a_r'] = n('Hull air viscous coefficient', 'R = 0.00075 × (20 ÷ (55248.62109375 × s × L + 10) + 1.5)',
+                 'Literals 0.00075 (0x140baf8e8, about 0.000750000007), 20, 10 and 1.5; 55248.62109375 multiplies s × L (0x14048e477). L is the body extent difference from the surface traversal.',
+                 '0x14048e477', 'f3 0f 59 05 a5 24 72 00',
+                 literals={'0x140bb0924': '9f d0 57 47', '0x14048e425': 'f3 0f 10 35 9b 22 72 00', '0x140bb06c8': '00 00 a0 41', '0x14048e484': 'f3 0f 58 05 c0 21 72 00', '0x140bb064c': '00 00 20 41',
+                           '0x14048e499': 'f3 0f 58 35 8f 1b 72 00', '0x140bb0030': '00 00 c0 3f', '0x14048e4a6': 'f3 0f 59 35 3a 14 72 00', '0x140baf8e8': 'a6 9b 44 3a'})
+    f['a_d'] = n('Hull air drag along the flow', 'D = 0.25 × 1.225 × R × A × s² × 0.2 × (1 + 8 × max(w − 50, 0))',
+                 'viscous_air_resistance 0.25 (+0xe8, 0x14048e4c5), air_density 1.225 (+0xc4), air_drag_factor 0.2 (+0x94, 0x14048e46a), air_high_speed_factor_scale 8 (+0xa0) and air_high_speed_threshold 50 (+0x9c) are the defaults copied by 0x140294050. '
+                 'D acts against the flow direction u ÷ w.',
+                 '0x14048e4c5', 'f3 0f 10 88 e8 00 00 00',
+                 literals={'0x14048e46a': 'f3 0f 59 83 94 00 00 00', '0x140bb1e94': 'cd cc 4c 3e 00 00 70 41 00 00 48 42', '0x140bb1ef0': '00 00 00 41', '0x140bb19a4': 'cd cc 9c 3f', '0x140bb18e8': '00 00 80 3e 00 00 80 3e'})
+    f['a_u'] = n('Hull air upward-normal term', 'U = 0.25 × A × (1 − abs(q)) × clamp(n.y, 0, 1) × min(s², 2500)',
+                 'lift_force 0.25 (+0xec, 0x14048e666) scales a term along +n that grows with the face\'s upward tilt and with how far the flow runs along the face; s² is capped at 50² = 2500. It has no ground-distance input.',
+                 '0x14048e666', 'f3 0f 10 80 ec 00 00 00', literals={'0x140bb18ec': '00 00 80 3e'})
+    f['a_alt'] = n('Hull air altitude factor', '(1 − 2.2413793e-5 × h)^5.3595023, 0 above 40000',
+                   'h is the Y translation of the context transform (0x14048e6af). Above binary64 40000 (comisd at 0x14048e6b4) the factor is 0; below it the multiplier 2.2413792976294644e-05 (0x14048e6cc) and the power 5.35950231552124 (0x14048e6d9) apply. '
+                   'The final force is F = factor × (−n × P − (u ÷ w) × D + n × U), queued with the lever arm r.',
+                   '0x14048e6b4', '66 0f 2f 05 c4 1e 72 00',
+                   literals={'0x14048e6af': 'f2 0f 10 40 68', '0x140bb0580': '00 00 00 00 00 88 e3 40', '0x14048e6cc': 'f3 0f 59 0d ac 11 72 00', '0x140baf880': '41 05 bc 37', '0x14048e6d9': 'f3 0f 10 0d 23 1e 72 00', '0x140bb0504': '0b 81 ab 40'})
+    return f
 
 
 def g(x, digits=6):
@@ -1044,12 +1218,20 @@ def build_articles():
             'A native decode (investigation/wheels.md, shown on the Wheels parts pages) found that the game builds a Bullet btSoftRigidDynamicsWorld with a btSequentialImpulseConstraintSolver and sets world gravity to (0, -10, 0) m/s², with Y up. '
             'The game_constants binder reads gravity, vehicle_linear_damping, vehicle_angular_damping and vehicle_friction by name, with built-in defaults 10, 0.1, 0.1 and 0.8, and each vehicle passes its configured gravity to its bodies. '
             'Projectiles do not use the world gravity: their own integration applies 30 m/s² (investigation/weapons.md). '
-            'Time steps are fixed (investigation/update-rate.md). Components update 60 times per simulated second; the solver accumulates elapsed time and runs whole substeps of 1/60, 1/120 or 1/180 s, from the 60, 120 or 180 Hz setting, at most 1000 per tick, keeping the remainder for the next tick. '
+            'Time steps are fixed (investigation/update-rate.md). Components update 60 times per simulated second; the solver accumulates elapsed time and runs whole substeps of 1/60, 1/120 or 1/180 s, from the 60, 120 or 180 Hz setting, at most 1000 per tick, keeping the remainder for the next tick. While the global physics mode byte is clear the substep is 1/60 s whatever the setting (investigation/physics-core.md). '
             'Each solver step multiplies a body\'s linear and angular velocity by (1 - d)^dt, with d clamped to 0 to 1, so the default 0.1 keeps 0.9 of the speed per simulated second at every solver rate. '
             'The vehicle body build multiplies the linear damping by (1 - 0.0000224138 × y)^5.3595 below a transformed height y of 40000 and uses 0 above it, which matches the SDK comment (inference: y is the height in metres). '
             'Contact friction combines the two bodies\' coefficients as clamp(μA × μB, -10, 10) and restitution as their product, so vehicle on vehicle at the default 0.8 gives 0.64. Bullet\'s own construction default is 0.5. '
-            'Wheels add a sphere body with friction 0.001 but take their grip from a separate ray request (see Wheels, grip and suspension).',
-            [config(n, 'sdk-documented-default') for n in ['gravity','vehicle_linear_damping','vehicle_angular_damping','vehicle_friction']], [sdk_limit, static_limit, 'The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: the solver\'s normal and tangent impulse iterations, its friction-row bounds, collision-shape coverage and restitution threshold, and the rule by which mass redistribution rewrites a vehicle\'s gravity.'])
+            'Wheels add a sphere body with friction 0.001 but take their grip from a separate ray request (see Wheels, grip and suspension). '
+            'A later decode of the contact solver (investigation/physics-core.md) found its budgets and bounds. Each substep runs at most 10 sweeps over the normal and tangent contact rows and stops early once a sweep leaves a summed squared residual of 0; '
+            'joint rows can raise the outer loop count, but contact rows stay within the 10. Penetration is corrected in a separate split-impulse pass with the same budget. '
+            'Each ordinary tangent row is bounded by −μ × λn to +μ × λn, its friction coefficient times the current normal impulse, and is skipped while λn is not positive; only the separate rolling-friction rows add a cap of μ. '
+            'A contact bounces only when its normal speed is at least 0.2, by max(0, −e × v_n) with e = eA × eB. Body construction sets restitution to 0, so two default bodies do not bounce. '
+            'Forces are integrated with the actual substep duration, Δv = F × inverse mass × substep, with no extra tuning factor. The collision dispatcher has specialized handlers for several native shape pairs and a generic fallback for the rest.',
+            [config(n, 'sdk-documented-default') for n in ['gravity','vehicle_linear_damping','vehicle_angular_damping','vehicle_friction']] +
+            [physics_core()[k] for k in ('budget', 'converge', 'split', 'tangent', 'bounce', 'e_zero', 'dt', 'mode_dt', 'shapes')],
+            [sdk_limit, static_limit, 'The world, solver, timestep, damping and friction figures come from those native decodes. Still not recovered: which collision shapes shipped components, terrain and water use, '
+             'whether special bodies or later material settings give a contact a nonzero restitution, and the rule by which mass redistribution rewrites a vehicle\'s gravity.'])
     env_names, env_present = realtime_presence(ENV)
     native_limit = 'Native findings are static readings of this executable build. No game process was executed, and no value here was checked in play.'
     hull_air = 'Read in the hull air callback 0x14048e2d0.'
@@ -1061,7 +1243,27 @@ def build_articles():
             'The game sets these constants itself and overrides them only from rom/data/game_constants.xml, which this installation does not ship, so the built-in values apply: air density 1.225, and the same drag and threshold numbers as the SDK. '
             'The name calculate_air_density does not occur in the executable as ASCII or UTF-16LE text. The realtime file that sets it to 0 is parsed into a registry that no recovered gameplay code reads. So the 0 does not set a vacuum, switch off air density or disable altitude effects. '
             'The realtime file also lists matching drag and threshold values; the hull path reads the native block, not those entries. '
-            'A separate native decode of the wing, control-surface and fin air routine (investigation/control-surfaces.md, shown on the Control surfaces parts page) found that it multiplies by its own constant 24 and never reads lift_force, so the SDK description of lift_force as surface lift scaling does not hold for those parts. That routine applies an altitude pressure ratio without checking calculate_air_density. The only recovered lift_force read is in the hull air callback.',
+            'A separate native decode of the wing, control-surface and fin air routine (investigation/control-surfaces.md, shown on the Control surfaces parts page) found that it multiplies by its own constant 24 and never reads lift_force, so the SDK description of lift_force as surface lift scaling does not hold for those parts. That routine applies an altitude pressure ratio without checking calculate_air_density. The only recovered lift_force read is in the hull air callback.'
+            '\n\n'
+            'A later decode (investigation/physics-core.md) recovered the hull air callback term by term. The surface tree described under Buoyancy and water drag supplies, for each of 58 orientation slots of a node, a surface weight A, '
+            'the slot normal n rotated to the body and a lever arm r. With u = v + ω × r − wind the surface point\'s velocity relative to the air, w its length and q = (u ÷ w) · n, '
+            'the callback adds nothing while w² ≤ 225, that is up to w = 15. Above that its terms use s = w − 15, with these defaults:'
+            '\n\n'
+            'Table: Hull air callback with the default constants\n'
+            '| Term | Expression |\n'
+            '|---|---|\n'
+            '| Normal pressure, q > 0 | P = A × q^0.6 × (0.1 s² + 0.05 s) |\n'
+            '| Normal pressure, q ≤ 0 | P = A × abs(q)^0.4 × (0.05 s² + 0.025 s) |\n'
+            '| Viscous coefficient | R = 0.00075 × (20 ÷ (55248.62109375 × s × L + 10) + 1.5) |\n'
+            '| Drag along the flow | D = 0.25 × 1.225 × R × A × s² × 0.2 × (1 + 8 × max(w − 50, 0)) |\n'
+            '| Upward-normal term | U = 0.25 × A × (1 − abs(q)) × clamp(n.y, 0, 1) × min(s², 2500) |\n'
+            '| Altitude factor | a = (1 − 2.2413793e-5 × h)^5.3595023, and 0 above h = 40000 |\n'
+            '| Force at r | F = a × (−n × P − (u ÷ w) × D + n × U) |'
+            '\n\n'
+            'So the SDK\'s 15 m/s threshold is both a cutoff and an offset taken off the speed. The 50 m/s threshold starts the excess-speed factor 1 + 8 × (w − 50) in D and caps s at 50 in U. '
+            'lift_force scales U, a push along the normal of faces that point up, largest when the flow runs along the face. Both pressure branches push along −n; the sign of q only picks the coefficients, so this is not a signed quadratic drag law. '
+            'L is the body extent difference from the surface traversal, not a face length. A partly submerged node gets both a water call and an air call with its full weight A. '
+            'F is in internal force units; it is queued with r and integrated by the solver.',
             [config(n, 'sdk-documented-default') for n in ['air_drag_factor_linear_pressure','air_drag_factor_quadratic_pressure','air_drag_factor_linear_suction','air_drag_factor_quadratic_suction','air_speed_threshold','air_high_speed_threshold','air_high_speed_factor_scale','air_density','lift_force']] + [config(n) for n in ['air_speed_threshold','air_high_speed_threshold','apply_lift','calculate_air_density']] +
             [consumer('air_density', 'The hull air callback 0x14048e2d0 uses this copy.'),
              consumer('air_falloff_power_pressure', 'Pressure-side falloff power.'),
@@ -1071,8 +1273,9 @@ def build_articles():
              consumer('lift_force', hull_air + ' No other lift_force read was recovered.'),
              absent(['calculate_air_density', 'apply_lift'], 'Realtime air switches', 'The hull air path has no branch controlled by these names. The realtime registry that holds them has no recovered gameplay reader.'),
              native('Control surface force constant', 24, 'The wing, control-surface and fin routine 0x1403dfd20 multiplies its air vector by this literal and loads no lift_force value.',
-                    '0x1403e1120', 'f3 0f 59 0d b4 f5 7c 00', report='investigation/control-surfaces.md', literals={'0x140bb06dc': '00 00 c0 41'})],
-            [sdk_limit, native_limit, 'Still not recovered for the hull air callback: its term-by-term force equation, the surface weights and normals it receives, and an SI meaning for its tuned factors. No calibration or runtime experiment was performed.'])
+                    '0x1403e1120', 'f3 0f 59 0d b4 f5 7c 00', report='investigation/control-surfaces.md', literals={'0x140bb06dc': '00 00 c0 41'})] +
+            [physics_core()[k] for k in ('s_loop', 'a_cut', 'a_p', 'a_r', 'a_d', 'a_u', 'a_alt', 's_L')],
+            [sdk_limit, native_limit, 'Hull air forces are internal force units; this page gives no SI calibration of the tuned factors. No calibration or runtime experiment was performed.'])
     examples = json.loads((ROOT / EXAMPLES).read_text())
     for x in examples:
         d = 10 + 10 * min(max((x['mass'] - 2000) / 23000, 0), 1)
@@ -1088,9 +1291,18 @@ def build_articles():
             'Compartments: a separate loop adds a downward term -g × water_density × 0.01 × (water_compartment_force_factor × W + gas_compartment_force_factor × G) ÷ D. Both factors default to 1 and are missing from the SDK file. W and G are values returned by two fluid compartment getters; G has a stored field ÷ 60 subtracted and is floored at 0. '
             'Water drag: the surface callback subtracts 0.5 × the sampled wave velocity from the point velocity, and the vertical part of that term is scaled by 0.3 when it points down (inference: the sampled vector is the wave velocity). '
             'With s the relative speed and d the cosine between the flow and the surface normal, a face with d > 0 gets a pressure force A × d^2.5 × (15 s + 17 s²) against its normal and any other face a suction force A × (-d)^0.3 × (12 s + 5 s²) along it, A being the surface weight. Water density does not multiply these two terms. '
-            'A viscous term opposes motion with viscous_resistance_factor 0.5 × K × 0.00075 × (20 ÷ (s L × 1000000 + 10) + 1.5) × A × water_density × s², L being a body length scalar. K rises from water_drag_factor 1 at mass 2000 to 5 at 25000 (multiplier 4); those two mass thresholds are built into the code and do not follow the buoyancy settings. '
-            'Partly submerged faces add a slamming term scaled by slamming_force_multiplier 100 and body mass. The sum of the three terms is capped at s × m × 0.5 ÷ 60. '
-            'The realtime switches apply_drag, apply_viscous_resistance, apply_slamming_force and use_accurate_buoyancy do not occur in the executable; the callback gates its terms by speed and geometry instead.',
+            'A viscous term opposes motion with viscous_resistance_factor 0.5 × K × 0.00075 × (20 ÷ (s L × 1000000 + 10) + 1.5) × A × water_density × s², L being the body extent value described below. K rises from water_drag_factor 1 at mass 2000 to 5 at 25000 (multiplier 4); those two mass thresholds are built into the code and do not follow the buoyancy settings. '
+            'Partly submerged faces, 0 < φ < 1, add a slamming force n_s × a × (clamp(b, 0, 5) ÷ 5)² × m × (2A ÷ A_total) × slamming_force_multiplier 100. n_s is the sampled water normal, a = −n_s · n and b = −n_s · (relative velocity), and both must be positive. '
+            'A_total is the sum of every accepted surface weight of the vehicle, so each face gets its weight\'s share of the hull total. The sum of the three terms is capped at s × m × 0.5 ÷ 60. '
+            'The realtime switches apply_drag, apply_viscous_resistance, apply_slamming_force and use_accurate_buoyancy do not occur in the executable; the callback gates its terms by speed and geometry instead.'
+            '\n\n'
+            'Geometry (investigation/physics-core.md): V comes from a fill tree on a grid of 0.25. The volume builder scans the block surfaces column by column with an inside/outside state and stores each filled cell with weight 0.015625 × f, '
+            'f being 1 for a full cell and 0.5 for a diagonal boundary half; parent nodes sum their children. A full cell is 0.25 × 0.25 × 0.25 = 0.015625, so the 64 full cells of one geometric cubic metre give V = 1. '
+            'A hull\'s bounding box does not set V: only filled cells count, and the water surface decides how much of each. '
+            'The water and air forces use a separate surface tree. Each node holds one weight per orientation slot, 58 slots in all: 0.0625 for slots 0 to 5, 0.015625 for 6 to 29, 0.125 for 30 to 41 and 0.0883883 for 42 to 57. '
+            'These are the game\'s own weights, not polygon areas, and they do not sum to 1. For each slot the traversal rotates a table normal (an axis or a two-axis or three-axis diagonal) to the body and takes the lever arm from the weighted surface position. '
+            'L = vehicle+0x98 − vehicle+0x80 is a body extent difference, not a face length. The water height, normal and wave vector come from cached wave triangles: the sampler picks one of the two triangles of the X/Z grid cell, '
+            'takes the height from its plane and its cached normal, and averages its three vertex vectors. A fully submerged node uses an upward normal and no wave vector.',
             [config('buoyancy_mass_multiplier', 'sdk-configuration'), config('buoyancy_mass_multiplier')] +
             [config(n, 'sdk-documented-default') for n in ['water_density','wave_velocity_factor','wave_velocity_factor_reverse','buoyancy_damping','buoyancy_damping_submerged','buoyancy_mass_modifier_lower','buoyancy_mass_modifier_upper']] +
             [config(n) for n in ['apply_drag','apply_slamming_force','slamming_force_multiplier','use_accurate_buoyancy']] +
@@ -1127,10 +1339,11 @@ def build_articles():
              consumer('slamming_force_multiplier', 'Scales the slamming term, which also multiplies by body mass.'),
              native('Water force cap', 's × m × 0.5 ÷ 60', 'Speed × body mass × 0.5 ÷ 60. A larger combined vector is scaled down to this length.', '0x14048df4c', 'f3 0f 5e 3d 0c 28 72 00', literals={'0x140bb0760': '00 00 70 42'}),
              absent(['apply_drag', 'apply_viscous_resistance', 'apply_slamming_force', 'use_accurate_buoyancy'], 'Realtime water switches', 'The water surface callback gates its terms by speed and geometry; no read of these switches exists.'),
-             realtime_loader()],
+             realtime_loader()] + [physics_core()[k] for k in ('v_leaf', 'v_cell', 's_weight', 's_normal', 's_loop', 's_total', 's_L', 'slam', 'phi', 'wave')],
             [sdk_limit, native_limit,
-             'Buoyancy is decoded in internal units of the native submerged weight V. Still not recovered: how component geometry builds the tree weights and whether one cubic metre of hull gives V = 1, the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So no displacement or mass-to-volume rule for a whole vessel follows yet.',
-             'The surface normal, lever arm, surface weight A, length L, the slamming scalar and the sampled wave vectors come from a surface traversal whose construction was not recovered. No SI meaning is assigned to the drag factors.'])
+             'Buoyancy is in internal units of the native submerged weight V. Still not recovered: a complete rule for which cells and faces of an arbitrary hull the fill state and exposure classification count, '
+             'the units and water or gas classification of the compartment inputs W and G, and compartment sealing and flooding. So a whole vessel\'s V does not yet follow from its parts list.',
+             'How the cached wave triangles\' normals and vertex vectors are generated was not traced. No SI meaning is assigned to the drag factors.'])
     article('wheels-suspension', 'Wheels, grip and suspension', 'Physics',
             'Realtime configuration separates tire damping, suspension stiffness and wheel torque scaling, but the executable contains none of these names; the wheel code uses its own constants.',
             'The shipped tuning includes suspension stiffness 0.2 and damping 1, tire stiffness 1 and damping 4, tire_max_friction 100, tire_grip_multiplier 50 and wheel drive torque multiplier 0.0004. '
@@ -1142,9 +1355,14 @@ def build_articles():
             'Contact: each wheel casts a ray to the ground and also carries a sphere body with Bullet friction 0.001. The contact feeds the shaft: the wheel adds slip ÷ (2π × r) × tyre factor × grip_factor × 0.5 to its RPS and submits that RPS with a weight equal to its definition mass, × 0.7 with suspension. '
             'Suspension: the ray spring pushes with 60 × tyre_pressure × (k × max(0, 1.5 × r - l) + c × (l_old - l)), l being the ray distance, k = 0.05 + 0.45 × stiffness_factor and c = 0.5 + 4.5 × damping_factor; wheels without suspension set k and c to 0. '
             'Maximum friction: the file\'s 100 is not a Coulomb limit the code reads. The wheel code\'s own 100 is the slip gain and the 100 × r slip cap, and the request has no normal-load input. '
-            'The file\'s 50 and 4 equal the code\'s grip scale and tyre damping factor, but the code holds them as built-in numbers.',
-            [config(n) for n in ['suspension_stiffness_factor','suspension_damping_factor','tire_stiffness_factor','tire_damping_factor','tire_max_friction','tire_grip_multiplier','wheel_drive_torque_multiplier']],
-            [static_limit, 'The units, slip limit, grip, shaft and spring figures come from that native decode. Still not recovered: the impulse helpers\' scale B, so grip has no newton figure and no curve against normal load; what sets the physics mode byte that gates the springs, and the other contact cases; track grouping and Track Tension; and the legacy wheels\' speed law. No speed or slip was measured in a running game.'])
+            'The file\'s 50 and 4 equal the code\'s grip scale and tyre damping factor, but the code holds them as built-in numbers. '
+            'A later decode (investigation/physics-core.md) found the impulse helpers\' scale B. It is S, the summed adjusted mass of the wheel\'s body and every body joined to it, the same value as the force cap. '
+            'A request Q becomes B × clip(Q ÷ B, c), at most c × B long, with c = 4 for grip, so a heavier vehicle allows a larger grip request. The suspension request on another hit body uses that body\'s own mass instead. '
+            'The springs are submitted only while the global physics mode byte is set. Session setup sets it to 1 and a reset clears it, and the same byte switches the solver substep between 1 ÷ solver rate and 1/60.',
+            [config(n) for n in ['suspension_stiffness_factor','suspension_damping_factor','tire_stiffness_factor','tire_damping_factor','tire_max_friction','tire_grip_multiplier','wheel_drive_torque_multiplier']] +
+            [physics_core()[k] for k in ('b_pass', 'b_clip', 'mode', 'mode_dt')],
+            [static_limit, 'The units, slip limit, grip, shaft and spring figures come from that native decode. Still not recovered: a newton figure for grip, since B is a native mass scale, and a curve against normal load; '
+             'which settings and network transitions drive each writer of the physics mode byte that gates the springs, and the other contact cases; track grouping and Track Tension; and the legacy wheels\' speed law. No speed or slip was measured in a running game.'])
     article('diesel-engines', 'Diesel engine connections and startup', 'Engines',
             'Engine definitions describe separate air, fuel, exhaust, coolant and electrical connections.',
             'The small engine accepts throttle from 0 to 1. Its starter description says electrical power increases engine RPS for startup. Coolant has separate cold return and hot output ports. The small and large definitions set engine_max_force to 20000 and 200000 respectively. A separate native decode of the classic engine update (investigation/classic-engines.md, shown on the Diesel Engine parts page) found that this field sets the shaft weight, scales diesel and intake demand and multiplies the starter charge request. It is an internal solver weight, not a torque in N m. '
@@ -1182,6 +1400,8 @@ def build_articles():
             'Their working range is R = radar_range × 0.02 × 0.02 ÷ (FOV x × FOV y) on the native FOV fields, a new scan runs every max(1, floor(R ÷ 2000 + 0.5)) updates, and a target passes when its distance is at most R and R ÷ 10000 × signature ÷ distance exceeds 0.025. '
             'At the SDK defaults reported distances carry up to ±1% noise and angles up to ±0.001 turn. '
             'A later decode (investigation/sensors-legacy.md, shown on the Other components and legacy radar parts pages) found that the signature is the target\'s physics-body mass, built from the components\' definition mass, and that the editor\'s FOV sliders set each advanced axis from 0.01 to 0.25. '
+            'A decode of the mass producer (investigation/physics-core.md) found that this mass is S, the summed adjusted mass of the target body and every body joined to it. The adjustment lifts light bodies to a share of the heaviest and rescales, so S can differ from the editor\'s component mass. '
+            'Fuel and cargo amounts and damage are not inputs of the sum; removing parts or changing which bodies are joined changes it when the masses are rebuilt. '
             'It also covers the short range radar here, a legacy type-16 radar: a target passes when signature ÷ distance exceeds 0.25, inside a far plane radar_range × (0.75 + 0.25 × 0.01 ÷ saved radar_fov) ahead, about 3875 m at the saved default 0.1, and inside side planes set by the FOV input. '
             'No scan counter precedes its candidate collection, so (inference) it collects on every update that passes its power and height gates. '
             'A later static decode (investigation/force-cap.md, shown on the Altimeter and Linear Speed Sensor parts pages) found that the altimeter outputs the part\'s world Y: height above the fixed sea-level datum y = 0, not clearance over terrain or the local wave surface. It outputs 0 above a height of 40000 or at world X above 156000. '
@@ -1199,9 +1419,10 @@ def build_articles():
                 native('Radar line-of-sight masks', '0x7f and 0xff', 'The advanced radar passes 0x7f as argument 4 and 0xff as argument 5 (0x1403bc013) of the segment query 0x1401a4300.',
                        '0x1403bc01b', '41 b9 7f 00 00 00', report=FORCE_CAP),
                 native('Radar line-of-sight filter', '(group & 0x1000) = 0, group & 0xff ≠ 0, mask & 0x7f ≠ 0', 'The broadphase filter 0x1400d9bf0 rejects proxy group bit 12, then tests group & 0xff and object mask & 0x7f.',
-                       '0x1400d9bf3', '0f ba e0 0c', report=FORCE_CAP)],
-            [block_limit, static_limit, 'The radar formulas and the speed and altitude readings come from those native decodes. How the body-mass producer\'s adjustments and a vehicle\'s contents change the signature, '
-             'which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, and when within a physics step the speed and altitude sensors read the body state were not recovered.'])
+                       '0x1400d9bf3', '0f ba e0 0c', report=FORCE_CAP), physics_core()['m_getter'], physics_core()['m_sum']],
+            [block_limit, static_limit, 'The radar formulas and the speed and altitude readings come from those native decodes. When the mass rebuild runs after part destruction, detachment, cargo or fuel events was not traced for every path, '
+             'and how the editor\'s mass display counts bodies and auxiliary masses was not established. Which collision bits terrain, water, glass and vehicles register with and so which of them block the radar line-of-sight query, '
+             'and when within a physics step the speed and altitude sensors read the body state were not recovered.'])
     article('sensor-noise', 'Radar and sonar output noise', 'Sensors',
             'The SDK noise settings bound a uniform random error on advanced radar distance and on advanced radar and sonar angles; legacy radars and sonars add none.',
             'The SDK documents sonar_noise and radar_noise as positive and negative ranges of small discrepancies in reported positions. Both defaults are 0.001. It separately describes radar_distance_noise, default 0.01, as a maximum percentage discrepancy in reported distance. '
@@ -1436,9 +1657,9 @@ def build_articles():
              'Rendered eruption particles were not connected to physical lava or projectile contact damage, and the object-kind, update-phase and raycast tests that still qualify the eruption damage branch were not decoded.',
              'Lightning ignition, the origin of the scene\'s queued position ignitions, any other initial-fire scheduling and vehicle and character heat damage from fires were not traced.',
              'An exhaustive exclusion of native disaster scheduling was not established: indirect calls, script operator invocations, load and clone paths and every writer of the volcano flags were not ruled out.',
-             'The wind and current force chain was not traced in full: the cached current grid, surface geometry weights, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.',
+             'The wind and current force chain was not traced in full: the cached current grid, shielding eligibility, wind and current consumers besides the surface route and the tornado-enabled vehicle force, and the kilograms per editor mass unit.',
              'The tornado-enabled force was traced for vehicles only. A matching character, carried-object or debris path was not established, and neither were the names of vehicle states 0, 2, 3, 5 and 7, the serialized name of the compartment flag, the tile XML element that authors the suppression volumes, '
-             'the integration factor and substeps the solver applies to it, or the scheduling above the vehicle update.'])
+             'or the scheduling above the vehicle update.'])
     article('jet-engines', 'Jet startup, turbines and afterburners', 'Engines',
             'Jet component descriptions separate electrical startup, combustion and exhaust controls.',
             'The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. '
@@ -1539,12 +1760,15 @@ def build_articles():
             'The aircraft propeller takes collective from -1 to 1, and its tooltip links thrust to received engine torque without giving an equation. The selected large helicopter rotor has roll, pitch and collective inputs from -1 to 1. Its tooltip describes pitch and roll control through the swashplate and says force decreases underwater. The tail rotor takes yaw from -1 to 1 to control generated force. '
             'A native decode (investigation/propulsion.md, shown on the Propulsion parts pages) found one force-emitter update for all of them. The effective pitch is clamp(saved pitch + Collective, -1, 1), a normalized number, not degrees or turns; '
             'the saved pitch starts at force_emitter_default_pitch, 1 for the main rotors and the aircraft propeller and 0 for the tail rotor, so Collective -1 gives zero thrust on a main rotor and the tail rotor\'s Yaw is a signed pitch. '
-            'From the shaft speed, pitch and air-relative flow the part computes a load b, removes w × (1 - 1 ÷ (1 + q²)) RPS from its shaft with q = clamp(b ÷ 2K, -10, 10), and pushes with 1500 × K × removed RPS × efficiency, where K = force_emitter_max_force ÷ 1000 or ÷ 2000 with 4 intact blades. '
+            'From the shaft speed, pitch and air-relative flow the part computes a load b, removes w × (1 - 1 ÷ (1 + q²)) RPS from its shaft with q = clamp(b ÷ 2K, -10, 10), and pushes with 1500 × K × removed RPS × efficiency. '
+            'K = F × B ÷ 8000, F ÷ 2000 with 4 intact blades, for the rotors and the aircraft propeller, whose definitions name a blade mesh as mesh_1_name, and F ÷ 1000 for the ducted fans, which leave it empty (investigation/physics-core.md); F is force_emitter_max_force. '
             'Roll and Pitch move the force point by -4 × input along local X and Z and tilt its direction by 0.4 × input. Thrust is scaled by (1 - 2.2413793e-5 × altitude)^5.3595023, 0 above 40000. '
             'With the hub below the water surface the scalar update gives no thrust and multiplies q by 10, so the rotor brakes its shaft; that is the decreased underwater force. '
             'A physical rotor hinge gets a motor with impulse limit 1000, and coaxial rotors add an opposing force pair of 800 × b × clamp(|pitch + Collective + 0.1|, 0, 1) about the rotor axis.',
-            definition('aircraft_propeller', tooltip=True) + definition('large_rotor', tooltip=True) + definition('tail_rotor', tooltip=True),
-            [block_limit, static_limit, 'The rotor law comes from that native decode. Not recovered: which loaded value selects K = F ÷ 1000 or F ÷ 2000 for air parts, the visible cyclic blade phase, whether the engine adds ground effect outside the scalar law, and the SI calibration of thrust and reaction torque.'])
+            definition('aircraft_propeller', tooltip=True) + definition('large_rotor', tooltip=True) + definition('tail_rotor', tooltip=True) +
+            [mesh_1(n) for n in ('aircraft_propeller', 'large_rotor', 'tail_rotor', 'fan_small')] + [physics_core()['sel']],
+            [block_limit, static_limit, 'The rotor law comes from that native decode. Not recovered: the visible cyclic blade phase and the SI calibration of thrust and reaction torque. '
+             'The traced force-emitter update has no ground-clearance input; that no other world, airflow or contact path adds a near-ground force is not established.'])
     article('weapons-loading-fuses', 'Weapon loading, ammunition and timed fuses', 'Weapons',
             'Guns fire at a fixed muzzle speed per weapon class, barrel length sets only the muzzle position, and loading runs on per-class breech and receiver timers; Fuse Timer detonates fragmentation rounds, and high-explosive rounds from the heavy autocannon up, at an interpolated point.',
             'The light autocannon trigger feeds, loads and fires cartridges from connected belts or drums. Its tooltip requires electricity for loading. The selected small drum has weapon_ammo_capacity 100, reports ammo count and cannot mix calibers. Feeder belts use electrical power to transfer cartridges in the arrow direction. The battle cannon trigger fires a loaded shell, and Open Breech permits loading. Its optional Fuse Timer is explicitly in seconds for high-explosive and fragmentation ammunition. '

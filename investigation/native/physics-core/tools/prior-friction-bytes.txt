@@ -1,0 +1,19 @@
+134-   14012dd1a:	0f 8e a3 00 00 00    	jle    0x14012ddc3
+135-   14012dd20:	4d 8b ce             	mov    r9,r14
+136-   14012dd23:	44 69 87 78 01 00 00 	imul   r8d,DWORD PTR [rdi+0x178],0x19660d
+137-   14012dd2a:	0d 66 19 00 
+138:   14012dd2e:	4c 8b 9f f8 00 00 00 	mov    r11,QWORD PTR [rdi+0xf8]
+139-   14012dd35:	43 8b 1c 8b          	mov    ebx,DWORD PTR [r11+r9*4]
+140-   14012dd39:	41 81 c0 5f f3 6e 3c 	add    r8d,0x3c6ef35f
+141-   14012dd40:	44 89 87 78 01 00 00 	mov    DWORD PTR [rdi+0x178],r8d
+142-   14012dd47:	41 81 fa 00 00 01 00 	cmp    r10d,0x10000
+--
+171-   14012dda2:	48 63 ca             	movsxd rcx,edx
+172-   14012dda5:	41 8b 04 8b          	mov    eax,DWORD PTR [r11+rcx*4]
+173-   14012dda9:	43 89 04 8b          	mov    DWORD PTR [r11+r9*4],eax
+174-   14012ddad:	49 ff c1             	inc    r9
+175:   14012ddb0:	48 8b 87 f8 00 00 00 	mov    rax,QWORD PTR [rdi+0xf8]
+176-   14012ddb7:	89 1c 88             	mov    DWORD PTR [rax+rcx*4],ebx
+177-   14012ddba:	4c 3b ce             	cmp    r9,rsi
+178-   14012ddbd:	0f 8c 60 ff ff ff    	jl     0x14012dd23
+179-   14012ddc3:	41 8b de             	mov    ebx,r14d

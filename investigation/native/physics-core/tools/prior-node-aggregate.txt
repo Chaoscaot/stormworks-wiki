@@ -1,0 +1,42 @@
+          lVar7 = lVar7 - (longlong)param_1;
+          param_1[0xc] = CONCAT44(uVar18,uVar17);
+          param_1[0xd] = (longlong)dVar15;
+          param_1[0xe] = (longlong)dVar19;
+          lVar11 = lVar9;
+          do {
+            fVar1 = *(float *)(lVar7 + -4 + (longlong)pfVar6);
+            if (fVar4 < fVar1) {
+              pfVar6[-1] = fVar1 + pfVar6[-1];
+              fVar2 = *(float *)(lVar7 + -0xc + (longlong)pfVar5);
+              fVar3 = *(float *)(lVar7 + -8 + (longlong)pfVar5);
+              pfVar5[-4] = fVar1 * *(float *)(lVar7 + -0x10 + (longlong)pfVar5) + pfVar5[-4];
+              pfVar5[-3] = fVar2 * fVar1 + pfVar5[-3];
+              pfVar5[-2] = fVar3 * fVar1 + pfVar5[-2];
+            }
+            fVar1 = *(float *)(lVar7 + (longlong)pfVar6);
+            if (fVar4 < fVar1) {
+              *pfVar6 = fVar1 + *pfVar6;
+              fVar2 = *(float *)(lVar7 + (longlong)pfVar5);
+              fVar3 = *(float *)(lVar7 + 4 + (longlong)pfVar5);
+              pfVar5[-1] = fVar1 * *(float *)(lVar7 + -4 + (longlong)pfVar5) + pfVar5[-1];
+              *pfVar5 = fVar2 * fVar1 + *pfVar5;
+              pfVar5[1] = fVar3 * fVar1 + pfVar5[1];
+            }
+            pfVar6 = pfVar6 + 2;
+            pfVar5 = pfVar5 + 6;
+            lVar11 = lVar11 + -1;
+          } while (lVar11 != 0);
+        }
+        plVar12 = plVar12 + 1;
+        lVar13 = lVar13 + -1;
+      } while (lVar13 != 0);
+      lVar14 = lVar14 + -1;
+    } while (lVar14 != 0);
+    lVar8 = lVar8 + -1;
+  } while (lVar8 != 0);
+  pfVar6 = (float *)((longlong)param_1 + 0x194);
+  do {
+    if (fVar4 < *pfVar10) {
+      pfVar6[-5] = pfVar6[-5] / *pfVar10;
+      pfVar6[-4] = pfVar6[-4] / *pfVar10;
+      pfVar6[-3] = pfVar6[-3] / *pfVar10;

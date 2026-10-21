@@ -1,0 +1,335 @@
+32-  ulonglong uVar25;
+33-  ulonglong uVar26;
+34-  float fVar27;
+35-  float fVar28;
+36-  float fVar29;
+37-  float fVar30;
+38-  float fVar31;
+39-  float fVar32;
+40:  float fVar33;
+41-  float fVar34;
+42:  float fVar35;
+43-  uint uStackX_10;
+44-  ulonglong uStack_d8;
+45-  uint uStack_d0;
+46-  uint uStack_cc;
+47-  uint uStack_c8;
+48-  
+49-  uVar13 = 0;
+50-  uVar22 = 0;
+51-  param_1[0x52] = 0;
+52-  *(undefined4 *)(param_1 + 0x53) = 0;
+53-  uStack_d8 = 0;
+54-  uStack_d0 = 0;
+--
+121-  fVar32 = _DAT_140bafecc;
+122-  uVar15 = 0;
+123-  uStackX_10 = 0;
+124-  uVar23 = 0;
+125-  if (uVar22 != 0) {
+126-    do {
+127-      plVar2 = *(longlong **)(uVar21 + ((ulonglong)(uint)((int)uVar15 + (int)uVar13) % uVar26) * 8);
+128-      fVar34 = 0.0;
+129:      fVar35 = 0.0;
+130:      fVar33 = 0.0;
+131-      uVar18 = 0;
+132-      if ((int)plVar2[2] != 0) {
+133-        iVar24 = *(int *)((longlong)plVar2 + 0xc);
+134-        uVar22 = *(uint *)(plVar2 + 1);
+135-        lVar19 = *plVar2;
+136-        do {
+137-          iVar14 = 0;
+138-          lVar19 = *(longlong *)(lVar19 + ((ulonglong)(iVar24 + uVar18) % (ulonglong)uVar22) * 8);
+139-          if (lVar19 == *(longlong *)
+140-                         (*param_1 +
+141-                         ((ulonglong)*(uint *)((longlong)param_1 + 0xc) %
+142-                         (ulonglong)*(uint *)(param_1 + 1)) * 8)) {
+143-            *(undefined1 *)(lVar19 + 0x1478) = *(undefined1 *)((longlong)param_1 + 0x29c);
+144-          }
+145-          lVar19 = *(longlong *)
+146-                    (*plVar2 +
+147-                    ((ulonglong)(*(int *)((longlong)plVar2 + 0xc) + uVar18) %
+148-                    (ulonglong)*(uint *)(plVar2 + 1)) * 8);
+149:          *(undefined4 *)(lVar19 + 0x72c) = 0;
+150-          if (*(char *)(lVar19 + 0x1478) == '\0') {
+151-            iVar24 = *(int *)(lVar19 + 0x400);
+152-            for (; iVar14 != iVar24; iVar14 = iVar14 + 1) {
+153-              fVar27 = (float)(**(code **)(**(longlong **)
+154-                                             (*(longlong *)(lVar19 + 0x3f0) +
+155-                                             ((ulonglong)(uint)(*(int *)(lVar19 + 0x3fc) + iVar14) %
+156-                                             (ulonglong)*(uint *)(lVar19 + 0x3f8)) * 8) + 0x298))();
+157:              *(float *)(lVar19 + 0x72c) = fVar27 + *(float *)(lVar19 + 0x72c);
+158-            }
+159-          }
+160-          iVar24 = *(int *)((longlong)plVar2 + 0xc);
+161-          uVar22 = *(uint *)(plVar2 + 1);
+162-          lVar19 = *plVar2;
+163-          fVar27 = *(float *)(*(longlong *)
+164-                               (lVar19 + ((ulonglong)(iVar24 + uVar18) % (ulonglong)uVar22) * 8) +
+165:                             0x72c);
+166:          fVar35 = fVar35 + fVar27;
+167-          if (fVar34 <= fVar27) {
+168-            fVar34 = fVar27;
+169-          }
+170-          uVar18 = uVar18 + 1;
+171-        } while (uVar18 < *(uint *)(plVar2 + 2));
+172-      }
+173-      uVar22 = *(uint *)(plVar2 + 5);
+174-      uVar18 = 0;
+175-      if (3 < uVar22) {
+176-        uVar23 = *(uint *)(plVar2 + 4);
+177-        lVar19 = plVar2[3];
+178-        uVar17 = *(int *)((longlong)plVar2 + 0x24) + 2;
+--
+191-            fVar34 = fVar27;
+192-          }
+193-          pfVar5 = *(float **)(lVar19 + ((ulonglong)uVar17 % (ulonglong)uVar23) * 0x10);
+194-          fVar27 = *pfVar5;
+195-          if (fVar34 <= fVar27) {
+196-            fVar34 = fVar27;
+197-          }
+198-          pfVar6 = *(float **)(lVar19 + ((ulonglong)(uVar17 + 1) % (ulonglong)uVar23) * 0x10);
+199:          fVar35 = fVar35 + *pfVar3 + *pfVar4 + *pfVar5 + *pfVar6;
+200-          fVar27 = *pfVar6;
+201-          if (fVar34 <= fVar27) {
+202-            fVar34 = fVar27;
+203-          }
+204-          uVar17 = uVar17 + 4;
+205-          uVar15 = uVar15 - 1;
+206-        } while (uVar15 != 0);
+207-      }
+208-      if (uVar18 < uVar22) {
+209-        uVar23 = *(int *)((longlong)plVar2 + 0x24) + uVar18;
+210-        uVar15 = (ulonglong)(uVar22 - uVar18);
+211-        do {
+212-          pfVar3 = *(float **)
+213-                    (plVar2[3] + ((ulonglong)uVar23 % (ulonglong)*(uint *)(plVar2 + 4)) * 0x10);
+214:          fVar35 = fVar35 + *pfVar3;
+215-          fVar27 = *pfVar3;
+216-          if (fVar34 <= fVar27) {
+217-            fVar34 = fVar27;
+218-          }
+219-          uVar23 = uVar23 + 1;
+220-          uVar15 = uVar15 - 1;
+221-        } while (uVar15 != 0);
+222-      }
+223-      fVar27 = fVar34 / fVar10;
+224-      fVar34 = fVar34 / fVar11;
+225-      uVar18 = *(uint *)(plVar2 + 2);
+226-      uVar23 = 0;
+--
+240-                 (*param_1 +
+241-                 ((ulonglong)*(uint *)((longlong)param_1 + 0xc) % (ulonglong)*(uint *)(param_1 + 1))
+242-                 * 8);
+243-        uVar16 = iVar24 + 2;
+244-        do {
+245-          uVar20 = iVar24 + uVar23;
+246-          lVar8 = *(longlong *)(lVar19 + ((ulonglong)uVar20 % (ulonglong)uVar17) * 8);
+247-          if ((lVar8 != lVar7) || (*(char *)((longlong)param_1 + 0x29c) == '\0')) {
+248:            fVar28 = *(float *)(lVar8 + 0x72c);
+249-            if (fVar28 <= fVar27) {
+250-              fVar28 = fVar27;
+251-            }
+252:            fVar33 = fVar33 + fVar28;
+253-          }
+254-          if ((*(longlong *)(lVar19 + ((ulonglong)(uVar20 + 1) % (ulonglong)uVar17) * 8) != lVar7)
+255-             || (*(char *)((longlong)param_1 + 0x29c) == '\0')) {
+256-            fVar28 = *(float *)(*(longlong *)
+257-                                 (lVar19 + ((ulonglong)(uVar16 - 1) % (ulonglong)uVar17) * 8) +
+258:                               0x72c);
+259-            if (fVar28 <= fVar27) {
+260-              fVar28 = fVar27;
+261-            }
+262:            fVar33 = fVar33 + fVar28;
+263-          }
+264-          if ((*(longlong *)(lVar19 + ((ulonglong)(uVar20 + 2) % (ulonglong)uVar17) * 8) != lVar7)
+265-             || (*(char *)((longlong)param_1 + 0x29c) == '\0')) {
+266-            fVar28 = *(float *)(*(longlong *)(lVar19 + ((ulonglong)uVar16 % (ulonglong)uVar17) * 8)
+267:                               + 0x72c);
+268-            if (fVar28 <= fVar27) {
+269-              fVar28 = fVar27;
+270-            }
+271:            fVar33 = fVar33 + fVar28;
+272-          }
+273-          if ((*(longlong *)(lVar19 + ((ulonglong)(uVar20 + 3) % (ulonglong)uVar17) * 8) != lVar7)
+274-             || (*(char *)((longlong)param_1 + 0x29c) == '\0')) {
+275-            fVar28 = *(float *)(*(longlong *)
+276-                                 (lVar19 + ((ulonglong)(uVar16 + 1) % (ulonglong)uVar17) * 8) +
+277:                               0x72c);
+278-            if (fVar28 <= fVar27) {
+279-              fVar28 = fVar27;
+280-            }
+281:            fVar33 = fVar33 + fVar28;
+282-          }
+283-          uVar23 = uVar23 + 4;
+284-          uVar16 = uVar16 + 4;
+285-        } while (uVar23 < uVar18 - 3);
+286-        if (uVar23 < uVar18) {
+287-LAB_1404be6c2:
+288-          uVar16 = iVar24 + uVar23;
+289-          do {
+290-            if ((*(longlong *)(lVar19 + ((ulonglong)(iVar24 + uVar23) % (ulonglong)uVar17) * 8) !=
+291-                 *(longlong *)
+292-                  (*param_1 +
+293-                  ((ulonglong)*(uint *)((longlong)param_1 + 0xc) % (ulonglong)*(uint *)(param_1 + 1)
+294-                  ) * 8)) || (*(char *)((longlong)param_1 + 0x29c) == '\0')) {
+295-              fVar28 = *(float *)(*(longlong *)
+296:                                   (lVar19 + ((ulonglong)uVar16 % (ulonglong)uVar17) * 8) + 0x72c);
+297-              if (fVar28 <= fVar27) {
+298-                fVar28 = fVar27;
+299-              }
+300:              fVar33 = fVar33 + fVar28;
+301-            }
+302-            uVar23 = uVar23 + 1;
+303-            uVar16 = uVar16 + 1;
+304-          } while (uVar23 < uVar18);
+305-        }
+306-      }
+307-      uVar23 = 0;
+308-      if (3 < uVar22) {
+309-        uVar17 = *(uint *)(plVar2 + 4);
+310-        lVar19 = plVar2[3];
+311-        uVar16 = *(int *)((longlong)plVar2 + 0x24) + 2;
+312-        uVar23 = (uVar22 - 4 >> 2) + 1;
+--
+324-          fVar30 = **(float **)(lVar19 + ((ulonglong)uVar16 % (ulonglong)uVar17) * 0x10);
+325-          if (fVar30 <= fVar34) {
+326-            fVar30 = fVar34;
+327-          }
+328-          fVar31 = **(float **)(lVar19 + ((ulonglong)(uVar16 + 1) % (ulonglong)uVar17) * 0x10);
+329-          if (fVar31 <= fVar34) {
+330-            fVar31 = fVar34;
+331-          }
+332:          fVar33 = fVar33 + fVar28 + fVar29 + fVar30 + fVar31;
+333-          uVar16 = uVar16 + 4;
+334-          uVar15 = uVar15 - 1;
+335-        } while (uVar15 != 0);
+336-      }
+337-      if (uVar23 < uVar22) {
+338-        uVar17 = *(int *)((longlong)plVar2 + 0x24) + uVar23;
+339-        uVar15 = (ulonglong)(uVar22 - uVar23);
+340-        do {
+341-          fVar28 = **(float **)
+342-                     (plVar2[3] + ((ulonglong)uVar17 % (ulonglong)*(uint *)(plVar2 + 4)) * 0x10);
+343-          if (fVar28 <= fVar34) {
+344-            fVar28 = fVar34;
+345-          }
+346:          fVar33 = fVar33 + fVar28;
+347-          uVar17 = uVar17 + 1;
+348-          uVar15 = uVar15 - 1;
+349-        } while (uVar15 != 0);
+350-      }
+351-      fVar28 = fVar32;
+352:      if (0.0 < fVar33) {
+353:        fVar28 = fVar35 / fVar33;
+354-      }
+355-      uVar22 = 0;
+356-      if (uVar18 != 0) {
+357-        do {
+358-          lVar19 = *(longlong *)
+359-                    (*plVar2 +
+360-                    ((ulonglong)(*(int *)((longlong)plVar2 + 0xc) + uVar22) %
+361-                    (ulonglong)*(uint *)(plVar2 + 1)) * 8);
+362-          if ((lVar19 != *(longlong *)
+363-                          (*param_1 +
+364-                          ((ulonglong)*(uint *)((longlong)param_1 + 0xc) %
+365-                          (ulonglong)*(uint *)(param_1 + 1)) * 8)) ||
+366-             (*(char *)((longlong)param_1 + 0x29c) == '\0')) {
+367:            fVar35 = *(float *)(lVar19 + 0x72c) * fVar28;
+368:            fVar33 = fVar28 * fVar27;
+369:            if (fVar28 * fVar27 <= fVar35) {
+370:              fVar33 = fVar35;
+371-            }
+372:            fVar35 = fVar32;
+373:            if (0.0 < fVar33) {
+374:              fVar35 = *(float *)(lVar19 + 0x72c) / fVar33;
+375-            }
+376:            *(float *)(lVar19 + 0x72c) = fVar33;
+377-            *(float *)(*(longlong *)
+378-                        (*plVar2 +
+379-                        ((ulonglong)(*(int *)((longlong)plVar2 + 0xc) + uVar22) %
+380:                        (ulonglong)*(uint *)(plVar2 + 1)) * 8) + 0x730) = fVar35 * fVar1;
+381-            *(float *)(param_1 + 0x53) =
+382-                 *(float *)(*(longlong *)
+383-                             (*plVar2 +
+384-                             ((ulonglong)(*(int *)((longlong)plVar2 + 0xc) + uVar22) %
+385:                             (ulonglong)*(uint *)(plVar2 + 1)) * 8) + 0x72c) +
+386-                 *(float *)(param_1 + 0x53);
+387-          }
+388-          uVar22 = uVar22 + 1;
+389-        } while (uVar22 < *(uint *)(plVar2 + 2));
+390-      }
+391-      uVar18 = 0;
+392-      if ((int)plVar2[5] != 0) {
+393-        do {
+394-          pfVar3 = *(float **)
+395-                    (plVar2[3] +
+396-                    ((ulonglong)(*(int *)((longlong)plVar2 + 0x24) + uVar18) %
+397-                    (ulonglong)*(uint *)(plVar2 + 4)) * 0x10);
+398:          fVar33 = *pfVar3;
+399:          fVar27 = fVar28 * fVar33;
+400:          fVar35 = fVar28 * fVar34;
+401-          if (fVar28 * fVar34 <= fVar27) {
+402:            fVar35 = fVar27;
+403-          }
+404-          fVar27 = fVar32;
+405:          if (0.0 < fVar35) {
+406:            fVar27 = fVar33 / fVar35;
+407-          }
+408:          *pfVar3 = fVar35;
+409-          **(float **)
+410-            (plVar2[3] + 8 +
+411-            ((ulonglong)(*(int *)((longlong)plVar2 + 0x24) + uVar18) %
+412-            (ulonglong)*(uint *)(plVar2 + 4)) * 0x10) = fVar27 * fVar1;
+413-          *(float *)(param_1 + 0x53) =
+414-               **(float **)
+415-                 (plVar2[3] +
+416-                 ((ulonglong)(*(int *)((longlong)plVar2 + 0x24) + uVar18) %
+417-                 (ulonglong)*(uint *)(plVar2 + 4)) * 0x10) + *(float *)(param_1 + 0x53);
+418-          uVar18 = uVar18 + 1;
+419-        } while (uVar18 < *(uint *)(plVar2 + 5));
+420-      }
+--
+429-  uVar22 = uStack_cc;
+430-  uVar17 = 0;
+431-  if (uVar18 != 0) {
+432-    fVar32 = *(float *)(param_1 + 0x52);
+433-    do {
+434-      uVar25 = (ulonglong)(*(int *)((longlong)param_1 + 0xc) + uVar17) %
+435-               (ulonglong)*(uint *)(param_1 + 1);
+436-      uVar15 = *(ulonglong *)(*param_1 + uVar25 * 8);
+437:      fVar1 = *(float *)(uVar15 + 0x72c);
+438-      if (fVar32 < fVar1) {
+439-        *(float *)(param_1 + 0x52) = fVar1;
+440-        uVar15 = *(ulonglong *)(*param_1 + uVar25 * 8);
+441-        *(undefined4 *)((longlong)param_1 + 0x294) = *(undefined4 *)(uVar15 + 0x147c);
+442-        fVar32 = fVar1;
+443-      }
+444-      uVar17 = uVar17 + 1;
+445-    } while (uVar17 < uVar18);
+446-  }
+447-  if ((*(uint *)(param_1 + 5) == uVar18) && (uVar17 = 0, uVar18 != 0)) {
+448-    do {
+449-      *(undefined4 *)
+--
+461-                      ((ulonglong)(*(int *)((longlong)param_1 + 0x24) + uVar16) %
+462-                      (ulonglong)*(uint *)(param_1 + 4)) * 4)) {
+463-            uVar15 = (ulonglong)(*(int *)((longlong)param_1 + 0x3c) + uVar17) %
+464-                     (ulonglong)*(uint *)(param_1 + 7);
+465-            *(float *)(param_1[6] + uVar15 * 4) =
+466-                 *(float *)(*(longlong *)
+467-                             (*param_1 +
+468-                             ((ulonglong)(*(int *)((longlong)param_1 + 0xc) + uVar16) %
+469:                             (ulonglong)*(uint *)(param_1 + 1)) * 8) + 0x72c) +
+470-                 *(float *)(param_1[6] + uVar15 * 4);
+471-          }
+472-          uVar16 = uVar16 + 1;
+473-          uVar18 = *(uint *)(param_1 + 2);
+474-        } while (uVar16 < uVar18);
+475-      }
+476-      uVar15 = (ulonglong)uVar18;
+477-      uVar17 = uVar17 + 1;
+478-    } while (uVar17 < uVar18);
+479-  }
+480-  uVar18 = 0;
+481-  if (uVar23 != 0) {

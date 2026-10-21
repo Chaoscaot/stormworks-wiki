@@ -1,0 +1,33 @@
+  double *pdStack_b8;
+  double dStack_a8;
+  double dStack_a0;
+  double dStack_98;
+  undefined8 uStack_90;
+  ulonglong uStack_88;
+  
+  uStack_88 = _DAT_140cb5010 ^ (ulonglong)auStack_e8;
+  _DAT_140ceb704 = _DAT_140ceb704 + 1;
+  pdStack_b8 = (double *)(*_DAT_140cbf728)(0xc0,0x10);
+  uVar6 = 0;
+  uVar4 = uVar6;
+  if (pdStack_b8 != (double *)0x0) {
+    uVar4 = FUN_1400fa100(pdStack_b8);
+  }
+  puVar2 = *(undefined8 **)(param_1 + 0xf0);
+  if (puVar2 != (undefined8 *)0x0) {
+    (**(code **)*puVar2)(puVar2,1);
+  }
+  *(ulonglong *)(param_1 + 0xf0) = uVar4;
+  uVar14 = FUN_1403222d0(param_1);
+  uVar9 = *(uint *)(param_1 + 0x2ac);
+  if (0x42 < uVar9) goto LAB_14031c3e3;
+  pcVar7 = IMAGE_DOS_HEADER_140000000.e_magic + *(uint *)(&UNK_14031c730 + (longlong)(int)uVar9 * 4)
+  ;
+  switch(uVar9) {
+  case 0:
+    FUN_140318610(param_1);
+    break;
+  case 1:
+    if (*(char *)(param_1 + 0x40) != '\0') break;
+    uStack_c0 = param_6;
+    uStack_c8 = param_3;

@@ -1,0 +1,19 @@
+   14033e011:	44 8b c8             	mov    r9d,eax
+   14033e014:	0f 1f 40 00          	nop    DWORD PTR [rax+0x0]
+   14033e018:	0f 1f 84 00 00 00 00 	nop    DWORD PTR [rax+rax*1+0x0]
+   14033e01f:	00 
+   14033e020:	45 85 d0             	test   r8d,r10d
+   14033e023:	8d 42 01             	lea    eax,[rdx+0x1]
+   14033e026:	0f 46 c2             	cmovbe eax,edx
+   14033e029:	41 d1 c0             	rol    r8d,1
+   14033e02c:	8b d0                	mov    edx,eax
+   14033e02e:	49 83 e9 01          	sub    r9,0x1
+   14033e032:	75 ec                	jne    0x14033e020
+   14033e034:	48 8b 49 58          	mov    rcx,QWORD PTR [rcx+0x58]
+   14033e038:	48 8b 01             	mov    rax,QWORD PTR [rcx]
+   14033e03b:	80 b8 80 05 00 00 00 	cmp    BYTE PTR [rax+0x580],0x0
+   14033e042:	74 09                	je     0x14033e04d
+   14033e044:	f6 81 b8 02 00 00 02 	test   BYTE PTR [rcx+0x2b8],0x2
+   14033e04b:	76 0f                	jbe    0x14033e05c
+   14033e04d:	48 8b 81 b8 02 00 00 	mov    rax,QWORD PTR [rcx+0x2b8]
+   14033e054:	a8 02                	test   al,0x2

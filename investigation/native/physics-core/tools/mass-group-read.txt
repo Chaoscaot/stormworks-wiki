@@ -1,0 +1,69 @@
+  uStack_cc = 0;
+  uStack_c8 = 0;
+  uVar18 = 0;
+  uVar21 = uVar13;
+  uVar15 = uVar13;
+  uVar25 = uVar13;
+  uVar26 = uVar13;
+  if ((int)param_1[2] != 0) {
+    do {
+      bVar9 = false;
+      uVar22 = 0;
+      if ((int)uVar15 == 0) {
+LAB_1404be2a2:
+        puVar12 = (undefined8 *)FUN_140958c28(0x30);
+        *puVar12 = 0;
+        puVar12[1] = 0;
+        *(undefined4 *)(puVar12 + 2) = 0;
+        puVar12[3] = 0;
+        puVar12[4] = 0;
+        *(undefined4 *)(puVar12 + 5) = 0;
+        if (uVar22 == (uint)uVar26) {
+          FUN_1408de0b0(&uStack_d8);
+          uVar26 = (ulonglong)uStack_d0;
+          uVar21 = uStack_d8;
+          uVar22 = uStack_c8;
+        }
+        uVar22 = uVar22 + 1;
+        *(undefined8 **)(uVar21 + ((ulonglong)((uStack_cc - 1) + uVar22) % uVar26) * 8) = puVar12;
+        uStack_c8 = uVar22;
+        FUN_1404bebe0(puVar12);
+      }
+      else {
+        do {
+          uVar18 = 0;
+          if (*(int *)(*(longlong *)(uVar21 + (uVar13 % uVar26) * 8) + 0x10) != 0) {
+            do {
+              plVar2 = *(longlong **)(uVar21 + (uVar13 % uVar26) * 8);
+              if (*(longlong *)
+                   (*plVar2 +
+                   ((ulonglong)(*(int *)((longlong)plVar2 + 0xc) + uVar18) %
+                   (ulonglong)*(uint *)(plVar2 + 1)) * 8) ==
+                  *(longlong *)
+                   (*param_1 +
+                   ((ulonglong)(uint)(*(int *)((longlong)param_1 + 0xc) + (int)uVar25) %
+                   (ulonglong)*(uint *)(param_1 + 1)) * 8)) {
+                bVar9 = true;
+              }
+              uVar18 = uVar18 + 1;
+            } while (uVar18 < *(uint *)(plVar2 + 2));
+          }
+          uVar13 = (ulonglong)((int)uVar13 + 1);
+          uVar15 = uVar15 - 1;
+        } while (uVar15 != 0);
+        uVar22 = uStack_c8;
+        if (!bVar9) goto LAB_1404be2a2;
+      }
+      uVar23 = (int)uVar25 + 1;
+      uVar18 = *(uint *)(param_1 + 2);
+      uVar13 = (ulonglong)uStack_cc;
+      uVar15 = (ulonglong)uVar22;
+      uVar25 = (ulonglong)uVar23;
+    } while (uVar23 < uVar18);
+  }
+  fVar11 = _DAT_140bb07a8;
+  fVar10 = _DAT_140bb072c;
+  fVar1 = _DAT_140bb064c;
+  fVar32 = _DAT_140bafecc;
+  uVar15 = 0;
+  uStackX_10 = 0;

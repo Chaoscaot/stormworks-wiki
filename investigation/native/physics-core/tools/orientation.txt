@@ -1,0 +1,192 @@
+
+prior-game-solver-config.txt
+29:   1405e43bb:	c7 83 d0 00 00 00 01 00 00 00                   	mov    DWORD PTR [rbx+0xd0],0x1
+
+prior-solver-arguments.txt
+321091-   140129d29:	cc                   	int3
+321092-   140129d2a:	cc                   	int3
+321093-   140129d2b:	cc                   	int3
+321094-   140129d2c:	cc                   	int3
+321095-   140129d2d:	cc                   	int3
+321096-   140129d2e:	cc                   	int3
+321097-   140129d2f:	cc                   	int3
+321098:   140129d30:	48 89 5c 24 20       	mov    QWORD PTR [rsp+0x20],rbx
+321099-   140129d35:	55                   	push   rbp
+321100-   140129d36:	56                   	push   rsi
+321101-   140129d37:	57                   	push   rdi
+321102-   140129d38:	41 54                	push   r12
+321103-   140129d3a:	41 55                	push   r13
+321104-   140129d3c:	41 56                	push   r14
+321105-   140129d3e:	41 57                	push   r15
+--
+322561-   14012b4cf:	f2 41 0f 10 50 18    	movsd  xmm2,QWORD PTR [r8+0x18]
+322562-   14012b4d5:	48 8b f9             	mov    rdi,rcx
+322563-   14012b4d8:	48 89 55 f0          	mov    QWORD PTR [rbp-0x10],rdx
+322564-   14012b4dc:	49 8b d5             	mov    rdx,r13
+322565-   14012b4df:	48 89 5c 24 78       	mov    QWORD PTR [rsp+0x78],rbx
+322566-   14012b4e4:	4c 89 6d a0          	mov    QWORD PTR [rbp-0x60],r13
+322567-   14012b4e8:	48 89 75 90          	mov    QWORD PTR [rbp-0x70],rsi
+322568:   14012b4ec:	e8 3f e8 ff ff       	call   0x140129d30
+322569-   14012b4f1:	f2 0f 10 53 18       	movsd  xmm2,QWORD PTR [rbx+0x18]
+322570-   14012b4f6:	48 8b d6             	mov    rdx,rsi
+322571-   14012b4f9:	4c 63 f8             	movsxd r15,eax
+322572-   14012b4fc:	48 8b cf             	mov    rcx,rdi
+322573-   14012b4ff:	44 89 7c 24 74       	mov    DWORD PTR [rsp+0x74],r15d
+322574:   14012b504:	e8 27 e8 ff ff       	call   0x140129d30
+322575-   14012b509:	4c 63 c0             	movsxd r8,eax
+322576-   14012b50c:	49 69 c8 f0 01 00 00 	imul   rcx,r8,0x1f0
+322577-   14012b513:	4d 69 cf f0 01 00 00 	imul   r9,r15,0x1f0
+322578-   14012b51a:	48 03 4f 18          	add    rcx,QWORD PTR [rdi+0x18]
+322579-   14012b51e:	44 89 44 24 70       	mov    DWORD PTR [rsp+0x70],r8d
+322580-   14012b523:	48 89 4d e0          	mov    QWORD PTR [rbp-0x20],rcx
+322581-   14012b527:	4c 03 4f 18          	add    r9,QWORD PTR [rdi+0x18]
+--
+323759-   14012c85f:	0f 8e ed 01 00 00    	jle    0x14012ca52
+323760-   14012c865:	4c 8b ff             	mov    r15,rdi
+323761-   14012c868:	48 8b 7c 24 28       	mov    rdi,QWORD PTR [rsp+0x28]
+323762-   14012c86d:	0f 1f 00             	nop    DWORD PTR [rax]
+323763-   14012c870:	f2 41 0f 10 54 24 18 	movsd  xmm2,QWORD PTR [r12+0x18]
+323764-   14012c877:	4b 8b 54 fd 00       	mov    rdx,QWORD PTR [r13+r15*8+0x0]
+323765-   14012c87c:	48 8b ce             	mov    rcx,rsi
+323766:   14012c87f:	e8 ac d4 ff ff       	call   0x140129d30
+323767-   14012c884:	4b 8b 5c fd 00       	mov    rbx,QWORD PTR [r13+r15*8+0x0]
+323768-   14012c889:	f6 83 f0 01 00 00 02 	test   BYTE PTR [rbx+0x1f0],0x2
+323769-   14012c890:	0f 84 ae 01 00 00    	je     0x14012ca44
+323770-   14012c896:	f2 0f 10 83 d0 03 00 	movsd  xmm0,QWORD PTR [rbx+0x3d0]
+323771-   14012c89d:	00 
+323772-   14012c89e:	66 41 0f 2e c3       	ucomisd xmm0,xmm11
+323773-   14012c8a3:	7a 06                	jp     0x14012c8ab
+--
+324068-   14012cd5d:	48 8b 58 28          	mov    rbx,QWORD PTR [rax+0x28]
+324069-   14012cd61:	48 89 5d 88          	mov    QWORD PTR [rbp-0x78],rbx
+324070-   14012cd65:	4c 8b 70 30          	mov    r14,QWORD PTR [rax+0x30]
+324071-   14012cd69:	4c 89 74 24 58       	mov    QWORD PTR [rsp+0x58],r14
+324072-   14012cd6e:	f2 41 0f 10 54 24 18 	movsd  xmm2,QWORD PTR [r12+0x18]
+324073-   14012cd75:	48 8b d3             	mov    rdx,rbx
+324074-   14012cd78:	48 8b ce             	mov    rcx,rsi
+324075:   14012cd7b:	e8 b0 cf ff ff       	call   0x140129d30
+324076-   14012cd80:	4c 63 f8             	movsxd r15,eax
+324077-   14012cd83:	44 89 7c 24 60       	mov    DWORD PTR [rsp+0x60],r15d
+324078-   14012cd88:	f2 41 0f 10 54 24 18 	movsd  xmm2,QWORD PTR [r12+0x18]
+324079-   14012cd8f:	49 8b d6             	mov    rdx,r14
+324080-   14012cd92:	48 8b ce             	mov    rcx,rsi
+324081:   14012cd95:	e8 96 cf ff ff       	call   0x140129d30
+324082-   14012cd9a:	89 44 24 30          	mov    DWORD PTR [rsp+0x30],eax
+324083-   14012cd9e:	4d 69 f7 f0 01 00 00 	imul   r14,r15,0x1f0
+324084-   14012cda5:	4c 03 76 18          	add    r14,QWORD PTR [rsi+0x18]
+324085-   14012cda9:	4c 89 74 24 68       	mov    QWORD PTR [rsp+0x68],r14
+324086-   14012cdae:	48 63 c8             	movsxd rcx,eax
+324087-   14012cdb1:	4c 69 f9 f0 01 00 00 	imul   r15,rcx,0x1f0
+324088-   14012cdb8:	4c 03 7e 18          	add    r15,QWORD PTR [rsi+0x18]
+--
+325083-   14012de53:	8b e8                	mov    ebp,eax
+325084-   14012de55:	48 8b 16             	mov    rdx,QWORD PTR [rsi]
+325085-   14012de58:	44 38 72 20          	cmp    BYTE PTR [rdx+0x20],r14b
+325086-   14012de5c:	74 53                	je     0x14012deb1
+325087-   14012de5e:	f2 41 0f 10 55 18    	movsd  xmm2,QWORD PTR [r13+0x18]
+325088-   14012de64:	48 8b 
+prior-mode-substep.txt
+investigation/wheels.md:9:The five issue bodies were read first with `gh issue view` and are retained in `native/wheels/tools/issue-*.txt`. The matching target hash is in `tools/target-sha256.txt`. `tools/facts.json` records instruction bytes, constants and RTTI. The assembly files retain bytes; Ghidra pseudocode is a secondary reading aid. All paths below are relative to `investigation/native/wheels/` unless linked otherwise.
+investigation/wheels.md:13:- [update-rate.md](update-rate.md) establishes 60 component updates/s, solver substeps at 60/120/180 Hz, the fixed-step accumulator and maximum 1000 substeps.
+investigation/wheels.md:19:There are two wheel implementations. RTTI maps `c_scene_vehicle_component_wheel_advanced` to vtable `0x140b82258`; slot `+0x358` is `0x1403aa4a0`. The older `c_scene_vehicle_component_wheel` maps `0x140aeaea8` to `0x1403a5d70`. The 18 retained advanced definitions use type 41; the four legacy definitions use type 4. Tank definitions use the advanced path and its `wheel_type` branches. Legacy assembly and pseudocode are retained, but its full speed/contact model was not decoded.
+investigation/wheels.md:34:The constructor `0x1403a84b0` initializes `s=1`. The model's `s=0` examples are evaluations of this formula, not proof of editor limits or deserializer clamping. No radius clamp was found in the traced expression.
+investigation/wheels.md:36:| Address | Instruction bytes | Meaning |
+investigation/wheels.md:77:There is also a physical sphere body. `0x1403a9750` creates it through `0x1401a5260`, sets friction to 0.001 through `0x1401a7170`, and damping to `(0,0.3)` through `0x1401a7530`. The contact model therefore includes both ray-based custom calculations and Bullet body contacts. The report does not replace it with a raycast-only vehicle model.
+investigation/wheels.md:95:`Q` is an internal impulse request. The code passes it to the impulse event helpers with additional bounds. `0x1401a7c70` divides by its seventh argument, clips vector length to its sixth argument, then multiplies back. At the grip call those arguments are the caller-provided scalar `B` and 4. Thus its own request bound is `4*B` for positive B. `0x1401a17b0` applies the event to a body and retains the prior impulse for its threshold/difference logic. The opposite-side helper is `0x1401a7ad0`. B comes from the dispatcher array loaded at `0x140549782` and passed at `0x1405498b3`, as retained by the update-rate investigation. Its physical meaning was not traced to its producer here. Consequently Q is not reported in newtons and no universal `F=mu*N` curve is claimed for custom wheel grip.
+investigation/wheels.md:114:This branch is gated by contact distance `<L+a`, positive caller scalar and the mode flag `0x140ceb6ff`. The derivative uses successive component distances, with an explicit multiplier 60. Its coefficient should not be reinterpreted as a damping ratio. The request is along the suspension axis and its opposite; the helper limit for this spring call is approximately `7.50000048*B`.
+investigation/wheels.md:122:Here `B_wheel` is read from the hit body's wrapper `+8`, while the chassis branch uses caller B. Contact checks can suppress either request. Both share the saved old distance. The exact physical normalization of these two B values remains open. The model keeps B explicit.
+investigation/wheels.md:126:The mode flag gates impulse submission and constraint construction. Its selection and the complete alternate-mode behavior were not recovered. The equations above describe the retained branch, not every possible mode.
+investigation/wheels.md:128:## Tank wheel and track model
+investigation/wheels.md:143:At `0x14049e242`, bytes `f3 0f 5e c8`, RPS is divided by count. `0x14049e246`, `f3 0f 5e d0`, divides the independently accumulated weights. `0x14049e289` publishes RPS and `0x14049e2a7` publishes weight. `0x14049e2c4`, `c6 81 0c 08 00 00 01`, marks a connected member. The loop's orientation sign comes from the wheel construction/orientation path `0x1403a8e70`.
+investigation/wheels.md:149:At `0x1401a38e9` world construction calls `0x1401281d0`, which installs RTTI-backed `btSequentialImpulseConstraintSolver` vtable `0x140ae2c58`. `0x1401a396e` creates `btSoftRigidDynamicsWorld`. `0x1401a3995`, bytes `0f 28 05 94 e8 a0 00`, loads the first half of the gravity vector at `0x140bb2230`. `0x1401a39b4`, `ff 90 88 00 00 00`, passes it to world slot `+0x88`:
+investigation/wheels.md:155:The four stored doubles are `0,-10,0,0`. The negative Y double at `0x140bb2238` has bytes `00 00 00 00 00 00 24 c0`. This is a world setting, not the projectile integrator's 30.
+investigation/wheels.md:185:`0x1400f470b` loads body A `+0x1c0`; `0x1400f4713`, `f2 0f 59 82 c0 01 00 00`, multiplies by B `+0x1c0`. `0x1400f4730`, `f2 0f 5f c8`, applies the -10 lower bound; `0x1400f4737`, `f2 0f 5d c1`, applies +10. Restitution multiplication is at `0x1400f474b..0x1400f475b`, using `+0x1c8`. Examples: two default vehicle material coeffi
+prior-B-source.txt
+   1405496c4:	41 3b 9d 30 03 00 00 	cmp    ebx,DWORD PTR [r13+0x330]
+   1405496cb:	72 b3                	jb     0x140549680
+   1405496cd:	33 d2                	xor    edx,edx
+   1405496cf:	44 8d 42 31          	lea    r8d,[rdx+0x31]
+   1405496d3:	48 8b ce             	mov    rcx,rsi
+   1405496d6:	e8 f5 39 c6 ff       	call   0x1401ad0d0
+   1405496db:	33 d2                	xor    edx,edx
+   1405496dd:	44 8d 42 32          	lea    r8d,[rdx+0x32]
+   1405496e1:	48 8b ce             	mov    rcx,rsi
+   1405496e4:	e8 47 39 c6 ff       	call   0x1401ad030
+   1405496e9:	33 c9                	xor    ecx,ecx
+   1405496eb:	89 4d 84             	mov    DWORD PTR [rbp-0x7c],ecx
+   1405496ee:	41 39 8d 30 03 00 00 	cmp    DWORD PTR [r13+0x330],ecx
+   1405496f5:	0f 86 23 02 00 00    	jbe    0x14054991e
+   1405496fb:	0f 1f 44 00 00       	nop    DWORD PTR [rax+rax*1+0x0]
+   140549700:	41 8b 85 2c 03 00 00 	mov    eax,DWORD PTR [r13+0x32c]
+   140549707:	03 c1                	add    eax,ecx
+   140549709:	33 d2                	xor    edx,edx
+   14054970b:	41 f7 b5 28 03 00 00 	div    DWORD PTR [r13+0x328]
+   140549712:	49 8b 85 20 03 00 00 	mov    rax,QWORD PTR [r13+0x320]
+   140549719:	48 8b 14 d0          	mov    rdx,QWORD PTR [rax+rdx*8]
+   14054971d:	83 7a 10 05          	cmp    DWORD PTR [rdx+0x10],0x5
+   140549721:	0f 85 de 01 00 00    	jne    0x140549905
+   140549727:	48 8b 72 08          	mov    rsi,QWORD PTR [rdx+0x8]
+   14054972b:	48 89 75 f8          	mov    QWORD PTR [rbp-0x8],rsi
+   14054972f:	48 85 f6             	test   rsi,rsi
+   140549732:	0f 84 cd 01 00 00    	je     0x140549905
+   140549738:	83 7e 10 00          	cmp    DWORD PTR [rsi+0x10],0x0
+   14054973c:	0f 86 c3 01 00 00    	jbe    0x140549905
+   140549742:	80 3a 00             	cmp    BYTE PTR [rdx],0x0
+   140549745:	0f 85 ba 01 00 00    	jne    0x140549905
+   14054974b:	45 33 ff             	xor    r15d,r15d
+   14054974e:	44 89 7d 88          	mov    DWORD PTR [rbp-0x78],r15d
+   140549752:	44 0f b6 62 48       	movzx  r12d,BYTE PTR [rdx+0x48]
+   140549757:	0f b6 86 9c 02 00 00 	movzx  eax,BYTE PTR [rsi+0x29c]
+   14054975e:	88 45 80             	mov    BYTE PTR [rbp-0x80],al
+
+prior-selector-def.txt
+   14031552e:	48 8d 8f 80 05 00 00 	lea    rcx,[rdi+0x580]
+   14031603e:	48 8d 8f 80 05 00 00 	lea    rcx,[rdi+0x580]
+   140318f38:	48 8d 97 80 05 00 00 	lea    rdx,[rdi+0x580]
+   140319933:	48 8d 97 80 05 00 00 	lea    rdx,[rdi+0x580]
+   14031bbf4:	48 8d 93 80 05 00 00 	lea    rdx,[rbx+0x580]
+   14031beee:	48 8d 97 80 05 00 00 	lea    rdx,[rdi+0x580]
+   14031bfbc:	48 8d 97 80 05 00 00 	lea    rdx,[rdi+0x580]
+   14031c187:	48 8d 97 80 05 00 00 	lea    rdx,[rdi+0x580]
+   14031c217:	48 8d 97 80 05 00 00 	lea    rdx,[rdi+0x580]
+   14031c2d4:	48 8d 97 80 05 00 00 	lea    rdx,[rdi+0x580]
+   14031c3b1:	48 8d 8f 80 05 00 00 	lea    rcx,[rdi+0x580]
+   14031e239:	0f b6 85 80 05 00 00 	movzx  eax,BYTE PTR [rbp+0x580]
+
+prior-root-load.txt
+1441693-   1405525a2:	e8 09 bb 38 00       	call   0x1408de0b0
+1441694-   1405525a7:	8b 75 18             	mov    esi,DWORD PTR [rbp+0x18]
+1441695-   1405525aa:	8b 5d 10             	mov    ebx,DWORD PTR [rbp+0x10]
+1441696-   1405525ad:	ff c6                	inc    esi
+1441697-   1405525af:	89 75 18             	mov    DWORD PTR [rbp+0x18],esi
+1441698-   1405525b2:	8b 45 14             	mov    eax,DWORD PTR [rbp+0x14]
+1441699-   1405525b5:	ff c8                	dec    eax
+1441700-   1405525b7:	03 c6                	add    eax,esi
+1441701-   1405525b9:	33 d2                	xor    edx,edx
+1441702-   1405525bb:	f7 f3                	div    ebx
+1441703-   1405525bd:	48 8b 4d 08          	mov    rcx,QWORD PTR [rbp+0x8]
+1441704-   1405525c1:	4c 89 3c d1          	mov    QWORD PTR [rcx+rdx*8],r15
+1441705-   1405525c5:	85 ff                	test   edi,edi
+1441706-   1405525c7:	75 1e                	jne    0x1405525e7
+1441707-   1405525c9:	41 0f b6 85 9c 02 00 	movzx  eax,BYTE PTR [r13+0x29c]
+1441708-   1405525d0:	00 
+1441709:   1405525d1:	41 88 87 9c 02 00 00 	mov    BYTE PTR [r15+0x29c],al
+1441710-   1405525d8:	41 0f b6 85 9d 02 00 	movzx  eax,BYTE PTR [r13+0x29d]
+1441711-   1405525df:	00 
+1441712-   1405525e0:	41 88 87 9d 02 00 00 	mov    BYTE PTR [r15+0x29d],al
+1441713-   1405525e7:	41 0f b6 85 9e 02 00 	movzx  eax,BYTE PTR [r13+0x29e]
+1441714-   1405525ee:	00 
+1441715-   1405525ef:	41 88 87 9e 02 00 00 	mov    BYTE PTR [r15+0x29e],al
+1441716-   1405525f6:	45 33 c9             	xor    r9d,r9d
+1441717-   1405525f9:	41 8b d9             	mov    ebx,r9d
+
+prior-component-mass-summary.txt
+0x140328ea0 68 
+0x140393b10 1 .?AUc_scene_vehicle_component_microprocessor@@
+auxiliary override names
+.?AUc_scene_vehicle_component_block@@ {'0x298': '0x140328ea0', '0x308': '0x300000003', '0x310': '0x300000003', '0x318': '0x400000004'}
+.?AUc_scene_vehicle_component_ski@@ {'0x298': '0x140328ea0', '0x308': '0x1401413c0', '0x310': '0x140421ab0', '0x318': '0x1403a5ce0'}
+.?AUc_scene_vehicle_component_base@@ {'0x298': '0x140328ea0', '0x308': '0x2e3425207c206631', '0x310': '0x2e3425207c206631', '0x318': '0x696e612e000a6631'}
+.?AUc_scene_vehicle_component_force_emitter@@ {'0x298': '0x140328ea0', '0x308': '0x1401413c0', '0x310': '0x14033d540', '0x318': '0x14033d550'}
+.?AUc_scene_vehicle_component_wheel@@ {'0x298': '0x140328ea0', '0x308': '0x1401413c0', '0x310': '0x1403a5cc0', '0x318': '0x1403a5ce0'}
+.?AUc_scene_vehicle_component_basic@@ {'0x298': '0x140328ea0', '0x308': '0x6c', '0x310': '0x4820636974637241', '0x318': '0x657261'}

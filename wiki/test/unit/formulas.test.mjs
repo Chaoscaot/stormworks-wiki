@@ -997,6 +997,8 @@ test('propeller graph constants and parts remain tied to verified native and def
     assert.ok(fam, v.id);
     assert.equal(Number(fam.findings.find((x) => x.label === `${v.label} · force_emitter_max_force`)?.value), v.maxForce, v.id);
     assert.ok(fam.findings.some((x) => x.label === `${v.label} force at 10 RPS`), `${v.id} figures finding`);
+    // Air parts take the blade-scaled weight exactly when their definition names a mesh_1 (investigation/physics-core.md).
+    if (!v.marine) assert.deepEqual(v.weights, [Boolean(b.attributes.mesh_1_name)], `${v.id} weight branch`);
     assert.deepEqual(graphKindsForFamily(v.families[0]), ['propeller']);
   }
   assert.equal(PROPELLER_VARIANTS.length, 23);
