@@ -1,0 +1,20 @@
+2491-   140790531:	0f 10 45 e0          	movups xmm0,XMMWORD PTR [rbp-0x20]
+2492-   140790535:	0f 11 40 10          	movups XMMWORD PTR [rax+0x10],xmm0
+2493-   140790539:	f2 0f 10 45 f0       	movsd  xmm0,QWORD PTR [rbp-0x10]
+2494-   14079053e:	f2 0f 11 40 20       	movsd  QWORD PTR [rax+0x20],xmm0
+2495:   140790543:	c7 40 28 b0 04 00 00 	mov    DWORD PTR [rax+0x28],0x4b0
+2496:   14079054a:	c7 40 2c 00 00 c8 42 	mov    DWORD PTR [rax+0x2c],0x42c80000
+2497:   140790551:	c7 40 30 00 00 48 43 	mov    DWORD PTR [rax+0x30],0x43480000
+2498:   140790558:	48 8b d0             	mov    rdx,rax
+2499:   14079055b:	48 8d 8e 40 03 00 00 	lea    rcx,[rsi+0x340]
+2500:   140790562:	e8 29 43 aa ff       	call   0x140234890
+2501:   140790567:	e9 79 11 00 00       	jmp    0x1407916e5
+2502:   14079056c:	41 0f b6 44 24 08    	movzx  eax,BYTE PTR [r12+0x8]
+2503:   140790572:	41 88 87 cc 0b 00 00 	mov    BYTE PTR [r15+0xbcc],al
+2504:   140790579:	84 c0                	test   al,al
+2505:   14079057b:	74 7c                	je     0x1407905f9
+2506:   14079057d:	49 8b 07             	mov    rax,QWORD PTR [r15]
+2507-   140790580:	48 8b 88 f8 b9 0b 00 	mov    rcx,QWORD PTR [rax+0xbb9f8]
+2508-   140790587:	48 85 c9             	test   rcx,rcx
+2509-   14079058a:	0f 84 55 11 00 00    	je     0x1407916e5
+2510-   140790590:	83 39 04             	cmp    DWORD PTR [rcx],0x4

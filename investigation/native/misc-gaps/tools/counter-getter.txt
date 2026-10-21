@@ -1,0 +1,38 @@
+
+stormworks64.exe:     file format pei-x86-64
+
+
+Disassembly of section .text:
+
+00000001402b7af0 <.text+0x2b6af0>:
+   1402b7af0:	8b 41 04             	mov    eax,DWORD PTR [rcx+0x4]
+   1402b7af3:	c3                   	ret
+   1402b7af4:	cc                   	int3
+   1402b7af5:	cc                   	int3
+   1402b7af6:	cc                   	int3
+   1402b7af7:	cc                   	int3
+   1402b7af8:	cc                   	int3
+   1402b7af9:	cc                   	int3
+   1402b7afa:	cc                   	int3
+   1402b7afb:	cc                   	int3
+   1402b7afc:	cc                   	int3
+   1402b7afd:	cc                   	int3
+   1402b7afe:	cc                   	int3
+   1402b7aff:	cc                   	int3
+   1402b7b00:	48 89 5c 24 10       	mov    QWORD PTR [rsp+0x10],rbx
+   1402b7b05:	48 89 4c 24 08       	mov    QWORD PTR [rsp+0x8],rcx
+   1402b7b0a:	57                   	push   rdi
+   1402b7b0b:	48 83 ec 20          	sub    rsp,0x20
+   1402b7b0f:	48 8b f9             	mov    rdi,rcx
+   1402b7b12:	33 db                	xor    ebx,ebx
+   1402b7b14:	89 19                	mov    DWORD PTR [rcx],ebx
+   1402b7b16:	48 89 59 08          	mov    QWORD PTR [rcx+0x8],rbx
+   1402b7b1a:	89 59 10             	mov    DWORD PTR [rcx+0x10],ebx
+   1402b7b1d:	81 79 10 00 01 00 00 	cmp    DWORD PTR [rcx+0x10],0x100
+   1402b7b24:	74 54                	je     0x1402b7b7a
+   1402b7b26:	48 8b 49 08          	mov    rcx,QWORD PTR [rcx+0x8]
+   1402b7b2a:	48 85 c9             	test   rcx,rcx
+   1402b7b2d:	74 09                	je     0x1402b7b38
+   1402b7b2f:	e8 1c b2 6f 00       	call   0x1409b2d50
+   1402b7b34:	48 89 5f 08          	mov    QWORD PTR [rdi+0x8],rbx
+   1402b7b38:	c7 47 10 00 01 00 0

@@ -2605,14 +2605,16 @@ def heat_exchange(B, E):
                 section("Per-second rates",
                         "Component updates run 60 times per simulated second. The fractions compound, so they are not multiplied by 60. With constant coefficients and nothing else acting, one simulated second leaves 0.161 of the gap between an exchanger's two compartments (time constant 0.547 s), 0.942 of a gap to fixed ambient through the leak alone (16.7 s), 0.835 of a passive radiator's gap to fixed ambient (5.55 s) and 0.581 at the full radiator multiplier of 3 (1.84 s). Through-flow and changing temperatures need the full model stepped 60 times per second."),
                 section("Surrounding temperature",
-                        "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates.",
+                        "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates. "
+                        "A fuel rod hotter than 50 °C is one such source: its strength is 0.25 × min(T − 50, 500) for rod temperature T, weighted by the sample's position relative to the rod, and it counts only for samples in the rod's own compartment. The sample uses the strongest source, not a sum.",
                         "The weather temperature comes from a warmth fraction W between 0 and 1 that depends on world Z, scrolling weather textures, the month and the time of day. Dry air is −15 + 45 × W °C at sea level, rain lowers it, and it falls by 6.5 °C per 1000 m above world zero. "
                         "Water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero, cooler in rain, and changes by at most 1.5 °C per 1000 m of depth. Every exchanger, radiator and engine call passes a flag that keeps wind out of the sample. " + WX_ARTICLE[0].upper() + WX_ARTICLE[1:] + " gives the full equations."),
                 section("Practical setup",
                         "Connect both ports of a side. The exchanger pushes fluid through a side only when its In and Out ports are both connected, and a radiator cools only when both of its fluid ports are connected. A radiator outside any enclosed compartment counts airflow as fan, reaching the maximum term at 80 m/s relative to the wind (2 × 40). Inside a compartment that bonus is skipped and the reference temperature is the compartment's.")],
-               [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips + hx_core + hx_ports + hx_ambient + rad_x + every_vol + [N["law"], N["species_60"], N["t_content"]],
+               [step, floor, rad, air, fan, sample, full_air, refresh] + per_s + tooltips + hx_core + hx_ports + hx_ambient + rad_x + every_vol + [N["law"], N["species_60"], N["t_content"]] +
+               [misc_gaps_native(E)[k] for k in ("h_gate", "h_cap", "h_room", "h_init")],
                ["Native findings come from static decompilation of one build; no in-game measurement was made.", TICK, open_hx,
-                "The complete set of local heat sources that feed the surrounding-temperature sample, and their strengths, was not traced."])
+                "Fuel rods are one decoded local heat source. The other sources that feed the surrounding-temperature sample, and their strengths, were not traced."])
 
     leak_note = "Both compartments also drift toward the surrounding temperature by 0.001 per update, so an idle exchanger slowly settles to ambient: the leak alone has a time constant of 16.7 simulated seconds."
     temps = "Temp A and Temp B read the stored compartment temperatures in °C after this update's exchange and ambient step. Fluid leaving the Out ports was emitted earlier in the same update, so its temperature can differ."
@@ -3980,7 +3982,9 @@ def electricity(B, E):
     si = "A conversion of internal charge to joules or watts was not recovered."
     lo = leftovers_native(E)
     loops = [lo[k] for k in ("sh_visit", "sh_quot", "sh_lo", "sh_hi", "sh_zero", "sh_brake", "sh_self")]
-    emp_src = [lo[k] for k in ("emp_type", "emp_route", "emp_fall", "emp_800", "emp_in", "emp_out", "emp_obj", "emp_queue", "emp_strike")]
+    mg = misc_gaps_native(E)
+    emp_src = [lo[k] for k in ("emp_type", "emp_route", "emp_fall", "emp_800", "emp_in", "emp_out", "emp_obj", "emp_queue", "emp_strike")] + \
+              [mg[k] for k in ("e_type", "e_count", "e_inner", "e_outer", "e_forward", "e_effect", "k_load", "k_four")]
     bridges = ("The force-weighted comparisons hold within one shaft group. Across gearbox and clutch bridges, loops and links back into the same group, speeds combine by the traversal rule under Transmission. "
                "When connector changes rebuild the groups is an open item listed there.")
     loops_s = section("Several bridges and loops",
@@ -4018,7 +4022,10 @@ def electricity(B, E):
                         "An EMP is scene event 116 with a position, a strength and an inner and outer radius. Every electric part of a vehicle body in reach gets trunc(strength × (1 − clamp((d − inner) ÷ (outer − inner), 0, 1))) added to its countdown n. "
                         "d is the distance from the pulse to the body's origin, the same for all of the body's parts.",
                         "The weather update sends 800 with a 100 m inner and a 300 m outer radius; reading it as the lightning strike is an inference. Within 100 m that cuts supply to 0 for 500 updates and restores it fully after 800 updates, 13.33 simulated seconds. "
-                        "At 200 m it adds 400, and from 300 m on nothing. Two object updates send 30 with the same radii, which lowers supply to 0.9 and recovers within 0.5 s, and a queue sends pulses with their own strength and an inner radius of half the outer."),
+                        "At 200 m it adds 400, and from 300 m on nothing. The updates for object kinds 0 and 4, which the game's ANIMAL_TYPE list names shark and kraken, send 30 with the same radii. "
+                        "That lowers supply to 0.9 and recovers within 0.5 s. A queue sends pulses with their own strength and an inner radius of half the outer.",
+                        "The debug spawn_emp action sends the server a request with strength 1200, inner radius 100 m and outer radius 200 m, and the server passes it on unchanged as the EMP scene event. "
+                        "Within 100 m that cuts supply to 0 for 900 updates and restores it after 1200 updates, 20 simulated seconds; at 150 m it adds 600."),
                 section("Rates and units",
                         "Component updates run 60 times per simulated second, so 60 × the charge per update is the charge per simulated second, in internal units. Generator Output already includes that factor. "
                         "The shaft solver weights speed changes by force_emitter_max_force and has no torque or inertia in SI units, so it gives no charge-per-joule figure for mechanical work. "
@@ -4027,8 +4034,8 @@ def electricity(B, E):
                [m_tenth, g_tenth, g_norm, g_cap, r_300, o_classic, o_jet, o_alt, o_start] + reuse + R + shared + [share] + emp_src + loops,
                ["Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. " + si,
                 "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges, loops and links back into one group pass speed and weight as described under Transmission. The model gives no SI torque or inertia.",
-                "Which code fills the queued EMP pulses, which gameplay objects the object kinds 0 and 4 that send 30-count pulses are, and what handles the spawn_emp request were not traced. "
-                "So EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
+                "Which code fills the queued EMP pulses was not traced, and the shark and kraken reading of object kinds 0 and 4 rests on the ANIMAL_TYPE text, not on a constructor that writes the kind, so it is not confirmed. "
+                "EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
                 "Static analysis only.", TICK])
     B.family("electric-battery",
              "Capacity is electric_charge_capacity (1600, 12800, 256000). Each update a battery lends at most 10 × its charge fraction to the network pool, so more batteries supply more per update while a bigger battery lasts longer.",
@@ -4243,7 +4250,8 @@ WINCH_HEADS = (("part-winch-electric-b", "winch_electric_b"), ("part-winch-b", "
 # End pieces no shipped definition names as child_name; the report pairs them with the Large and Huge Winches,
 # which name winch_b instead. The extractor checks both facts.
 UNNAMED_HEADS = ("winch_large_b", "winch_huge_b")
-WINCH_OPEN = "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article."
+WINCH_OPEN = ("The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the "
+              "Winch controls, length and hose connections mechanics article.")
 WINCH_STATIC = "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game."
 
 
@@ -5754,8 +5762,22 @@ def jet_engines(B, E):
                             "Read from definition+0xed4 by the jet update: 0 intake, 1 compressor, 2 combustion chamber, 3 turbine, 4 exhaust, 5 duct (investigation/jet-engines.md).")
     T, P = E.tooltip, E.port
     every = J["identity"] + J["compressor"] + J["chamber"] + J["turbine"] + J["exhaust"] + J["afterburner"]
-    open_net = ("How ducts, splitters and merged assemblies build the neighbour lists was not traced, so the equilibrium pressure, RPS and thrust "
+    open_net = ("How merged and attached assemblies supply the body map that the neighbour search reads was not traced, so the equilibrium pressure, RPS and thrust "
                 "of an assembled engine and its startup time are not predicted from a parts list.")
+    mg = misc_gaps_native(E)
+    links = [mg[k] for k in ("j_up", "j_down", "j_cell", "j_duct")]
+    intake = [mg[k] for k in ("i_gate", "i_h", "i_div", "i_tenth", "i_large", "i_force", "i_damage_gate", "i_source", "i_water")] + [new_issues_native(E)["o_max"]]
+    links_s = section("Neighbours, ducts and splitters",
+                      "Each jet part builds an upstream and a downstream neighbour list from its ports. A port at grid cell p facing n connects only to a part with a port at exactly p + n facing the opposite way, so parts whose meshes merely touch do not connect. "
+                      "The search passes through ducts, jet_engine_component_type 5, and follows every other port of each duct, so all branches of a splitter are searched. "
+                      "Ducts already visited are skipped, which ends a duct loop; each active part the search reaches is added to the list.")
+    intake_s = section("Intakes",
+                       "An intake that the shared grid lookup pairs with no other part replaces its outgoing pressure, after the neighbour average, with 0.1 × v × A. "
+                       "v is its signed speed along its facing direction, including the body's rotation, and A = clamp(1 − 1.5 × h ÷ 40000, 0, 1) for the body's height h, which reaches 0 at 26666.67. "
+                       "There is no clamp at 0, so an intake moving backward gives negative pressure.",
+                       "The large intake, whose force_emitter_blade_physics_length of 1 exceeds 0.75, also pushes along its axis above 5 RPS with 2600 × (RPS − 5) × A and loses (RPS − 5) × 0.1 ÷ 60 RPS per update for it. "
+                       "With the vehicle_damage setting on, the intake's RPS is multiplied each update by clamp(max(1 − m, 0.01), 0, 1)^0.1, m being a source sample at the intake. "
+                       "Under the water surface it is also multiplied by 0.8, and an undamaged intake above 0.5 RPS first sends a damage request of 1 to the routine that spreads overspeed damage through the joined jet parts.")
     open_units = "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units."
     FC_ = force_cap(E)["refs"]
     open_ab = ("Writes to the exhaust's fuel buffer through escaped pointers, generic copies or computed addresses were not traced, so an indirect writer elsewhere is not ruled out. "
@@ -5777,7 +5799,7 @@ def jet_engines(B, E):
              "so the compressor's spin and the turbines' gain feed the chamber's RPS. Exhausts take no part in this.")
     B.category("Jet engines",
                "Modular jets run on internal pressure: the powered compressor builds it, the chamber above 0.5 RPS adds 1600 × throttle × RPS and burns 0.12 × throttle × RPS L/s of jet fuel, turbines turn half of it into RPS, and exhausts push with 32 × (pressure - 1000).",
-               [section("How a jet runs", chain, share),
+               [section("How a jet runs", chain, share), links_s, intake_s,
                 section("Starting",
                         "Turn on the compressor's Compressor input and connect electricity. Each update it requests 0.1 charge, 6 per simulated second, and with full supply gains 0.01 RPS before its 0.99 retention and pressure load. "
                         "The chamber ignites once its RPS is above 0.5; the tooltip's internal pressure threshold does not exist in the decoded branch. Throttle 0 to 1 sets u."),
@@ -5792,9 +5814,9 @@ def jet_engines(B, E):
                         "Pressure, temperature, charge and force are the game's internal units. The force is applied once per update and integrated by the physics solver; do not multiply it by 60. "
                         "The medium turbine's shaft weight of 160 is a solver weight, not a torque in N m.")],
                every + FC_ + [kind("jet_engine_compressor"), T("jet_engine_compressor"), T("jet_engine_combustion_chamber"), P("jet_engine_exhaust_basic", "Thrust Spoiler"),
-                        T("jet_engine_exhaust_rotating")] + ab_fuel,
+                        T("jet_engine_exhaust_rotating")] + ab_fuel + links + intake,
                [static + " " + open_net, open_units,
-                "SI torque, power and efficiency were not recovered. Intake behaviour was not decoded.", TICK])
+                "SI torque, power and efficiency were not recovered. The partner part that switches the intake pressure rule off and the sources behind the intake's source sample were not traced.", TICK])
     B.family("part-jet-engine-compressor",
              "Spins up from electricity and pushes pressure forward: q = 0.2 × (100 × RPS - pressure rise) per update, losing 0.0001 × q RPS for it.",
              [section("Starting",
@@ -7271,7 +7293,7 @@ def weapons(B, E):
     tables = f["guns"] + list(f["shells"].values())
     flight = [f[k] for k in ("muzzle", "age", "g_air", "g_water", "radius", "g_sub", "w_mul", "retain", "life", "gate", "floor")]
     spread = [f[k] for k in ("spread", "quarter", "b_reset", "b_base", "b_len", "b_type", "b_step", "b_floor", "b_one", "d_len")]
-    recoil = [f[k] for k in ("recoil_mul", "recoil_50", "recoil_ev")]
+    recoil = [f[k] for k in ("recoil_mul", "recoil_50", "recoil_ev")] + [misc_gaps_native(E)[k] for k in ("rc_init", "rc_read")]
     heat = [f[k] for k in ("heat_add", "heat_one", "heat_stop", "heat_resume", "heat_cool", "heat_snap")]
     fuse = [f[k] for k in ("fuse_in", "fuse_span", "fuse_off", "fuse_min", "fuse_det")]
     hit = [f[k] for k in ("imp", "imp_04", "imp_inc", "blast_f", "blast_r", "ap", "mass")]
@@ -7288,7 +7310,7 @@ def weapons(B, E):
                    "0.02 for the rotary autocannon and 0.005 for the artillery and Bertha cannons, so a bare gun spreads ±0.0025, ±0.005 or ±0.00125 rad per axis. "
                    "m starts at 1 and each barrel extension of the gun's class subtracts 0.2, down to 0.5: one extension gives 0.8, two 0.6, three or more 0.5. "
                    "Extensions and muzzle brakes move the muzzle forward by 0.25 per voxel of their length; muzzle brakes do not change m, and nothing in the walk changes muzzle speed.")
-    recoil_body = ("A shot submits F = -50 × recoil coefficient × multiplier × V for one update, V being the projectile's velocity and the multiplier 1. "
+    recoil_body = ("A shot submits F = -50 × recoil coefficient × multiplier × V for one update, V being the projectile's velocity. The gun constructor sets the multiplier to 1 and both firing branches read it unchanged. "
                    "The coefficients run 0.1, 0.2, 0.3, 0.5, 2, 4 and 8 from the machine gun to the Bertha, so a stationary gun pushes back with %s internal force units in that order. "
                    "Barrel extensions do not change the coefficient or the multiplier; their added mass changes how the vehicle responds." % ", ".join(f["recoil_fig"][i]["value"] for i in range(7)))
     hit_body = ("The impact magnitude M is B × speed ÷ 1000 for kinetic rounds, 0.4 times that for armour-piercing and 0.65 times that for incendiary. High explosive uses M = B and fragmentation 0.4 × B, "
@@ -7305,8 +7327,8 @@ def weapons(B, E):
                  "At heat 1 the gun stops firing until heat drops below 0.25. Inference with ideal feeding and the trigger held: the rotary autocannon stops on shot %d, the light autocannon on shot %s and the machine gun on shot %s." % (
                      f["rot_shots"], f["heat_fig"][1]["value"].split()[3].rstrip(","), f["heat_fig"][0]["value"].split()[3].rstrip(",")))
     open_body = ("Not decoded: a throughput model for arbitrary belt networks, combining direction, order, junctions and neighbour search; the fastest schedule for cannons whose breech is opened and loaded by external control; "
-                 "the final voxel damage, armour incidence and blast occlusion applied to a target; and what writes the recoil multiplier, so how a muzzle brake reduces recoil as its tooltip says. "
-                 "The walk over barrels and muzzle brakes leaves that multiplier at 1. No figure here was measured in a running game.")
+                 "and what follows the decoded impact magnitude and armour-piercing speed loss: the target voxel damage, the armour-angle response and blast shielding. "
+                 "No direct write to the recoil multiplier besides its initial 1 was found, so the reduction a muzzle brake's tooltip promises is not established. No figure here was measured in a running game.")
     common = tables + flight + spread + recoil + heat + fuse + hit + load + per_gun + R
     B.category("Weapons",
                "Each gun fires from a fixed per-class record: 800 to 1000 m/s for the machine gun and autocannons and 600 to 800 m/s for the cannons, added to the firing body's velocity. "
@@ -8272,13 +8294,14 @@ def sensors_and_radio(B, E):
                            "A target exactly on a plane fails. A separate check keeps it within range of O; it is a sphere, not a sixth plane. From the plane normals, FOV y sets the spread toward ±X and FOV x the spread toward ±Z, each a full width of FOV turns."),
                    section("Angles",
                            "Reported angles do not use the swept frame. They use right R0, forward R1 and up −R2 of the unswept transform: azimuth = atan2(u · R0, u · R1) ÷ 2π and elevation = asin(−u · R2) ÷ 2π, in turns, for the unit direction u to the target. "
-                           "Positive azimuth points toward R0 and positive elevation toward −R2. At zero scan angles the radar looks along R1. Because right × forward = −up, the output axes are mirrored relative to the R basis. A target straight behind reads +0.5 turn.")] if missile else []),
+                           "Positive azimuth points toward R0 and positive elevation toward −R2. At zero scan angles the radar looks along R1. Because right × forward = −up, the output axes are mirrored relative to the R basis. A target straight behind reads +0.5 turn.",
+                           "In the editor the part's straight arrow points along its mesh +Y, which is R1, so the arrow shows the radar's forward direction. R0 is the side axis and R2 the top axis, and positive elevation points toward −R2.")] if missile else []),
                  [radar[bid], radar["radar"], E.tooltip("radar"), E.tooltip(bid), E.attr(bid, "type", "Definition type 56, the advanced radar class."),
                   E.attr(bid, "radar_speed", "Sweep step per update."), fig] + radar_core + [lf[k] for k in FOV_CORE + MASS_CORE] + [f["noise"], rate] + rnd +
                  ([E.attr(bid, "radar_type", "radar_type 1 selects the missile orientation branches in the radar update."), f["r_missile"], f["r_missile_sign"], f["r_missile_basis"]] +
-                  [lo[k] for k in ("ms_frame", "ms_fovy", "ms_fovx", "ms_planes", "ms_az", "ms_el", "ms_axes")] if missile else []),
+                  [lo[k] for k in ("ms_frame", "ms_fovy", "ms_fovx", "ms_planes", "ms_az", "ms_el", "ms_axes")] + [misc_gaps_native(E)[k] for k in ("rd_arrow", "rd_dir")] if missile else []),
                  ["S is the target's physics-body mass, read per physics body; how vehicle mass accounting and the environment shape it are open questions listed under Other components."] +
-                 (["Range, score, scan interval and FOV slider limits match the other advanced radars. Which of R0, R1 and R2 the editor shows as the part's front, side and top was not established, so the rest direction R1 is not tied to a visible face of the model, and no angle was checked in a running game."] if missile else []) +
+                 (["Range, score, scan interval and FOV slider limits match the other advanced radars. The axis assignment comes from the shipped arrow mesh and the native angle code; no angle was checked in a running game."] if missile else []) +
                  (["20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."] if rng == "20000" else []))
 
 
@@ -8299,10 +8322,11 @@ KEELS = ("keel_small", "keel_medium", "keel_large")
 WINDOW_SAMPLES = ("window_1x1", "window_large", "window_porthole", "01_block")
 # Open items, kept here once: keel items on the Keel page, window items on the Windows category.
 KEEL_OPEN = ["The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the cap scale S of the joined bodies, so no heel curve per keel size is given.",
-             "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
+             "The realtime loader parses general_debug.txt, keel lines included, but when its initializer 0x140892b80 runs and any path from the parsed values to the keel force code were not traced. "
+             "The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20, so editing the keel settings has no established effect in this build.",
              "The equations come from static analysis of one build; the game was not run. Internal mass and force units are not calibrated to kilograms and newtons."]
-WINDOW_OPEN = ["Whether damage breaks window glass, whether mesh or material classification changes water ingress or buoyancy, and whether the compartment pressure and flooding solver treats a window differently from a block were not traced; no glass-breaking threshold or window pressure rule is known.",
-               "The search covered every window definition, the type-9 class and its vtable, and executable strings. Glass shader and material references (0x140680528, 0x14068a0e8, 0x1407a6c46) are rendering candidates only. Static analysis of one build; the game was not run."]
+WINDOW_OPEN = ["Windows have ordinary collision voxels and explicit buoyancy surfaces, and glass is a named material, but whether damage breaks window glass and whether broken glass changes sealing, flooding, pressure or buoyancy were not traced; no glass-breaking threshold or window pressure rule is known.",
+               "The search covered every window definition, the type-9 class and its vtable, and executable strings. The glass references 0x140680528 and 0x14068a0e8 are rendering candidates; 0x1407a6c46 registers glass as material 35, and the physics flood string labels an editor option, so neither is a damage or flooding branch. Static analysis of one build; the game was not run."]
 WINDOW_POINTER = "Open questions about glass damage, water ingress and pressure are listed under the Windows category on the parts page."
 _KU, _KP = KW + "asm/rudder-update.asm", KW + "pseudocode/0x1403dfd20.c"
 WHERE.update({
@@ -8572,12 +8596,14 @@ def keels(B, E):
                       "Definition mass 500, 1000 and 2000 changes only the self-righting and memory terms, and only once S exceeds 2000; below that K = S for every size. "
                       "The keels list 29, 147 and 305 voxels. Geometry still changes the assembled mass, inertia and how deep the keel sits, but the 2 m lever of the self-righting pair is the same for all."),
               section("Shipped tuning values",
-                      "general_debug.txt lists eight keel settings, and the executable contains none of their names. The routine uses embedded constants: 200, 2, 100, 40, 1000, 0.002 and 4 equal the file's values, "
+                      "general_debug.txt lists eight keel settings. The game's realtime loader reads every file in data/realtime_values/ and stores each line under its full name, so the keel lines are parsed even though the executable contains none of their names. "
+                      "The keel routine uses embedded constants instead: 200, 2, 100, 40, 1000, 0.002 and 4 equal the file's values, "
                       "but the water force uses limit 100 where keel_lateral_max_acc_scale says 20. Editing the file is not shown to change keel behaviour."),
               section("Operating conditions",
                       "Sideways water resistance is what lets a sail push the hull forward in a crosswind or upwind, so pair keels with sail anchors. keel_force_factor (default 1) scales only the self-righting and memory forces.")],
              core + [x for b in KEELS for x in K["size"][b]] + list(fig["size"].values()) +
-             [fig["water"], fig["water_ex"], fig["heel_ex"], fig["mem_ex"], fig["tuning"]] + K["rt"] + update_rate(E)["findings"][:1] + [T("keel_small"), T("rope_hook_sail")] + force_cap(E)["refs"],
+             [fig["water"], fig["water_ex"], fig["heel_ex"], fig["mem_ex"], fig["tuning"]] + K["rt"] + update_rate(E)["findings"][:1] + [T("keel_small"), T("rope_hook_sail")] + force_cap(E)["refs"] +
+             [misc_gaps_native(E)[k] for k in ("rt_call", "rt_dir", "rt_name")],
              KEEL_OPEN)
 
 
@@ -8634,7 +8660,8 @@ def remaining(B, E):
                         "Window voxels have flags 1, like a plain block's voxel. %s has 1 voxel and 1 buoyancy surface, %s 9 and 9, %s 15 voxels and 46 surfaces; the plain %s has 1 voxel and 6 surfaces. Transparent parts do not drop collision or buoyancy data." % tuple(
                             E.block(b)["name"] for b in WINDOW_SAMPLES)),
                 section("Placement", "Flat windows sit flush with walls; angled and corner pieces close gaps between angled windows.")],
-               [kf["w_factory"], kf["w_factory_b"], kf["w_type"], kf["w_all"]] + [x for b in WINDOW_SAMPLES for x in sample[b]] + [E.tooltip("window_1x1"), E.tooltip("window_corner")],
+               [kf["w_factory"], kf["w_factory_b"], kf["w_type"], kf["w_all"]] + [x for b in WINDOW_SAMPLES for x in sample[b]] + [E.tooltip("window_1x1"), E.tooltip("window_corner")] +
+               [misc_gaps_native(E)[k] for k in ("glass", "flood")],
                WINDOW_OPEN)
 
 
@@ -8787,14 +8814,18 @@ def more_families(B, E):
               "Without noise that is 6 Hz within 250 m (a pulse every 10 updates), 2.4 Hz at 1000 m (25 updates) and 0.2927 Hz at 10000 m (205 updates). "
               "Only the nearest transponder counts; several do not add up. The part's radar_range of 20000 is not a cutoff in this loop."]),
             ("Noise",
-             ["The noise value n comes from a smooth-noise helper with periods 128 and 128, evaluated at a shared counter, at Y = 1. It does not depend on where the transponders are or how far away they are, and one factor multiplies the nearest transponder's term after it is chosen. "
+             ["The noise value n comes from a smooth-noise helper with periods 128 and 128, evaluated at a clock counter, at Y = 1. It does not depend on where the transponders are or how far away they are, and one factor multiplies the nearest transponder's term after it is chosen. "
+              "The scene update advances that counter by the clock multiplier, 1 at start, times the tick difference since its last step. "
               "So the pulse rate wobbles over time in a deterministic pattern rather than with a random draw per update; for small counter values it repeats every 128 counter steps (inference from the reduced model in investigation/force-cap.md). "
-              "Every transponder entry in the shared list counts, whatever its channel or line of sight: the loop tests only that the entry is present."])],
+              "Over those 128 phases the factor stays between %s and %s." % tuple(misc_gaps_native(E)["t_range"]["value"].split(" to ")),
+              "Every transponder entry in the shared list counts, whatever its channel or line of sight: the loop tests only that the entry is present. "
+              "A transponder that is switched off or loses power marks its entry inactive and releases its component handle, but the locator does not read that mark."])],
            [T("transponder_locator"), P("transponder_locator", "Transponder Pulse"), E.realtime("transponder_variance", "Name suggests transponder noise."),
             A("transponder_locator", "logic_gate_type", "Logic case 55, the locator evaluator."), A("transponder_locator", "radar_range", "Not read as a distance cutoff by the locator loop.")] +
-           [sf[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_period", "l_counter", "l_grad", "l_clamp", "l_acc", "l_rate")] + [update_rate(E)["findings"][0]],
-           ["The noise input is a shared counter, but how fast that counter advances and the helper's exact output bounds were not reproduced. "
-            "When a disabled or destroyed transponder's entry leaves the shared list, and which loaded or remote transponders fill it, was not traced."])
+           [sf[k] for k in ("l_off", "l_k", "l_term", "l_max", "l_noise", "l_period", "l_counter", "l_grad", "l_clamp", "l_acc", "l_rate")] + [update_rate(E)["findings"][0]] +
+           [misc_gaps_native(E)[k] for k in ("t_step", "t_off", "t_range")],
+           ["The noise factor range covers the ordinary integer counter phases; a bound over counter overflow and every clock mode was not established. "
+            "The locator does not test the inactive mark, so when a disabled or destroyed transponder's entry stops counting, and which loaded or remote transponders fill the list, was not traced."])
 
     # Radios: the shared receive routine, investigation/radio.md.
     rf = radio_native(E)
@@ -8880,8 +8911,24 @@ def more_families(B, E):
            [("Setup and interactions", "Feed its outputs to a fuel cell or a liquid fuel rocket's tanks.")], [T("electrolyser"), T("liquid_rocket_small")], [])
 
     # Jet engine parts; the decoded parts are in jet_engines().
-    simple("jet-intake", "More airflow when moving through the air; the large intake's turbofans add thrust.",
-           [("Variant tradeoffs", "Only the large intake's tooltip mentions additional thrust from turbo fans.")], [T("jet_engine_intake_small"), T("jet_engine_intake_large")], [])
+    mg = misc_gaps_native(E)
+    simple("jet-intake", "An unpaired intake sets its outgoing pressure to 0.1 × forward speed × an altitude factor; the large intake also pushes along its axis above 5 RPS.",
+           [("Ram pressure",
+             "Each update an intake that the shared grid lookup pairs with no other part replaces its outgoing pressure with 0.1 × v × A, after averaging with its neighbours. "
+             "v is the signed speed along the intake's facing direction at its position, so flying faster raises the pressure and moving backward makes it negative. "
+             "A = clamp(1 − 1.5 × h ÷ 40000, 0, 1), with h the body's height, falls to 0 at 26666.67."),
+            ("Variant tradeoffs",
+             "Only the large intake's tooltip mentions additional thrust from turbo fans. In the code the large intake's force_emitter_blade_physics_length of 1 passes a 0.75 gate that the small intake's 0.5 does not. "
+             "Above 5 RPS the large intake then pushes along its axis with 2600 × (RPS − 5) × A in internal force units and loses (RPS − 5) × 0.1 ÷ 60 RPS per update."),
+            ("Water and damage",
+             "With the vehicle_damage setting on, the intake's RPS is multiplied each update by clamp(max(1 − m, 0.01), 0, 1)^0.1, m being a source sample at the intake. "
+             "Below the water surface it is also multiplied by 0.8, and an undamaged intake above 0.5 RPS first sends a damage request of 1 to the routine that spreads overspeed damage through the joined jet parts.")],
+           [T("jet_engine_intake_small"), T("jet_engine_intake_large"),
+            A("jet_engine_intake_small", "force_emitter_blade_physics_length", "Definition+0x868; 0.5 fails the intake's 0.75 force gate."),
+            A("jet_engine_intake_large", "force_emitter_blade_physics_length", "Definition+0x868; 1 passes the intake's 0.75 force gate.")] +
+           [mg[k] for k in ("i_gate", "i_h", "i_div", "i_tenth", "i_large", "i_force", "i_damage_gate", "i_source", "i_water")] + [new_issues_native(E)["o_max"]],
+           ["Static decompilation of one build; the game was not run. Pressure and force are internal units.",
+            "Open questions about the intake's pairing partner and its source sample are listed under the Jet engines category."])
 
     # Weapons singletons.
     simple("part-gun-rocket-launcher", "Four rockets, no reload; rockets can be shot down in flight.",
@@ -10385,7 +10432,7 @@ NU_ASM = {
 NU_PARTS = ("steam_nuclear_fuel_assembly", "steam_nuclear_fuel_rod", "steam_nuclear_control_rod")
 NU_STATIC = ("Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: "
              "reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.")
-NU_POINTER = ("Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the "
+NU_POINTER = ("Open questions about update order, contamination decay, dose units and the damage event are listed in the "
               "Nuclear fuel assemblies and control rods mechanics article.")
 
 
@@ -10701,6 +10748,7 @@ def nuclear(B, E):
     T, P, A = E.tooltip, E.port, E.attr
     R = update_rate(E)["findings"]
     h = heat_exchangers(E)
+    mg = misc_gaps_native(E)
     ident = [f["slot"], f["dispatch"], f["loader"], f["select"]]
     reaction = [f[k] for k in ("a_rod", "a_base", "a_loop", "a_fuel", "a_ctl", "a_quarter", "a_nb", "a_sup", "a_next", "a_post", "a_bind", "r_relax", "r_base", "r_cap")]
     coolant = [f[k] for k in ("a_amount", "a_axis", "a_fill", "a_k", "a_cool", "a_100", "a_half", "a_rad")] + [h["q_liquid"]]
@@ -10718,6 +10766,7 @@ def nuclear(B, E):
               section("Neighbours",
                       "The assembly reads only the four couplings of type control_rod named x+, x-, z+ and z-; there is no distance search. Each coupling holds a fuel assembly or a control rod, "
                       "so an assembly with four fuel neighbours has no coupling left for a control rod. The couplings sit at (0, 6, 0) on the assembly and (0, 0, 0) on the control rod, with orientations 0, 1, 4 and 5 and alignment required; none is diagonal. "
+                      "Two couplings link only when each sits exactly at the other's grid cell plus its outward direction, one cell apart and facing each other, with alignment vectors equal or exactly opposite. There is no distance or angle tolerance. "
                       "Inference: in a normal block grid the neighbours are the four horizontal cardinal cells, and a control rod between two assemblies counts for both."),
               section("Settling and runaway layouts",
                       "Inference from these steps, for equal rods with n fuel neighbours and c control rods at insertion I and fuel held fixed: a disturbance grows by g = 0.999 × (1 − 0.01 × c × I) × (0.002 × n + 0.997002) per update. "
@@ -10731,6 +10780,7 @@ def nuclear(B, E):
                       "The coolant also gains 0.001 × the rod's working reaction ÷ A of radiation contamination per update, which a radiation detector in that compartment reads."),
               section("Fuel Rod Temperature", "The output is the inserted rod's temperature after the coolant step, or 0 with no rod.")],
              ident + [f["names"][0]] + reaction + coolant + [f["a_out"], f["a_couplings"], f["c_couplings"], f["x_crit"], f["x_worked"], f["x_temp"], S["vox"]["steam_nuclear_fuel_assembly"]] + R
+             + [mg[k] for k in ("c_cell", "c_back", "c_bipolar", "c_flag", "c_def")]
              + [T("steam_nuclear_fuel_assembly"), P("steam_nuclear_fuel_assembly", "Fuel Rod Temperature"), P("steam_nuclear_fuel_assembly", "Release Fuel Rod"),
                 A("steam_nuclear_fuel_assembly", "nuclear_component_type", "Value 0, named fuel assembly by the editor selector.")],
              [NU_STATIC, NU_POINTER, TICK])
@@ -10745,7 +10795,9 @@ def nuclear(B, E):
                       "Each update T rises by 0.1 × r and F falls by 1e-8 × r, then T moves 0.001 of the way toward the surrounding temperature, which the rod samples every 16 updates and ramps over 16 like the heat exchangers. Insertion acts only through r. "
                       "At a constant r a full rod lasts %s s (%s simulated hours) at r = 50 and %s s (%s hours) at r = 1. Inference: immersed in coolant held at Ta (liquid and total amount 100), T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r; with no coolant exchange at Ta + 99.9 × r. "
                       "At the cap and Ta = 20 that is %s in coolant, above the damage limit." % (
-                          _g(life50, 5), _g(life50 / 3600, 4), _g(life50 * 50, 7), _g(life50 * 50 / 3600, 4), _g(20 + 0.0999 * 50 / 0.001999, 5))),
+                          _g(life50, 5), _g(life50 / 3600, 4), _g(life50 * 50, 7), _g(life50 * 50 / 3600, 4), _g(20 + 0.0999 * 50 / 0.001999, 5)),
+                      "Above 50 °C the rod is also a local heat source of strength 0.25 × min(T − 50, 500) for the surrounding-temperature samples of parts in its own compartment. "
+                      "The decoded branch updates the source only above 50 and contains no reset for a rod that cools."),
               section("Damage",
                       "When T is strictly above 1500 after heating, the first such update raises damage by 1 and then every 300 hot updates (5 simulated seconds) add 1 more, up to 50. Cooling does not reset that counter. "
                       "Damage d also removes 0.0001 × min(0.1 × d, 1) fuel per update while F is larger, up to 0.006 per simulated second, and deposits 10 times that as persistent contamination at the rod. "
@@ -10756,6 +10808,7 @@ def nuclear(B, E):
              ident + [f["names"][1], f["r_relax"], f["r_loose"], f["r_base"], f["r_cap"], f["r_heat"], f["r_fuel"], f["r_tick"], f["r_env"], f["temp0"], f["ramp0"], f["spawn"],
                       f["r_1500"], f["r_hit"], f["r_300"], f["r_setter"], f["r_event"], f["r_record"], f["r_dloss"], f["r_dep"], f["s_dep"], f["r_src"], f["r_strength"],
                       f["s_10"], f["s_200"], f["s_fall"], f["x_life"], f["x_temp"], f["x_damage"], f["x_radius"], f["a_k"], f["a_100"], h["ambient"], S["vox"]["steam_nuclear_fuel_rod"]] + R
+             + [mg[k] for k in ("h_gate", "h_cap", "h_room", "h_init")]
              + [T("steam_nuclear_fuel_rod"), A("steam_nuclear_fuel_rod", "nuclear_component_type", "Value 1, named fuel rod by the editor selector.")] + weather_native(E)["vd"],
              [NU_STATIC, NU_POINTER, TICK])
 
@@ -10770,7 +10823,7 @@ def nuclear(B, E):
                       "How many fuel neighbours an assembly has matters as much (see the fuel assembly page): with two, c × I above %s settles the reaction; with three, above %s. "
                       "In the report's 2 by 2 block with one control rod per assembly, coolant at 20: %s." % (_g(S["crit"][2], 1), _g(S["crit"][3], 4), ex))],
              ident + [f["names"][2], f["c_damage"], f["c_input"], f["c_down"], f["c_up"], f["c_store"], f["a_ctl"], f["a_quarter"], f["a_sup"], f["a_next"], f["a_bind"],
-                      f["c_couplings"], f["x_stroke"], f["x_crit"], f["x_worked"]] + R
+                      f["c_couplings"], f["x_stroke"], f["x_crit"], f["x_worked"]] + R + [mg[k] for k in ("c_cell", "c_back", "c_bipolar", "c_def")]
              + [T("steam_nuclear_control_rod"), P("steam_nuclear_control_rod", "Insertion Target"), P("steam_nuclear_control_rod", "Insertion"),
                 A("steam_nuclear_control_rod", "nuclear_component_type", "Value 2, named control rod by the editor selector.")],
              [NU_STATIC, NU_POINTER, TICK])
@@ -11023,8 +11076,13 @@ def composite(B, E):
                       "Video is a fixed descriptor copied field by field: no pixels are copied and nothing is allocated. Audio is copied sample by sample into a buffer the receiving anchor owns, reallocated as count × 4 bytes when the sample count changes, so the two ends never share one sample buffer."),
               section("Electric cable pulleys",
                       "Electric Cable Pulleys are rope hooks of subtype 9. When either side of a link is a pulley, the same copies run through the pulley's own buffers, so a cable through a pulley still carries every channel. "
-                      "The on/off value takes the same route through the pulley's own on/off bytes.")],
+                      "The on/off value takes the same route through the pulley's own on/off bytes.",
+                      "Each end stores its peer per side: a connection named Rope 2 uses the second link slot and any other the first, so the two ends of one link can use different slots. "
+                      "A pulley hands what one side receives straight to the peer on its other side in the same pass, with no delay of its own. "
+                      "A value therefore crosses several pulleys in one pass when they are processed in route order, and each hop whose next pulley is processed earlier adds a pass: passes = 1 + the number of such reversals. "
+                      "That order depends on the vehicle, so a cable route has no fixed delay per pulley.")],
              [f[k] for k in ("a_bind", "a_peer", "a_state", "a_onoff", "a_video", "a_audio", "a_comp", "a_pulley", "transport", "veh_pass", "flush", "vid_copy", "aud_alloc", "aud_copy")]
+             + [misc_gaps_native(E)[k] for k in ("cl_name", "cl_two", "cl_reset", "cl_back", "cl_copy", "cl_passes")]
              + [fluid_network(E)["r_pass"]] + R[:4] + [T(bid), A(bid, "type", "Type 48, the rope-hook component."), A(bid, "logic_gate_subtype", "Rope-hook subtype 2, the electrical cable anchor."),
                                                    A("winch_pulley_cable", "logic_gate_subtype", "Subtype 9, routed through the pulley's own buffers.")] + ports,
              [CO_STATIC, CO_POINTER])
@@ -11222,7 +11280,7 @@ def leftovers_native(E):
                       "Loaded into xmm10 and passed as the outer radius of the strike pulse. At 200 m the pulse gives 800 × (1 − 100 ÷ 200) = 400; at 300 m and beyond it gives 0.")
     t["emp_obj"] = code(F_OBJ_PULSE_A, 0x140758F57, "41b81e000000", "Object update EMP strength", "30",
                         "Two object updates, 0x140757ef0 and 0x14075a190 (strength also at 0x14075aec1), send pulses of 30 with the same 100 m inner and 300 m outer radius (0x140758ee2, 0x140758eea). "
-                        "The dispatcher 0x14074347e-0x1407434bb selects them for object kinds 4 and 0 at object +0x208. Electricity lists the gameplay identity of those kinds as open.")
+                        "The dispatcher 0x14074347e-0x1407434bb selects them for object kinds 4 and 0 at object +0x208, which the ANIMAL_TYPE text names kraken and shark (investigation/misc-gaps.md).")
     t["emp_queue"] = code(F_PULSE_QUEUE, 0x1405EC2E4, "e8b70dc4ff", "Queued EMP pulses", "variable strength and outer radius; inner = outer ÷ 2",
                           "0x1405e8fb0 drains 40-byte records from a queue at object +0x5f00 (count at +0x5f10) and sends each as an EMP with its own strength and outer radius and half that as the inner radius. "
                           "Electricity lists the code that fills the queue as open. 0x140851630 (call at 0x140856002) forwards a received payload and is not a separate physical source.")
@@ -11774,6 +11832,272 @@ def drivetrain_gaps_native(E):
                                "Without shaft feedback the local speed decays toward 0 by the factor 0.99 per update; a connected shaft can keep driving it backward." + rep,
                                [t["c_gate"], t["c_cand"], t["c_abs"]])
     E.drivetrain_gaps = t
+    return t
+
+
+# Remaining part questions: EMP request, realtime reader, glass label, recoil field, jet ports and intake, fuel rod heat source,
+# coupling matcher, transponder clock, cable links and rope removal; files under investigation/native/misc-gaps/.
+MG_REPORT = "investigation/misc-gaps.md"
+_MG = "misc-gaps/"
+F_GAME_EVENTS = 0x14078DB30    # game-to-logic event handler; the spawn_emp case builds an EMP request
+F_SPAWN_EMP_TYPE = 0x140388E90  # c_event_game_to_logic_spawn_emp type getter (leaf): returns 0x37
+F_SERVER_REQUESTS = 0x140851630  # server request dispatcher; case 0x41 forwards the EMP request to the scene events
+F_RT_LOADER = 0x1401F12E0      # data/realtime_values/ loader
+F_RT_RECORD = 0x1401F1550      # realtime line parser: type, name and value, replaced by full-name comparison
+F_RT_CALLER = 0x140892B80      # initializer that calls the loader on entry
+F_MATERIAL_NAMES = 0x1407A0230  # material-name registration
+F_GUN_CTOR = 0x140423A90       # gun component constructor
+F_JET_LINKS = 0x1404B2270      # jet neighbour list construction
+F_JET_FOLLOW = 0x1404B27AB     # chained unwind chunk of the jet port follower 0x1404b2670
+F_HEAT_SOURCE = 0x14030DC30    # local heat-source constructor and registration
+F_COUPLING = 0x1404B3270       # shared coupling matcher
+F_COUPLING_FLAGS = 0x1402F7D50  # coupling descriptor binder: alignment flags at +0x5c and +0x5d
+F_CLOCK_INIT = 0x1402B6BF0     # clock initializer: multiplier 1, counter 0
+F_CLOCK_STEP = 0x1402B6C50     # clock update: counter += multiplier × tick delta
+F_ROPE_LINK_B = 0x140522030    # second rope link constructor
+F_ROPE_RESET = 0x1403B4410     # rope-hook link reset (leaf)
+F_ROPE_REMOVE = 0x1405288D0    # rope removal request
+F_ROPE_DELETE = 0x14052C290    # rope removal helper: deleted flag and endpoint state
+MG_PSEUDO = {
+    F_GAME_EVENTS: "14078db30.c", F_SERVER_REQUESTS: "140851630.c", F_RT_LOADER: "1401f12e0.c", F_RT_RECORD: "1401f1550.c",
+    F_JET_LINKS: "1404b2270.c", F_JET: "140350f40.c", F_HEAT_SOURCE: "14030dc30.c", F_NUCLEAR: "14041dc40.c", F_COUPLING: "1404b3270.c",
+    F_COUPLING_FLAGS: "1402f7d50.c", F_HOSE_LINK: "140521500.c", F_ROPE_LINK_B: "140522030.c", F_ROPE_REMOVE: "1405288d0.c", F_ROPE_DELETE: "14052c290.c",
+}
+MG_NOISE = "investigation/native/misc-gaps/tools/transponder-noise-phases.json"
+
+
+def _mg_cite(E, func, address, hexbytes, listing, key=None):
+    """Cite misc-gaps listing lines of the cited bytes, refusing to replace another listing's citation."""
+    k = (func, address if key is None else key)
+    old = WHERE.pop(k, None)
+    _wheel_cite(E, func, address, hexbytes, key=key, listing=_MG + listing)
+    if MG_PSEUDO.get(func):
+        WHERE[k] += "; ../" + _MG + "pseudocode/" + MG_PSEUDO[func]
+    if old is not None and old != WHERE[k]:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+
+
+def locator_noise(n, x):
+    """Binary32 reconstruction of the locator noise at integer counter phase x, Y = 1, with every gradient component -1."""
+    F = lambda v: struct.unpack("<f", struct.pack("<f", v))[0]
+    a, b, c = (n.f32(v) for v in (0x140BB0540, 0x140BB069C, 0x140BB064C))
+
+    def fade(t):
+        s = F(F(F(F(t * a) - b) * t) + c)
+        for _ in range(3):
+            s = F(s * t)
+        return s
+    sx, sy = fade(F(x / 128)), fade(F(1 / 128))
+    lo = F(F(F(F(1 + x - 128) - F(1 + x)) * sx) + F(1 + x))
+    hi = F(F(F(F(1 - 128 + x - 128) - F(1 - 128 + x)) * sx) + F(1 - 128 + x))
+    v = F(F(F(hi - lo) * sy) + lo)
+    return v, F(F(F(v * n.f32(0x140BAF940)) * n.f32(0x140BAFAD0)) + 1)
+
+
+def misc_gaps_native(E):
+    """EMP request, realtime reader, glass label, recoil field, jet ports and intake, fuel rod heat, coupling matcher,
+    transponder clock, cable links and rope removal, verified once and shared."""
+    if hasattr(E, "misc_gaps"):
+        return E.misc_gaps
+    n = E.native
+    if not (E.root / MG_REPORT).is_file():
+        raise ValueError("Report missing: " + MG_REPORT)
+    if n.raw(F_SPAWN_EMP_TYPE, 6).hex() != "b837000000c3" or _rtti(n, 0x140B52C18) != "c_event_game_to_logic_spawn_emp":
+        raise ValueError("spawn_emp event type getter or vtable changed")
+    if _rtti(n, 0x140B680B0) != "c_client_to_server_request_spawn_emp":
+        raise ValueError("EMP request vtable changed")
+    if n.cstring(0x140B599D0) != "allow_bipolar_alignment" or n.cstring(0x140B59858) != "alignment_required":
+        raise ValueError("Coupling alignment flag names moved")
+    if n.raw(F_CLOCK_INIT + 0x15, 7).hex() != "48c70101000000" or n.raw(F_COUNTER, 4).hex() != "8b4104c3":
+        raise ValueError("Clock initializer or counter getter changed")
+    rep = " Report: %s." % MG_REPORT
+
+    def code(func, listing, address, hexbytes, label, value, detail):
+        _mg_cite(E, func, address, hexbytes, listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, listing, address, hexbytes, target, label, detail, kind="f32"):
+        _mg_cite(E, func, address, hexbytes, listing)
+        return E.operand(func, address, hexbytes, target, label, detail + rep, kind=kind)
+
+    def name(func, listing, ref, hexbytes, address, expected, label, detail):
+        _mg_cite(E, func, ref, hexbytes, listing, key=address)
+        return E.string(func, address, expected, label, detail + rep)
+
+    t = {}
+    # Debug EMP request and the animal pulse producers.
+    req = "asm/14078db30.asm"
+    t["e_type"] = code(F_GAME_EVENTS, req, 0x14079050B, "48c7400841000000", "Debug EMP request type", "0x41",
+                       "The spawn_emp case of the game-to-logic handler (event type 0x37, from the getter 0x140388e90 of c_event_game_to_logic_spawn_emp) takes a position (0x1404e0a40) and builds a c_client_to_server_request_spawn_emp of type 0x41 "
+                       "(vtable 0x140b680b0, installed at 0x140790513), then sends it (0x140790562).")
+    t["e_count"] = code(F_GAME_EVENTS, req, 0x140790543, "c74028b0040000", "Debug EMP request strength", "1200",
+                        "Stores the integer strength 1200 at request+0x28, the same slot the EMP scene event reads as its strength.")
+    t["e_inner"] = code(F_GAME_EVENTS, req, 0x14079054A, "c7402c0000c842", "Debug EMP request inner radius", "100",
+                        "Stores binary32 100 (bytes 0000c842) at request+0x2c, the inner radius.")
+    t["e_outer"] = code(F_GAME_EVENTS, req, 0x140790551, "c74030000048 43".replace(" ", ""), "Debug EMP request outer radius", "200",
+                        "Stores binary32 200 (bytes 00004843) at request+0x30, the outer radius. These are the parameters of a debug event, not a Lua API, and the server's access checks on the request are outside this decode.")
+    t["e_forward"] = code(F_SERVER_REQUESTS, "asm/140851630.asm", 0x140856002, "e899709dff", "Server EMP request forwarding", "call 0x14022d0a0",
+                          "Case 0x41 of the server request dispatcher walks the client scene collection and passes the request's position, strength and both radii unchanged to the EMP scene event constructor 0x14022d0a0.")
+    t["e_effect"] = E.derived("Debug EMP at the centre", "no supply for 900 updates, full again after 1200 updates (20 s)",
+                              "Within 100 m the request adds 1200 to each electric part's countdown n, so supply max(0, (300 − n) ÷ 300) stays 0 for 900 updates (15 s) and is full again after 1200 updates (20 s). "
+                              "At 150 m it adds 1200 × (1 − 50 ÷ 100) = 600; from 200 m on nothing." + rep,
+                              [t["e_count"], t["e_inner"], t["e_outer"], t["e_forward"]])
+    disp = "asm/14073f890.asm"
+    t["k_load"] = code(F_COORD, disp, 0x14074347E, "418b8108020000", "Object kind load", "object+0x208",
+                       "The object update dispatcher loads the kind at object+0x208, tests 0 (0x140743485) and calls 0x14075a190 (0x140743493). "
+                       "The shipped ANIMAL_TYPE help text in the executable lists 0 = shark, 1 = whale and 4 = kraken, so kind 0 is read as the shark family. "
+                       "That reading rests on the shared enumeration; it does not separate ordinary sharks from megalodons.")
+    t["k_four"] = code(F_COORD, disp, 0x1407434AC, "83f804", "Object kind 4 test", "4",
+                       "Tests kind 4 and calls 0x140757ef0 (0x1407434bb), the update read as the kraken's from the same ANIMAL_TYPE text. Both updates send the 30-count EMP.")
+    # Realtime values reader.
+    t["rt_call"] = code(F_RT_CALLER, "asm/140892b80.asm", 0x140892B93, "e848e795ff", "Realtime loader call", "call 0x1401f12e0",
+                        "The initializer 0x140892b80 calls the loader on entry.")
+    t["rt_dir"] = name(F_RT_LOADER, "asm/1401f12e0.asm", 0x1401F1346, "488d15db799900", 0x140B88D28, "data/realtime_values/", "Realtime directory",
+                       "The loader enumerates this directory, reads each file (0x140183d60) and passes it to the line parser 0x1401f1e40.")
+    t["rt_name"] = code(F_RT_RECORD, "asm/1401f1550.asm", 0x1401F1771, "e86ac37a00", "Realtime record name comparison", "full-name byte comparison",
+                        "The record parser splits a line into type, name and value and stores or replaces the value by comparing the whole name (test at 0x1401f1776, je at 0x1401f1778). "
+                        "No name has to occur in the executable for its line to be parsed, so the keel names' absence from the executable does not mean general_debug.txt is skipped.")
+    # Glass and flood labels.
+    t["glass"] = name(F_MATERIAL_NAMES, "asm/1407a0230.asm", 0x1407A6C46, "488d1533cc3500", 0x140B03880, "glass", "Glass material name",
+                      "Registered with material identifier 35 (mov edx at 0x1407a6c5d) through 0x1401d2d10 (call at 0x1407a6c65). This is a material label; the damage and compartment code that would use it is outside this decode.")
+    t["flood"] = name(F_NU_SELECT, "asm/140872de0.asm", 0x1408792FA, "488d15e7542c00", 0x140B3E7E8, "physics flood", "Physics flood label",
+                      "A label registration in the editor property panel (call at 0x140879319), not the flooding solver.")
+    # Recoil multiplier writers.
+    ctx = "tools/report-instruction-context.txt"
+    t["rc_init"] = code(F_GUN_CTOR, ctx, 0x140423CF1, "48c78780030000 0000803f".replace(" ", ""), "Recoil multiplier initial value", "1",
+                        "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0.")
+    t["rc_read"] = code(F_GUN, ctx, 0x140427F21, "f30f108680030000", "Second recoil multiplier read", "component+0x380",
+                        "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. "
+                        "Stores through adjusted pointers, bulk copies or deserialization are not covered by that search.")
+    # Jet neighbour lists and the intake.
+    links = "asm/1404b2270.asm"
+    follow = "asm/jet-follow-complete.asm"
+    t["j_up"] = code(F_JET_LINKS, links, 0x1404B2452, "488d8308040000", "Jet upstream neighbour list", "component+0x408",
+                     "The builder visits each active jet part of the body, transforms the definition's port positions and directions (list at definition+0xed8) by the part's grid orientation and position, "
+                     "and calls the port follower 0x1404b2670 (0x1404b2476) to fill this list.")
+    t["j_down"] = code(F_JET_LINKS, links, 0x1404B25E6, "488d8320040000", "Jet downstream neighbour list", "component+0x420",
+                       "The same walk over the second port list (definition+0xef0) fills the downstream list (call at 0x1404b260a).")
+    t["j_cell"] = code(F_JET_FOLLOW, follow, 0x1404B28E5, "3b442450", "Jet port cell match", "exact integer cell",
+                       "The follower looks up the cell port position + port direction in the body's component map. A candidate must have a port at exactly that cell (x here, y at 0x1404b28f6, z at 0x1404b2903) "
+                       "facing the opposite way (negations at 0x1404b2917, 0x1404b291b and 0x1404b291d, then equality tests). There is no distance tolerance, so touching meshes alone do not connect.")
+    t["j_duct"] = code(F_JET_FOLLOW, follow, 0x1404B299A, "4183b8d40e000005", "Jet duct pass-through", "jet_engine_component_type 5",
+                       "A matched duct is added to a visited set and the walk continues from each of its other ports (second type test at 0x1404b2b17, recursive call at 0x1404b2ce4), "
+                       "so a splitter's branches are all followed and a duct loop ends at the visited set. A matched active part is appended to the list being filled. Only ducts enter the visited set.")
+    jet = "asm/140350f40.asm"
+    t["i_gate"] = code(F_JET, jet, 0x140353971, "4c39bfe0040000", "Intake pressure branch gate", "component+0x4e0 empty",
+                       "The intake branch runs only while +0x4e0 is null. The initializer fills it from the shared grid lookup 0x140329540 (call at 0x140350be4, store at 0x140350be9); what that partner is in play is outside this decode.")
+    t["i_h"] = op(F_JET, jet, 0x140353AC4, "f20f59051cc78500", 0x140BB01E8, "Intake altitude factor scale",
+                  "A = clamp(1 − 1.5 × h ÷ 40000, 0, 1), h being the body transform's height (+0x80), not a sample at the intake mouth.", kind="f64")
+    t["i_div"] = op(F_JET, jet, 0x140353ACC, "f20f5e05acca8500", 0x140BB0580, "Intake altitude factor span",
+                    "Divides 1.5 × h before the 0 to 1 clamp, so A reaches 0 at h = 26666.67.", kind="f64")
+    t["i_tenth"] = op(F_JET, jet, 0x140353D37, "f3440f100d90bd8500", 0x140BAFAD0, "Intake pressure factor",
+                      "After the neighbour average the intake overwrites its outgoing pressure with 0.1 × v × A (multiplies at 0x140353d4f and 0x140353d5a, store to +0x1d0 at 0x140353d5e). "
+                      "v is the signed dot product of the intake's facing direction with the velocity at the intake, body velocity plus the angular term. There is no clamp at 0, so backward motion gives negative pressure.")
+    t["i_large"] = op(F_JET, jet, 0x140353DB1, "0f2f05f8bf8500", 0x140BAFDB0, "Intake force size gate",
+                      "Compares force_emitter_blade_physics_length (definition+0x868) with this; only a larger value (jbe at 0x140353db8 skips) takes the force branch. The large intake has 1, the small one 0.5.")
+    t["i_force"] = op(F_JET, jet, 0x140353DE8, "f30f1005 90ca8500".replace(" ", ""), 0x140BB0880, "Intake axial force factor",
+                      "Above 5 RPS (r = component+0x1bc, threshold loaded at 0x140353d81) the large intake builds an axial force 2600 × (r − 5) × A, submits it through 0x1401a7c70 when the global force gate 0x140ceb6ff is set, "
+                      "and lowers its RPS by (r − 5) × 0.1 ÷ 60 per update (0x140353e1a-0x140353e27). Force in internal units.")
+    t["i_damage_gate"] = code(F_JET, jet, 0x140353EA2, "80784a00", "Intake water branch gate", "vehicle_damage, settings+0x4a",
+                              "The water and source branch runs only with the vehicle_damage setting on (je at 0x140353ea6).")
+    t["i_source"] = op(F_JET, jet, 0x140353D21, "f30f5f152fbc8500", 0x140BAF958, "Intake source sample floor",
+                       "D = clamp(max(1 − m, 0.01), 0, 1)^0.1, m being the value the source sampler 0x14030e1f0 returns at the intake (call at 0x140353d14, power call at 0x140353d47). "
+                       "In the water branch r is multiplied by D every update (0x140354018). Which sources that sampler reads is outside this decode.")
+    t["i_water"] = op(F_JET, jet, 0x140354008, "f30f5905c0bd8500", 0x140BAFDD0, "Submerged intake speed factor",
+                      "When the wave surface sampled by 0x1402bbbb0 is above the intake (comisd at 0x140353fa9), r is multiplied by this before D. "
+                      "First, an undamaged intake above 0.5 RPS passes damage + 1 to the jet damage propagation routine 0x140355450 (inc at 0x140353fd7, call at 0x140353fe1).")
+    # Fuel rod local heat source.
+    rod = "asm/14041dc40.asm"
+    t["h_gate"] = code(F_NUCLEAR, rod, 0x14041E540, "410f2fc5", "Fuel rod heat source threshold", "T > 50",
+                       "The fuel rod branch compares the rod temperature (+0x428) with 50 (xmm13, loaded from 0x140bb0740 at 0x14041dfd3) and updates its existing local heat source only above it (jbe at 0x14041e544).")
+    t["h_cap"] = op(F_NUCLEAR, rod, 0x14041E5D5, "f30f100d53227900", 0x140BB0830, "Fuel rod heat source cap",
+                    "strength = 0.25 × min(T − 50, 500): subtraction at 0x14041e5d0, minss at 0x14041e5dd, × 0.25 (xmm14, loaded from 0x140bafbbc at 0x14041debd) at 0x14041e5f2, store to source+0x118 at 0x14041e5f7. "
+                    "This is the source strength before the sampler's position weighting and maximum, not a temperature given to another part.")
+    t["h_room"] = code(F_NUCLEAR, rod, 0x14041E61E, "48898820010000", "Fuel rod heat source compartment", "source+0x120",
+                       "Publishes the rod's enclosing compartment pointer with the source, so a sample counts it only when its own enclosing pointer matches. A rod with no source yet creates one through 0x14030dc30 (0x14041e63d).")
+    t["h_init"] = code(F_HEAT_SOURCE, "asm/14030dc30.asm", 0x14030DD2D, "c787180100000000 2042".replace(" ", ""), "Heat source initial strength", "40",
+                       "The source constructor starts the strength at binary32 40 and registers the source in the collection the surrounding-temperature sample 0x14030fd60 reads. "
+                       "The rod branch updates an existing source only above 50 and holds no reset or removal step, so the hot formula says nothing about emission after cooling.")
+    # Nuclear coupling matcher.
+    cm = "asm/1404b3270.asm"
+    t["c_cell"] = code(F_COUPLING, cm, 0x1404B392A, "3b4308", "Coupling cell match", "pB = pA + nA",
+                       "The shared matcher resolves the other part through the body's grid map, compares coupling names and gender and rejects occupied links. "
+                       "The other coupling's transformed integer position must equal this coupling's position plus its outward direction (y at 0x1404b3933, z at 0x1404b393c).")
+    t["c_back"] = code(F_COUPLING, cm, 0x1404B3945, "39442458", "Coupling reciprocal match", "pA = pB + nB",
+                       "The reverse condition must hold too (0x1404b394f, 0x1404b3955), so the two couplings sit one grid step apart and face each other. No distance or angle tolerance is applied.")
+    t["c_bipolar"] = code(F_COUPLING, cm, 0x1404B38F1, "807f5d00", "Coupling bipolar test", "descriptor+0x5d",
+                          "When either descriptor requires alignment (+0x5c) the transformed alignment vectors must be equal; when either allows bipolar alignment (this test, and 0x1404b38fb for the other) they may also be exact opposites.")
+    t["c_flag"] = name(F_COUPLING_FLAGS, "asm/1402f7d50.asm", 0x1402F7ED7, "4c8d05f21a8600", 0x140B599D0, "allow_bipolar_alignment", "Bipolar alignment flag name",
+                       "The coupling descriptor binder reads this attribute into +0x5d; alignment_required goes to +0x5c (0x1402f7ebc).")
+    m, line, _ = E.at(DEFS + "steam_nuclear_control_rod.xml", r'coupling_name="x\+"[^>]*alignment_required="true" allow_bipolar_alignment="true"')
+    t["c_def"] = E.located(DEFS + "steam_nuclear_control_rod.xml", line, line, "Nuclear Control Rod · coupling x+", "alignment_required, allow_bipolar_alignment",
+                           "Each control_rod coupling of the nuclear parts sets alignment_required and allow_bipolar_alignment to true, so matched couplings may be parallel or antiparallel." + rep)
+    # Transponder clock and disable.
+    clk = "asm/1402b6c50.asm"
+    t["t_step"] = code(F_CLOCK_STEP, clk, 0x1402B6C74, "0faf39", "Clock counter step", "counter += multiplier × (tick − previous tick)",
+                       "Reads the current tick (0x1402b6c6a), subtracts the previous one (0x1402b6c70), multiplies by the multiplier and adds the result to the counter at +4 (0x1402b6c77). "
+                       "The scene update calls this at 0x1405e9583. The initializer 0x1402b6bf0 sets the multiplier to 1 and the counter to 0 (0x1402b6c05). The getter 0x1402b7af0 the locator calls returns this counter.")
+    t["t_off"] = code(F_LOGIC, "asm/transponder-disable.asm", 0x1403C847D, "40887014", "Transponder record inactive", "record+0x14 = 0",
+                      "On the disabled or insufficient-power branch the transponder clears the active byte of its shared record and releases its component handle (call at 0x1403c848a). "
+                      "The locator loop checks only that a list entry resolves to an object, not this byte.")
+    phases = [locator_noise(n, x) for x in range(128)]
+    lo_x = min(range(128), key=lambda x: phases[x][0])
+    hi_x = max(range(128), key=lambda x: phases[x][0])
+    want = json.loads((E.root / MG_NOISE).read_text())
+    if (want["min"]["phase"], want["min"]["noise"], want["max"]["phase"], want["max"]["noise"]) != (lo_x, phases[lo_x][0], hi_x, phases[hi_x][0]):
+        raise ValueError("Locator noise reconstruction differs from " + MG_NOISE)
+    t["t_range"] = E.derived("Locator noise factor range", "%s to %s" % (_g(phases[lo_x][1], 5), _g(phases[hi_x][1], 5)),
+                             "Binary32 reconstruction of the noise at Y = 1 for the 128 integer counter phases, with every gradient component −1: n runs from %s at phase %d to %s at phase %d, "
+                             "so the factor 1 + n × 0.0078125 × 0.1 stays between %s and %s. This covers ordinary counter values; overflow of the counter's float conversion is outside it (%s)." % (
+                                 _g(phases[lo_x][0], 6), lo_x, _g(phases[hi_x][0], 6), hi_x, _g(phases[lo_x][1], 5), _g(phases[hi_x][1], 5), MG_NOISE) + rep,
+                             [t["t_step"]])
+    # Cable anchor links and pulley forwarding.
+    t["cl_name"] = name(F_HOSE_LINK, "asm/140521500.asm", 0x140521ACA, "4c8d35c3556600", 0x140B87094, "Rope 2", "Cable link side name",
+                        "The link builders 0x140521500 and 0x140522030 compare the selected connection's name with this on each endpoint.")
+    t["cl_two"] = code(F_HOSE_LINK, "asm/140521500.asm", 0x140521C3B, "4889bea00a0000", "Cable link second slot", "+0xaa0 for Rope 2",
+                       "A connection named Rope 2 stores the peer in the second link slot; any other name uses the first slot +0xa98 (0x140521d1c). The other endpoint makes its own choice (0x140521ea5, 0x140521f86), "
+                       "so two linked endpoints can use different slots. An occupied slot's old peer is cleared first. The second builder has the same stores (0x140522544, 0x140522626).")
+    t["cl_reset"] = code(F_ROPE_RESET, "asm/1403b442c.asm", 0x1403B442C, "4889 81980a0000".replace(" ", ""), "Cable link reset", "+0xa98 and +0xaa0 = 0",
+                         "The reset helper clears both link slots (second at 0x1403b4433).")
+    t["cl_back"] = code(F_ROPE_FLUID, "asm/1403b6840.asm", 0x1403B6919, "483999a00a0000", "Pulley side selection", "which peer slot points back",
+                        "The cable pass picks the receiving side of a pulley by testing which of the peer's link slots points back to the sender.")
+    t["cl_copy"] = code(F_ROPE_FLUID, "asm/1403b6840.asm", 0x1403B69AA, "8b8304120000", "Pulley composite forwarding", "side buffer +0x1204 → opposite side",
+                        "A pulley copies the composite value received on one side buffer (+0x1180 or +0x1204, destination selected at 0x1403b6a38) straight to the peer on its other side in the same pass, with no countdown or extra update between the two buffers.")
+    t["cl_passes"] = E.derived("Updates through a pulley chain", "passes = 1 + reversals in processing order",
+                               "Each pulley forwards in place during the rope-hook pass, once per normal pass. If o(i) is the processing position of the part doing hop i, a value that is ready before the first hop completes all hops after "
+                               "1 + count(o(i + 1) < o(i)) passes: one pass when the parts are processed in route order, one pass per hop in reverse order. Input gathering and output flushes add their own boundaries." + rep,
+                               [t["cl_back"], t["cl_copy"]])
+    # Missile radar editor arrow.
+    bid = "radar_advanced_missile"
+    mesh = "rom/" + E.attr(bid, "mesh_editor_only_name", "")["value"]
+    data = (E.root / mesh).read_bytes()
+    count = struct.unpack_from("<H", data, 8)[0]
+    if data[:4] != b"mesh" or struct.unpack_from("<HHH", data, 6) != (1, count, 0x13):
+        raise ValueError("Unexpected mesh header in " + mesh)
+    verts = [struct.unpack_from("<3f", data, 14 + 28 * i) for i in range(count)]
+    lo, hi = [min(v[k] for v in verts) for k in range(3)], [max(v[k] for v in verts) for k in range(3)]
+    tip = max(verts, key=lambda v: v[1])
+    if not (abs(tip[0]) < 0.001 and hi[1] > 4 * -lo[1] and hi[1] > 2 * hi[0] and hi[2] - lo[2] < 0.05):
+        raise ValueError("Missile radar arrow no longer points along +Y")
+    E.used["resource"] += 1
+    t["rd_arrow"] = {"label": "Missile Radar · editor arrow mesh", "value": "+Y",
+                     "detail": "%s: %s, %d vertices, the definition's mesh_editor_only_name. Extent x %s to %s, y %s to %s, z %s to %s m: a flat shape whose farthest point, at x = %s, y = %s, lies on +Y, "
+                               "so the straight arrow points along mesh +Y, the part's R1 row. The curved rotation arrows in the same mesh do not reach as far. "
+                               "R0 is mesh X, the side axis, and R2 mesh Z, the top axis; positive native elevation points toward -R2.%s" % (
+                                   mesh, mesh.rsplit("/", 1)[1], count, _g(lo[0], 3), _g(hi[0], 3), _g(lo[1], 3), _g(hi[1], 3), _g(lo[2], 3), _g(hi[2], 3), _g(tip[0], 2), _g(tip[1], 3), rep),
+                     "evidenceId": "resource:%s:%s:arrow" % (mesh, sha(data)[:12]), "status": "observed", "source": {"path": mesh, "sha256": sha(data)}}
+    m, line, _ = E.at(DEFS + bid + ".xml", r'<particle_direction x="0" y="1" z="0"/>')
+    t["rd_dir"] = E.located(DEFS + bid + ".xml", line, line, "Missile Radar · particle_direction", "(0, 1, 0)",
+                            "The definition's direction vector also points along local +Y." + rep)
+    # Rope removal.
+    t["r_remove"] = code(F_ROPE_REMOVE, "asm/1405288d0.asm", 0x140528974, "e817390000", "Rope removal request", "call 0x14052c290",
+                         "Searches the rope collections for the requested rope, calls the removal helper (also at 0x14052899c), frees the rope's data and removes its entry.")
+    t["r_flag"] = code(F_ROPE_DELETE, "asm/14052c290.asm", 0x14052C2B9, "41c681c400000001", "Rope deleted flag", "rope+0xc4 = 1",
+                       "The removal helper marks the rope deleted and clears its endpoint state.")
+    t["r_update"] = code(F_CABLE, "tools/rope-remove-request-callers.txt", 0x1405260B4, "e817280000", "Rope removal from the cable update", "call 0x1405288d0",
+                         "The cable-system update calls the removal on a branch driven by endpoint and control state, including the endpoint byte +0x1288, not by a measured link force. "
+                         "The other callers are endpoint and attachment cleanup and game-side request handlers.")
+    E.misc_gaps = t
     return t
 
 

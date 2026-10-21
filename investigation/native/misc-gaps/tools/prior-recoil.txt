@@ -1,0 +1,55 @@
+6-
+7-## Results and limits
+8-
+9:Ballistic integration, class constants, barrel dispersion, recoil submission, heat hysteresis, timed fuses, impact magnitude and solid rocket consumption are recovered. Loading state and transfer delays are recovered in part. A complete ammunition-network throughput model, controlled maximum cannon firing rates, and the final target-specific voxel damage and blast-occlusion rules remain open. These qualifications apply to #16 and #158; they do not leave the rotary heat or solid rocket equations undecoded.
+10-
+11-`native/weapons/weapons.json` contains all 94 shipped type-44 and type-47 definitions, 7 native gun-class records and all 15 native projectile records. Each native record includes its address and bytes. Resource entries include the source path, line and hash. Numeric fields without a decoded consumer keep an offset-based name.
+12-
+--
+30-
+31-The timer at component `+0x330` counts down once per update. `0x14042b310` requests a breech-state change and loads the class transition time. The actual and requested states are at `+0x334/+0x335`. Artillery and Bertha have additional empty-chamber half-transition shortcuts in `0x140428305` onward. Their normal operation also depends on the external opening/loading control. A single unconditional RPM for those guns is not established here.
+32-
+33:At `0x140428aed`, bytes `f3 43 0f 10 44 17 24`, the firing path reads the table velocity. It multiplies the dispersed forward vector by that value and adds the firing body's velocity at `+0x98/+0xa0`. Barrel length is absent from this calculation:
+34-
+35-```text
+36-V_projectile = muzzle_speed[class] * dispersed_forward + V_body
+--
+38-
+39-The 52-byte gun records also contain two loading-related integer fields at offsets 8 and 12. Their values are retained; their complete relationship to animation and feed throughput is not claimed as another firing-rate formula.
+40-
+41:## Barrel extensions, dispersion and recoil
+42-
+43-`0x1404b2dc0` walks the forward attachment chain. An accepted barrel extension has weapon type 4, the same class as the gun, and a compatible collinear orientation. Muzzle attachments of type 7 can be traversed but do not take the type-4 dispersion decrement. See [barrel-traversal.asm](native/weapons/asm/barrel-traversal.asm).
+44-
+--
+53-
+54-The firing path at `0x140428926`, bytes `f3 0f 10 54 08 30`, reads dispersion at table offset 48. It draws two successive 15-bit random values from the component LCG, `state = state*0x343fd + 0x269ec3`, modulo 2^32. Each is mapped with `u = ((state>>16)&32767)/32767` and `angle = (2*u-1)*angle_half_width`. `0x140177040` consumes XMM1 and XMM3 as the two angular arguments and XMM2 as zero. The angles are radians; [spread-rotation.asm](native/weapons/asm/spread-rotation.asm) retains the trigonometric consumer. The decompiler omits some of these float arguments.
+55-
+56:| Gun | Base dispersion | Half-width without extensions, radians | Recoil coefficient | Raw stationary recoil force |
+57-|---|---:|---:|---:|---:|
+58-| Machine Gun | 0.01 | 0.0025 | 0.1 | 4000 |
+59-| Light Autocannon | 0.01 | 0.0025 | 0.2 | 10000 |
+--
+68-The force vector submitted on a shot is:
+69-
+70-```text
+71:F_recoil = -50 * recoil_coefficient[class] * component[0x380] * V_projectile
+72-```
+73-
+74:`+0x380` initializes to 1. The barrel traversal writes muzzle offset and dispersion, not this recoil multiplier or the velocity table. `0x140429092` loads the multiplier; `0x1404290b1` onward multiplies by 50. The queued handler `0x1401a16a0` calls the force accumulator helper `0x14019a370` at `0x1401a1750`, bytes `e8 1b 8c ff ff`. See [recoil-force-handler.asm](native/weapons/asm/recoil-force-handler.asm). This is the submitted force for a firing update, not a force that should be multiplied by 60. At nominal timing its corresponding one-update impulse is force/60. Vehicle mass, force direction and application point affect resulting motion.
+75-
+76:For #134, `gun_m_barrel.xml:59` says extensions add weight; `gun_s_barrel.xml:59` says they produce more recoil. Both are type 4 and use the same class-matched decrement. No separate heavy-autocannon accuracy rule or explicit extension-count recoil increase was found. The wording difference is not a branch selecting different mechanics. Extra weight and changed geometry can still change vehicle response. Retained resource lines are in [definition-fields.txt](native/weapons/tools/definition-fields.txt).
+77-
+78-## Projectile update: gravity, drag, wind and deletion
+79-
+--
+230-
+231-## Issue dispositions and replacement wording
+232-
+233:- **#16, partial:** "Ballistic integration, class muzzle speeds, drag and lifetime, barrel dispersion, recoil submission and impact magnitudes are decoded for the verified build. Final target-specific voxel damage and arbitrary feed-network firing throughput remain open."
+234-- **#55, resolved for the quoted gap:** "Rotary heat adds 0.01 per shot and loses 0.002 per update; firing stops at heat >=1 and resumes below 0.25. Ideal two-update feeding reaches the stop on shot 166; transport and startup change burst timing."
+235-- **#127, resolved for the quoted gap:** "Full fuel is 20000 units per connected volume unit, including nozzle volume. Each burning update consumes min(remaining, trunc(400*w²*burn_rate)+1) and submits raw thrust 60 times consumption, with pressure attenuation and a 1000*S cap. Burn time follows capacity divided by consumption at 60 updates/s."
+236:- **#134, resolved for the quoted gap:** "Heavy and light autocannon extensions use the same class-matched accuracy path: subtract 0.2 from dispersion multiplier per extension, to a minimum 0.5. The different tooltip wording does not select different velocity or recoil-multiplier mechanics."
+237-- **#158, partial:** "Gun classes, barrel offset and dispersion, muzzle speed, drag, gravity, lifetime, AP speed loss, impact/explosion magnitudes, loading timers and timed-fuse interpolation are decoded. Complete belt throughput, maximum controlled cannon cadence, and final voxel damage and blast occlusion remain open."
+238-
+239-For the remaining damage gap, the search has ruled out table offset 20 as a universal damage figure and 7.5*M as an unconditional target-damage radius. It has recovered the magnitude dispatcher and target-specific direct/explosion routines, retained here, but has not completed their downstream voxel destruction and occlusion consumers. For firing rate, it has ruled out a barrel-length multiplier and unrestricted instant transfers; externally controlled opening, transfer delays, neighbour traversal and grouped firing limits still need a combined schedule model.

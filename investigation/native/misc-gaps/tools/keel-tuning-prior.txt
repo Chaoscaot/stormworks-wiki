@@ -1,0 +1,23 @@
+131:## Shipped tuning versus this executable
+132-
+133-`rom/data/realtime_values/general_debug.txt:226..233` contains eight keel names. `tools/tuning-search.json` retains each source line and complete ASCII and UTF-16LE occurrence lists. All sixteen searches returned zero matches.
+134-
+135-| Shipped setting | Shipped value | Recovered active numerical behavior |
+136-|---|---:|---|
+137-| `keel_upright_force_scale` | 200 | Embedded 200 in upright pair. |
+138-| `keel_upright_force_offset` | 2 | Embedded factor 2 in the opposite application locations. |
+139-| `keel_upright_max_acc_scale` | 100 | Embedded per-application limit 100. |
+140-| `keel_lateral_force_scale` | 40 | Embedded type-2 water multiplier 40. |
+141-| `keel_lateral_max_acc_scale` | 20 | Water call passes 100, not 20. No use of this setting was established. |
+142-| `keel_mass_scale` | 1000 | Embedded world-down force -1000; it is not extra physical mass. |
+143-| `keel_memory_inv` | 0.002 | Embedded binary32 filter coefficient. |
+144-| `keel_momentum_scale` | 4 | Embedded horizontal memory-force multiplier. |
+145-
+146-The active numerical values 200, 40 and 1000 are therefore answered affirmatively for the decoded force path. Reading or applying their shipped file entries is a separate claim and remains unproven. Absence of strings alone does not exclude a hashed, positional or external loader. This report does not infer such a loader from matching constants. The known named tuning binder from the air investigation recognizes only a subset of realtime names; that finding is not repeated here.
+147-
+148-## Windows
+149-
+150-`tools/resources.json` retains all 41 `window*.xml` definitions with numbered source lines and hashes. Every one uses `type="9"`, category 15. `tools/window-inventory.json` compares them with the other shipped definitions. There are no top-level attribute names unique to windows and no unique tag/attribute-name pairs anywhere in their definition text. The same type 9 is used by 18 non-window definitions: two linear modules, fourteen railing parts and two stair parts. A type-9 check alone is not a glass test.
+151-
+152-The factory at `0x14045dd20`, case 9, allocates 0xa8 bytes and installs vtable `0x140afe2a0`. The final installation is at `0x14045e005`, bytes `48 8d 0d 94 02 6a 00`, followed by the store to the object. A second factory at `0x1404b8f30` installs the same table at `0x1404b922a`, bytes `48 8d 0d 6f 50 64 00`. MSVC RTTI at `0x140cdb8e0` identifies `c_scene_vehicle_component_basic`. Slot `+0x30` points to `0x140373be0`, bytes `b8 09 00 00 00 c3`, which returns type 9. The complete 88-slot table, its bytes and comparison against block/base classes are retained in `tools/window-vtable-comparison.txt`.
+153-

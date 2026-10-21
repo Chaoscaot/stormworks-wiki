@@ -1,0 +1,42 @@
+
+stormworks64.exe:     file format pei-x86-64
+
+
+Disassembly of section .text:
+
+00000001401e3460 <.text+0x1e2460>:
+   1401e3460:	66 41 0f 6e d0       	movd   xmm2,r8d
+   1401e3465:	66 0f 6e ca          	movd   xmm1,edx
+   1401e3469:	0f 5b d2             	cvtdq2ps xmm2,xmm2
+   1401e346c:	0f 5b c9             	cvtdq2ps xmm1,xmm1
+   1401e346f:	e9 0c 00 00 00       	jmp    0x1401e3480
+   1401e3474:	cc                   	int3
+   1401e3475:	cc                   	int3
+   1401e3476:	cc                   	int3
+   1401e3477:	cc                   	int3
+   1401e3478:	cc                   	int3
+   1401e3479:	cc                   	int3
+   1401e347a:	cc                   	int3
+   1401e347b:	cc                   	int3
+   1401e347c:	cc                   	int3
+   1401e347d:	cc                   	int3
+   1401e347e:	cc                   	int3
+   1401e347f:	cc                   	int3
+   1401e3480:	48 8b c4             	mov    rax,rsp
+   1401e3483:	44 89 48 20          	mov    DWORD PTR [rax+0x20],r9d
+   1401e3487:	f3 0f 11 50 18       	movss  DWORD PTR [rax+0x18],xmm2
+   1401e348c:	f3 0f 11 48 10       	movss  DWORD PTR [rax+0x10],xmm1
+   1401e3491:	53                   	push   rbx
+   1401e3492:	56                   	push   rsi
+   1401e3493:	57                   	push   rdi
+   1401e3494:	48 81 ec e0 00 00 00 	sub    rsp,0xe0
+   1401e349b:	8b 31                	mov    esi,DWORD PTR [rcx]
+   1401e349d:	0f 28 c1             	movaps xmm0,xmm1
+   1401e34a0:	8b 59 04             	mov    ebx,DWORD PTR [rcx+0x4]
+   1401e34a3:	0f 29 70 d8          	movaps XMMWORD PTR [rax-0x28],xmm6
+   1401e34a7:	0f 57 f6             	xorps  xmm6,xmm6
+   1401e34aa:	0f 29 78 c8          	movaps XMMWORD PTR [rax-0x38],xmm7
+   1401e34ae:	0f 28 f9             	movaps xmm7,xmm1
+   1401e34b1:	44 0f 29 40 b8       	movaps XMMWORD PTR [rax-0x48],xmm8
+   1401e34b6:	44 0f 28 c2          	movaps xmm8,xmm2
+   1401e34ba:	44 0f 

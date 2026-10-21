@@ -1,0 +1,146 @@
+57-    iVar6 = (**(code **)(*plVar3 + 0x400))(plVar3);
+58-    if (iVar6 != 0) {
+59-      do {
+60-        plVar13 = (longlong *)(**(code **)(*plVar3 + 0x408))(plVar3);
+61:        if (((plVar13 == (longlong *)0x0) || (piVar4 = (int *)*plVar13, piVar4 == (int *)0x0)) ||
+62-           (plVar13[2] != 0)) goto LAB_1404b3985;
+63-        iVar6 = *(int *)((longlong)plVar3 + 0x3c);
+64-        iVar27 = *(int *)((longlong)plVar3 + 0x4c);
+65-        iVar28 = (int)plVar3[9];
+--
+86-                 iVar9 * iVar19;
+87-        switch(piVar4[3]) {
+88-        default:
+89-          iVar22 = iVar20;
+90:          goto code_r0x0001404b3439;
+91-        case 1:
+92-          iVar22 = -iVar20;
+93:code_r0x0001404b3439:
+94-          iVar11 = 0;
+95-          break;
+96-        case 2:
+97-          iVar22 = 0;
+--
+104-        case 4:
+105-          iVar22 = 0;
+106-          iVar11 = 0;
+107-          iVar25 = iVar23;
+108:          goto code_r0x0001404b343d;
+109-        case 5:
+110-          iVar22 = 0;
+111-          iVar11 = 0;
+112-          iVar25 = -iVar23;
+113:          goto code_r0x0001404b343d;
+114-        }
+115-        iVar25 = 0;
+116:code_r0x0001404b343d:
+117-        uStack_68 = iVar28 * iVar25 + iVar6 * iVar11 + iVar7 + (int)plVar3[6] * iVar22;
+118-        uStack_64 = iVar27 * iVar25 +
+119-                    iVar26 * iVar11 + iVar8 + *(int *)((longlong)plVar3 + 0x34) * iVar22;
+120-        uStack_60 = iVar9 * iVar25 +
+--
+139-          iVar10 = -iVar10;
+140-          break;
+141-        case 4:
+142-          iVar10 = 0;
+143:          goto code_r0x0001404b34f6;
+144-        case 5:
+145-          iVar23 = -iVar23;
+146-          iVar10 = iVar22;
+147:          goto code_r0x0001404b34f6;
+148-        }
+149-        iVar23 = iVar22;
+150:code_r0x0001404b34f6:
+151-        iStackX_18 = (int)plVar3[6] * iVar25 + iVar6 * iVar10 + iVar28 * iVar23;
+152-        iStackX_10 = *(int *)((longlong)plVar3 + 0x34) * iVar25 + iVar26 * iVar10 + iVar27 * iVar23;
+153-        iVar22 = iVar25 * (int)plVar3[7] + iVar10 * *(int *)((longlong)plVar3 + 0x44) +
+154-                 iVar9 * iVar23;
+--
+172-                                  (ulonglong)
+173-                                  (uint)((((int)~uStack_60 >> 0x1f) * -2 - ((int)~uStack_64 >> 0x1f)
+174-                                         ) * 2 - ((int)~uStack_68 >> 0x1f)) * 8,&uStack_78,0x100);
+175-          puStack_58 = puVar14;
+176:          if (((puVar14 != (undefined8 *)0x0) && ((longlong *)*puVar14 != plVar3)) &&
+177-             (lVar15 = (**(code **)(*(longlong *)*puVar14 + 0x38))(), lVar15 != 0)) {
+178-            plVar16 = (longlong *)(**(code **)(*(longlong *)*puVar14 + 0x38))();
+179-            uVar29 = 0;
+180-            iVar6 = (**(code **)(*plVar16 + 0x400))(plVar16);
+181-            if (iVar6 != 0) {
+182-              do {
+183-                plVar17 = (longlong *)(**(code **)(*plVar16 + 0x408))(plVar16);
+184:                if (((plVar17 == (longlong *)0x0) ||
+185:                    (piVar4 = (int *)*plVar17, piVar4 == (int *)0x0)) || (plVar17[2] != 0))
+186-                goto LAB_1404b3963;
+187-                lVar15 = *plVar13;
+188-                if ((piVar4[0x10] != *(int *)(lVar15 + 0x40)) ||
+189-                   (iVar6 = FUN_14099dae0(*(undefined8 *)(piVar4 + 0xe),
+--
+223-                         (int)plVar16[10] * iVar26;
+224-                switch(piVar4[3]) {
+225-                default:
+226-                  iVar23 = iVar6;
+227:                  goto code_r0x0001404b37df;
+228-                case 1:
+229-                  iVar23 = -iVar6;
+230:code_r0x0001404b37df:
+231-                  iVar25 = 0;
+232-                  break;
+233-                case 2:
+234-                  iVar23 = 0;
+--
+241-                case 4:
+242-                  iVar23 = 0;
+243-                  iVar25 = 0;
+244-                  iVar26 = iVar28;
+245:                  goto code_r0x0001404b37e3;
+246-                case 5:
+247-                  iVar23 = 0;
+248-                  iVar25 = 0;
+249-                  iVar26 = -iVar28;
+250:                  goto code_r0x0001404b37e3;
+251-                }
+252-                iVar26 = 0;
+253:code_r0x0001404b37e3:
+254-                iVar24 = 0;
+255-                iVar11 = 0;
+256-                iVar21 = 0;
+257-                if ((char)piVar4[0x17] == '\0') goto LAB_1404b38e4;
+258-                switch(piVar4[4]) {
+259-                default:
+260:                  goto code_r0x0001404b3896;
+261-                case 1:
+262-                  iVar6 = -iVar6;
+263:code_r0x0001404b3896:
+264-                  iVar27 = 0;
+265-                  break;
+266-                case 2:
+267-                  iVar6 = 0;
+--
+272-                  break;
+273-                case 4:
+274-                  iVar6 = 0;
+275-                  iVar27 = 0;
+276:                  goto code_r0x0001404b389c;
+277-                case 5:
+278-                  iVar6 = 0;
+279-                  iVar27 = 0;
+280-                  iVar28 = -iVar28;
+281:                  goto code_r0x0001404b389c;
+282-                }
+283-                iVar28 = 0;
+284:code_r0x0001404b389c:
+285-                iVar21 = iVar6 * *(int *)((longlong)plVar16 + 0x34) + iVar27 * (int)plVar16[8] +
+286-                         iVar28 * *(int *)((longlong)plVar16 + 0x4c);
+287-                iVar24 = iVar6 * (int)plVar16[7] + iVar27 * *(int *)((longlong)plVar16 + 0x44) +
+288-                         iVar28 * (int)plVar16[10];
+289-                iVar11 = iVar6 * (int)plVar16[6] + iVar27 * *(int *)((longlong)plVar16 + 0x3c) +
+290-                         iVar28 * (int)plVar16[9];
+291-LAB_1404b38e4:
+292-                bVar5 = true;
+293:                if ((*(char *)(lVar15 + 0x5c) != '\0') || ((char)piVar4[0x17] != '\0')) {
+294:                  if ((*(char *)(lVar15 + 0x5d) == '\0') &&
+295:                     (*(char *)((longlong)piVar4 + 0x5d) == '\0')) {
+296-                    if (((iVar11 != iStackX_18) || (iVar21 != iStackX_10)) || (iVar24 != iVar22)) {
+297-LAB_1404b391c:
+298-                      bVar5 = false;
+299-                    }

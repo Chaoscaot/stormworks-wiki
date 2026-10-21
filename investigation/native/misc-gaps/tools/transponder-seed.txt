@@ -1,0 +1,70 @@
+272-
+273-## Transponder locator
+274-
+275:`transponder.xml` selects logic gate 54, and `transponder_locator.xml` gate 55. The common physical evaluator is `0x1403c4d20`. Case 54 registers/updates a powered beacon. Case 55 walks the beacon list, computes Euclidean distances through `0x140176180`, and retains the maximum reciprocal-distance term through max helper `0x1408ee640`:
+276-
+277-```
+278-q = max_i(1 / (0.002 * distance_i + 0.5))
+279-noise_factor = 1 + noise_raw * 0.0078125 * 0.1
+280-increment = clamp(q * noise_factor, 0, 1)
+281-accumulator += increment
+282-if accumulator >= 10:
+283-    accumulator -= 10
+284-    pulse = true
+285-```
+286-
+287-The maximum selects the nearest eligible beacon, rather than adding all beacon strengths. An empty list leaves zero. The pulse output is cleared on intervening normal updates. The active/power checks and a separate global simulation branch precede the normal case.
+288-
+289:Instruction anchors: `0x1403c85cd`, `f3 41 0f 59 c8`, multiplies distance by `0.002`; `0x1403c85d2`, `f3 0f 58 cf`, adds `0.5`; `0x1403c85d9`, `f3 0f 5e c1`, takes the reciprocal; `0x1403c85e2`, `e8 59 60 52 00`, calls max. At `0x1403c8656`, `e8 b5 5f 52 00`, clamp helper `0x1408ee610` receives bounds 0 and 1. Accumulation is at `0x1403c8660`; threshold comparison at `0x1403c8681`.
+290-
+291-With noise factor set to 1, the long-run nominal pulse rate is `6 * clamp(1/(0.002*d+0.5), 0, 1)` Hz. It is 6 Hz for `d <= 250`, 2.4 Hz at 1000 m, and approximately 0.292683 Hz at 10000 m. The corresponding nominal intervals are 10, 25 and 205 updates. Threshold accumulation can alternate integer intervals for other distances. This is not a continuous sine-wave output.
+292-
+293:The spatial-noise helper `0x1401e3460` is retained. Its output is scaled by `1/128 * 0.1`, then added to 1. Its full spatial/time input mapping and exact bound have not been reproduced. The figures above omit spatial noise. Its output bound is unproved. Full beacon eligibility and behavior across disabled, unloaded or remote beacons remain open. The shipped `radar_range=20000` on the locator is not used as a distance cutoff in this recovered loop.
+294-
+295-## SDK noise and realtime names
+296-
+297-Shipped `sdk/data/game_constants.xml:86-88` specifies `sonar_noise=0.001`, `radar_noise=0.001`, `radar_distance_noise=0.01`; comment lines 7-9 describe them. Exact lines are retained in `tools/resource-lines.txt`.
+298-
+299-There is a complete reader-to-consumer chain:
+300-
+301-- Startup path `0x140846920` constructs `data/game_constants.xml`, parses its content, obtains settings from `0x140294520`, and passes settings `+0x5c` to `0x140929950`.
+302-- `0x140929950` selects the `game_constants` node and invokes `0x140293a40`.
+303-- The three names are at `0x140b53ae0`, `0x140b53b28` and `0x140b53b10`. The readers write subobject `+0x9c`, `+0xa0`, `+0xa4`, hence settings `+0xf8`, `+0xfc`, `+0x100`.
+304-- The corresponding consumer offsets and arithmetic are shown in the radar and sonar sections above. Built-in defaults also match: packed constants `0x140bb18a8` and `0x140bb18ac` contain `6f 12 83 3a`, float32 `0.0010000000474974513`; distance default at `0x140baf958` is float32 approximately `0.01`.
+305-
+306-Thus these names are neither merely unused SDK documentation nor absent binary literals. The executable loads a relative `data/game_constants.xml`; this does not mean it always opens the repository's literal `sdk/data/...` path in an ordinary installed-game launch.
+307-
+308-Every recognized declaration in the current `rom/data/realtime_values` directory was checked separately. This checkout has 334 unique declarations, of which 25 occur as complete terminated names in the executable, rather than the earlier stated total of 199. The retained per-name result is `tools/realtime-name-check.json`. Both `radar_coord_delta_stiffness` and `radar_coord_delta_damping` are absent as complete names. No claim that they configure runtime tracking is made. Raw suffix matches were excluded. SDK XML names were checked independently and are present. Literal absence alone does not prove there is no hardcoded equivalent.
+309-
+310-## Issue dispositions
+311-
+312-Issue bodies are retained in `tools/issue-*.json`; their wiki URLs establish the issue-to-definition mapping. The remaining issue numbers below are treated according to the task's stated family scope; their individual bodies were not fetched. No remote issue was modified. The replacement text is deliberately bounded to recovered paths.
+313-
+314-| Issue | Disposition / replacement wording |
+315-| --- | --- |
+316-| #11 | Replace blanket gap: mass/distance detection scores, FOV trade-off, scan/echo timing, SDK noise, ordinary radio propagation and locator pulse accumulation are recovered. Limits are listed per subsystem. |
+317-| #90 | Legacy Radar: S/d>0.25; default axial plane 3875 m; full horizontal FOV 0.01..0.125 turns; height, plane and occlusion tests also apply. |
+318-| #91 | Basic advanced radar: R=60000*0.02^2/(Fx*Fy), score R*S/(10000*d)>0.025, d<=R; Fx,Fy=0.01..0.25; N=max(1,floor(R/2000+0.5)). |
+319-| #92 | AWACS: min/max equal-axis FOV caps 2000000/3200 m, strict score ceilings 8000*S/12.8*S, scan intervals 1000/2 updates. |
+320-| #93 | Advanced Dish: min/max equal-axis FOV caps 800000/1280 m, strict score ceilings 3200*S/5.12*S, scan intervals 400/1 updates. |
+321-| #94 | Missile: min/max equal-axis FOV caps 80000/128 m, strict score ceilings 320*S/0.512*S, scan intervals 40/1 updates; orientation branches remain distinct. |
+--
+372-
+373-Arithmetic checks in `tools/model-validation.json` verified strict radar score boundaries, the FOV-area trade-off, nearest-beacon selection, and nominal locator pulse intervals of 10, 25 and 205 updates. These are model checks, not game tests.
+374-
+375:The Python model reproduces recovered scalar arithmetic only. It accepts signature and native FOV fields, not physical vehicle size. It omits world targets, ray queries, power, merging and native random generation. Its default transponder noise factor is 1. Python float arithmetic is not a bit-exact replacement for the native mixture of float32 and float64.
+376-
+377-## Retained files
+378-
+379-- `investigation/sensors-radio.md`: findings, limitations, per-issue wording and reproduction.
+380-- `investigation/native/sensors-radio/sensors.json`: 34 shipped definitions, explicit fields, all numeric root attributes, source path/line/hash and qualified decoded figures. Missing fields remain missing; absent `radar_type` is treated as default zero only in the explicitly qualified model summary.
+381-- `asm/*.asm`: address-bearing instruction bytes for recovered functions and investigated alternatives.
+382-- `pseudocode/*.c`: raw Ghidra output. `*.constants.txt` are convenience views from `annotate.py`, which mechanically interprets referenced globals as float32. Some globals actually contain doubles, masks, pointers or packed values. Use raw bytes and the instruction's operand width to establish a constant's type. These annotations are not independent evidence.
+383-- `tools/DecompileAt.java`, `pe.py`, `map_sensors.py`, `annotate.py`, `capture.py`, `byte_evidence.py`, `resources.py`, `trace.py`, `models.py`: reproduction tools.
+384-- `tools/function-ranges.json`, `byte-evidence.json`, `constants.json`, `rtti.json`, `rtti-verified.txt`, `reverification.json`, `literal-xrefs.json`, `settings-path-xrefs.json`, `game-constants-path.json`, `resource-lines.txt`, `realtime-name-check.json`, `model-example.json`, `model-validation.json`: retained evidence indexes.
+385-- `tools/issue-*.json`: the issue bodies used for scope and issue-to-definition matching, retained without remote modification.
+386-- `SHA256SUMS`: digests with paths relative to the repository root, including the executable, source resources and retained files. The manifest does not hash itself.
+387-
+388-Imported evidence also includes `tools/radio-model.py`, `tools/sensors-legacy-model.py`, their validation/byte indexes, and `tools/import-validation.json`. The imported model entry points write only inside this evidence directory or print results.
+389-
+390-Run `PYTHONDONTWRITEBYTECODE=1 python investigation/native/sensors-radio/tools/verify_evidence.py` to recheck instruction bytes, then `tools/finalize.py` with Python to regenerate the relative-path manifest.

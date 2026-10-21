@@ -1,0 +1,25 @@
+
+stormworks64.exe:     file format pei-x86-64
+
+
+Disassembly of section .text:
+
+00000001402b6c50 <.text+0x2b5c50>:
+   1402b6c50:	48 89 5c 24 08       	mov    QWORD PTR [rsp+0x8],rbx
+   1402b6c55:	48 89 74 24 10       	mov    QWORD PTR [rsp+0x10],rsi
+   1402b6c5a:	57                   	push   rdi
+   1402b6c5b:	48 83 ec 20          	sub    rsp,0x20
+   1402b6c5f:	48 8b 44 24 50       	mov    rax,QWORD PTR [rsp+0x50]
+   1402b6c64:	49 8b f1             	mov    rsi,r9
+   1402b6c67:	48 8b d9             	mov    rbx,rcx
+   1402b6c6a:	8b b8 3c 03 00 00    	mov    edi,DWORD PTR [rax+0x33c]
+   1402b6c70:	2b 7c 24 58          	sub    edi,DWORD PTR [rsp+0x58]
+   1402b6c74:	0f af 39             	imul   edi,DWORD PTR [rcx]
+   1402b6c77:	01 79 04             	add    DWORD PTR [rcx+0x4],edi
+   1402b6c7a:	e8 a1 d8 fd ff       	call   0x140294520
+   1402b6c7f:	80 78 40 00          	cmp    BYTE PTR [rax+0x40],0x0
+   1402b6c83:	75 03                	jne    0x1402b6c88
+   1402b6c85:	01 7b 08             	add    DWORD PTR [rbx+0x8],edi
+   1402b6c88:	e8 93 d8 fd ff       	call   0x140294520
+   1402b6c8d:	0f 57 c0             	xorps  xmm0,xmm0
+   1402b6c90:	69 08 10 0e 00 00    	imul   ecx,DWORD PTR [rax],0

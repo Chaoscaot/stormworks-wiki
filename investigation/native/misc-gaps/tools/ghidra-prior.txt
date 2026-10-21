@@ -1,0 +1,611 @@
+investigation/native/jet-engines/tools/DecompileAt.java:1:import ghidra.app.script.GhidraScript;
+investigation/native/jet-engines/tools/DecompileAt.java:2:import ghidra.app.decompiler.*;
+investigation/native/jet-engines/tools/DecompileAt.java:3:import ghidra.program.model.address.*;
+investigation/native/jet-engines/tools/DecompileAt.java:4:import ghidra.program.model.listing.*;
+investigation/native/jet-engines/tools/DecompileAt.java:5:import ghidra.app.cmd.disassemble.DisassembleCommand;
+investigation/native/jet-engines/tools/DecompileAt.java:6:import ghidra.app.cmd.function.CreateFunctionCmd;
+investigation/native/jet-engines/tools/jet-issue147.txt:7:projects:	
+investigation/native/jet-engines/tools/jet-issue57.txt:7:projects:	
+investigation/native/leftovers/tools/reproduce-ghidra.sh:5:project_dir=$(mktemp -d /tmp/leftovers-ghidra.XXXXXX)
+investigation/native/leftovers/tools/reproduce-ghidra.sh:9:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/support/analyzeHeadless "$project_dir" leftovers \
+investigation/native/leftovers/tools/reproduce-ghidra.sh:13: > "$out_dir/ghidra.log" 2>&1
+investigation/native/jet-engines/tools/jet-issue7.txt:7:projects:	
+investigation/native/drivetrain-gaps/tools/README.md:14:Ghidra 12.1.4 was run headlessly, initially against the prior mechanical-joints project without saving, then against a task-owned import without automatic whole-program analysis. `RetainAt.java` creates/disassembles the requested entry and retains pseudocode plus pcode addresses. The task-owned Ghidra project was removed after export. The headless invocation and failures are retained in the decompile logs. One reused project disappeared between calls, which is why the fresh import was needed.
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:40:INFO  Opening existing project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:41:INFO  Opening project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessProject)  
+investigation/native/drivetrain-gaps/tools/decompile-round7.log:42:INFO  REPORT: Processing project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/jet-engines/tools/reproduce-ghidra.sh:6:jet_tmp="$(mktemp -d /tmp/jet-engines-ghidra.XXXXXX)"
+investigation/native/jet-engines/tools/reproduce-ghidra.sh:7:mkdir -p "$jet_tmp/project" "$jet_out"
+investigation/native/jet-engines/tools/reproduce-ghidra.sh:10:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/support/analyzeHeadless \
+investigation/native/jet-engines/tools/reproduce-ghidra.sh:11: "$jet_tmp/project" jet-engines -import "$jet_root/stormworks64.exe" -noanalysis \
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:40:INFO  Opening existing project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:41:INFO  Opening project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessProject)  
+investigation/native/drivetrain-gaps/tools/decompile-round6.log:42:INFO  REPORT: Processing project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:40:INFO  Opening existing project: /tmp/mechanical-ghidra/joints (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:41:INFO  Opening project: /tmp/mechanical-ghidra/joints (HeadlessProject)  
+investigation/native/drivetrain-gaps/tools/decompile-round2.log:42:INFO  REPORT: Processing read-only project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/modular-tail.txt:10:286:- `tools/collect.py`, `metadata.py`, `pe.py`, `DecompileAt.java`, `reproduce-ghidra.sh`, `scan.py`, `damage_calls.py`, `anchors.py` and `manifest.py`, reproduction tools. `operand-search.txt` and `damage-call-search.txt` retain search results and their bounded scope.
+investigation/native/drivetrain-gaps/tools/RetainAt.java:1:import ghidra.app.script.GhidraScript;
+investigation/native/drivetrain-gaps/tools/RetainAt.java:2:import ghidra.app.decompiler.*;
+investigation/native/drivetrain-gaps/tools/RetainAt.java:3:import ghidra.program.model.address.*;
+investigation/native/drivetrain-gaps/tools/RetainAt.java:4:import ghidra.program.model.listing.*;
+investigation/native/drivetrain-gaps/tools/RetainAt.java:5:import ghidra.app.cmd.disassemble.DisassembleCommand;
+investigation/native/drivetrain-gaps/tools/RetainAt.java:6:import ghidra.app.cmd.function.CreateFunctionCmd;
+investigation/native/drivetrain-gaps/tools/RetainAt.java:33:        java.util.Iterator<ghidra.program.model.pcode.PcodeOpAST> it = r.getHighFunction().getPcodeOps();
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:40:INFO  Opening existing project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:41:INFO  Opening project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessProject)  
+investigation/native/drivetrain-gaps/tools/decompile-round5.log:42:INFO  REPORT: Processing project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:40:INFO  Opening existing project: /tmp/mechanical-ghidra/joints (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:41:INFO  Opening project: /tmp/mechanical-ghidra/joints (HeadlessProject)  
+investigation/native/drivetrain-gaps/tools/decompile-round1.log:42:INFO  REPORT: Processing read-only project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:40:INFO  Opening existing project: /tmp/mechanical-ghidra/joints (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:41:INFO  Opening project: /tmp/mechanical-ghidra/joints (HeadlessProject)  
+investigation/native/drivetrain-gaps/tools/decompile-round3.log:42:INFO  REPORT: Processing read-only project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:40:ERROR Could not find project: /tmp/mechanical-ghidra/joints -- should already exist in -process mode. (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:41:ERROR Abort due to Headless analyzer error: Could not find project: /tmp/mechanical-ghidra/joints (HeadlessAnalyzer) java.io.IOException: Could not find project: /tmp/mechanical-ghidra/joints
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:42:	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:429)
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:43:	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:44:	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+investigation/native/drivetrain-gaps/tools/decompile-round3b.log:45:	at ghidra.Ghidra.main(Ghidra.java:54)
+investigation/native/drivetrain-gaps/tools/other-leads.txt:125:investigation/modular-engines.md:286:- `tools/collect.py`, `metadata.py`, `pe.py`, `DecompileAt.java`, `reproduce-ghidra.sh`, `scan.py`, `damage_calls.py`, `anchors.py` and `manifest.py`, reproduction tools. `operand-search.txt` and `damage-call-search.txt` retain search results and their bounded scope.
+investigation/native/drivetrain-gaps/tools/decompile-own.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-own.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-own.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-own.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-own.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-own.log:40:INFO  Creating project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-own.log:41:INFO  Creating project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (DefaultProject)  
+investigation/native/drivetrain-gaps/tools/decompile-own.log:43:INFO       project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-own.log:77:Created exports file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/symbols/win64/openal64.exports
+investigation/native/drivetrain-gaps/tools/decompile-own.log:78:Library not saved to project.
+investigation/native/drivetrain-gaps/tools/decompile-own.log:91:Created exports file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/symbols/win64/steam_api64.exports
+investigation/native/drivetrain-gaps/tools/decompile-own.log:92:Library not saved to project.
+investigation/native/drivetrain-gaps/tools/decompile-own.log:106:  [IPHLPAPI.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:107:  [KERNEL32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:108:  [USER32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:109:  [GDI32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:110:  [COMDLG32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:111:  [ADVAPI32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:112:  [SHELL32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:113:  [WS2_32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:114:  [OPENAL64.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:115:  [STEAM_API64.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-own.log:116:  [OPENGL32.DLL] -> not found in project
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:40:INFO  Opening existing project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessAnalyzer)  
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:41:INFO  Opening project: /home/maxsp/stormworks/investigation/native/drivetrain-gaps/tools/ghidra/gaps (HeadlessProject)  
+investigation/native/drivetrain-gaps/tools/decompile-round4.log:42:INFO  REPORT: Processing project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/pseudocode-provenance.json:3:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:11:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:15:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:19:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:59:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:71:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:75:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:79:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:83:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:87:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:91:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:95:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/leftovers/tools/pseudocode-provenance.json:107:    "origin": "Ghidra 12.1.4 private leftovers project",
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:91:investigation/native/hazards-rest/tools/ghidra-17.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:92:investigation/native/hazards-rest/tools/ghidra-16.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:94:investigation/native/hazards-rest/tools/ghidra-15.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:95:investigation/native/hazards-rest/tools/ghidra-14.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:98:investigation/native/hazards-rest/tools/ghidra-13.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:100:investigation/native/hazards-rest/tools/ghidra-12.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:101:investigation/native/hazards-rest/tools/ghidra-11.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:103:investigation/native/hazards-rest/tools/ghidra-10.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:104:investigation/native/hazards-rest/tools/ghidra-9.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:105:investigation/native/hazards-rest/tools/ghidra-8.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:106:investigation/native/hazards-rest/tools/ghidra-7.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:107:investigation/native/hazards-rest/tools/ghidra-6.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:108:investigation/native/hazards-rest/tools/ghidra-5.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:110:investigation/native/hazards-rest/tools/ghidra-4.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:112:investigation/native/hazards-rest/tools/ghidra-3.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:153:investigation/native/hazards-rest/tools/ghidra-2.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:156:investigation/native/hazards-rest/tools/ghidra-1.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:158:investigation/native/hazards-rest/tools/ghidra-commands.txt
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:201:investigation/native/tanks-ports/tools/tanks-ports-ghidra1.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:202:investigation/native/tanks-ports/tools/tanks-ports-ghidra2.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:203:investigation/native/tanks-ports/tools/tanks-ports-ghidra3.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:204:investigation/native/tanks-ports/tools/tanks-ports-ghidra4.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:205:investigation/native/tanks-ports/tools/tanks-ports-ghidra5.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:206:investigation/native/tanks-ports/tools/tanks-ports-ghidra6.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:207:investigation/native/tanks-ports/tools/tanks-ports-ghidra7.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:208:investigation/native/tanks-ports/tools/tanks-ports-ghidra8.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:209:investigation/native/tanks-ports/tools/tanks-ports-ghidra9.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:210:investigation/native/tanks-ports/tools/tanks-ports-ghidra10.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:211:investigation/native/tanks-ports/tools/tanks-ports-ghidra11.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:212:investigation/native/tanks-ports/tools/tanks-ports-ghidra12.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:213:investigation/native/tanks-ports/tools/tanks-ports-ghidra13.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:214:investigation/native/tanks-ports/tools/tanks-ports-ghidra14.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:215:investigation/native/tanks-ports/tools/tanks-ports-ghidra15.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:216:investigation/native/tanks-ports/tools/tanks-ports-ghidra16.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:217:investigation/native/tanks-ports/tools/tanks-ports-ghidra17.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:218:investigation/native/tanks-ports/tools/tanks-ports-ghidra18.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:410:investigation/native/numeric-codes/ghidra-run.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:411:investigation/native/leftovers/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:412:investigation/native/leftovers/tools/ghidra-helpers.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:413:investigation/native/leftovers/tools/ghidra-groups.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:414:investigation/native/leftovers/tools/ghidra-emp.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:415:investigation/native/leftovers/tools/ghidra-import.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:428:investigation/native/new-issues-a/tools/ghidra-1.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:431:investigation/native/new-issues-a/tools/ghidra-projects.txt
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:432:investigation/native/new-issues-a/tools/ghidra.txt
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:435:investigation/native/propulsion/tools/ghidra-reproduction.json
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:442:investigation/native/propulsion/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:494:investigation/native/fluid-gaps/tools/ghidra-new17.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:496:investigation/native/fluid-gaps/tools/ghidra-new16.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:497:investigation/native/fluid-gaps/tools/ghidra-new15.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:498:investigation/native/fluid-gaps/tools/ghidra-new14.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:499:investigation/native/fluid-gaps/tools/ghidra-new13.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:500:investigation/native/fluid-gaps/tools/ghidra-new12.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:502:investigation/native/fluid-gaps/tools/ghidra-new11.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:505:investigation/native/fluid-gaps/tools/ghidra-new10.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:506:investigation/native/fluid-gaps/tools/ghidra-new9.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:507:investigation/native/fluid-gaps/tools/ghidra-new8.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:508:investigation/native/fluid-gaps/tools/ghidra-new7.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:510:investigation/native/fluid-gaps/tools/ghidra-new6.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:512:investigation/native/fluid-gaps/tools/ghidra-new5.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:513:investigation/native/fluid-gaps/tools/ghidra-new4.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:515:investigation/native/fluid-gaps/tools/ghidra-new3.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:516:investigation/native/fluid-gaps/tools/ghidra-new2.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:525:investigation/native/fluid-gaps/tools/ghidra-new1.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:527:investigation/native/fluid-gaps/tools/ghidra2.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:528:investigation/native/new-issues-a/tools/ghidra-13.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:530:investigation/native/new-issues-a/tools/ghidra-12.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:531:investigation/native/fluid-gaps/tools/ghidra1.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:534:investigation/native/new-issues-a/tools/ghidra-11.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:535:investigation/native/new-issues-a/tools/ghidra-10.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:555:investigation/native/new-issues-a/tools/ghidra-9.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:565:investigation/native/fluid-gaps/tools/ghidra-location.txt
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:583:investigation/native/new-issues-a/tools/ghidra-8.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:590:investigation/native/new-issues-a/tools/ghidra-7.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:612:investigation/native/new-issues-a/tools/ghidra-6.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:613:investigation/native/new-issues-a/tools/ghidra-5.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:615:investigation/native/new-issues-a/tools/ghidra-4.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:617:investigation/native/new-issues-a/tools/ghidra-3.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:619:investigation/native/new-issues-a/tools/ghidra-2.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:867:investigation/native/classic-engines/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:923:investigation/native/jet-engines/tools/ghidra-import.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:926:investigation/native/jet-engines/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:948:investigation/native/modular-engines/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:983:investigation/native/keel-windows/tools/ghidra-reproduction.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:985:investigation/native/keel-windows/tools/ghidra-initial.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:986:investigation/native/keel-windows/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1222:investigation/native/tornado-force/tools/ghidra-usage.txt
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1248:investigation/native/nuclear/tools/ghidra-reproduction.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1250:investigation/native/nuclear/tools/ghidra-8.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1252:investigation/native/nuclear/tools/ghidra-7.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1255:investigation/native/nuclear/tools/ghidra-6.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1258:investigation/native/nuclear/tools/ghidra-5.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1261:investigation/native/nuclear/tools/ghidra-4.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1263:investigation/native/nuclear/tools/ghidra-3.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1265:investigation/native/nuclear/tools/ghidra-2.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1267:investigation/native/nuclear/tools/ghidra-1.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1269:investigation/native/nuclear/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1491:investigation/native/steam/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1613:investigation/native/hazards/tools/ghidra-continue3.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1615:investigation/native/hazards/tools/ghidra-continue2.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1616:investigation/native/hazards/tools/ghidra-continue.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1722:investigation/native/hazards/followup/ghidra-06.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1724:investigation/native/hazards/followup/ghidra-05.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1726:investigation/native/hazards/followup/ghidra-04.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1728:investigation/native/hazards/followup/ghidra-03.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1729:investigation/native/hazards/followup/ghidra-21.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1730:investigation/native/hazards/followup/ghidra-02.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1732:investigation/native/hazards/followup/ghidra-20.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1734:investigation/native/hazards/followup/ghidra-01.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1744:investigation/native/hazards/followup/ghidra-19.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1748:investigation/native/hazards/followup/ghidra-18.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1751:investigation/native/hazards/followup/ghidra-17.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1754:investigation/native/hazards/followup/ghidra-16.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1755:investigation/native/hazards/followup/ghidra-15.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1756:investigation/native/hazards/followup/ghidra-14.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1757:investigation/native/hazards/followup/ghidra-10.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1758:investigation/native/hazards/followup/ghidra-09.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1759:investigation/native/hazards/followup/ghidra-13.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1760:investigation/native/hazards/followup/ghidra-08.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1761:investigation/native/hazards/followup/ghidra-12.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1762:investigation/native/hazards/followup/ghidra-07.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1763:investigation/native/hazards/followup/ghidra-11.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1832:investigation/native/weather/tools/ghidra.log
+investigation/native/drivetrain-gaps/tools/evidence-files.txt:1834:investigation/native/weather/tools/reproduce-ghidra.sh
+investigation/native/drivetrain-gaps/tools/prior-leads.txt:172:investigation/modular-engines.md:286:- `tools/collect.py`, `metadata.py`, `pe.py`, `DecompileAt.java`, `reproduce-ghidra.sh`, `scan.py`, `damage_calls.py`, `anchors.py` and `manifest.py`, reproduction tools. `operand-search.txt` and `damage-call-search.txt` retain search results and their bounded scope.
+investigation/native/drivetrain-gaps/tools/prior-leads.txt:282:investigation/force-cap.md:112:Mode field `component+0x834` selects 0, full vector length; 1, signed projection onto the transformed configured sensor axis; 2, `sqrt(vx*vx+vz*vz)`; 3, `vy`; any other value, zero. The case also sets speed to zero above world Y=40000. Mode 1 obtains the axis from definition `+0x40`, combines the component rotation, and rotates it through the body transform. It does not subtract wind. The world transform with translation is used for altitude; the velocity lever arm uses rotation without translation through helper `0x140178e20`.
+investigation/native/jet-engines/tools/ghidra-import.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/jet-engines/tools/ghidra-import.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/jet-engines/tools/ghidra-import.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/jet-engines/tools/ghidra-import.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:26:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+investigation/native/jet-engines/tools/ghidra-import.log:40:INFO  Creating project: /tmp/jet-engines-ghidra.bKZcr4/project/jet-engines (HeadlessAnalyzer)  
+investigation/native/jet-engines/tools/ghidra-import.log:41:INFO  Creating project: /tmp/jet-engines-ghidra.bKZcr4/project/jet-engines (DefaultProject)  
+investigation/native/jet-engines/tools/ghidra-import.log:43:INFO       project: /tmp/jet-engines-ghidra.bKZcr4/project/jet-engines (HeadlessAnalyzer)  
+investigation/native/jet-engines/tools/ghidra-import.log:77:Created exports file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/symbols/win64/openal64.exports
+investigation/native/jet-engines/tools/ghidra-import.log:78:Library not saved to project.
+investigation/native/jet-engines/tools/ghidra-import.log:91:Created exports file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/symbols/win64/steam_api64.exports
+investigation/native/jet-engines/tools/ghidra-import.log:92:Library not saved to project.
+investigation/native/jet-engines/tools/ghidra-import.log:106:  [IPHLPAPI.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:107:  [KERNEL32.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:108:  [USER32.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:109:  [GDI32.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:110:  [COMDLG32.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:111:  [ADVAPI32.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:112:  [SHELL32.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:113:  [WS2_32.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:114:  [OPENAL64.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:115:  [STEAM_API64.DLL] -> not found in project
+investigation/native/jet-engines/tools/ghidra-import.log:116:  [OPENGL32.DLL] -> not found in project
+investigation/native/leftovers/tools/DecompileAt.java:1:import ghidra.app.script.GhidraScript;
+investigation/native/leftovers/tools/DecompileAt.java:2:import ghidra.app.decompiler.*;
+investigation/native/leftovers/tools/DecompileAt.java:3:import ghidra.program.model.address.*;
+investigation/native/leftovers/tools/DecompileAt.java:4:import ghidra.program.model.listing.*;
+investigation/native/leftovers/tools/DecompileAt.java:5:import ghidra.app.cmd.disassemble.DisassembleCommand;
+investigation/native/leftovers/tools/DecompileAt.java:6:import ghidra.app.cmd.function.CreateFunctionCmd;
+investigation/native/leftovers/tools/ghidra-groups.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-groups.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-groups.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/leftovers/tools/ghidra-groups.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-groups.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-groups.log:40:INFO  Opening existing project: /tmp/stormworks-leftovers/project/leftovers (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-groups.log:41:INFO  Opening project: /tmp/stormworks-leftovers/project/leftovers (HeadlessProject)  
+investigation/native/leftovers/tools/ghidra-groups.log:42:INFO  REPORT: Processing project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-emp.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-emp.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-emp.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/leftovers/tools/ghidra-emp.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-emp.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-emp.log:40:INFO  Opening existing project: /tmp/stormworks-leftovers/project/leftovers (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-emp.log:41:INFO  Opening project: /tmp/stormworks-leftovers/project/leftovers (HeadlessProject)  
+investigation/native/leftovers/tools/ghidra-emp.log:42:INFO  REPORT: Processing project file: /stormworks64.exe (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-import.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-import.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-import.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/leftovers/tools/ghidra-import.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-import.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-import.log:40:INFO  Creating project: /tmp/stormworks-leftovers/project/leftovers (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-import.log:41:INFO  Creating project: /tmp/stormworks-leftovers/project/leftovers (DefaultProject)  
+investigation/native/leftovers/tools/ghidra-import.log:43:INFO       project: /tmp/stormworks-leftovers/project/leftovers (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-import.log:77:Created exports file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/symbols/win64/openal64.exports
+investigation/native/leftovers/tools/ghidra-import.log:78:Library not saved to project.
+investigation/native/leftovers/tools/ghidra-import.log:91:Created exports file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/symbols/win64/steam_api64.exports
+investigation/native/leftovers/tools/ghidra-import.log:92:Library not saved to project.
+investigation/native/leftovers/tools/ghidra-import.log:106:  [IPHLPAPI.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:107:  [KERNEL32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:108:  [USER32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:109:  [GDI32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:110:  [COMDLG32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:111:  [ADVAPI32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:112:  [SHELL32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:113:  [WS2_32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:114:  [OPENAL64.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:115:  [STEAM_API64.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-import.log:116:  [OPENGL32.DLL] -> not found in project
+investigation/native/leftovers/tools/ghidra-helpers.log:4:INFO  Using log config file: jar:file:/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-helpers.log:5:INFO  Using log file: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/application.log (LoggingInitialization)  
+investigation/native/leftovers/tools/ghidra-helpers.log:6:INFO  Loading user preferences: /home/maxsp/.config/ghidra/ghidra_12.1.4_PUBLIC/preferences (Preferences)  
+investigation/native/leftovers/tools/ghidra-helpers.log:16:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:17:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:18:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:19:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:20:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:21:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:22:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:23:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:24:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:25:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:27:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:28:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:29:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:30:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:31:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:32:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:33:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:34:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:35:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:36:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:37:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+investigation/native/leftovers/tools/ghidra-helpers.log:38:    /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-helpers.log:40:INFO  Opening existing project: /tmp/stormworks-leftovers/project/leftovers (HeadlessAnalyzer)  
+investigation/native/leftovers/tools/ghidra-helpers.log:41:INFO  Opening project: /tmp/stormworks-leftovers/project/leftovers (HeadlessProject)  
+investigation/native/leftovers/tools/ghidra-helpers.log:42:INFO  REPORT: Processing project file: /stormworks64.exe (HeadlessAnalyzer)  

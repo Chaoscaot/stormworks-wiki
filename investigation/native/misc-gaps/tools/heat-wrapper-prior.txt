@@ -1,0 +1,30 @@
+The wrapper `0x14030fd60` can then replace and modify that base:
+
+1. If component+0x4b0 is nonzero, use enclosing_compartment+0x74 instead of Tweather. This is its fluid state's temperature, since the fluid state begins at +0x30 and temperature is +0x44. The load at `0x14030fdcd` is `f3 45 0f 10 5f 74`.
+2. Let H be the maximum source increment, starting at 0. From service+0x20, consider only sources whose +0x120 enclosing pointer equals the supplied enclosing pointer. Their candidate is `shape_weight(position)*source[+0x118]`. `0x14030bd10` computes the sphere or transformed-box falloff. A second scene collection at scene+0x11d8 contributes `(1-clamp(distance/5,0,1))*entry[+0x94]*40`. The maximum of both collections is H.
+3. Let F start at 0. A service+0x08 collection contributes `entry[+0x00]*(1-clamp((distance-entry[+0x04])/5,0,1))` at positions entry+0x40. Take the maximum with service[+0x00]'s virtual slot 0 return and the scene service virtual slot +0x28's output at the same position.
+4. With B=base+H, return `B + F*(min(400,B+400)-B)`.
+
+These numeric operations are decoded, including max rather than sum. Constants 5, 40 and 400 are at `0x140bb04e0`, `0x140bb072c` and `0x140bb0814`. Wrapper instructions are in `asm/ambient.asm`; final arithmetic is `0x14031002e-0x14031007d`. It is therefore incorrect to promise weather alone as the target near local sources or in a compartment. The complete identities, creation policies and virtual implementations of these source services were not traced. They remain inputs to this report, rather than grounds for a claim about every heater, fire or modded source.
+
+### Linear controller
+
+The controller starts at component+0x630. Constructor `0x1403ee82e-0x1403ee86c` clears its mode fields, initializes target/output/start to 20 C, age/delta to 0 and duration to 16. The duration store at `0x1403ee846` is `c7 86 4c 06 00 00 00 00 80 41`. Zero mode selects linear interpolation at `0x14092c985-0x14092c988` and `0x14092d28c-0x14092d29a`, not an exponential smoothing constant.
+
+Relative controller fields are target+0x10, output+0x14, age+0x18, duration+0x1c, start+0x20 and delta+0x24. Each new sample S is submitted through `0x1408cddd0`:
+
+```
+if S != target:
+    if abs(S-target)>0.1: age=0
+    target=S
+    start=output
+    delta=S-output
+```
+
+Every update then calls `0x1408cde20`:
+
+```
+if abs(delta)>0.001 and age<=16:
+    if age!=0: output=start+delta*age/16
+    age+=1
+else:

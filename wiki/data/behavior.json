@@ -699,7 +699,7 @@
         },
         {
           "title": "EMP sources",
-          "body": "An EMP is scene event 116 with a position, a strength and an inner and outer radius. Every electric part of a vehicle body in reach gets trunc(strength × (1 − clamp((d − inner) ÷ (outer − inner), 0, 1))) added to its countdown n. d is the distance from the pulse to the body's origin, the same for all of the body's parts.\n\nThe weather update sends 800 with a 100 m inner and a 300 m outer radius; reading it as the lightning strike is an inference. Within 100 m that cuts supply to 0 for 500 updates and restores it fully after 800 updates, 13.33 simulated seconds. At 200 m it adds 400, and from 300 m on nothing. Two object updates send 30 with the same radii, which lowers supply to 0.9 and recovers within 0.5 s, and a queue sends pulses with their own strength and an inner radius of half the outer."
+          "body": "An EMP is scene event 116 with a position, a strength and an inner and outer radius. Every electric part of a vehicle body in reach gets trunc(strength × (1 − clamp((d − inner) ÷ (outer − inner), 0, 1))) added to its countdown n. d is the distance from the pulse to the body's origin, the same for all of the body's parts.\n\nThe weather update sends 800 with a 100 m inner and a 300 m outer radius; reading it as the lightning strike is an inference. Within 100 m that cuts supply to 0 for 500 updates and restores it fully after 800 updates, 13.33 simulated seconds. At 200 m it adds 400, and from 300 m on nothing. The updates for object kinds 0 and 4, which the game's ANIMAL_TYPE list names shark and kraken, send 30 with the same radii. That lowers supply to 0.9 and recovers within 0.5 s. A queue sends pulses with their own strength and an inner radius of half the outer.\n\nThe debug spawn_emp action sends the server a request with strength 1200, inner radius 100 m and outer radius 200 m, and the server passes it on unchanged as the EMP scene event. Within 100 m that cuts supply to 0 for 900 updates and restores it after 1200 updates, 20 simulated seconds; at 150 m it adds 600."
         },
         {
           "title": "Rates and units",
@@ -709,7 +709,7 @@
       "limitations": [
         "Electric storage and draw use internal charge units; Generator Output is internal charge per simulated second. Battery Charge reads a 0 to 1 fraction and electric port inspection shows the EMP-adjusted supply fraction, both without a unit. A conversion of internal charge to joules or watts was not recovered.",
         "Shaft speed is RPS, and a simple shaft group mixes speeds weighted by force_emitter_max_force plus weight 1 for the group's previous speed. Gearbox and clutch bridges, loops and links back into one group pass speed and weight as described under Transmission. The model gives no SI torque or inertia.",
-        "Which code fills the queued EMP pulses, which gameplay objects the object kinds 0 and 4 that send 30-count pulses are, and what handles the spawn_emp request were not traced. So EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
+        "Which code fills the queued EMP pulses was not traced, and the shark and kraken reading of object kinds 0 and 4 rests on the ANIMAL_TYPE text, not on a constructor that writes the kind, so it is not confirmed. EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
         "Static analysis only.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -1099,6 +1099,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074347e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407434ac"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407435bb"
         },
         {
@@ -1120,6 +1130,31 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14077e085"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14079050b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140790543"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14079054a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140790551"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140856002"
         },
         {
           "path": "stormworks64.exe",
@@ -2160,7 +2195,7 @@
         },
         {
           "title": "Surrounding temperature",
-          "body": "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates.\n\nThe weather temperature comes from a warmth fraction W between 0 and 1 that depends on world Z, scrolling weather textures, the month and the time of day. Dry air is −15 + 45 × W °C at sea level, rain lowers it, and it falls by 6.5 °C per 1000 m above world zero. Water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero, cooler in rain, and changes by at most 1.5 °C per 1000 m of depth. Every exchanger, radiator and engine call passes a flag that keeps wind out of the sample. The Weather temperature, lighting and hazards mechanics article gives the full equations."
+          "body": "Exchangers and radiators sample the surrounding temperature at their own position every 16 updates (0.267 simulated seconds) through the same routine. Outside a compartment the sample blends the air and water weather temperatures by w = clamp((h − y + 0.25) ÷ 24, 0, 1), with h the wave-surface height and y the sample height, so it is pure air from 0.25 above the surface and pure water from 23.75 below it. Inside an enclosed compartment the compartment's temperature replaces the weather. Nearby heat sources then raise the sample, toward at most 400. A linear controller ramps to each new sample over 16 updates. A fuel rod hotter than 50 °C is one such source: its strength is 0.25 × min(T − 50, 500) for rod temperature T, weighted by the sample's position relative to the rod, and it counts only for samples in the rod's own compartment. The sample uses the strongest source, not a sum.\n\nThe weather temperature comes from a warmth fraction W between 0 and 1 that depends on world Z, scrolling weather textures, the month and the time of day. Dry air is −15 + 45 × W °C at sea level, rain lowers it, and it falls by 6.5 °C per 1000 m above world zero. Water runs from 1 °C at W = 0 to 8 °C at W = 1 at world zero, cooler in rain, and changes by at most 1.5 °C per 1000 m of depth. Every exchanger, radiator and engine call passes a flag that keeps wind out of the sample. The Weather temperature, lighting and hazards mechanics article gives the full equations."
         },
         {
           "title": "Practical setup",
@@ -2171,7 +2206,7 @@
         "Native findings come from static decompilation of one build; no in-game measurement was made.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.",
         "The exchanged quantity is a native amount × temperature unit; no conversion to joules or watts was recovered. No installation-independent effectiveness curve exists in the code: outlet temperatures depend on actual flow, fill, gas pressure, ambient and the connected networks.",
-        "The complete set of local heat sources that feed the surrounding-temperature sample, and their strengths, was not traced."
+        "Fuel rods are one decoded local heat source. The other sources that feed the surrounding-temperature sample, and their strengths, were not traced."
       ],
       "sources": [
         {
@@ -2332,6 +2367,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030dd2d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14030fdcd"
         },
         {
@@ -2448,6 +2488,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f9fa7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e540"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e5d5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e61e"
         },
         {
           "path": "stormworks64.exe",
@@ -2580,6 +2635,14 @@
           "body": "Every jet part keeps an incoming and an outgoing pressure and temperature. Each update a compressor, chamber, turbine or exhaust first averages them with its neighbours, then: the compressor moves q = 0.2 × (100 × r0 - (p_out - p_in)) from its incoming to its outgoing side; the chamber, above 0.5 RPS, sets p_out = p_in + 1600 × u × r and t_out = t_in + 0.1 × u × r; a turbine passes on half of its incoming pressure and gains 0.0000375 × p_in RPS; an exhaust above 1000 pushes with 32 × (p_in - 1000). r is RPS and u the effective throttle.\n\nAfter all updates the intakes, compressors, chambers and turbines joined through those neighbour lists average their RPS, so the compressor's spin and the turbines' gain feed the chamber's RPS. Exhausts take no part in this."
         },
         {
+          "title": "Neighbours, ducts and splitters",
+          "body": "Each jet part builds an upstream and a downstream neighbour list from its ports. A port at grid cell p facing n connects only to a part with a port at exactly p + n facing the opposite way, so parts whose meshes merely touch do not connect. The search passes through ducts, jet_engine_component_type 5, and follows every other port of each duct, so all branches of a splitter are searched. Ducts already visited are skipped, which ends a duct loop; each active part the search reaches is added to the list."
+        },
+        {
+          "title": "Intakes",
+          "body": "An intake that the shared grid lookup pairs with no other part replaces its outgoing pressure, after the neighbour average, with 0.1 × v × A. v is its signed speed along its facing direction, including the body's rotation, and A = clamp(1 − 1.5 × h ÷ 40000, 0, 1) for the body's height h, which reaches 0 at 26666.67. There is no clamp at 0, so an intake moving backward gives negative pressure.\n\nThe large intake, whose force_emitter_blade_physics_length of 1 exceeds 0.75, also pushes along its axis above 5 RPS with 2600 × (RPS − 5) × A and loses (RPS − 5) × 0.1 ÷ 60 RPS per update for it. With the vehicle_damage setting on, the intake's RPS is multiplied each update by clamp(max(1 − m, 0.01), 0, 1)^0.1, m being a source sample at the intake. Under the water surface it is also multiplied by 0.8, and an undamaged intake above 0.5 RPS first sends a damage request of 1 to the routine that spreads overspeed damage through the joined jet parts."
+        },
+        {
           "title": "Starting",
           "body": "Turn on the compressor's Compressor input and connect electricity. Each update it requests 0.1 charge, 6 per simulated second, and with full supply gains 0.01 RPS before its 0.99 retention and pressure load. The chamber ignites once its RPS is above 0.5; the tooltip's internal pressure threshold does not exist in the decoded branch. Throttle 0 to 1 sets u."
         },
@@ -2597,9 +2660,9 @@
         }
       ],
       "limitations": [
-        "Static decompilation of one build; the game was not run. How ducts, splitters and merged assemblies build the neighbour lists was not traced, so the equilibrium pressure, RPS and thrust of an assembled engine and its startup time are not predicted from a parts list.",
+        "Static decompilation of one build; the game was not run. How merged and attached assemblies supply the body map that the neighbour search reads was not traced, so the equilibrium pressure, RPS and thrust of an assembled engine and its startup time are not predicted from a parts list.",
         "Physical units of jet pressure and temperature were not established; pressure, temperature, charge and force stay in internal units.",
-        "SI torque, power and efficiency were not recovered. Intake behaviour was not decoded.",
+        "SI torque, power and efficiency were not recovered. The partner part that switches the intake pressure rule off and the sources behind the intake's source sample were not traced.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -2897,7 +2960,57 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353971"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353ac4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353acc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353d21"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353d37"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353db1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353de8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353ea2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140354008"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140355205"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403554b6"
         },
         {
           "path": "stormworks64.exe",
@@ -2908,6 +3021,26 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045e32d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b2452"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b25e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b28e5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b299a"
         },
         {
           "path": "stormworks64.exe",
@@ -6596,7 +6729,7 @@
         },
         {
           "title": "Recoil",
-          "body": "A shot submits F = -50 × recoil coefficient × multiplier × V for one update, V being the projectile's velocity and the multiplier 1. The coefficients run 0.1, 0.2, 0.3, 0.5, 2, 4 and 8 from the machine gun to the Bertha, so a stationary gun pushes back with 4000, 10000, 15000, 22500, 80000, 140000, 240000 internal force units in that order. Barrel extensions do not change the coefficient or the multiplier; their added mass changes how the vehicle responds."
+          "body": "A shot submits F = -50 × recoil coefficient × multiplier × V for one update, V being the projectile's velocity. The gun constructor sets the multiplier to 1 and both firing branches read it unchanged. The coefficients run 0.1, 0.2, 0.3, 0.5, 2, 4 and 8 from the machine gun to the Bertha, so a stationary gun pushes back with 4000, 10000, 15000, 22500, 80000, 140000, 240000 internal force units in that order. Barrel extensions do not change the coefficient or the multiplier; their added mass changes how the vehicle responds."
         },
         {
           "title": "Impact and explosions",
@@ -6616,7 +6749,7 @@
         },
         {
           "title": "Open questions",
-          "body": "Not decoded: a throughput model for arbitrary belt networks, combining direction, order, junctions and neighbour search; the fastest schedule for cannons whose breech is opened and loaded by external control; the final voxel damage, armour incidence and blast occlusion applied to a target; and what writes the recoil multiplier, so how a muzzle brake reduces recoil as its tooltip says. The walk over barrels and muzzle brakes leaves that multiplier at 1. No figure here was measured in a running game."
+          "body": "Not decoded: a throughput model for arbitrary belt networks, combining direction, order, junctions and neighbour search; the fastest schedule for cannons whose breech is opened and loaded by external control; and what follows the decoded impact magnitude and armour-piercing speed loss: the target voxel damage, the armour-angle response and blast shielding. No direct write to the recoil multiplier besides its initial 1 was found, so the reduction a muzzle brake's tooltip promises is not established. No figure here was measured in a running game."
         }
       ],
       "limitations": [
@@ -6655,7 +6788,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -7593,8 +7736,8 @@
         }
       ],
       "limitations": [
-        "Whether damage breaks window glass, whether mesh or material classification changes water ingress or buoyancy, and whether the compartment pressure and flooding solver treats a window differently from a block were not traced; no glass-breaking threshold or window pressure rule is known.",
-        "The search covered every window definition, the type-9 class and its vtable, and executable strings. Glass shader and material references (0x140680528, 0x14068a0e8, 0x1407a6c46) are rendering candidates only. Static analysis of one build; the game was not run."
+        "Windows have ordinary collision voxels and explicit buoyancy surfaces, and glass is a named material, but whether damage breaks window glass and whether broken glass changes sealing, flooding, pressure or buoyancy were not traced; no glass-breaking threshold or window pressure rule is known.",
+        "The search covered every window definition, the type-9 class and its vtable, and executable strings. The glass references 0x140680528 and 0x14068a0e8 are rendering candidates; 0x1407a6c46 registers glass as material 35, and the physics flood string labels an editor option, so neither is a damage or flooding branch. Static analysis of one build; the game was not run."
       ],
       "sources": [
         {
@@ -7677,6 +7820,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b922a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b03880"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b3e7e8"
         }
       ]
     }
@@ -20423,7 +20576,7 @@
         {
           "label": "Object update EMP strength",
           "value": "30",
-          "detail": "Two object updates, 0x140757ef0 and 0x14075a190 (strength also at 0x14075aec1), send pulses of 30 with the same 100 m inner and 300 m outer radius (0x140758ee2, 0x140758eea). The dispatcher 0x14074347e-0x1407434bb selects them for object kinds 4 and 0 at object +0x208. Electricity lists the gameplay identity of those kinds as open. Report: investigation/leftovers.md. Function 0x140757ef0-0x140759d70; instruction bytes 41b81e000000 at 0x140758f57. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/other-pulse-a.asm:L121; ../leftovers/pseudocode/0x140757ef0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Two object updates, 0x140757ef0 and 0x14075a190 (strength also at 0x14075aec1), send pulses of 30 with the same 100 m inner and 300 m outer radius (0x140758ee2, 0x140758eea). The dispatcher 0x14074347e-0x1407434bb selects them for object kinds 4 and 0 at object +0x208, which the ANIMAL_TYPE text names kraken and shark (investigation/misc-gaps.md). Report: investigation/leftovers.md. Function 0x140757ef0-0x140759d70; instruction bytes 41b81e000000 at 0x140758f57. Interpretation rests on retained output investigation/native/behavior/../leftovers/asm/other-pulse-a.asm:L121; ../leftovers/pseudocode/0x140757ef0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140757ef0@0x140758f57",
           "status": "observed",
           "source": {
@@ -20454,6 +20607,102 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405e2728"
+          }
+        },
+        {
+          "label": "Debug EMP request type",
+          "value": "0x41",
+          "detail": "The spawn_emp case of the game-to-logic handler (event type 0x37, from the getter 0x140388e90 of c_event_game_to_logic_spawn_emp) takes a position (0x1404e0a40) and builds a c_client_to_server_request_spawn_emp of type 0x41 (vtable 0x140b680b0, installed at 0x140790513), then sends it (0x140790562). Report: investigation/misc-gaps.md. Function 0x14078db30-0x14079184c; instruction bytes 48c7400841000000 at 0x14079050b. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14078db30.asm:L2482-L2483; ../misc-gaps/pseudocode/14078db30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14078db30@0x14079050b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14079050b"
+          }
+        },
+        {
+          "label": "Debug EMP request strength",
+          "value": "1200",
+          "detail": "Stores the integer strength 1200 at request+0x28, the same slot the EMP scene event reads as its strength. Report: investigation/misc-gaps.md. Function 0x14078db30-0x14079184c; instruction bytes c74028b0040000 at 0x140790543. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14078db30.asm:L2495; ../misc-gaps/pseudocode/14078db30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14078db30@0x140790543",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140790543"
+          }
+        },
+        {
+          "label": "Debug EMP request inner radius",
+          "value": "100",
+          "detail": "Stores binary32 100 (bytes 0000c842) at request+0x2c, the inner radius. Report: investigation/misc-gaps.md. Function 0x14078db30-0x14079184c; instruction bytes c7402c0000c842 at 0x14079054a. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14078db30.asm:L2496; ../misc-gaps/pseudocode/14078db30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14078db30@0x14079054a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14079054a"
+          }
+        },
+        {
+          "label": "Debug EMP request outer radius",
+          "value": "200",
+          "detail": "Stores binary32 200 (bytes 00004843) at request+0x30, the outer radius. These are the parameters of a debug event, not a Lua API, and the server's access checks on the request are outside this decode. Report: investigation/misc-gaps.md. Function 0x14078db30-0x14079184c; instruction bytes c7403000004843 at 0x140790551. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14078db30.asm:L2497; ../misc-gaps/pseudocode/14078db30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14078db30@0x140790551",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140790551"
+          }
+        },
+        {
+          "label": "Server EMP request forwarding",
+          "value": "call 0x14022d0a0",
+          "detail": "Case 0x41 of the server request dispatcher walks the client scene collection and passes the request's position, strength and both radii unchanged to the EMP scene event constructor 0x14022d0a0. Report: investigation/misc-gaps.md. Function 0x140851630-0x14085a12c; instruction bytes e899709dff at 0x140856002. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140851630.asm:L4088; ../misc-gaps/pseudocode/140851630.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140851630@0x140856002",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140856002"
+          }
+        },
+        {
+          "label": "Debug EMP at the centre",
+          "value": "no supply for 900 updates, full again after 1200 updates (20 s)",
+          "detail": "Within 100 m the request adds 1200 to each electric part's countdown n, so supply max(0, (300 − n) ÷ 300) stays 0 for 900 updates (15 s) and is full again after 1200 updates (20 s). At 150 m it adds 1200 × (1 − 50 ÷ 100) = 600; from 200 m on nothing. Report: investigation/misc-gaps.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14078db30@0x140790543, native:stormworks64.exe:f9206d85c82f:0x14078db30@0x14079054a, native:stormworks64.exe:f9206d85c82f:0x14078db30@0x140790551, native:stormworks64.exe:f9206d85c82f:0x140851630@0x140856002.",
+          "evidenceId": "derived:126febdac6c3",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140790543"
+          }
+        },
+        {
+          "label": "Object kind load",
+          "value": "object+0x208",
+          "detail": "The object update dispatcher loads the kind at object+0x208, tests 0 (0x140743485) and calls 0x14075a190 (0x140743493). The shipped ANIMAL_TYPE help text in the executable lists 0 = shark, 1 = whale and 4 = kraken, so kind 0 is read as the shark family. That reading rests on the shared enumeration; it does not separate ordinary sharks from megalodons. Report: investigation/misc-gaps.md. Function 0x14073f890-0x1407468e3; instruction bytes 418b8108020000 at 0x14074347e. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14073f890.asm:L3659. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x14074347e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14074347e"
+          }
+        },
+        {
+          "label": "Object kind 4 test",
+          "value": "4",
+          "detail": "Tests kind 4 and calls 0x140757ef0 (0x1407434bb), the update read as the kraken's from the same ANIMAL_TYPE text. Both updates send the 30-count EMP. Report: investigation/misc-gaps.md. Function 0x14073f890-0x1407468e3; instruction bytes 83f804 at 0x1407434ac. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14073f890.asm:L3673. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14073f890@0x1407434ac",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407434ac"
           }
         },
         {
@@ -20971,6 +21220,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14074347e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407434ac"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407435bb"
         },
         {
@@ -20992,6 +21251,31 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14077e085"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14079050b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140790543"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14079054a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140790551"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140856002"
         },
         {
           "path": "stormworks64.exe",
@@ -32431,11 +32715,19 @@
     },
     {
       "id": "jet-intake",
-      "summary": "More airflow when moving through the air; the large intake's turbofans add thrust.",
+      "summary": "An unpaired intake sets its outgoing pressure to 0.1 × forward speed × an altitude factor; the large intake also pushes along its axis above 5 RPS.",
       "sections": [
         {
+          "title": "Ram pressure",
+          "body": "Each update an intake that the shared grid lookup pairs with no other part replaces its outgoing pressure with 0.1 × v × A, after averaging with its neighbours. v is the signed speed along the intake's facing direction at its position, so flying faster raises the pressure and moving backward makes it negative. A = clamp(1 − 1.5 × h ÷ 40000, 0, 1), with h the body's height, falls to 0 at 26666.67."
+        },
+        {
           "title": "Variant tradeoffs",
-          "body": "Only the large intake's tooltip mentions additional thrust from turbo fans."
+          "body": "Only the large intake's tooltip mentions additional thrust from turbo fans. In the code the large intake's force_emitter_blade_physics_length of 1 passes a 0.75 gate that the small intake's 0.5 does not. Above 5 RPS the large intake then pushes along its axis with 2600 × (RPS − 5) × A in internal force units and loses (RPS − 5) × 0.1 ÷ 60 RPS per update."
+        },
+        {
+          "title": "Water and damage",
+          "body": "With the vehicle_damage setting on, the intake's RPS is multiplied each update by clamp(max(1 − m, 0.01), 0, 1)^0.1, m being a source sample at the intake. Below the water surface it is also multiplied by 0.8, and an undamaged intake above 0.5 RPS first sends a damage request of 1 to the routine that spreads overspeed damage through the joined jet parts."
         }
       ],
       "findings": [
@@ -32466,6 +32758,152 @@
           }
         },
         {
+          "label": "Small Jet Intake · force_emitter_blade_physics_length",
+          "value": "0.5",
+          "detail": "jet_engine_intake_small: definition attribute force_emitter_blade_physics_length. Definition+0x868; 0.5 fails the intake's 0.75 force gate.",
+          "evidenceId": "resource:rom/data/definitions/jet_engine_intake_small.xml:153c9106ef1d:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/jet_engine_intake_small.xml",
+            "sha256": "153c9106ef1df6c18432d5260b2aad7d931d2b3eb3b03d7d83a2432c33eefbd5",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Large Jet Intake · force_emitter_blade_physics_length",
+          "value": "1",
+          "detail": "jet_engine_intake_large: definition attribute force_emitter_blade_physics_length. Definition+0x868; 1 passes the intake's 0.75 force gate.",
+          "evidenceId": "resource:rom/data/definitions/jet_engine_intake_large.xml:5dc7d9dbca1a:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/jet_engine_intake_large.xml",
+            "sha256": "5dc7d9dbca1ac6a8b9c1a24c10902ca88c44b99907cec04081a8c2047adf1f44",
+            "lineStart": 2,
+            "lineEnd": 2
+          }
+        },
+        {
+          "label": "Intake pressure branch gate",
+          "value": "component+0x4e0 empty",
+          "detail": "The intake branch runs only while +0x4e0 is null. The initializer fills it from the shared grid lookup 0x140329540 (call at 0x140350be4, store at 0x140350be9); what that partner is in play is outside this decode. Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes 4c39bfe0040000 at 0x140353971. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2523; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353971",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353971"
+          }
+        },
+        {
+          "label": "Intake altitude factor scale",
+          "value": "1.5",
+          "detail": "A = clamp(1 − 1.5 × h ÷ 40000, 0, 1), h being the body transform's height (+0x80), not a sample at the intake mouth. Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes f20f59051cc78500 at 0x140353ac4 address binary64 1.5 (bytes 000000000000f83f) at 0x140bb01e8. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2601-L2602; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353ac4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353ac4"
+          }
+        },
+        {
+          "label": "Intake altitude factor span",
+          "value": "40000.0",
+          "detail": "Divides 1.5 × h before the 0 to 1 clamp, so A reaches 0 at h = 26666.67. Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes f20f5e05acca8500 at 0x140353acc address binary64 40000.0 (bytes 000000000088e340) at 0x140bb0580. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2603-L2604; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353acc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353acc"
+          }
+        },
+        {
+          "label": "Intake pressure factor",
+          "value": "0.1",
+          "detail": "After the neighbour average the intake overwrites its outgoing pressure with 0.1 × v × A (multiplies at 0x140353d4f and 0x140353d5a, store to +0x1d0 at 0x140353d5e). v is the signed dot product of the intake's facing direction with the velocity at the intake, body velocity plus the angular term. There is no clamp at 0, so backward motion gives negative pressure. Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes f3440f100d90bd8500 at 0x140353d37 address binary32 0.1 (bytes cdcccc3d) at 0x140bafad0. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2746-L2747; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353d37",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353d37"
+          }
+        },
+        {
+          "label": "Intake force size gate",
+          "value": "0.75",
+          "detail": "Compares force_emitter_blade_physics_length (definition+0x868) with this; only a larger value (jbe at 0x140353db8 skips) takes the force branch. The large intake has 1, the small one 0.5. Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes 0f2f05f8bf8500 at 0x140353db1 address binary32 0.75 (bytes 0000403f) at 0x140bafdb0. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2776; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353db1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353db1"
+          }
+        },
+        {
+          "label": "Intake axial force factor",
+          "value": "2600",
+          "detail": "Above 5 RPS (r = component+0x1bc, threshold loaded at 0x140353d81) the large intake builds an axial force 2600 × (r − 5) × A, submits it through 0x1401a7c70 when the global force gate 0x140ceb6ff is set, and lowers its RPS by (r − 5) × 0.1 ÷ 60 per update (0x140353e1a-0x140353e27). Force in internal units. Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f100590ca8500 at 0x140353de8 address binary32 2600 (bytes 00802245) at 0x140bb0880. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2787-L2788; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353de8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353de8"
+          }
+        },
+        {
+          "label": "Intake water branch gate",
+          "value": "vehicle_damage, settings+0x4a",
+          "detail": "The water and source branch runs only with the vehicle_damage setting on (je at 0x140353ea6). Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes 80784a00 at 0x140353ea2. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2828; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353ea2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353ea2"
+          }
+        },
+        {
+          "label": "Intake source sample floor",
+          "value": "0.01",
+          "detail": "D = clamp(max(1 − m, 0.01), 0, 1)^0.1, m being the value the source sampler 0x14030e1f0 returns at the intake (call at 0x140353d14, power call at 0x140353d47). In the water branch r is multiplied by D every update (0x140354018). Which sources that sampler reads is outside this decode. Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f5f152fbc8500 at 0x140353d21 address binary32 0.01 (bytes 0ad7233c) at 0x140baf958. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2741-L2742; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140353d21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353d21"
+          }
+        },
+        {
+          "label": "Submerged intake speed factor",
+          "value": "0.8",
+          "detail": "When the wave surface sampled by 0x1402bbbb0 is above the intake (comisd at 0x140353fa9), r is multiplied by this before D. First, an undamaged intake above 0.5 RPS passes damage + 1 to the jet damage propagation routine 0x140355450 (inc at 0x140353fd7, call at 0x140353fe1). Report: investigation/misc-gaps.md. Function 0x140350f40-0x1403540f6; instruction bytes f30f5905c0bd8500 at 0x140354008 address binary32 0.8 (bytes cdcc4c3f) at 0x140bafdd0. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140350f40.asm:L2917-L2918; ../misc-gaps/pseudocode/140350f40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140350f40@0x140354008",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140354008"
+          }
+        },
+        {
+          "label": "Jet damage propagation",
+          "value": "max(part damage, request)",
+          "detail": "For each part it visits the routine compares the part's damage with the request (0x1403554ac), keeps the larger and passes it to the part's damage setter, vtable slot +0x20 (call at 0x1403554ba). It records visited parts and recurses through both jet neighbour lists, so every jet part joined to the chamber gets at least the request and none is lowered. Ghidra's pseudocode drops this maximum; the instructions are used instead. Report: investigation/new-issues-a.md. Function 0x140355450-0x14035559e; instruction bytes 0f475108 at 0x1403554b6. Interpretation rests on retained output investigation/native/behavior/../new-issues-a/asm/140355450.asm:L30. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140355450@0x1403554b6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403554b6"
+          }
+        },
+        {
           "label": "Small Jet Intake · tooltip",
           "value": "A small intake that will suck air into a jet engine.",
           "detail": "jet_engine_intake_small: developer-authored short description; intended behaviour, not a measurement.",
@@ -32492,8 +32930,17 @@
           }
         }
       ],
-      "limitations": [],
+      "limitations": [
+        "Static decompilation of one build; the game was not run. Pressure and force are internal units.",
+        "Open questions about the intake's pairing partner and its source sample are listed under the Jet engines category."
+      ],
       "sources": [
+        {
+          "path": "rom/data/definitions/jet_engine_intake_large.xml",
+          "sha256": "5dc7d9dbca1ac6a8b9c1a24c10902ca88c44b99907cec04081a8c2047adf1f44",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
         {
           "path": "rom/data/definitions/jet_engine_intake_large.xml",
           "sha256": "5dc7d9dbca1ac6a8b9c1a24c10902ca88c44b99907cec04081a8c2047adf1f44",
@@ -32503,8 +32950,64 @@
         {
           "path": "rom/data/definitions/jet_engine_intake_small.xml",
           "sha256": "153c9106ef1df6c18432d5260b2aad7d931d2b3eb3b03d7d83a2432c33eefbd5",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/jet_engine_intake_small.xml",
+          "sha256": "153c9106ef1df6c18432d5260b2aad7d931d2b3eb3b03d7d83a2432c33eefbd5",
           "lineStart": 117,
           "lineEnd": 117
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353971"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353ac4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353acc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353d21"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353d37"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353db1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353de8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140353ea2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140354008"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403554b6"
         }
       ]
     },
@@ -33234,7 +33737,7 @@
         },
         {
           "title": "Shipped tuning values",
-          "body": "general_debug.txt lists eight keel settings, and the executable contains none of their names. The routine uses embedded constants: 200, 2, 100, 40, 1000, 0.002 and 4 equal the file's values, but the water force uses limit 100 where keel_lateral_max_acc_scale says 20. Editing the file is not shown to change keel behaviour."
+          "body": "general_debug.txt lists eight keel settings. The game's realtime loader reads every file in data/realtime_values/ and stores each line under its full name, so the keel lines are parsed even though the executable contains none of their names. The keel routine uses embedded constants instead: 200, 2, 100, 40, 1000, 0.002 and 4 equal the file's values, but the water force uses limit 100 where keel_lateral_max_acc_scale says 20. Editing the file is not shown to change keel behaviour."
         },
         {
           "title": "Operating conditions",
@@ -34002,6 +34505,42 @@
           }
         },
         {
+          "label": "Realtime loader call",
+          "value": "call 0x1401f12e0",
+          "detail": "The initializer 0x140892b80 calls the loader on entry. Report: investigation/misc-gaps.md. Function 0x140892b80-0x140892bf1; instruction bytes e848e795ff at 0x140892b93. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140892b80.asm:L14. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140892b80@0x140892b93",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140892b93"
+          }
+        },
+        {
+          "label": "Realtime directory",
+          "value": "data/realtime_values/",
+          "detail": "The loader enumerates this directory, reads each file (0x140183d60) and passes it to the line parser 0x1401f1e40. Report: investigation/misc-gaps.md. Function 0x1401f12e0-0x1401f1545; it references the string 'data/realtime_values/' at 0x140b88d28. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1401f12e0.asm:L34; ../misc-gaps/pseudocode/1401f12e0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f12e0@0x140b88d28",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b88d28"
+          }
+        },
+        {
+          "label": "Realtime record name comparison",
+          "value": "full-name byte comparison",
+          "detail": "The record parser splits a line into type, name and value and stores or replaces the value by comparing the whole name (test at 0x1401f1776, je at 0x1401f1778). No name has to occur in the executable for its line to be parsed, so the keel names' absence from the executable does not mean general_debug.txt is skipped. Report: investigation/misc-gaps.md. Function 0x1401f1550-0x1401f1e36; instruction bytes e86ac37a00 at 0x1401f1771. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1401f1550.asm:L164; ../misc-gaps/pseudocode/1401f1550.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401f1550@0x1401f1771",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401f1771"
+          }
+        },
+        {
           "label": "Keel (Small) · tooltip",
           "value": "A small boat keel used for sailing.",
           "detail": "keel_small: developer-authored short description; intended behaviour, not a measurement.",
@@ -34069,7 +34608,7 @@
       ],
       "limitations": [
         "The heel angle of a complete boat is not established. It depends on the sail's moment, hull buoyancy, where each force acts and the cap scale S of the joined bodies, so no heel curve per keel size is given.",
-        "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
+        "The realtime loader parses general_debug.txt, keel lines included, but when its initializer 0x140892b80 runs and any path from the parsed values to the keel force code were not traced. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20, so editing the keel settings has no established effect in this build.",
         "The equations come from static analysis of one build; the game was not run. Internal mass and force units are not calibrated to kilograms and newtons."
       ],
       "sources": [
@@ -34185,6 +34724,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401a7b62"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401f1771"
         },
         {
           "path": "stormworks64.exe",
@@ -34329,7 +34873,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140892b93"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b6c940"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b88d28"
         }
       ]
     },
@@ -60680,6 +61234,30 @@
           }
         },
         {
+          "label": "Recoil multiplier initial value",
+          "value": "1",
+          "detail": "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0. Report: investigation/misc-gaps.md. Function 0x140423a90-0x140423f80; instruction bytes 48c787800300000000803f at 0x140423cf1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L214-L215. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423a90@0x140423cf1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          }
+        },
+        {
+          "label": "Second recoil multiplier read",
+          "value": "component+0x380",
+          "detail": "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. Stores through adjusted pointers, bulk copies or deserialization are not covered by that search. Report: investigation/misc-gaps.md. Function 0x140427390-0x14042a412; instruction bytes f30f108680030000 at 0x140427f21. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L218-L219. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140427390@0x140427f21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140427f21"
+          }
+        },
+        {
           "label": "Heat per shot read",
           "value": "gun record offset 44",
           "detail": "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20). Report: investigation/weapons.md. Function 0x140427390-0x14042a412; instruction bytes f3430f1044172c at 0x140428c19. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/gun-update.asm:L1499-L1503; ../weapons/pseudocode/0x140427390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -61012,7 +61590,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -61543,6 +62131,30 @@
           }
         },
         {
+          "label": "Recoil multiplier initial value",
+          "value": "1",
+          "detail": "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0. Report: investigation/misc-gaps.md. Function 0x140423a90-0x140423f80; instruction bytes 48c787800300000000803f at 0x140423cf1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L214-L215. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423a90@0x140423cf1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          }
+        },
+        {
+          "label": "Second recoil multiplier read",
+          "value": "component+0x380",
+          "detail": "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. Stores through adjusted pointers, bulk copies or deserialization are not covered by that search. Report: investigation/misc-gaps.md. Function 0x140427390-0x14042a412; instruction bytes f30f108680030000 at 0x140427f21. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L218-L219. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140427390@0x140427f21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140427f21"
+          }
+        },
+        {
           "label": "Heat per shot read",
           "value": "gun record offset 44",
           "detail": "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20). Report: investigation/weapons.md. Function 0x140427390-0x14042a412; instruction bytes f3430f1044172c at 0x140428c19. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/gun-update.asm:L1499-L1503; ../weapons/pseudocode/0x140427390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -61875,7 +62487,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -62478,6 +63100,30 @@
           }
         },
         {
+          "label": "Recoil multiplier initial value",
+          "value": "1",
+          "detail": "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0. Report: investigation/misc-gaps.md. Function 0x140423a90-0x140423f80; instruction bytes 48c787800300000000803f at 0x140423cf1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L214-L215. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423a90@0x140423cf1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          }
+        },
+        {
+          "label": "Second recoil multiplier read",
+          "value": "component+0x380",
+          "detail": "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. Stores through adjusted pointers, bulk copies or deserialization are not covered by that search. Report: investigation/misc-gaps.md. Function 0x140427390-0x14042a412; instruction bytes f30f108680030000 at 0x140427f21. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L218-L219. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140427390@0x140427f21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140427f21"
+          }
+        },
+        {
           "label": "Heat per shot read",
           "value": "gun record offset 44",
           "detail": "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20). Report: investigation/weapons.md. Function 0x140427390-0x14042a412; instruction bytes f3430f1044172c at 0x140428c19. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/gun-update.asm:L1499-L1503; ../weapons/pseudocode/0x140427390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -62810,7 +63456,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -63341,6 +63997,30 @@
           }
         },
         {
+          "label": "Recoil multiplier initial value",
+          "value": "1",
+          "detail": "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0. Report: investigation/misc-gaps.md. Function 0x140423a90-0x140423f80; instruction bytes 48c787800300000000803f at 0x140423cf1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L214-L215. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423a90@0x140423cf1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          }
+        },
+        {
+          "label": "Second recoil multiplier read",
+          "value": "component+0x380",
+          "detail": "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. Stores through adjusted pointers, bulk copies or deserialization are not covered by that search. Report: investigation/misc-gaps.md. Function 0x140427390-0x14042a412; instruction bytes f30f108680030000 at 0x140427f21. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L218-L219. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140427390@0x140427f21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140427f21"
+          }
+        },
+        {
           "label": "Heat per shot read",
           "value": "gun record offset 44",
           "detail": "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20). Report: investigation/weapons.md. Function 0x140427390-0x14042a412; instruction bytes f3430f1044172c at 0x140428c19. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/gun-update.asm:L1499-L1503; ../weapons/pseudocode/0x140427390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -63673,7 +64353,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -64204,6 +64894,30 @@
           }
         },
         {
+          "label": "Recoil multiplier initial value",
+          "value": "1",
+          "detail": "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0. Report: investigation/misc-gaps.md. Function 0x140423a90-0x140423f80; instruction bytes 48c787800300000000803f at 0x140423cf1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L214-L215. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423a90@0x140423cf1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          }
+        },
+        {
+          "label": "Second recoil multiplier read",
+          "value": "component+0x380",
+          "detail": "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. Stores through adjusted pointers, bulk copies or deserialization are not covered by that search. Report: investigation/misc-gaps.md. Function 0x140427390-0x14042a412; instruction bytes f30f108680030000 at 0x140427f21. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L218-L219. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140427390@0x140427f21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140427f21"
+          }
+        },
+        {
           "label": "Heat per shot read",
           "value": "gun record offset 44",
           "detail": "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20). Report: investigation/weapons.md. Function 0x140427390-0x14042a412; instruction bytes f3430f1044172c at 0x140428c19. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/gun-update.asm:L1499-L1503; ../weapons/pseudocode/0x140427390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -64536,7 +65250,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -65067,6 +65791,30 @@
           }
         },
         {
+          "label": "Recoil multiplier initial value",
+          "value": "1",
+          "detail": "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0. Report: investigation/misc-gaps.md. Function 0x140423a90-0x140423f80; instruction bytes 48c787800300000000803f at 0x140423cf1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L214-L215. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423a90@0x140423cf1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          }
+        },
+        {
+          "label": "Second recoil multiplier read",
+          "value": "component+0x380",
+          "detail": "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. Stores through adjusted pointers, bulk copies or deserialization are not covered by that search. Report: investigation/misc-gaps.md. Function 0x140427390-0x14042a412; instruction bytes f30f108680030000 at 0x140427f21. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L218-L219. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140427390@0x140427f21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140427f21"
+          }
+        },
+        {
           "label": "Heat per shot read",
           "value": "gun record offset 44",
           "detail": "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20). Report: investigation/weapons.md. Function 0x140427390-0x14042a412; instruction bytes f3430f1044172c at 0x140428c19. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/gun-update.asm:L1499-L1503; ../weapons/pseudocode/0x140427390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -65399,7 +66147,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -65930,6 +66688,30 @@
           }
         },
         {
+          "label": "Recoil multiplier initial value",
+          "value": "1",
+          "detail": "The gun constructor stores binary32 1 at component+0x380 with an 8-byte store whose upper half is 0. Report: investigation/misc-gaps.md. Function 0x140423a90-0x140423f80; instruction bytes 48c787800300000000803f at 0x140423cf1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L214-L215. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423a90@0x140423cf1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          }
+        },
+        {
+          "label": "Second recoil multiplier read",
+          "value": "component+0x380",
+          "detail": "A second firing branch reads the multiplier besides the one at 0x140429092. A search of direct accesses to +0x380 (tools/recoil-component-xrefs.txt) finds this initialization and the reads, and no store that applies a muzzle brake. Stores through adjusted pointers, bulk copies or deserialization are not covered by that search. Report: investigation/misc-gaps.md. Function 0x140427390-0x14042a412; instruction bytes f30f108680030000 at 0x140427f21. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/tools/report-instruction-context.txt:L218-L219. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140427390@0x140427f21",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140427f21"
+          }
+        },
+        {
           "label": "Heat per shot read",
           "value": "gun record offset 44",
           "detail": "On each shot the record's heat value is added to the heat float at component+0x384 (addss at 0x140428c20). Report: investigation/weapons.md. Function 0x140427390-0x14042a412; instruction bytes f3430f1044172c at 0x140428c19. Interpretation rests on retained output investigation/native/behavior/../weapons/asm/gun-update.asm:L1499-L1503; ../weapons/pseudocode/0x140427390.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -66262,7 +67044,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140423cf1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404274e6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140427f21"
         },
         {
           "path": "stormworks64.exe",
@@ -107176,7 +107968,7 @@
         },
         {
           "title": "Angles",
-          "body": "Reported angles do not use the swept frame. They use right R0, forward R1 and up −R2 of the unswept transform: azimuth = atan2(u · R0, u · R1) ÷ 2π and elevation = asin(−u · R2) ÷ 2π, in turns, for the unit direction u to the target. Positive azimuth points toward R0 and positive elevation toward −R2. At zero scan angles the radar looks along R1. Because right × forward = −up, the output axes are mirrored relative to the R basis. A target straight behind reads +0.5 turn."
+          "body": "Reported angles do not use the swept frame. They use right R0, forward R1 and up −R2 of the unswept transform: azimuth = atan2(u · R0, u · R1) ÷ 2π and elevation = asin(−u · R2) ÷ 2π, in turns, for the unit direction u to the target. Positive azimuth points toward R0 and positive elevation toward −R2. At zero scan angles the radar looks along R1. Because right × forward = −up, the output axes are mirrored relative to the R basis. A target straight behind reads +0.5 turn.\n\nIn the editor the part's straight arrow points along its mesh +Y, which is R1, so the arrow shows the radar's forward direction. R0 is the side axis and R2 the top axis, and positive elevation points toward −R2."
         }
       ],
       "findings": [
@@ -107846,11 +108638,35 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403bab20"
           }
+        },
+        {
+          "label": "Missile Radar · editor arrow mesh",
+          "value": "+Y",
+          "detail": "rom/meshes/arrow_radar_advanced_missile.mesh: arrow_radar_advanced_missile.mesh, 384 vertices, the definition's mesh_editor_only_name. Extent x -0.118 to 0.118, y -0.113 to 0.536, z -0.25 to -0.226 m: a flat shape whose farthest point, at x = -0.00016, y = 0.536, lies on +Y, so the straight arrow points along mesh +Y, the part's R1 row. The curved rotation arrows in the same mesh do not reach as far. R0 is mesh X, the side axis, and R2 mesh Z, the top axis; positive native elevation points toward -R2. Report: investigation/misc-gaps.md.",
+          "evidenceId": "resource:rom/meshes/arrow_radar_advanced_missile.mesh:5ba0c4a7efe2:arrow",
+          "status": "observed",
+          "source": {
+            "path": "rom/meshes/arrow_radar_advanced_missile.mesh",
+            "sha256": "5ba0c4a7efe221e94f974827272e62252fd758b3b38df9d84d7105dfc12ed1d0"
+          }
+        },
+        {
+          "label": "Missile Radar · particle_direction",
+          "value": "(0, 1, 0)",
+          "detail": "The definition's direction vector also points along local +Y. Report: investigation/misc-gaps.md.",
+          "evidenceId": "resource:rom/data/definitions/radar_advanced_missile.xml:2e3159f4a007:L75-L75",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/radar_advanced_missile.xml",
+            "sha256": "2e3159f4a007df722500a5ad34933f241f93a29cf05874f01d141ad0a3fa4234",
+            "lineStart": 75,
+            "lineEnd": 75
+          }
         }
       ],
       "limitations": [
         "S is the target's physics-body mass, read per physics body; how vehicle mass accounting and the environment shape it are open questions listed under Other components.",
-        "Range, score, scan interval and FOV slider limits match the other advanced radars. Which of R0, R1 and R2 the editor shows as the part's front, side and top was not established, so the rest direction R1 is not tied to a visible face of the model, and no angle was checked in a running game.",
+        "Range, score, scan interval and FOV slider limits match the other advanced radars. The axis assignment comes from the shipped arrow mesh and the native angle code; no angle was checked in a running game.",
         "20000 is also the definition serializer's fallback for radar_range (it appears on hundreds of unrelated parts), so this value may be a default rather than a tuned range."
       ],
       "sources": [
@@ -107877,6 +108693,16 @@
           "sha256": "2e3159f4a007df722500a5ad34933f241f93a29cf05874f01d141ad0a3fa4234",
           "lineStart": 72,
           "lineEnd": 72
+        },
+        {
+          "path": "rom/data/definitions/radar_advanced_missile.xml",
+          "sha256": "2e3159f4a007df722500a5ad34933f241f93a29cf05874f01d141ad0a3fa4234",
+          "lineStart": 75,
+          "lineEnd": 75
+        },
+        {
+          "path": "rom/meshes/arrow_radar_advanced_missile.mesh",
+          "sha256": "5ba0c4a7efe221e94f974827272e62252fd758b3b38df9d84d7105dfc12ed1d0"
         },
         {
           "path": "stormworks64.exe",
@@ -112176,7 +113002,7 @@
       ],
       "limitations": [
         "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
-        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article."
+        "Open questions about update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article."
       ],
       "sources": [
         {
@@ -112282,7 +113108,7 @@
         },
         {
           "title": "Electric cable pulleys",
-          "body": "Electric Cable Pulleys are rope hooks of subtype 9. When either side of a link is a pulley, the same copies run through the pulley's own buffers, so a cable through a pulley still carries every channel. The on/off value takes the same route through the pulley's own on/off bytes."
+          "body": "Electric Cable Pulleys are rope hooks of subtype 9. When either side of a link is a pulley, the same copies run through the pulley's own buffers, so a cable through a pulley still carries every channel. The on/off value takes the same route through the pulley's own on/off bytes.\n\nEach end stores its peer per side: a connection named Rope 2 uses the second link slot and any other the first, so the two ends of one link can use different slots. A pulley hands what one side receives straight to the peer on its other side in the same pass, with no delay of its own. A value therefore crosses several pulleys in one pass when they are processed in route order, and each hop whose next pulley is processed earlier adds a pass: passes = 1 + the number of such reversals. That order depends on the vehicle, so a cable route has no fixed delay per pulley."
         }
       ],
       "findings": [
@@ -112452,6 +113278,78 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1402ea06d"
+          }
+        },
+        {
+          "label": "Cable link side name",
+          "value": "Rope 2",
+          "detail": "The link builders 0x140521500 and 0x140522030 compare the selected connection's name with this on each endpoint. Report: investigation/misc-gaps.md. Function 0x140521500-0x14052202c; it references the string 'Rope 2' at 0x140b87094. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140521500.asm:L378; ../misc-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140b87094",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b87094"
+          }
+        },
+        {
+          "label": "Cable link second slot",
+          "value": "+0xaa0 for Rope 2",
+          "detail": "A connection named Rope 2 stores the peer in the second link slot; any other name uses the first slot +0xa98 (0x140521d1c). The other endpoint makes its own choice (0x140521ea5, 0x140521f86), so two linked endpoints can use different slots. An occupied slot's old peer is cleared first. The second builder has the same stores (0x140522544, 0x140522626). Report: investigation/misc-gaps.md. Function 0x140521500-0x14052202c; instruction bytes 4889bea00a0000 at 0x140521c3b. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/140521500.asm:L465; ../misc-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140521c3b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521c3b"
+          }
+        },
+        {
+          "label": "Cable link reset",
+          "value": "+0xa98 and +0xaa0 = 0",
+          "detail": "The reset helper clears both link slots (second at 0x1403b4433). Report: investigation/misc-gaps.md. Function 0x1403b4410-0x1403b44b0; instruction bytes 488981980a0000 at 0x1403b442c. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1403b442c.asm:L8. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b4410@0x1403b442c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b442c"
+          }
+        },
+        {
+          "label": "Pulley side selection",
+          "value": "which peer slot points back",
+          "detail": "The cable pass picks the receiving side of a pulley by testing which of the peer's link slots points back to the sender. Report: investigation/misc-gaps.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 483999a00a0000 at 0x1403b6919. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1403b6840.asm:L58. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6919",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6919"
+          }
+        },
+        {
+          "label": "Pulley composite forwarding",
+          "value": "side buffer +0x1204 → opposite side",
+          "detail": "A pulley copies the composite value received on one side buffer (+0x1180 or +0x1204, destination selected at 0x1403b6a38) straight to the peer on its other side in the same pass, with no countdown or extra update between the two buffers. Report: investigation/misc-gaps.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 8b8304120000 at 0x1403b69aa. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1403b6840.asm:L84. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b69aa",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b69aa"
+          }
+        },
+        {
+          "label": "Updates through a pulley chain",
+          "value": "passes = 1 + reversals in processing order",
+          "detail": "Each pulley forwards in place during the rope-hook pass, once per normal pass. If o(i) is the processing position of the part doing hop i, a value that is ready before the first hop completes all hops after 1 + count(o(i + 1) < o(i)) passes: one pass when the parts are processed in route order, one pass per hop in reverse order. Input gathering and output flushes add their own boundaries. Report: investigation/misc-gaps.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6919, native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b69aa.",
+          "evidenceId": "derived:34e613e063c4",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6919"
           }
         },
         {
@@ -112760,6 +113658,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b442c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403b565f"
         },
         {
@@ -112780,7 +113683,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6919"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403b6943"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b69aa"
         },
         {
           "path": "stormworks64.exe",
@@ -112810,6 +113723,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140521c3b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
         },
         {
@@ -112831,6 +113749,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407435bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b87094"
         }
       ]
     },
@@ -113663,7 +114586,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -114431,7 +115354,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -115199,7 +116122,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -115954,7 +116877,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -130919,6 +131842,55 @@
           }
         },
         {
+          "label": "Coupling cell match",
+          "value": "pB = pA + nA",
+          "detail": "The shared matcher resolves the other part through the body's grid map, compares coupling names and gender and rejects occupied links. The other coupling's transformed integer position must equal this coupling's position plus its outward direction (y at 0x1404b3933, z at 0x1404b393c). Report: investigation/misc-gaps.md. Function 0x1404b3270-0x1404b3aa8; instruction bytes 3b4308 at 0x1404b392a. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1404b3270.asm:L506; ../misc-gaps/pseudocode/1404b3270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b3270@0x1404b392a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b392a"
+          }
+        },
+        {
+          "label": "Coupling reciprocal match",
+          "value": "pA = pB + nB",
+          "detail": "The reverse condition must hold too (0x1404b394f, 0x1404b3955), so the two couplings sit one grid step apart and face each other. No distance or angle tolerance is applied. Report: investigation/misc-gaps.md. Function 0x1404b3270-0x1404b3aa8; instruction bytes 39442458 at 0x1404b3945. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1404b3270.asm:L515; ../misc-gaps/pseudocode/1404b3270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b3270@0x1404b3945",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b3945"
+          }
+        },
+        {
+          "label": "Coupling bipolar test",
+          "value": "descriptor+0x5d",
+          "detail": "When either descriptor requires alignment (+0x5c) the transformed alignment vectors must be equal; when either allows bipolar alignment (this test, and 0x1404b38fb for the other) they may also be exact opposites. Report: investigation/misc-gaps.md. Function 0x1404b3270-0x1404b3aa8; instruction bytes 807f5d00 at 0x1404b38f1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1404b3270.asm:L492; ../misc-gaps/pseudocode/1404b3270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b3270@0x1404b38f1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b38f1"
+          }
+        },
+        {
+          "label": "Nuclear Control Rod · coupling x+",
+          "value": "alignment_required, allow_bipolar_alignment",
+          "detail": "Each control_rod coupling of the nuclear parts sets alignment_required and allow_bipolar_alignment to true, so matched couplings may be parallel or antiparallel. Report: investigation/misc-gaps.md.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L152-L152",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 152,
+            "lineEnd": 152
+          }
+        },
+        {
           "label": "Nuclear Control Rod · tooltip",
           "value": "Can be inserted into a fuel assembly to decrease the rate of reaction of adjacent rods.",
           "detail": "steam_nuclear_control_rod: developer-authored description; intended behaviour, not a measurement.",
@@ -130973,7 +131945,7 @@
       ],
       "limitations": [
         "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
-        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
+        "Open questions about update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -131000,6 +131972,12 @@
           "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
           "lineStart": 152,
           "lineEnd": 163
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+          "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+          "lineStart": 152,
+          "lineEnd": 152
         },
         {
           "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
@@ -131070,6 +132048,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b38f1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b392a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b3945"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
         },
         {
@@ -131133,7 +132126,7 @@
         },
         {
           "title": "Neighbours",
-          "body": "The assembly reads only the four couplings of type control_rod named x+, x-, z+ and z-; there is no distance search. Each coupling holds a fuel assembly or a control rod, so an assembly with four fuel neighbours has no coupling left for a control rod. The couplings sit at (0, 6, 0) on the assembly and (0, 0, 0) on the control rod, with orientations 0, 1, 4 and 5 and alignment required; none is diagonal. Inference: in a normal block grid the neighbours are the four horizontal cardinal cells, and a control rod between two assemblies counts for both."
+          "body": "The assembly reads only the four couplings of type control_rod named x+, x-, z+ and z-; there is no distance search. Each coupling holds a fuel assembly or a control rod, so an assembly with four fuel neighbours has no coupling left for a control rod. The couplings sit at (0, 6, 0) on the assembly and (0, 0, 0) on the control rod, with orientations 0, 1, 4 and 5 and alignment required; none is diagonal. Two couplings link only when each sits exactly at the other's grid cell plus its outward direction, one cell apart and facing each other, with alignment vectors equal or exactly opposite. There is no distance or angle tolerance. Inference: in a normal block grid the neighbours are the four horizontal cardinal cells, and a control rod between two assemblies counts for both."
         },
         {
           "title": "Settling and runaway layouts",
@@ -131657,6 +132650,67 @@
           }
         },
         {
+          "label": "Coupling cell match",
+          "value": "pB = pA + nA",
+          "detail": "The shared matcher resolves the other part through the body's grid map, compares coupling names and gender and rejects occupied links. The other coupling's transformed integer position must equal this coupling's position plus its outward direction (y at 0x1404b3933, z at 0x1404b393c). Report: investigation/misc-gaps.md. Function 0x1404b3270-0x1404b3aa8; instruction bytes 3b4308 at 0x1404b392a. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1404b3270.asm:L506; ../misc-gaps/pseudocode/1404b3270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b3270@0x1404b392a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b392a"
+          }
+        },
+        {
+          "label": "Coupling reciprocal match",
+          "value": "pA = pB + nB",
+          "detail": "The reverse condition must hold too (0x1404b394f, 0x1404b3955), so the two couplings sit one grid step apart and face each other. No distance or angle tolerance is applied. Report: investigation/misc-gaps.md. Function 0x1404b3270-0x1404b3aa8; instruction bytes 39442458 at 0x1404b3945. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1404b3270.asm:L515; ../misc-gaps/pseudocode/1404b3270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b3270@0x1404b3945",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b3945"
+          }
+        },
+        {
+          "label": "Coupling bipolar test",
+          "value": "descriptor+0x5d",
+          "detail": "When either descriptor requires alignment (+0x5c) the transformed alignment vectors must be equal; when either allows bipolar alignment (this test, and 0x1404b38fb for the other) they may also be exact opposites. Report: investigation/misc-gaps.md. Function 0x1404b3270-0x1404b3aa8; instruction bytes 807f5d00 at 0x1404b38f1. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1404b3270.asm:L492; ../misc-gaps/pseudocode/1404b3270.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b3270@0x1404b38f1",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b38f1"
+          }
+        },
+        {
+          "label": "Bipolar alignment flag name",
+          "value": "allow_bipolar_alignment",
+          "detail": "The coupling descriptor binder reads this attribute into +0x5d; alignment_required goes to +0x5c (0x1402f7ebc). Report: investigation/misc-gaps.md. Function 0x1402f7d50-0x1402f7f1c; it references the string 'allow_bipolar_alignment' at 0x140b599d0. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1402f7d50.asm:L106; ../misc-gaps/pseudocode/1402f7d50.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402f7d50@0x140b599d0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b599d0"
+          }
+        },
+        {
+          "label": "Nuclear Control Rod · coupling x+",
+          "value": "alignment_required, allow_bipolar_alignment",
+          "detail": "Each control_rod coupling of the nuclear parts sets alignment_required and allow_bipolar_alignment to true, so matched couplings may be parallel or antiparallel. Report: investigation/misc-gaps.md.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L152-L152",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 152,
+            "lineEnd": 152
+          }
+        },
+        {
           "label": "Nuclear Fuel Assembly · tooltip",
           "value": "A fuel rod can be inserted into the assembly to facilitate a fission reaction. Fuel rods consume uranium ingots from the workbench inventory to fuel.",
           "detail": "steam_nuclear_fuel_assembly: developer-authored description; intended behaviour, not a measurement.",
@@ -131711,7 +132765,7 @@
       ],
       "limitations": [
         "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
-        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
+        "Open questions about update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -131720,6 +132774,12 @@
           "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
           "lineStart": 152,
           "lineEnd": 163
+        },
+        {
+          "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+          "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+          "lineStart": 152,
+          "lineEnd": 152
         },
         {
           "path": "rom/data/definitions/steam_nuclear_fuel_assembly.xml",
@@ -131890,6 +132950,21 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b38f1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b392a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b3945"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
         },
         {
@@ -131930,6 +133005,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b599d0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5d6b8"
         },
         {
@@ -131953,7 +133033,7 @@
         },
         {
           "title": "Heat and fuel",
-          "body": "Each update T rises by 0.1 × r and F falls by 1e-8 × r, then T moves 0.001 of the way toward the surrounding temperature, which the rod samples every 16 updates and ramps over 16 like the heat exchangers. Insertion acts only through r. At a constant r a full rod lasts 33333 s (9.259 simulated hours) at r = 50 and 1666667 s (463 hours) at r = 1. Inference: immersed in coolant held at Ta (liquid and total amount 100), T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r; with no coolant exchange at Ta + 99.9 × r. At the cap and Ta = 20 that is 2518.7 in coolant, above the damage limit."
+          "body": "Each update T rises by 0.1 × r and F falls by 1e-8 × r, then T moves 0.001 of the way toward the surrounding temperature, which the rod samples every 16 updates and ramps over 16 like the heat exchangers. Insertion acts only through r. At a constant r a full rod lasts 33333 s (9.259 simulated hours) at r = 50 and 1666667 s (463 hours) at r = 1. Inference: immersed in coolant held at Ta (liquid and total amount 100), T settles at Ta + 0.0999 × r ÷ 0.001999, about Ta + 49.975 × r; with no coolant exchange at Ta + 99.9 × r. At the cap and Ta = 20 that is 2518.7 in coolant, above the damage limit.\n\nAbove 50 °C the rod is also a local heat source of strength 0.25 × min(T − 50, 500) for the surrounding-temperature samples of parts in its own compartment. The decoded branch updates the source only above 50 and contains no reset for a rod that cools."
         },
         {
           "title": "Damage",
@@ -132507,6 +133587,54 @@
           }
         },
         {
+          "label": "Fuel rod heat source threshold",
+          "value": "T > 50",
+          "detail": "The fuel rod branch compares the rod temperature (+0x428) with 50 (xmm13, loaded from 0x140bb0740 at 0x14041dfd3) and updates its existing local heat source only above it (jbe at 0x14041e544). Report: investigation/misc-gaps.md. Function 0x14041dc40-0x14041ed88; instruction bytes 410f2fc5 at 0x14041e540. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14041dc40.asm:L523; ../misc-gaps/pseudocode/14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e540",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e540"
+          }
+        },
+        {
+          "label": "Fuel rod heat source cap",
+          "value": "500",
+          "detail": "strength = 0.25 × min(T − 50, 500): subtraction at 0x14041e5d0, minss at 0x14041e5dd, × 0.25 (xmm14, loaded from 0x140bafbbc at 0x14041debd) at 0x14041e5f2, store to source+0x118 at 0x14041e5f7. This is the source strength before the sampler's position weighting and maximum, not a temperature given to another part. Report: investigation/misc-gaps.md. Function 0x14041dc40-0x14041ed88; instruction bytes f30f100d53227900 at 0x14041e5d5 address binary32 500 (bytes 0000fa43) at 0x140bb0830. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14041dc40.asm:L560-L561; ../misc-gaps/pseudocode/14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e5d5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e5d5"
+          }
+        },
+        {
+          "label": "Fuel rod heat source compartment",
+          "value": "source+0x120",
+          "detail": "Publishes the rod's enclosing compartment pointer with the source, so a sample counts it only when its own enclosing pointer matches. A rod with no source yet creates one through 0x14030dc30 (0x14041e63d). Report: investigation/misc-gaps.md. Function 0x14041dc40-0x14041ed88; instruction bytes 48898820010000 at 0x14041e61e. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14041dc40.asm:L580; ../misc-gaps/pseudocode/14041dc40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041dc40@0x14041e61e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14041e61e"
+          }
+        },
+        {
+          "label": "Heat source initial strength",
+          "value": "40",
+          "detail": "The source constructor starts the strength at binary32 40 and registers the source in the collection the surrounding-temperature sample 0x14030fd60 reads. The rod branch updates an existing source only above 50 and holds no reset or removal step, so the hot formula says nothing about emission after cooling. Report: investigation/misc-gaps.md. Function 0x14030dc30-0x14030ddd1; instruction bytes c7871801000000002042 at 0x14030dd2d. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/14030dc30.asm:L59-L60; ../misc-gaps/pseudocode/14030dc30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14030dc30@0x14030dd2d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14030dd2d"
+          }
+        },
+        {
           "label": "Nuclear Fuel Rod · tooltip",
           "value": "Can be inserted into a fuel assembly to start the nuclear fission process.",
           "detail": "steam_nuclear_fuel_rod: developer-authored description; intended behaviour, not a measurement.",
@@ -132571,7 +133699,7 @@
       ],
       "limitations": [
         "Static analysis of one build; no game process was run. Reaction, temperature, contamination and detector readings are the game's internal values: reaction is a rate, not a power in watts, and the detector reading has no stated dose unit.",
-        "Open questions about coupling tolerances, update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
+        "Open questions about update order, contamination decay, dose units and the damage event are listed in the Nuclear fuel assemblies and control rods mechanics article.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -132602,6 +133730,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14029544c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14030dd2d"
         },
         {
           "path": "stormworks64.exe",
@@ -132712,6 +133845,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14041e505"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e540"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e5d5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14041e61e"
         },
         {
           "path": "stormworks64.exe",
@@ -135161,7 +136309,7 @@
         },
         {
           "title": "Noise",
-          "body": "The noise value n comes from a smooth-noise helper with periods 128 and 128, evaluated at a shared counter, at Y = 1. It does not depend on where the transponders are or how far away they are, and one factor multiplies the nearest transponder's term after it is chosen. So the pulse rate wobbles over time in a deterministic pattern rather than with a random draw per update; for small counter values it repeats every 128 counter steps (inference from the reduced model in investigation/force-cap.md). Every transponder entry in the shared list counts, whatever its channel or line of sight: the loop tests only that the entry is present."
+          "body": "The noise value n comes from a smooth-noise helper with periods 128 and 128, evaluated at a clock counter, at Y = 1. It does not depend on where the transponders are or how far away they are, and one factor multiplies the nearest transponder's term after it is chosen. The scene update advances that counter by the clock multiplier, 1 at start, times the tick difference since its last step. So the pulse rate wobbles over time in a deterministic pattern rather than with a random draw per update; for small counter values it repeats every 128 counter steps (inference from the reduced model in investigation/force-cap.md). Over those 128 phases the factor stays between 0.98611 and 1.0155.\n\nEvery transponder entry in the shared list counts, whatever its channel or line of sight: the loop tests only that the entry is present. A transponder that is switched off or loses power marks its entry inactive and releases its component handle, but the locator does not read that mark."
         }
       ],
       "findings": [
@@ -135373,10 +136521,46 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1405498d6"
           }
+        },
+        {
+          "label": "Clock counter step",
+          "value": "counter += multiplier × (tick − previous tick)",
+          "detail": "Reads the current tick (0x1402b6c6a), subtracts the previous one (0x1402b6c70), multiplies by the multiplier and adds the result to the counter at +4 (0x1402b6c77). The scene update calls this at 0x1405e9583. The initializer 0x1402b6bf0 sets the multiplier to 1 and the counter to 0 (0x1402b6c05). The getter 0x1402b7af0 the locator calls returns this counter. Report: investigation/misc-gaps.md. Function 0x1402b6c50-0x1402b6de0; instruction bytes 0faf39 at 0x1402b6c74. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/1402b6c50.asm:L17. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402b6c50@0x1402b6c74",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402b6c74"
+          }
+        },
+        {
+          "label": "Transponder record inactive",
+          "value": "record+0x14 = 0",
+          "detail": "On the disabled or insufficient-power branch the transponder clears the active byte of its shared record and releases its component handle (call at 0x1403c848a). The locator loop checks only that a list entry resolves to an object, not this byte. Report: investigation/misc-gaps.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 40887014 at 0x1403c847d. Interpretation rests on retained output investigation/native/behavior/../misc-gaps/asm/transponder-disable.asm:L63. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c847d",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c847d"
+          }
+        },
+        {
+          "label": "Locator noise factor range",
+          "value": "0.98611 to 1.0155",
+          "detail": "Binary32 reconstruction of the noise at Y = 1 for the 128 integer counter phases, with every gradient component −1: n runs from -17.7832 at phase 97 to 19.782 at phase 31, so the factor 1 + n × 0.0078125 × 0.1 stays between 0.98611 and 1.0155. This covers ordinary counter values; overflow of the counter's float conversion is outside it (investigation/native/misc-gaps/tools/transponder-noise-phases.json). Report: investigation/misc-gaps.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1402b6c50@0x1402b6c74.",
+          "evidenceId": "derived:bb23d3390219",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402b6c74"
+          }
         }
       ],
       "limitations": [
-        "The noise input is a shared counter, but how fast that counter advances and the helper's exact output bounds were not reproduced. When a disabled or destroyed transponder's entry leaves the shared list, and which loaded or remote transponders fill it, was not traced."
+        "The noise factor range covers the ordinary integer counter phases; a bound over counter overflow and every clock mode was not established. The locator does not test the inactive mark, so when a disabled or destroyed transponder's entry stops counting, and which loaded or remote transponders fill the list, was not traced."
       ],
       "sources": [
         {
@@ -135407,6 +136591,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401e3534"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402b6c74"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c847d"
         },
         {
           "path": "stormworks64.exe",
@@ -137104,7 +138298,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -137486,7 +138680,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game."
       ],
       "sources": [
@@ -138755,7 +139949,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -139195,7 +140389,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game."
       ],
       "sources": [
@@ -139812,7 +141006,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -140194,7 +141388,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game."
       ],
       "sources": [
@@ -140812,7 +142006,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -141200,7 +142394,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game."
       ],
       "sources": [
@@ -141818,7 +143012,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -142206,7 +143400,7 @@
         }
       ],
       "limitations": [
-        "Rope stiffness, maximum tension and the snapping point are listed as open items in the Winch controls, length and hose connections mechanics article.",
+        "The decoded reel and rope code has no maximum tension or snapping threshold. Rope stiffness and any cap or severing path elsewhere in the solver are listed as open items in the Winch controls, length and hose connections mechanics article.",
         "Static analysis of one build. Reel rates are changes of the rope's rest length; no loaded hook travel was measured in a running game."
       ],
       "sources": [
@@ -163657,12 +164851,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8946,
+    "findingCount": 9007,
     "findingsByStatus": {
-      "derived": 745,
-      "observed": 8201
+      "derived": 748,
+      "observed": 8259
     },
-    "nativeFindingCount": 6548,
+    "nativeFindingCount": 6603,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -163713,9 +164907,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 431,
-      "native": 1542,
-      "resource": 2667
+      "derived": 434,
+      "native": 1587,
+      "resource": 2673
     }
   }
 }

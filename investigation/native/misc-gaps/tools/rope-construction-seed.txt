@@ -1,0 +1,13 @@
+## Rope constraint, stiffness, tension and breakage
+
+### Recovered structure
+
+The old rope-creation callback `0x1403e3090` and the current cable construction helper `0x140519e30` call `0x1401a5f00`. That helper queues construction through `0x14019d630`. The common constructor creates a Bullet soft body through `0x140159370` and `0x1401462c0`. The installed vtable is `0x140ae3690`, whose RTTI name is `.?AVbtSoftBody@@`. This is a chain of nodes and distance links, rather than a hinge, slider or generic six-axis `btTypedConstraint` with a winch motor impulse cap.
+
+`0x140159370` interpolates the nodes and calls `0x140147790` for consecutive links. `0x140147600` gives each link the default material pointer. `0x1401462c0` initializes that material's three double coefficients to 1.0. The constructor additionally writes 5 at soft-body+0x404, approximately 0.01 at +0x368 and 1.0 at +0x3a0, +0x3a8 and +0x3b0. The relevant stores are `0x14019d71f`, `0x14019d72d`, `0x14019d741`, `0x14019d74b`, `0x14019d755`. The exact 0.01 double bit pattern is `0x3f847ae140000000`. These are retained raw solver/configuration settings. A physical spring constant in N/m is not established by these stores alone.
+
+The rest-length event vtable `0x140b610f8` has RTTI `.?AUevent_set_object_rope_rest_length@mm_physics_scene@@` and handler `0x1401a1f30`. The handler writes each of n links' rest length as `L/n` and its squared value. `0x1401489e0` contains the same link-length operation used by initial construction. No reel force or torque limit is supplied by these calls.
+
+### Additional current-cable impulse
+
+There is an explicit corrective impulse in `0x140524c80`, before its reel adjustment. When attachment-point separation D exceeds L, it takes each connected physics body's float at +8. Values below 0.0001 are replaced with 100000. Let the resulting values be K_A and K_B. It computes:

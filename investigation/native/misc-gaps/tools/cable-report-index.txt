@@ -1,0 +1,14 @@
+9:## Decoded payload
+17:## Physical cache transfer
+23:## Editor size
+29:## Cable anchor storage and endpoint transport
+35:For the ordinary-anchor branch in transport routine `0x1403b6840`, peer = component pointer +0xa98. If both component state values at +8 are below 5, the routine sends:
+43:The subtype 9 branch routes the two sides through video +0xce0/+0xf00, audio +0x1120/+0x1150 and composite +0x1180/+0x1204. A later branch handles the second peer pointer +0xaa0. Its reverse payload forwarding is conditional on local subtype 9. The report does not treat +0xa98 and +0xaa0 as interchangeable reciprocal links on every anchor. Resolving their construction and the full pulley traversal is still necessary for a cable-chain timing model.
+49:## Microprocessor video and audio bridges
+59:## Endpoint order and latency limits
+65:The one-update inference for an ordinary physical composite wire does not automatically extend to an entire route through producer wire, cable anchors and consumer wire. Additional unresolved conditions include construction of +0xa98/+0xaa0, vehicle ordering, alternate +0x360 dispatch paths, state guards, sleeping vehicles and reduced-rate microprocessors. A wall-clock latency measurement was not performed.
+67:## Remaining questions and exact exclusions
+75:## Confidence and issue disposition
+83:## Instruction evidence
+119:## Reproduction
+144:## Retained files

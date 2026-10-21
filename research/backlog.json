@@ -13,7 +13,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/3/limitations/2",
-        "text": "Which code fills the queued EMP pulses, which gameplay objects the object kinds 0 and 4 that send 30-count pulses are, and what handles the spawn_emp request were not traced. So EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
+        "text": "Which code fills the queued EMP pulses was not traced, and the shark and kraken reading of object kinds 0 and 4 rests on the ANIMAL_TYPE text, not on a constructor that writes the kind, so it is not confirmed. EMP warheads, ordinary explosions and addon Lua are not yet tied to a pulse source, and the lightning reading of the 800-count weather pulse is an inference.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -76,7 +76,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/6/limitations/3",
-        "text": "The complete set of local heat sources that feed the surrounding-temperature sample, and their strengths, was not traced.",
+        "text": "Fuel rods are one decoded local heat source. The other sources that feed the surrounding-temperature sample, and their strengths, were not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -89,7 +89,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/8/limitations/0",
-        "text": "Static decompilation of one build; the game was not run. How ducts, splitters and merged assemblies build the neighbour lists was not traced, so the equilibrium pressure, RPS and thrust of an assembled engine and its startup time are not predicted from a parts list.",
+        "text": "Static decompilation of one build; the game was not run. How merged and attached assemblies supply the body map that the neighbour search reads was not traced, so the equilibrium pressure, RPS and thrust of an assembled engine and its startup time are not predicted from a parts list.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -101,7 +101,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/8/limitations/2",
-        "text": "SI torque, power and efficiency were not recovered. Intake behaviour was not decoded.",
+        "text": "SI torque, power and efficiency were not recovered. The partner part that switches the intake pressure rule off and the sources behind the intake's source sample were not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -265,7 +265,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/18/sections/8/body",
-        "text": "Not decoded: a throughput model for arbitrary belt networks, combining direction, order, junctions and neighbour search; the fastest schedule for cannons whose breech is opened and loaded by external control; the final voxel damage, armour incidence and blast occlusion applied to a target; and what writes the recoil multiplier, so how a muzzle brake reduces recoil as its tooltip says. The walk over barrels and muzzle brakes leaves that multiplier at 1. No figure here was measured in a running game.",
+        "text": "Not decoded: a throughput model for arbitrary belt networks, combining direction, order, junctions and neighbour search; the fastest schedule for cannons whose breech is opened and loaded by external control; and what follows the decoded impact magnitude and armour-piercing speed loss: the target voxel damage, the armour-angle response and blast shielding. No direct write to the recoil multiplier besides its initial 1 was found, so the reduction a muzzle brake's tooltip promises is not established. No figure here was measured in a running game.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -291,7 +291,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/20/limitations/0",
-        "text": "Whether damage breaks window glass, whether mesh or material classification changes water ingress or buoyancy, and whether the compartment pressure and flooding solver treats a window differently from a block were not traced; no glass-breaking threshold or window pressure rule is known.",
+        "text": "Windows have ordinary collision voxels and explicit buoyancy surfaces, and glass is a named material, but whether damage breaks window glass and whether broken glass changes sealing, flooding, pressure or buoyancy were not traced; no glass-breaking threshold or window pressure rule is known.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -585,7 +585,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/32/limitations/1",
-        "text": "Whether this build reads the keel settings in general_debug.txt is unresolved. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20.",
+        "text": "The realtime loader parses general_debug.txt, keel lines included, but when its initializer 0x140892b80 runs and any path from the parsed values to the keel force code were not traced. The decoded forces use embedded constants that equal seven of the eight shipped values; the lateral application limit is 100, not the shipped 20, so editing the keel settings has no established effect in this build.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -649,19 +649,6 @@
     ]
   },
   {
-    "key": "family:part-radar-advanced-missile",
-    "title": "Radar (Missile): decode remaining behavior and formulas",
-    "wiki": "https://sw-wiki.maxsp.de/parts/part-radar-advanced-missile",
-    "locations": [
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/families/188/limitations/1",
-        "text": "Range, score, scan interval and FOV slider limits match the other advanced radars. Which of R0, R1 and R2 the editor shows as the part's front, side and top was not established, so the rest direction R1 is not tied to a visible face of the model, and no angle was checked in a running game.",
-        "scope": "Practical behavior guidance"
-      }
-    ]
-  },
-  {
     "key": "family:part-rope-hook-fluid",
     "title": "Fluid Hose Anchor: decode remaining behavior and formulas",
     "wiki": "https://sw-wiki.maxsp.de/parts/part-rope-hook-fluid",
@@ -682,7 +669,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/240/limitations/0",
-        "text": "The noise input is a shared counter, but how fast that counter advances and the helper's exact output bounds were not reproduced. When a disabled or destroyed transponder's entry leaves the shared list, and which loaded or remote transponders fill it, was not traced.",
+        "text": "The noise factor range covers the ordinary integer counter phases; a bound over counter overflow and every clock mode was not established. The locator does not test the inactive mark, so when a disabled or destroyed transponder's entry stops counting, and which loaded or remote transponders fill the list, was not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -811,7 +798,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/24/limitations/2",
-        "text": "Still not recovered: how many updates a value needs through cable anchors, pulleys and between vehicles, which needs the setup of the two anchor link pointers (+0xa98, +0xaa0), the full pulley traversal, the vehicle order and the inactive, sleeping and reduced-rate paths traced; who owns and frees the resources behind a video descriptor; when Lua onTick and onDraw run and what budget they have; and any network or save format for composite data. The microcontroller port limit is listed on the Microprocessor part page.",
+        "text": "Still not recovered: how many updates a value needs through a particular cable route and between vehicles, which depends on the processing order of that vehicle's anchors and pulleys, the vehicle order and the inactive, sleeping and reduced-rate paths; who owns and frees the resources behind a video descriptor; when Lua onTick and onDraw run and what budget they have; and any network or save format for composite data. The microcontroller port limit is listed on the Microprocessor part page.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -931,7 +918,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/16/limitations/2",
-        "text": "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced, because how ducts and branches connect the parts was not reconstructed. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m.",
+        "text": "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced: the duct and splitter search is decoded, but how merged and attached assemblies supply the body map it searches was not. The intake's pairing partner and the sources behind its source sample were not traced either. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -970,7 +957,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/19/limitations/2",
-        "text": "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range; whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments. Temperatures, reaction and detector readings are internal game values.",
+        "text": "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, beyond the records being saved and restored with their spatial index; which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments. Temperatures, reaction and detector readings are internal game values.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1048,7 +1035,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/23/limitations/2",
-        "text": "The velocity, flight, spread, impact, loading and fuse figures come from that native decode, not from these definitions alone. Still not decoded: a throughput model for arbitrary belt networks, the fastest firing schedule for cannons whose breech is opened and loaded by external control, and the final voxel damage, armour incidence and blast occlusion applied to a target. The firing rates above are state-machine inferences, not measurements.",
+        "text": "The velocity, flight, spread, impact, loading and fuse figures come from that native decode, not from these definitions alone. Still not decoded: a throughput model for arbitrary belt networks, the fastest firing schedule for cannons whose breech is opened and loaded by external control, and what follows the decoded impact magnitude and armour-piercing speed loss: the target voxel damage, the armour-angle response and blast shielding. The recoil multiplier starts at 1 and no write that applies a muzzle brake was found, so the reduction its tooltip promises is not established. The firing rates above are state-machine inferences, not measurements.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1074,7 +1061,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/25/limitations/2",
-        "text": "The reel rates, length limits, charge requests, simultaneous controls and hose exchange come from that native decode. Rates are changes of the rope's rest length; travel of a loaded hook was not measured. Still not recovered: a force-equivalent rope stiffness, a maximum tension or impulse, and a force or strain at which a rope snaps. The rope is a Bullet soft-body chain whose material coefficients are 1 without a conversion to N/m, and rope-node ropes get an uncapped corrective impulse min(K_A, K_B) × (D - L) when stretched beyond their length; neither reel routine compares a force with a break threshold.",
+        "text": "The reel rates, length limits, charge requests, simultaneous controls and hose exchange come from that native decode. Rates are changes of the rope's rest length; travel of a loaded hook was not measured. Still not recovered: a force-equivalent rope stiffness. The rope is a Bullet soft-body chain whose material coefficients are 1 without a conversion to N/m. The decoded reel and rope paths have no maximum tension, maximum solver impulse or tensile snapping threshold: rope-node ropes get an uncapped corrective impulse min(K_A, K_B) × (D - L) when stretched beyond their length, neither reel routine compares a force with a break threshold, and the explicit rope removal is called from requests, endpoint cleanup and endpoint control state, not from a force or strain test. Whether the Bullet link solver or collision and damage code caps the load or severs a rope was not traced.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

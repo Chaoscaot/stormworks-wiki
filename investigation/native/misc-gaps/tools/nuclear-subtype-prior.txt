@@ -1,0 +1,6 @@
+22:| 1 | fuel rod | `0x140b42648` | `steam_nuclear_fuel_rod.xml` | 80 | 2500 |
+23-| 2 | control rod | `0x140b424e0` | `steam_nuclear_control_rod.xml` | 100 | 250 |
+24-
+25-All three definitions have component `type=54`. `radiation_detector.xml` has component `type=16`, logic gate `59`, mass 1, value 250. Per-definition figures and source hashes are in `nuclear.json`. Definition opening lines contain these attributes; exact line numbers are also stored there.
+26-
+27-Selector `0x14087db4c-0x14087dc1d` registers 0 with `xor edx,edx` at `0x14087dbb4`, 1 with `0x14087dbe1: ba 01 00 00 00`, and 2 with `0x14087dc0d: ba 02 00 00 00`. Getter/setter `0x14087fc10` / `0x14087fc20` access editor field `+0x4418`. Runtime definition loader `0x140318157` passes field `+0x2cc0` to `0x140940ea0`, which reads literal `nuclear_component_type` at `0x140b5d6b8`, default zero. The address/bytes chain is retained in `asm/type-selector.asm`, `asm/type-callbacks.asm`, `asm/type-loader-call.asm`, and `asm/type-lo

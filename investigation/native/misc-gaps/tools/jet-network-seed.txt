@@ -1,0 +1,56 @@
+99-The afterburner expression above is observed arithmetic, including its unbounded fuel-amount ratio. It is not replaced with an assumed 1.5 multiplier. The full update contains no explicit jet-fuel debit in subtype 4. Helper `0x1402ebdc0` skips liquid index 2, jet fuel, and purges other liquids. Fluid-port exchange can still move liquid into or out of the local buffer. A steady afterburner fuel-flow prediction remains open pending a complete external fluid-network model. The exhaust branch has no infinite-fuel availability bypass; unlike the chamber, it still tests stored liquid contents.
+100-
+101:## Network exchange and startup
+102-
+103-`0x1403555a0` implements pressure and temperature exchange. The list at +0x420, count +0x430, supplies neighbors' incoming values. The list at +0x408, count +0x418, supplies neighbors' outgoing values. It first computes
+104-
+105-```
+106-p_out = (old_p_out + sum(next_neighbor.p_in))/(next_count+1)
+107-t_out = (old_t_out + sum(next_neighbor.t_in))/(next_count+1)
+108-p_in  = (old_p_in  + sum(prev_neighbor.p_out))/(prev_count+1)
+109-t_in  = (old_t_in  + sum(prev_neighbor.t_out))/(prev_count+1)
+110-```
+111-
+112:The compressor, chamber, turbine and exhaust call this helper before their local pressure arithmetic. These are averages of stored states, not conservation of an identified mass-flow quantity. A multi-component engine needs the actual lists, stored states and phase order. One cannot simply add all chamber pressure gains and multiply by turbine count.
+113-
+114:Post-update `0x140355110` starts with local RPS and count 1 for subtypes 0 through 3. Recursive helper `0x1403552e0` traverses both lists, skips subtype 4, uses a visited set, and adds each visited component's cached speed at +0x1c0 with count 1. It then divides the sum by count. The visited set starts empty, so a return path to the root can add its cached speed as well. The update stores +0x1c0 before this averaging phase. Subtype 5 has no compressor, combustion, turbine or exhaust arithmetic in the main update. The construction of the lists through ducts, splitters and merged assemblies is still open; this report does not assume a particular graph for them.
+115-
+116-A fully supplied compressor requests 0.1 internal electrical charge per enabled update at `0x14035379e`, not its definition's zero `electric_magnitude`. Helper `0x1402eeca0` returns the fraction supplied. For an ordinary finite-electricity connection this fraction is `min(group_charge,0.1*A)/0.1`, with `A=max((300-node_timer)/300,0)*node_availability`. It subtracts the supplied charge. Infinite electricity returns 1; no connection returns 0. See the retained helper and the existing [electricity investigation](electricity.md) for group semantics. With full supply, draw is 6 internal charge/s and starter addition is 0.01 RPS/update before drag and pressure load. These are not watts or shaft torque.
+117-
+118-At rest, with zero local incoming and outgoing pressure and full starter supply, one compressor update gives `r0=0.0099`, `q=0.198`, `r_local=0.0098802`, `p_in=-0.198`, and `p_out=0.198`. Network averaging changes the next state. This is not a claimed complete engine startup time.
+119-
+120-The chamber gate at `0x1403533a6` compares RPS to 0.5. A separate damage path checks RPS above 200 under the engine-overheat and vehicle-damage settings. It is not an ignition-pressure gate. The chamber's fuel buffer capacity is initialized to 0.4 liquid amount, 4 L, at `0x140350ba3`. Both chamber and exhaust exchange with the fuel port through `0x1402ec710` using pressure bias -10 and throttle parameter 1. That is fluid transport, separate from the chamber's combustion debit. The full world fluid network and overspeed damage propagation are not modeled here.
+121-
+122-## Force application and units
+123-
+124-Force helper `0x1401a7c70` divides the vector by update argument 7, `S`, limits its length to 100 and multiplies back. For positive finite S, `F_applied=min(F_raw,100*S)` in the unidirectional case above. This is an additional cap, not another jet-size multiplier. S is a grouped vehicle application scale, not proven equal to body mass for all assemblies. The global force-application gate must also be enabled. The rotating exhaust's electrical pivot can change force direction and lever arm without changing the pressure coefficient.
+125-
+126-The helper queues RTTI `event_set_impulse_threshold@mm_physics_scene`, vtable `0x140b62280`. Handler `0x1401a17b0` calls `0x14019a370`, which adds the vector to Bullet's total-force accumulator. Despite the event name, this is force, not a per-update impulse. Do not multiply the force by 60. The corresponding impulse for one nominal update is force/60. The force handler and accumulator are retained. The existing [control-surface investigation](control-surfaces.md) independently documents the application scale and force accumulator.
+127-
+128-Use 60 updates per simulated second, as established in [update-rate.md](update-rate.md). Liquid conversion is 10 L/amount. The fuel scalar therefore has a verified L/s conversion. Heating input `0.1*u*r` per update is `6*u*r` internal temperature units/s before transport, not a prediction of temperature rise in a complete engine. Electrical generation is `60*abs(r0)*0.025*k` internal charge/s when connected and positive. Shaft weight 160 is a solver weight, not 160 N m. Native numeric outputs establish RPS, pressure and temperature field identities, but neither pressure nor temperature receives a recovered SI calibration in this investigation. An SI thermal or propulsive efficiency cannot be calculated from these internal quantities alone.
+129-
+130-## Instruction evidence
+131-
+132-`tools/anchors.txt` contains the complete selected instruction lines with addresses and bytes. `asm/update.asm` retains every instruction in the update. The following anchors locate the arithmetic without relying on decompiler variable names:
+133-
+134-- Compressor drag at `0x1403537c9`, `f3 0f 59 0d db c6 85 00`, multiplies by float 0.99. Pressure transfer at `0x14035380f`, `f3 0f 59 15 59 c3 85 00`, multiplies by 0.2. Speed load at `0x14035383b`, `f3 0f 59 15 55 c0 85 00`, multiplies transfer by 0.0001.
+135-- Fuel demand at `0x14035330a`, `f3 44 0f 59 0d 91 c5 85 00`, multiplies RPS by 0.0002. Ignition comparison at `0x1403533a6`, `0f 2f 05 0f c9 85 00`, compares with 0.5. Jet-fuel debit is stored at `0x1403533f8`, `f3 0f 11 8f cc 03 00 00`.
+136-- Heat at `0x140353424`, `f3 0f 59 0d a4 c6 85 00`, multiplies effective throttle times RPS by 0.1. Pressure at `0x140353434`, `f3 0f 59 35 2c d4 85 00`, multiplies by 1600.
+137-- Turbine gain at `0x140352fb0`, `f3 0f 59 1d dc c8 85 00`, multiplies half-pressure by 0.000075. Shaft weight at `0x140353182`, `c7 87 90 03 00 00 00 00 20 43`, writes float 160. Submission at `0x14035318c`, `f3 0f 11 87 94 03 00 00`, writes RPS.
+138-- Exhaust coefficient at `0x140351e5f`, `f3 0f 10 05 ad e8 85 00`, loads 32. Threshold 1000 is loaded at `0x140351e09`, `f3 0f 10 0d 4b ea 85 00`. The altitude terms at `0x140351e22` and `0x140351e2a` read doubles 1.5 and 40000.
+139-- Afterburner fuel ratio at `0x140351eb3`, `f3 41 0f 5e d3`, divides the stored jet-fuel amount by 0.001; `0x140351eb8`, `f3 0f 59 15 fc dd 85 00`, multiplies by 0.5 before adding 1. The purge call uses excluded liquid index 2 at `0x140351de8`, `41 b8 02 00 00 00`.
+140-
+141-`tools/constants.json` retains both float and double interpretations and eight bytes at each referenced address. For example, 1600 at `0x140bb0868` starts `00 00 c8 44`; 0.0002 at `0x140baf8a4` starts `17 b7 51 39`; 32 at `0x140bb0714` starts `00 00 00 42`. Decimal coefficients in the equations are rounded descriptions of single-precision constants. The Python model uses Python floating point, not an instruction-exact binary32 emulator.
+142-
+143-## Worked examples and graph model
+144-
+145-`tools/model.py` implements the local compressor, chamber, turbine and exhaust equations. It can emit fuel-versus-RPS or force-versus-incoming-pressure CSV, and optionally PNG or SVG plots through matplotlib. It keeps pressure and RPS as separate inputs. `tools/examples.json` retains calculated examples, not runtime measurements.
+146-
+147-At r=20, full effective throttle and adequate jet fuel, a chamber consumes 0.004 amount/update, 0.04 L/update or 2.4 L/s. With incoming pressure and temperature zero it sets outgoing pressure to 32000 and temperature to 2. At r=0.5 it consumes zero and does not heat. With only 0.001 amount available at r=20, effective throttle becomes 0.25 and that update consumes the remaining 0.01 L.
+148-
+149-An undamaged turbine at r=20 and incoming pressure 32000 first reaches r0=21.2. Its electrical fraction is 0.00212, electrical addition is 0.0011236 charge/update or 0.067416 charge/s, and it submits r=21.155056. The medium turbine uses shaft weight 160 and can then receive a different network RPS. Outgoing pressure is 16000. These are individual local states, not a solved steady chain.
+150-
+151-An exhaust at incoming pressure 16000, sea level and zero spoiler computes 480000 internal force. With S=1000, the helper limits application to 100000. Half spoiler gives 240000 before the cap. An enabled afterburner with 0.001 stored jet-fuel amount gives multiplier 1.5 and force 720000 before the cap. With 0.4 stored amount, the observed multiplier is 201 and raw force is 96480000. The latter illustrates why assuming a universal 1.5 multiplier would misrepresent the recovered branch; it does not establish a steady externally supplied fuel flow or measured thrust.
+152-
+153-## Remaining questions and bounded exclusions
+154-

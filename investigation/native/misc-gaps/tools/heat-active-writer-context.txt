@@ -1,0 +1,43 @@
+894795-   140339c0f:	cc                   	int3
+894796-   140339c10:	48 8b 81 b8 06 00 00 	mov    rax,QWORD PTR [rcx+0x6b8]
+894797-   140339c17:	48 85 c0             	test   rax,rax
+894798-   140339c1a:	74 10                	je     0x140339c2c
+894799-   140339c1c:	48 8b 00             	mov    rax,QWORD PTR [rax]
+894800-   140339c1f:	48 85 c0             	test   rax,rax
+894801-   140339c22:	74 08                	je     0x140339c2c
+894802:   140339c24:	f3 0f 11 88 18 01 00 	movss  DWORD PTR [rax+0x118],xmm1
+894803-   140339c2b:	00 
+894804-   140339c2c:	b0 01                	mov    al,0x1
+--
+1131962-   14041e5e1:	48 8b 03             	mov    rax,QWORD PTR [rbx]
+1131963-   14041e5e4:	48 85 c0             	test   rax,rax
+1131964-   14041e5e7:	74 16                	je     0x14041e5ff
+1131965-   14041e5e9:	48 83 38 00          	cmp    QWORD PTR [rax],0x0
+1131966-   14041e5ed:	74 10                	je     0x14041e5ff
+1131967-   14041e5ef:	48 8b 00             	mov    rax,QWORD PTR [rax]
+1131968-   14041e5f2:	f3 41 0f 59 ce       	mulss  xmm1,xmm14
+1131969:   14041e5f7:	f3 0f 11 88 18 01 00 	movss  DWORD PTR [rax+0x118],xmm1
+1131970-   14041e5fe:	00 
+1131971-   14041e5ff:	41 8b 96 1c 04 00 00 	mov    edx,DWORD PTR [r14+0x41c]
+--
+1259771-   14049d992:	76 06                	jbe    0x14049d99a
+1259772-   14049d994:	89 b2 10 01 00 00    	mov    DWORD PTR [rdx+0x110],esi
+1259773-   14049d99a:	f3 0f 10 82 0c 01 00 	movss  xmm0,DWORD PTR [rdx+0x10c]
+1259774-   14049d9a1:	00 
+1259775-   14049d9a2:	f3 0f 11 8a 08 01 00 	movss  DWORD PTR [rdx+0x108],xmm1
+1259776-   14049d9a9:	00 
+1259777-   14049d9aa:	f3 0f 5c c8          	subss  xmm1,xmm0
+1259778:   14049d9ae:	f3 0f 11 82 18 01 00 	movss  DWORD PTR [rdx+0x118],xmm0
+1259779-   14049d9b5:	00 
+1259780-   14049d9b6:	f3 0f 11 8a 1c 01 00 	movss  DWORD PTR [rdx+0x11c],xmm1
+--
+1309581-   1404cbf20:	76 06                	jbe    0x1404cbf28
+1309582-   1404cbf22:	89 b3 10 01 00 00    	mov    DWORD PTR [rbx+0x110],esi
+1309583-   1404cbf28:	f3 0f 10 83 0c 01 00 	movss  xmm0,DWORD PTR [rbx+0x10c]
+1309584-   1404cbf2f:	00 
+1309585-   1404cbf30:	f3 0f 11 93 08 01 00 	movss  DWORD PTR [rbx+0x108],xmm2
+1309586-   1404cbf37:	00 
+1309587-   1404cbf38:	f3 0f 5c d0          	subss  xmm2,xmm0
+1309588:   1404cbf3c:	f3 0f 11 83 18 01 00 	movss  DWORD PTR [rbx+0x118],xmm0
+1309589-   1404cbf43:	00 
+1309590-   1404cbf44:	f3 0f 11 93 1c 01 00 	movss  DWORD PTR [rbx+0x11c],xmm2

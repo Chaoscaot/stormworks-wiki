@@ -1,0 +1,83 @@
+          }
+          uStack_70 = 0;
+          if ((int)uStack_60 < 0) {
+            uStack_70 = 0xffffff00;
+          }
+          puVar14 = (undefined8 *)
+                    FUN_1408dd3f0(param_1 + 0x3a8,&uStack_68,
+                                  param_1 + 0x3b0 +
+                                  (ulonglong)
+                                  (uint)((((int)~uStack_60 >> 0x1f) * -2 - ((int)~uStack_64 >> 0x1f)
+                                         ) * 2 - ((int)~uStack_68 >> 0x1f)) * 8,&uStack_78,0x100);
+          puStack_58 = puVar14;
+          if (((puVar14 != (undefined8 *)0x0) && ((longlong *)*puVar14 != plVar3)) &&
+             (lVar15 = (**(code **)(*(longlong *)*puVar14 + 0x38))(), lVar15 != 0)) {
+            plVar16 = (longlong *)(**(code **)(*(longlong *)*puVar14 + 0x38))();
+            uVar29 = 0;
+            iVar6 = (**(code **)(*plVar16 + 0x400))(plVar16);
+            if (iVar6 != 0) {
+              do {
+                plVar17 = (longlong *)(**(code **)(*plVar16 + 0x408))(plVar16);
+                if (((plVar17 == (longlong *)0x0) ||
+                    (piVar4 = (int *)*plVar17, piVar4 == (int *)0x0)) || (plVar17[2] != 0))
+                goto LAB_1404b3963;
+                lVar15 = *plVar13;
+                if ((piVar4[0x10] != *(int *)(lVar15 + 0x40)) ||
+                   (iVar6 = FUN_14099dae0(*(undefined8 *)(piVar4 + 0xe),
+                                          *(undefined8 *)(lVar15 + 0x38),piVar4[0x10]), iVar6 != 0))
+                goto LAB_1404b3963;
+                iVar6 = piVar4[0x16];
+                iVar27 = *(int *)(lVar15 + 0x58);
+                if ((iVar6 != 0) && (iVar27 != 0)) {
+                  if (iVar6 == 1) {
+                    if (iVar27 == 2) goto LAB_1404b36e1;
+                  }
+                  else if ((iVar6 == 2) && (iVar27 == 1)) goto LAB_1404b36e1;
+                  goto LAB_1404b3963;
+                }
+LAB_1404b36e1:
+                bVar1 = *(byte *)(plVar16[0xb] + 0x40);
+                iVar6 = (~(uint)bVar1 & 1) * 2 + -1;
+                iVar27 = 1;
+                if ((bVar1 & 2) != 0) {
+                  iVar27 = -1;
+                }
+                iVar28 = 1;
+                if ((bVar1 & 4) != 0) {
+                  iVar28 = -1;
+                }
+                iVar23 = iVar6 * *piVar4;
+                iVar20 = iVar27 * piVar4[1];
+                iVar26 = iVar28 * piVar4[2];
+                iVar9 = (int)plVar16[3] +
+                        (int)plVar16[6] * iVar23 + *(int *)((longlong)plVar16 + 0x3c) * iVar20 +
+                        (int)plVar16[9] * iVar26;
+                iVar10 = *(int *)((longlong)plVar16 + 0x1c) +
+                         *(int *)((longlong)plVar16 + 0x34) * iVar23 + (int)plVar16[8] * iVar20 +
+                         *(int *)((longlong)plVar16 + 0x4c) * iVar26;
+                iVar20 = (int)plVar16[4] +
+                         (int)plVar16[7] * iVar23 + *(int *)((longlong)plVar16 + 0x44) * iVar20 +
+                         (int)plVar16[10] * iVar26;
+                switch(piVar4[3]) {
+                default:
+                  iVar23 = iVar6;
+                  goto code_r0x0001404b37df;
+                case 1:
+                  iVar23 = -iVar6;
+code_r0x0001404b37df:
+                  iVar25 = 0;
+                  break;
+                case 2:
+                  iVar23 = 0;
+                  iVar25 = iVar27;
+                  break;
+                case 3:
+                  iVar23 = 0;
+                  iVar25 = -iVar27;
+                  break;
+                case 4:
+                  iVar23 = 0;
+                  iVar25 = 0;
+                  iVar26 = iVar28;
+                  goto code_r0x0001404b37e3;
+                case 5:

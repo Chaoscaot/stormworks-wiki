@@ -1,0 +1,409 @@
+investigation/leftovers.md-1-# Remaining native-code questions
+investigation/leftovers.md-2-
+investigation/leftovers.md:3:Target `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`, verified locally. Preferred image base `0x140000000`. Static analysis only. The game was not run. Issue bodies and comments for #27, #32, #147, #153 and #94 are retained as JSON. The existing electricity, transmission, jet, legacy sensor, advanced sensor and force-cap reports supplied the starting addresses.
+investigation/leftovers.md-4-
+investigation/leftovers.md:5:## 1. EMP trigger, #27
+investigation/leftovers.md-6-
+investigation/leftovers.md:7:Partly closed. This is scene event **116**, not an unidentified discriminator. At `0x14085aff7`, `8b 48 08`, the dispatcher reads the event type; `0x14085affa`, `ff c9`, subtracts one. Table entry `0x140863ba8`, bytes `2a fa 85 00`, sends event 116 to `0x14085fa2a`. Constructor `0x14022d0a0` writes type 116 at `0x14022d0d8`, bytes `48 c7 40 08 74 00 00 00`.
+investigation/leftovers.md-8-
+investigation/leftovers.md:9:The event payload contains world position at `+0x10`, integer strength/count at `+0x28`, inner radius at `+0x2c` and outer radius at `+0x30`. The dispatcher forwards these at `0x14085fa39..0x14085fa49`, then calls pulse routine `0x14077dd80` at `0x14085fa4d`, bytes `e8 2e e3 f1 ff`.
+investigation/leftovers.md-10-
+investigation/leftovers.md-11-The falloff is:
+investigation/leftovers.md-12-
+--
+investigation/leftovers.md-14-count(d) = trunc(strength * (1 - clamp((d-inner)/(outer-inner), 0, 1)))
+investigation/leftovers.md-15-```
+investigation/leftovers.md-16-
+investigation/leftovers.md:17:Here d is distance from the pulse to the affected vehicle/body transform origin, not a separate distance for each electronic component. The routine then calls each component's apply method. `0x14077e04e`, `f3 4c 0f 2c f2`, truncates the scaled float; `0x14077e085`, `ff 90 f0 03 00 00`, calls slot `+0x3f0`. This report does not reinterpret the existing EMP countdown and electrical attenuation equations.
+investigation/leftovers.md-18-
+investigation/leftovers.md-19-There are five decoded direct relative-call sites for the event constructor:
+investigation/leftovers.md-20-
+investigation/leftovers.md:21:- Weather update `0x1405e1e30`, call `0x1405e2732`, bytes `e8 69 a9 c4 ff`, sends strength **800**, inner radius **100 m**, outer radius **300 m**. `0x1405e2728`, `41 b8 20 03 00 00`, supplies 800. Constants at `0x140bb0790`, `00 00 c8 42`, and `0x140bb07f8`, `00 00 96 43`, are 100 and 300. Inference: this is the lightning pulse, based on weather-update ownership and its strike-point selection. At 200 m this pulse supplies 400 counts; at or beyond 300 m it supplies zero.
+investigation/leftovers.md:22:- Queued pulses in `0x1405e8fb0`, call `0x1405ec2e4`, carry a variable count and outer radius from 40-byte records. The inner radius is half the outer radius. The queue lives at object `+0x5f00`, with count at `+0x5f10`. The producer of these records is not decoded here.
+investigation/leftovers.md:23:- `0x140757ef0`, call `0x140758f61`, and `0x14075a190`, call `0x14075aecb`, supply strength **30**, inner radius **100 m**, outer radius **300 m**. Dispatcher `0x14074347e..0x1407434bb` selects these updates for object-kind values 4 and 0 at object `+0x208`. Their gameplay identities remain unassigned. They are additional sources, so an exclusively weather-triggered interpretation is ruled out.
+investigation/leftovers.md:24:- `0x140851630`, call `0x140856002`, forwards a received payload's count and radii. It is not evidence for another physical source.
+investigation/leftovers.md-25-
+investigation/leftovers.md:26:The binary also contains `spawn_emp` and RTTI names `c_client_to_server_request_spawn_emp`, `c_server_to_client_event_spawn_emp` and `c_event_game_to_logic_spawn_emp`. `tools/emp-strings.txt` retains their file offsets. A string or request name alone does not establish a public addon/Lua API.
+investigation/leftovers.md-27-
+investigation/leftovers.md:28:Still open: identify the queued-pulse producers, map object kinds 0 and 4 to gameplay identities, and trace the `spawn_emp` command/request handler. Warhead, ordinary-explosion and addon/Lua attribution is not ruled out. The EMP-warhead tooltip is supporting resource evidence only. Direct pulse calls and the event payload are high confidence; the lightning label is an inference. The unrelated immediate-116 registry initializer is excluded as an event constructor by its surrounding sequential registrations.
+investigation/leftovers.md-29-
+investigation/leftovers.md-30-## 2. Shaft group bridges, #27 and #32
+investigation/leftovers.md-31-
+investigation/leftovers.md-32-Closed for a fixed graph, including loops and same-group ports. Connector rebuild ordering remains open.
+investigation/leftovers.md-33-
+investigation/leftovers.md:34:`0x1404bd940` invokes component preparation, then collect `0x1404c9d20`, then publish `0x1404c9b00`. For each source group, collect computes its local weighted speed and propagates that source through the graph. Source groups use the logical order of the ring container at context `+0x80`, head `+0x8c`, count `+0x90`. Members use group `+0x10`, head `+0x1c`, count `+0x20`. These are container orders, not sorted component IDs or guaranteed build order.
+investigation/leftovers.md-35-
+investigation/leftovers.md-36-For source s, local weight and speed remain:
+investigation/leftovers.md-37-
+--
+investigation/leftovers.md-40-v_s = (previous_speed_s + sum(member_weight * submitted_speed)) / I_s
+investigation/leftovers.md-41-```
+investigation/leftovers.md-42-
+investigation/leftovers.md:43:For each source, the visited list starts with the source and ratio 1. A FIFO starts with its bridge counterparts in member order. Each queued entry carries counterpart node, cumulative coupling h and cumulative ratio r. The first accepted visit to destination g records g and r, adds the source's contribution, and appends g's outgoing bridges in member order. The existing path updates are `h *= fraction*0.95` and `r *= ratio`; only `h > 0.001` proceeds. An absent counterpart group is ignored.
+investigation/leftovers.md-44-
+investigation/leftovers.md-45-An accepted first visit contributes:
+investigation/leftovers.md-46-
+--
+investigation/leftovers.md-49-remote_denominator_g += I_s * h / abs(r)
+investigation/leftovers.md-50-```
+investigation/leftovers.md-51-
+investigation/leftovers.md:52:The first FIFO path wins **for that source-to-destination contribution**. Compatible alternate paths do not add a second copy. Visited-group comparison is `0x1404ca470`, `4d 39 54 c5 00`. At `0x1404ca481`, `f3 0f 5e c6`, the solver computes `recorded_ratio/current_ratio`. Comparisons at `0x1404ca485..0x1404ca493` require approximately `0.9 <= quotient <= 1.1`. The constants' float bytes are retained in `tools/constants.json`. A compatible revisit is skipped without expanding that destination again.
+investigation/leftovers.md-53-
+investigation/leftovers.md:54:A conflicting revisit takes `0x1404caa02`. For **every group already visited by this source**, it sets the remote numerator to zero and adds `I_s` to the remote denominator, then abandons this source's remaining FIFO. Zeroing is `0x1404caa17`, `44 89 78 28`; the denominator addition starts at `0x1404caa44`, `f3 0f 58 40 2c`. This also clears contributions accumulated from earlier sources. Later sources can add contributions again. It does not clear each group's local `I*v` term.
+investigation/leftovers.md-55-
+investigation/leftovers.md-56-Thus an inconsistent loop has order-dependent braking. This is one traversal per source per collect call, with one publication afterwards. It is not an iterative convergence solve and is not a simple last-speed-writer rule. For compatible loops, visited-group suppression terminates traversal and chooses the first path. Coupling attenuation can also terminate traversal before a contradiction is reached.
+investigation/leftovers.md-57-
+investigation/leftovers.md:58:When both bridge ports belong to the same group, the source is already in the visited list. Each eligible queued ratio r is checked against `1/r`. A compatible ratio contributes nothing; an incompatible one triggers the same conflict path, including braking the source group itself. With an otherwise isolated group and no other contributions, one such conflict changes its publication to `v/2`, because the local numerator stays `I*v` and the denominator becomes `I+I`. For a reciprocal two-port bridge both queued ratios must pass if both are reached. Ratio 1 passes. A 2:1 self-connection fails. These are deductions from the fixed-graph algorithm, not in-game measurements.
+investigation/leftovers.md-59-
+investigation/leftovers.md:60:Publish combines local and remote terms, stores the resulting group speed and weight in every member, then clears remote accumulators. It does not rerun propagation after publishing a group. `0x1404c9b00` is retained in full.
+investigation/leftovers.md-61-
+investigation/leftovers.md-62-Still open: which connector changes schedule a rebuild, when old group membership is invalidated, how new group/member ring order is chosen, and whether one frame can use stale membership. The decoded collect/publish functions read existing group pointers and do not answer those lifecycle questions. The bounded context-field search is retained; no connector lifecycle conclusion is inferred from traversal order. Fixed-graph traversal and conflict handling are high confidence.
+investigation/leftovers.md-63-
+--
+investigation/leftovers.md-65-
+investigation/leftovers.md-66-The decoded intact exhaust update has **zero intrinsic jet-fuel consumption**, including its fluid exchange and purge helpers. This is stronger than inspecting the thrust multiplication alone, but it is not a universal whole-network fuel-rate claim.
+investigation/leftovers.md-67-
+investigation/leftovers.md:68:The private liquid container starts at component `+0x3b8`; jet fuel is container `+0x14`, hence component `+0x3cc`. Initialization `0x140350a50` sets container capacity at component `+0x3c0` to float32 0.4. The exhaust calls `0x1402ec710` at `0x140351d90`, bytes `e8 7b a9 f9 ff`, passing fluid port `component+0x330` and this container. Pressure bias -10 is loaded at `0x140351d81` from `0x140bb0f94`, bytes `00 00 20 c1`. The exchange moves liquid between the connected network and the private container. It can fill or return jet fuel; it is not a combustion debit.
+investigation/leftovers.md-69-
+investigation/leftovers.md:70:The helper explicitly subtracts transferred jet fuel from one side and adds it to the other. In the incoming direction the network and local jet-fuel stores include `0x1402ecb4a`, `f3 0f 11 41 14`, and `0x1402ecb61`, `f3 41 0f 11 43 14`. The reverse-direction stores are also retained. Clamps and finite capacities apply, so the transferred amount is network-dependent.
+investigation/leftovers.md-71-
+investigation/leftovers.md:72:Immediately afterwards, `0x140351dfc`, bytes `e8 bf 9f f9 ff`, calls purge helper `0x1402ebdc0` with excluded index **2** and fraction **0.001**. It purges other liquids into a temporary container that is then discarded. At `0x1402ebe31`, `41 83 f8 02`, followed by `0x1402ebe35`, `74 34`, index 2 skips the jet-fuel debit block `0x1402ebe37..0x1402ebe60`. Thus the purge is not a 0.1% jet-fuel drain.
+investigation/leftovers.md-73-
+investigation/leftovers.md:74:The multiplier reads stored jet fuel at `+0x3cc` without subtracting any. The one direct debit in the shared jet update, `0x1403533f8`, `f3 0f 11 8f cc 03 00 00`, belongs to the separate combustion-chamber subtype. The pre-update routine `0x140350d90` queues position/effect state and does not burn the private liquid. The retained initializer, complete update, pre-update and two liquid helpers rule out a hidden recurring afterburner debit in these paths.
+investigation/leftovers.md-75-
+investigation/leftovers.md-76-For this update path:
+investigation/leftovers.md-77-
+--
+investigation/leftovers.md-85-
+investigation/leftovers.md-86-## 4. Legacy sensor noise and random distribution, #153
+investigation/leftovers.md-87-
+investigation/leftovers.md:88:Closed for legacy type 16, logic case 50. The decoded successful-output path adds **no SDK noise** to legacy radar or sonar outputs. It does not call settings getter `0x140294520` or generator `0x1409afa20`. This statement does not promise stable target selection or eliminate numeric error, motion, scan cadence or occlusion effects.
+investigation/leftovers.md-89-
+investigation/leftovers.md:90:Case 50 in `0x1403c4d20` computes distance, normalized direction and geometric angles. The eight-result subtype stores distance directly at `0x1403c7be8`, bytes `f3 41 0f 11 84 9e fc 04 00 00`. Angle stores at `0x1403c7c34` and `0x1403c7c69` follow dot-product/acos arithmetic, with no intervening random value. Other subtypes call direct output setter `0x1402ea270`, for example `0x1403c7d52`, `e8 19 25 f2 ff`. That setter only writes its argument to output `+0x18`. Record helper `0x1408b46c0` only indexes the candidate container. The retained geometry helpers and output instructions expose these data paths rather than relying only on a missing direct call.
+investigation/leftovers.md-91-
+investigation/leftovers.md:92:Generator `0x1409afa20` is:
+investigation/leftovers.md-93-
+investigation/leftovers.md-94-```text
+investigation/leftovers.md-95-state = (214013*state + 2531011) mod 2^32
+investigation/leftovers.md-96-result = (state >> 16) & 32767
+investigation/leftovers.md-97-```
+investigation/leftovers.md-98-
+investigation/leftovers.md:99:`0x1409afa29`, `69 48 28 fd 43 03 00`, multiplies by `0x343fd`; `0x1409afa30`, `81 c1 c3 9e 26 00`, adds `0x269ec3`; `0x1409afa39`, `c1 e9 10`, shifts; `0x1409afa3c`, `81 e1 ff 7f 00 00`, masks. State is at helper-returned runtime context `+0x28`. It is deterministic, not a Gaussian generator.
+investigation/leftovers.md-100-
+investigation/leftovers.md:101:The advanced-sensor code uses `u=result/32767`, with 32767 at `0x140bb090c`, bytes `00 fe ff 46`. Its noise variable is `2*u-1`. Therefore the support is 32768 equally spaced values including -1 and +1. Mathematical inference: the LCG has full period `2^32`, since its increment is odd and multiplier is 1 modulo 4. Every 15-bit output occurs `2^17` times over a full state cycle. This gives a discrete uniform marginal over that cycle, not independent samples or a continuous distribution. A known seed gives a fixed sequence. SDK amplitude scales that variable for advanced sensors; these settings are not consumed by the legacy path. Confidence is high.
+investigation/leftovers.md-102-
+investigation/leftovers.md-103-## 5. Missile radar frame and angles, #94
+investigation/leftovers.md-104-
+investigation/leftovers.md:105:Closed algebraically for type-56 `radar_type=1`. There are **five plane records, not six**. The collector at `0x140909e40` advances by 24 bytes and compares its loop counter with 5 at `0x140909fed`, bytes `83 f9 05`. Plane equality fails via `0x140909fe5`, `76 0d`. Its additional radius check is a sphere constraint, not a sixth plane.
+investigation/leftovers.md-106-
+investigation/leftovers.md:107:Use literal matrix storage to avoid a game/editor Euler convention. Let R be the world component transform produced at `0x1403ba776` by helper `0x14017a380`. R0, R1 and R2 are its three stored basis rows, and O its translation. Let:
+investigation/leftovers.md-108-
+investigation/leftovers.md-109-```text
+investigation/leftovers.md-110-a = float32(-2*pi*component[0x420])
+--
+investigation/leftovers.md-114-M = A * B * R
+investigation/leftovers.md-115-```
+investigation/leftovers.md-116-
+investigation/leftovers.md:117:The multiplication above uses ordinary row-indexed matrices. Helper `0x14017a380(out,left,right)` actually stores `right*left` in that notation: its first element is `right[0]*left[0] + right[1]*left[4] + right[2]*left[8] + right[3]*left[12]`. The two calls at `0x1403bab0a`, `e8 71 f8 db ff`, and `0x1403bab20`, `e8 5b f8 db ff`, therefore produce `B*R`, then `A*B*R`. The sign flip for b is `0x1403ba94b`, `41 0f 57 c5`. This resolves the composition order that the earlier report left qualified.
+investigation/leftovers.md-118-
+investigation/leftovers.md-119-Let X, Y and Z be M's first three rows. The scan points along Y. Define `hy=pi*component[0x41c]` and `hx=pi*component[0x418]`. Keeping the field offsets matters: type 1 uses these fields against different physical basis directions from the ordinary radar branch.
+investigation/leftovers.md-120-
+--
+investigation/leftovers.md-130-range = component[0x470]
+investigation/leftovers.md-131-```
+investigation/leftovers.md-132-
+investigation/leftovers.md:133:The far normal is built at `0x1403bb338..0x1403bb3d8`. The four side constructions use cosine/sine pairs at `0x1403bb404/0x1403bb40f`, `0x1403bb501/0x1403bb50d`, `0x1403bb633/0x1403bb63e`, and `0x1403bb74d/0x1403bb759`. `0x1403bb3e0`, `f3 45 0f 10 86 1c 04 00 00`, loads the first field; `0x1403bb60f`, `f3 45 0f 10 86 18 04 00 00`, loads the second. Their positive and negative half-angle factors are float32 0.5 and -0.5, followed by doubling and multiplication by float32 pi. The equations suppress those rounding details; retained instructions preserve them.
+investigation/leftovers.md-134-
+investigation/leftovers.md:135:Reported angles use the **unswept** basis, selected at `0x1403bb16e`:
+investigation/leftovers.md-136-
+investigation/leftovers.md-137-```text
+investigation/leftovers.md-138-right = R0
+--
+investigation/leftovers.md-145-elevation = asin(z)/(2*pi)
+investigation/leftovers.md-146-```
+investigation/leftovers.md-147-
+investigation/leftovers.md:148:These are ideal-real equivalents for nonsingular directions before SDK noise. The actual azimuth code normalizes the horizontal pair, uses signed acos helper `0x1401753d0`, negates its result at `0x1403bc3d5`, bytes `0f 57 05 b4 5b 7f 00`, and divides by `2*pi` at `0x1403bc3dc`. Elevation uses `0.25-acos(z)/(2*pi)` at `0x1403bc426..0x1403bc437`. A horizontal zero-length direction substitutes `(1,0)` before the signed-angle helper. At the exact rear-axis tie the helper chooses negative pi, so the caller reports +0.5 turn. Do not replace this with an unspecified atan2 signed-zero convention.
+investigation/leftovers.md-149-
+investigation/leftovers.md-150-Positive azimuth points toward R0 from R1. Positive elevation points toward -R2. At zero scan angles the forward direction is R1, not R2. Relative to an oriented R basis, `right cross forward = -up`; these named output axes reverse that basis's handedness. This statement is algebraic and does not assume the editor's coordinate labels. Numeric examples in `tools/models.json` use R=identity and zero noise. Confidence is high for plane count, stored-frame algebra and output signs. Visual editor-axis naming and dynamic validation remain untested.
+investigation/leftovers.md-151-
+investigation/leftovers.md-152-## Suggested replacement wording
+investigation/leftovers.md-153-
+investigation/leftovers.md:154:- #27: "EMP is scene event 116. The weather strike path sends 800 counts with a 100 m inner radius and 300 m outer radius. Other decoded sources include variable queued pulses and two object-kind updates sending 30 counts. Their gameplay identities and warhead/Lua producers remain open. Fixed shaft graphs use one FIFO traversal per source, compatible revisits are suppressed, and ratio conflicts clear remote numerators and add braking weight. Connector rebuild timing remains open."
+investigation/leftovers.md-155-- #32: "Shaft-group loops do not run a convergence solver. Each source contributes through its first accepted FIFO path. Conflicting ratios brake all groups visited by that source, with order-dependent accumulator resets. Same-group ratio-1 bridges add no contribution; incompatible self-bridges brake the group. Connector rebuild scheduling and resulting container order remain open."
+investigation/leftovers.md-156-- #147: "The intact afterburner update exchanges fuel with its port, purges liquids other than jet fuel, and uses stored jet fuel in the thrust multiplier. No intrinsic jet-fuel debit exists in these decoded paths. Its steady replenishment is zero when inventory and net port exchange are steady; transient and whole-network flow remain network-dependent."
+investigation/leftovers.md-157-- #153: "Legacy type-16 case-50 radar and sonar write geometric outputs without SDK noise. Advanced-sensor noise uses a deterministic 32-bit LCG whose 15-bit output maps to 32768 discrete values over [-1,1], uniform over a full state cycle. Samples are not independent Gaussian draws."
+--
+investigation/leftovers.md-179-
+investigation/leftovers.md-180-## Retained files
+investigation/leftovers.md-181-
+investigation/leftovers.md:182:`investigation/native/leftovers/asm/` contains byte-bearing excerpts for EMP event construction and callers, shaft traversal/publication, jet liquid exchange/purge, legacy output, PRNG, missile radar, plane collector and math helpers. `pseudocode/` contains the corresponding new and reused exports. `tools/` contains issue snapshots, address ranges, constant bytes, bounded searches, collection/verification tools, model examples and provenance. `SHA256SUMS` covers this report and retained evidence with paths relative to the repository root. The only repository writes for this work were this report, that evidence directory and its two whitelist lines in root `.gitignore`.
+--
+investigation/electricity.md-8-
+investigation/electricity.md-9-- The motor/generator speed state is RPS. The RPS connection uses it with factor 1. The saved field name is `rotations_per_second`. A torque meter copies the network speed directly to its numeric RPS output.
+investigation/electricity.md-10-- A simple shaft group computes a weighted average with `force_emitter_max_force` as member weight and an additional weight of 1 carrying the previous network speed. Connected components submit speed and receive the published network speed through separate fields. Submissions are cached across update phases.
+investigation/electricity.md:11:- Electric node+0x28 is an EMP countdown, serialized as `emp`. It does not count ticks without supply. Normal updates decrement it toward zero; pulse application adds an integer. The draw factor is `max(0,1-emp/300)*q`.
+investigation/electricity.md:12:- Electric node+0x3c is the shared pool's charge fraction. The pool combines electrically bridged groups and gathers a capped packet from every eligible storage node. No source, exhausted storage or competing consumers can limit supply independently of EMP.
+investigation/electricity.md-13-- Generator Output is `60*Q`, in internal charge per simulated second. Battery and electric inspection/API paths do not establish joules, watts, voltage or amp-hours. SI equivalence remains open.
+investigation/electricity.md-14-- `electric_consumption_scale` is absent as ASCII and UTF-16LE from the entire executable. The shipped realtime value 0.01 cannot be assigned to a native constant merely because that constant also equals 0.01.
+investigation/electricity.md-15-
+--
+investigation/electricity.md-17-
+investigation/electricity.md-18-## 1. Display and API units
+investigation/electricity.md-19-
+investigation/electricity.md:20:The generic port inspector is `0x140329fb0`. It has distinct fluid, mechanical and electrical loops.
+investigation/electricity.md-21-
+investigation/electricity.md:22:For fluid ports it formats the port flow counter times 60 with `%.2fL/s`, string `0x140b60610`. For mechanical ports it formats member+0x30 directly. For electrical ports it calculates `max(0,1-emp/300)*q`, or 1 with infinite electricity, and formats that number. Both mechanical and electrical loops pass `%f` at `0x140ade268`, bytes `25 66 00`. Neither appends an electrical unit. See `asm/port-inspection.asm` and its pseudocode.
+investigation/electricity.md-23-
+investigation/electricity.md-24-The electrical loop's decisive instructions are:
+investigation/electricity.md-25-
+investigation/electricity.md-26-| Address | Bytes | Meaning |
+investigation/electricity.md-27-|---|---|---|
+investigation/electricity.md:28:| `0x14032a91d` | `41 8b 46 28` | Read EMP counter |
+investigation/electricity.md:29:| `0x14032a93b` | `f3 41 0f 59 46 3c` | Multiply attenuation by q |
+investigation/electricity.md:30:| `0x14032a946` | `4c 8d 05 1b 39 7b 00` | Select `%f` |
+investigation/electricity.md:31:| `0x14032a955` | `e8 86 1b e5 ff` | Format the value |
+investigation/electricity.md-32-
+investigation/electricity.md:33:Electric-specific inspection `0x140401cd0` calls the generic inspector through vtable+0x420 when inspection detail is greater than 1. Its extra text concerns relay/breaker on/off state. The electric vtable entry at `0x140b814f0` is `b0 9f 32 40 01 00 00 00`, target `0x140329fb0`. It does not substitute a watts/joules formatter. See `asm/electric-inspection.asm`.
+investigation/electricity.md-34-
+investigation/electricity.md-35-The generator stores `60*Q` to its number-output state at component+0x1a0:
+investigation/electricity.md-36-
+investigation/electricity.md:37:- `0x140400d8e`, `f3 0f 59 05 ca f9 7a 00`, multiply by the float 60 at `0x140bb0760`, bytes `00 00 70 42`.
+investigation/electricity.md:38:- `0x140400d96`, `f3 0f 11 83 a0 01 00 00`, store Output.
+investigation/electricity.md:39:- `0x140400db8` and `0x140400dbd` add Q to shared pool+4. These are internal charge units, with no other display conversion.
+investigation/electricity.md-40-- `rom/data/definitions/generator_small.xml:51` calls this port `Output` and describes electrical generation without a unit. The medium and large definitions have matching descriptions, retained in `tools/resources.txt`.
+investigation/electricity.md-41-
+investigation/electricity.md:42:The battery has a normalized charge state at component+0x250 and capacity at +0x254. Initialization `0x140400560` copies `electric_charge_capacity` into that capacity. The small, medium and large definitions specify 1600, 12800 and 256000, respectively, on line 2. Their Charge output descriptions explicitly say 0 to 1. Small battery port description is `rom/data/definitions/battery_small.xml:24`.
+investigation/electricity.md-43-
+investigation/electricity.md:44:During normal undamaged battery update, `0x140400df4` reads definition capacity C. The numeric Charge output is `clamp(b/((C-10)/C),0,1)`, where b is the fraction after the pool's temporary withdrawal. The divide sequence is at `0x140400e07`, `0x140400e17` and `0x140400e1e`; output stores are `0x140400e2a` and `0x140400e47`. For a lone battery this compensates for the fraction placed in the pool before the component update. It is a fraction, not a joule or watt conversion. Damage zeros the battery's local storage and capacity at `0x140400de2`. See `asm/electric-update.asm`.
+investigation/electricity.md-45-
+investigation/electricity.md:46:The Charge Level editor setting uses percent strings `%.0f%%` at `0x140b61ec0` and `%.f%%` at `0x140b58f3c`; `Charge Level` is at `0x140b6e6c8`. Those strings describe a normalized setting, not a capacity unit.
+investigation/electricity.md-47-
+investigation/electricity.md-48-The shipped Lua API documentation is embedded in the executable:
+investigation/electricity.md-49-
+investigation/electricity.md:50:- `0x140ae4980`: `getVehicleBattery` description, first matching battery by name or voxel position.
+investigation/electricity.md:51:- `0x140ae5540`: returned table has `charge = current_charge` and position. No energy or power unit is specified.
+investigation/electricity.md:52:- `0x140ae69a0`: `setVehicleBattery` description explicitly specifies a 0 to 1 range.
+investigation/electricity.md:53:- `0x140ae51d0`, `0x140ae5400`, `0x140ae6af0` and `0x140ae6b50`: callable signatures. Exact bytes and text are retained in `tools/tables.txt`.
+investigation/electricity.md-54-
+investigation/electricity.md:55:The bounded search in `tools/unit-search.txt` checks whole-file ASCII/UTF-16LE spellings, zero-delimited printable candidates, and the prior decoded UI text table. It finds no electrical joule/watt declaration. The apparent raw `w/s` at `0x140d3fb24` is inside `.pdata`, where the bytes are exception-table RVAs. It has no direct code reference and is not a display string. Short `kW` byte coincidences in code likewise do not establish units. `sdk/data/game_constants.xml` declares no electric-unit conversion.
+investigation/electricity.md-56-
+investigation/electricity.md-57-Still open: SI equivalence. The traced inspection, generator output, battery state, embedded Lua docs, SDK constants and string searches rule out a conversion in those paths. They do not prove that every possible hidden or constructed string was examined. A minimal in-game display check is to inspect one battery, motor and generator at maximum detail and compare generator Output with the change in total stored internal charge per simulated second on an otherwise isolated charged network. Sum `C_i*change_in_fraction_i` over its storage, including the generator buffer. Reading only one battery is an approximation if another buffer also changes. That checks labels and the internal-charge-per-second scale. It cannot establish joules or watts without a load or source explicitly calibrated in those units. If a build exposes such an SI-rated reference, compare its rating with the same total-storage slope; absent that reference, SI equivalence has no measurable definition supplied by this evidence.
+investigation/electricity.md-58-
+--
+investigation/electricity.md-70-
+investigation/electricity.md-71-Do not confuse mechanical node+0x28 with electrical node+0x28. These are different structures.
+investigation/electricity.md-72-
+investigation/electricity.md:73:Initializer `0x140400560` calls port finder `0x1403224f0` with type 2 and stores the matching definition node at component+0x1d8. `0x140400330` registers the mechanical node and the three logic nodes. The shipped motor RPS connection is type 2 at `motor_small.xml:51`; the generator's is type 2 at `generator_small.xml:45`.
+investigation/electricity.md-74-
+investigation/electricity.md:75:Motor exchange in `0x1404008a0`:
+investigation/electricity.md-76-
+investigation/electricity.md-77-| Address | Bytes | Operation |
+investigation/electricity.md-78-|---|---|---|
+investigation/electricity.md:79:| `0x140400a52` | `8b 82 48 08 00 00` | Load definition F |
+investigation/electricity.md:80:| `0x140400a58` | `f3 0f 11 b3 ec 01 00 00` | Submit local speed |
+investigation/electricity.md:81:| `0x140400a60` | `f3 0f 10 b3 f0 01 00 00` | Receive group speed |
+investigation/electricity.md:82:| `0x140400a68` | `89 83 e8 01 00 00` | Submit F |
+investigation/electricity.md:83:| `0x140400a72` | `f3 0f 11 b3 a4 02 00 00` | Store received speed as local state |
+investigation/electricity.md-84-
+investigation/electricity.md:85:The generator uses the same fields at `0x140400d05`, `0x140400d0d` and `0x140400d15`. It submits its previous local state before receiving the group's speed and calculating generator drag. There is no multiplier, division, radians conversion or tick conversion at either exchange.
+investigation/electricity.md-86-
+investigation/electricity.md:87:Serializer `0x1404015c0` binds component+0x2a4 to `rotations_per_second` at `0x140b6e078`. The relevant address load is `0x140401853`, bytes `4c 8d 05 1e c8 76 00`. This agrees with the torque meter, rather than being the sole basis for the unit interpretation. In `0x1403fae40`, torque_component_type 2:
+investigation/electricity.md-88-
+investigation/electricity.md:89:- `0x1403fb1da`, `48 8b 8f 18 02 00 00`, get the group pointer.
+investigation/electricity.md:90:- `0x1403fb1ea`, `8b 01`, read group speed.
+investigation/electricity.md:91:- `0x1403fb1ec`, `89 87 a0 01 00 00`, copy it directly to the numeric RPS output.
+investigation/electricity.md:92:- `0x1403fb1f2` reads group+8; `0x1403fb1f5` writes the Torque output. Thus this meter's Torque reading is the effective group weight in this solver, not a recovered SI torque measurement.
+investigation/electricity.md-93-- `rom/data/definitions/torque_meter.xml:28` describes the first numeric output as rotations per second; line 31 describes the Torque output.
+investigation/electricity.md-94-
+investigation/electricity.md-95-Derived: the motor's target 20 and free-running equilibrium 19.9 from the earlier decode are RPS. The generator's `min(abs(RPS)/560,0.25)` drag factor reaches its knee at 140 RPS.
+investigation/electricity.md-96-
+investigation/electricity.md-97-### Same-group speed equation
+investigation/electricity.md-98-
+investigation/electricity.md:99:`0x1404c9d20` first gathers each shaft group's submitted values:
+investigation/electricity.md-100-
+investigation/electricity.md-101-```
+investigation/electricity.md-102-I_g = 1 + sum(F_i)
+--
+investigation/electricity.md-105-
+investigation/electricity.md-106-The previous network speed supplies the extra weight of 1. This is not a plain average of component speeds or just `sum(F*RPS)/sum(F)`.
+investigation/electricity.md-107-
+investigation/electricity.md:108:At `0x1404ca113`, `c7 42 04 00 00 80 3f`, the solver sets group+4 to 1. At `0x1404ca169` it loads member+0x28; `0x1404ca171`, `f3 0f 59 42 2c`, multiplies by member+0x2c. At `0x1404ca185` it accumulates member weight. At `0x1404ca1c3`, `f3 44 0f 5e 59 04`, it divides the accumulated numerator by group weight.
+investigation/electricity.md-109-
+investigation/electricity.md:110:The publish routine `0x1404c9b00` then calculates:
+investigation/electricity.md-111-
+investigation/electricity.md-112-```
+investigation/electricity.md-113-V_g = (I_g * v_g + N_g) / (I_g + D_g)
+investigation/electricity.md-114-effective_weight_g = I_g + D_g
+investigation/electricity.md-115-```
+investigation/electricity.md-116-
+investigation/electricity.md:117:N and D are contributions from bridged shaft groups. Both are zero for a simple group with no gearbox/clutch bridge. The routine clears them after use. At `0x1404c9c1d`, `41 89 40 30`, it publishes V to each member+0x30; `0x1404c9c41`, `41 89 40 34`, publishes effective weight.
+investigation/electricity.md-118-
+investigation/electricity.md-119-Example, derived: previous group speed 0, a member of weight 2 submitting 20 RPS, and a member of weight 1 submitting 0 produce `(0+2*20+1*0)/(1+2+1)=10 RPS`. Dropping the network's own weight would incorrectly give 13.333 RPS.
+investigation/electricity.md-120-
+investigation/electricity.md:121:The phase caller at `0x1404bda4c` calls collection and at `0x1404bda54` calls publication. Component dispatch through vtable+0x358 occurs later at `0x1405498d6`. Component speed submissions therefore feed a subsequent solve. A generator can read the same published speed as the motor while retaining a different local state after applying its drag. The meter reports group speed, not every component's post-update private state.
+investigation/electricity.md-122-
+investigation/electricity.md-123-### Bridged groups and limits
+investigation/electricity.md-124-
+--
+investigation/electricity.md-129-D_g += I_s * h / abs(r)
+investigation/electricity.md-130-```
+investigation/electricity.md-131-
+investigation/electricity.md:132:The stores are `0x1404ca592`, `f3 41 0f 11 40 28`, and `0x1404ca5ad`, `f3 41 0f 11 48 2c`. The divide by absolute ratio is `0x1404ca5a3`, `f3 0f 5e c8`. Traversal continues only above fraction 0.001. Revisiting a group compares its recorded ratio with the new ratio; relative ratios outside about 0.9 to 1.1 take the conflict path at `0x1404caa02`. That path zeroes the affected remote numerator contributions and adds weight, which acts as a brake. Constants 0.95, 0.001, 0.9 and 1.1 are retained in `tools/tables.txt`.
+investigation/electricity.md-133-
+investigation/electricity.md-134-High confidence covers the local weights, final mixing formula, direct RPS mapping and these bridge accumulation instructions. A complete user-facing prediction for arbitrary gearbox orientation, multiple clutches, conflicting loops and connector rebuilds remains open. All bridge field setters and graph-construction cases were not mapped in this task. The minimal check for a particular bridge is one motor and one generator separated by a single selected gearbox ratio, with a torque meter on each side and logged RPS over ticks. Repeat with the gearbox flipped to settle that orientation. A closed contradictory-ratio loop is a separate check for the conflict branch. No SI moment-of-inertia conversion follows from this abstract weight model.
+investigation/electricity.md-135-
+investigation/electricity.md:136:## 3. EMP, availability and starvation
+investigation/electricity.md-137-
+investigation/electricity.md-138-The motor's electrical node starts at component+0x210. The pump's starts at +0x1d8, as established in the fluid-transport report. The shared electrical-node layout is:
+investigation/electricity.md-139-
+investigation/electricity.md-140-| Offset | Meaning |
+investigation/electricity.md-141-|---|---|
+investigation/electricity.md-142-| +0x20 | Electrical group pointer |
+investigation/electricity.md:143:| +0x28 | Unsigned EMP countdown n |
+investigation/electricity.md-144-| +0x30 | Optional bridge to another electrical node |
+investigation/electricity.md-145-| +0x38 | Eligible storage/source flag |
+investigation/electricity.md-146-| +0x3c | Published pool charge fraction q |
+--
+investigation/electricity.md-149-
+investigation/electricity.md-150-Each electrical group has a pointer at group+0x20 to the shared pool. Pool+0 is capacity P, and pool+4 is charge E. Thus the draw-helper pointer chain is `node+0x20 -> group+0x20 -> pool+4`. The term "network charge" in the previous report refers to this E, not directly to a battery's entire stored amount.
+investigation/electricity.md-151-
+investigation/electricity.md:152:### EMP writers
+investigation/electricity.md-153-
+investigation/electricity.md:154:Serializer `0x1402eeaa0` binds node+0x28 to `emp` at `0x140b597a4`, bytes `65 6d 70 00`. The node-address argument is formed at `0x1402eeb3a`, `4c 8d 4f 28`; the name at `0x1402eeb3e`, `4c 8d 05 5f ac 86 00`. The serialization default is zero.
+investigation/electricity.md-155-
+investigation/electricity.md:156:`0x14032abc0` iterates a component's electrical nodes and decrements each nonzero n by 1. At `0x14032abf3`, `ff c8`, it decrements; `0x14032abf5`, `89 42 28`, stores the result. The normal vehicle component pass calls this through vtable+0x3e8 at `0x140499726`, `ff 90 e8 03 00 00`. The electric vtable entry at `0x140b814b8` resolves to `0x14032abc0`.
+investigation/electricity.md-157-
+investigation/electricity.md:158:Generic apply method `0x14032ac10` adds its integer argument to each node's n at `0x14032ac3f`, `44 01 52 28`. Electric components override it with `0x140401560`; the addition at `0x14040158f` has the same bytes. If its argument is nonzero and the component is an enabled circuit breaker, it also clears the on state at `0x1404015b7`. The corresponding vtable+0x3f0 entry is at `0x140b814c0`.
+investigation/electricity.md-159-
+investigation/electricity.md:160:The spatial pulse routine `0x14077dd80` computes distance falloff, converts the resulting count to an integer at `0x14077e04e`, and calls each affected component's apply method at `0x14077e085`, `ff 90 f0 03 00 00`. The scene event path calls this routine at `0x14085fa4d`. Its exact event discriminator was not decoded here. The field's literal name, countdown/apply methods and shipped EMP warhead description independently agree with the EMP interpretation. `warhead_emp.xml:1639` describes temporary electronic shutdown.
+investigation/electricity.md-161-
+investigation/electricity.md:162:Constructors initialize n to zero. In the motor/generator constructor this is `0x1403fff7b`, `89 93 38 02 00 00`, with edx zero. Loading saved state can restore the serialized value. The traced collection, publication, restoration, draw and component-update paths do not reset n because a battery supplied charge. A pulse adds to n rather than resetting it to a fixed value. Counter overflow behavior beyond ordinary gameplay was not analyzed.
+investigation/electricity.md-163-
+investigation/electricity.md-164-Derived: a counter of 300 blocks normal draw initially, then its attenuation recovers by 1/300 per countdown update. Three hundred normal active updates are 5 simulated seconds. Larger accumulated counts remain completely attenuated until below 300. Infinite electricity bypasses the factor.
+investigation/electricity.md-165-
+investigation/electricity.md-166-### Charge-factor writer and source pool
+investigation/electricity.md-167-
+investigation/electricity.md:168:`0x1404c9d20` builds the shared electrical pool by walking bridged groups. For eligible source nodes with ordinary valid C > 0:
+investigation/electricity.md-169-
+investigation/electricity.md-170-```
+investigation/electricity.md-171-c_i = min(C_i, 10)
+--
+investigation/electricity.md-174-b_i -= c_i * b_i / C_i
+investigation/electricity.md-175-```
+investigation/electricity.md-176-
+investigation/electricity.md:177:The subtraction temporarily moves charge into the pool; it is not a storage-loss term. Branch `0x1404ca91f` tests node+0x38. `0x1404ca925` reads capacity, `0x1404ca92a` caps it at 10, and `0x1404ca931` multiplies by b. Pool stores are at `0x1404ca93e` and `0x1404ca94e`; the normalized-state withdrawal is stored at `0x1404ca972`. Initializer and binding evidence shows batteries, generators, solar and chargers participate as sources. Relay/breaker links can combine groups through node+0x30.
+investigation/electricity.md-178-
+investigation/electricity.md:179:`0x1404c9b00` publishes:
+investigation/electricity.md-180-
+investigation/electricity.md-181-```
+investigation/electricity.md-182-q = E/P if P > 0 else 0
+investigation/electricity.md-183-node[+0x3c] = q
+investigation/electricity.md-184-```
+investigation/electricity.md-185-
+investigation/electricity.md:186:The divide is `0x1404c9cd8`, `f3 0f 5e c1`; the store is `0x1404c9d07`, `f3 0f 11 41 3c`. Pooled charge can subsequently change through component consumption and generation while the published q remains the snapshot for that phase.
+investigation/electricity.md-187-
+investigation/electricity.md:188:At finalization, `0x1404cabb0` returns the remaining charge to eligible nodes:
+investigation/electricity.md-189-
+investigation/electricity.md-190-```
+investigation/electricity.md-191-b_i = clamp(b_i + (E/P) * c_i/C_i, 0, 1)
+investigation/electricity.md-192-group[+0x20] = null
+investigation/electricity.md-193-```
+investigation/electricity.md-194-
+investigation/electricity.md:195:The division is at `0x1404cac8f`; add/store at `0x1404caca0`; clamp/store at `0x1404cacc6`; pool-pointer reset at `0x1404cacf6`. This is a temporary pool whose pointer is cleared each cycle, not a permanently separate battery. Ordinary eligible sources supply positive capacity; invalid zero-capacity custom states were not modeled.
+investigation/electricity.md-196-
+investigation/electricity.md-197-For batteries alone, each C exceeds 10, so equally full batteries each contribute a packet of `10*b` regardless of size. Mixed-size batteries contribute equally to q when equally numerous, while their fractional change scales as 1/C. This is not total-capacity-weighted battery percentage.
+investigation/electricity.md-198-
+investigation/electricity.md:199:Derived battery recurrence, for a single battery and a demand that drains its entire available pool each update, with no generation or EMP:
+investigation/electricity.md-200-
+investigation/electricity.md-201-```
+investigation/electricity.md-202-b_next = b * (1 - 10/C)
+--
+investigation/electricity.md-206-
+investigation/electricity.md-207-### Draw equation and failure conditions
+investigation/electricity.md-208-
+investigation/electricity.md:209:For a positive request R, helper `0x1402eeca0` does:
+investigation/electricity.md-210-
+investigation/electricity.md-211-```
+investigation/electricity.md-212-if infinite_batteries: return 1
+--
+investigation/electricity.md-217-return T/R
+investigation/electricity.md-218-```
+investigation/electricity.md-219-
+investigation/electricity.md:220:`0x1402eed60` returns a, with its extra override flag or infinite electricity returning 1. It does not itself draw charge or require a group pointer. Availability-only effects and actual draw must therefore be distinguished.
+investigation/electricity.md-221-
+investigation/electricity.md:222:A node can be limited by an absent group, a pool with no eligible charged sources, low q, previous consumers exhausting E, or its own EMP countdown. Disconnection does not increment n. Even with q = 1 at publication, another consumer can reduce E before this node draws. Conversely, generation later in the phase can raise E without refreshing q until the next publication. This follows from the separate snapshot writer and live draw field; exact component ordering is vehicle-dependent.
+investigation/electricity.md-223-
+investigation/electricity.md-224-## 4. Update rate and realtime value
+investigation/electricity.md-225-
+investigation/electricity.md-226-The rate is already established by `investigation/update-rate.md` and is byte-checked again here:
+investigation/electricity.md-227-
+investigation/electricity.md:228:- `0x1407439c6`, `b8 01 00 00 00`, chooses one simulated tick.
+investigation/electricity.md:229:- `0x1405e3aea`, `f3 0f 5e 0d 6e cc 5c 00`, divides tick count by float 60.
+investigation/electricity.md:230:- `0x1405498d6`, `41 ff 92 58 03 00 00`, dispatches one component update, outside the separate physics substep loop established in that report.
+investigation/electricity.md-231-
+investigation/electricity.md-232-Use 60 component updates per nominal simulated second for normal active vehicles. Multiply per-update amounts by 60; compound changing state rather than multiplying a relaxation coefficient. This is not a wall-clock throughput guarantee.
+investigation/electricity.md-233-
+--
+investigation/electricity.md-235-
+investigation/electricity.md-236-## 5. Charger and other issue coverage
+investigation/electricity.md-237-
+investigation/electricity.md:238:The Electric Charger is `electric_type` 6, `electric_diode.xml:2`. Its update starts at `0x1404013d8` inside `0x1404008a0`. It requires no damage and both electrical group pointers. Let qA and qB be the published fractions of its two ports, nA the input port's EMP count and EA the input pool's current charge.
+investigation/electricity.md-239-
+investigation/electricity.md-240-```
+investigation/electricity.md-241-R = min(0.01, qA, 1-qB)
+--
+investigation/electricity.md-245-if T > 0: EB += T
+investigation/electricity.md-246-```
+investigation/electricity.md-247-
+investigation/electricity.md:248:With infinite electricity, it bypasses input removal and uses T = R. The ordinary finite-supply branch's decisive bytes are `f3 0f 5c 83 94 02 00 00` at `0x140401411` for `1-qB`, `f3 0f 5d 83 4c 02 00 00` at `0x140401419` for the qA minimum, and `f3 0f 5d f8` at `0x140401421` for the 0.01 cap. Input removal is stored at `0x14040149f`; output addition at `0x1404014c8`.
+investigation/electricity.md-249-
+investigation/electricity.md:250:There is no test of `qA-qB` or a positive "significant discrepancy" threshold on this branch. For normal fractions, positive input and output headroom permit forward transfer even when qB exceeds qA. At qA=0.5, qB=0.9, no EMP and sufficient EA, R=0.01 and T=0.005 per update, or 0.3 internal charge per simulated second. The upper finite-supply envelope is 0.01 per update, or 0.6 per simulated second. These are derived bounds, not observed measurements.
+investigation/electricity.md-251-
+investigation/electricity.md-252-Read-only checks of the related issue bodies show:
+investigation/electricity.md-253-
+--
+investigation/electricity.md-265-
+investigation/electricity.md-266-`/categories/3/limitations/0`
+investigation/electricity.md-267-
+investigation/electricity.md:268:> Electric storage and draw use internal charge units. Generator Output is internal charge per simulated second. Battery Charge and Lua battery setters use a 0 to 1 fraction; electric inspection shows an EMP-adjusted supply fraction. No conversion to joules or watts was established in the traced display, API or storage paths.
+investigation/electricity.md-269-
+investigation/electricity.md-270-Disposition: SI conversion still open for the bounded reason and minimal display/calibration check in section 1.
+investigation/electricity.md-271-
+--
+investigation/electricity.md-277-
+investigation/electricity.md-278-`/categories/3/sections/3/body`
+investigation/electricity.md-279-
+investigation/electricity.md:280:> Motors and both starters use the same draw helper. With infinite_batteries on it returns 1 and removes nothing. Otherwise a missing electrical group returns 0. For a positive request R it removes T = min(a*R, remaining pooled charge) and returns T/R, where a = max(0,(300-n)/300)*q. Here n is the node's EMP countdown, decremented toward zero each normal active update and increased by pulse application. q is the charge fraction published from the shared electrical pool. Low charge, exhausted pooled supply or disconnection can limit draw independently of EMP. The supplied fraction scales motor acceleration. Generators deposit charge regardless of infinite_batteries.
+investigation/electricity.md-281-
+investigation/electricity.md:282:Disposition: both formerly unidentified fields answered. The pump's previously named electrical_age field is the same EMP countdown.
+investigation/electricity.md-283-
+investigation/electricity.md-284-`/categories/3/sections/4/body`
+investigation/electricity.md-285-
+--
+investigation/electricity.md-289-
+investigation/electricity.md-290-## Confidence and checks still needed
+investigation/electricity.md-291-
+investigation/electricity.md:292:High confidence: executable identity, RPS mapping, local shaft weights, publication fields, EMP field name/add/countdown, q writer, pool collection/restoration, draw equation, generator factor 60, charger cap and absence of a discrepancy comparison in that branch. The cited instructions were retained and checked against original bytes.
+investigation/electricity.md-293-
+investigation/electricity.md-294-Derived results were checked by an independent arithmetic script, including conservation through pool withdrawal/return, battery maximum-discharge recurrence, the extra shaft weight of 1 and a charger example with a higher output charge fraction than input. These checks validate the transcription, not execution of the game.
+investigation/electricity.md-295-
+--
+investigation/electricity.md-297-
+investigation/electricity.md-298-- SI units: inspect the three component displays and compare Output to isolated total-storage slope, accounting for the generator buffer. Establish a joule/watt scale only against an explicit SI-rated reference. The traced displays and shipped docs supply none.
+investigation/electricity.md-299-- Arbitrary mechanical bridge topology/orientation: one selected bridge, two RPS meters and a tick log; flip the gearbox and repeat. Direct same-group mixing is already decoded. A full map of every bridge setter, connector and graph rebuild was not attempted. The simple formula does not replace the retained bridge recurrence.
+investigation/electricity.md:300:- Inactive/sleeping behavior and exact wall-clock EMP recovery: log a pulse/countdown proxy on an active vehicle, then repeat after sleeping or unloading. The 300-call attenuation and normal 60 Hz conversion are decoded; no claim is made for missed active updates.
+investigation/electricity.md-301-- Storage under invalid custom capacities, damage or overfill: the source-path equations and normal battery definitions are retained. Run one controlled case if behavior outside those assumptions matters. Damage explicitly clears battery local storage in the decoded component branch.
+investigation/electricity.md-302-
+investigation/electricity.md-303-The main issue's requested native gaps are answered or explicitly bounded above. No in-game confirmation is claimed.
+--
+investigation/electricity.md-326-  -import "$PWD/stormworks64.exe" -noanalysis \
+investigation/electricity.md-327-  -scriptPath "$PWD/investigation/native/electricity/tools" \
+investigation/electricity.md-328-  -postScript DecompileAt.java /tmp/electricity-fresh-pseudocode \
+investigation/electricity.md:329:  0x1404008a0 0x140400330 0x140400560 0x1404015c0 0x140401cd0 \
+investigation/electricity.md:330:  0x140329fb0 0x14032abc0 0x14032ac10 0x140401560 \
+investigation/electricity.md:331:  0x1402eeaa0 0x1402eeca0 0x1402eed60 \
+investigation/electricity.md:332:  0x1404c9d20 0x1404c9b00 0x1404cabb0 0x1404bd940 \
+investigation/electricity.md:333:  0x1404995b0 0x14077dd80 0x1403fae40
+investigation/electricity.md-334-```
+investigation/electricity.md-335-
+investigation/electricity.md-336-The retained directory contains 19 assembly excerpts, 19 pseudocode files, the issue snapshot, three Python tools, the Ghidra script, constants/strings, shipped-resource lines, bounded unit searches and verification output. `SHA256SUMS` uses paths relative to the repository root and includes this report. Only this report, `investigation/native/electricity/` and two matching whitelist lines appended without a blank line to root `.gitignore` were written. No existing investigation/research file, wiki file, commit, push or GitHub mutation was made.

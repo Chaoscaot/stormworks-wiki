@@ -1,0 +1,10 @@
+107:Use literal matrix storage to avoid a game/editor Euler convention. Let R be the world component transform produced at `0x1403ba776` by helper `0x14017a380`. R0, R1 and R2 are its three stored basis rows, and O its translation. Let:
+110:a = float32(-2*pi*component[0x420])
+111:b = -component[0x468]
+112:A = [[1,0,0], [0,cos(a),sin(a)], [0,-sin(a),cos(a)]]
+113:B = [[cos(b),sin(b),0], [-sin(b),cos(b),0], [0,0,1]]
+138:right = R0
+139:forward = R1
+140:up = -R2
+150:Positive azimuth points toward R0 from R1. Positive elevation points toward -R2. At zero scan angles the forward direction is R1, not R2. Relative to an oriented R basis, `right cross forward = -up`; these named output axes reverse that basis's handedness. This statement is algebraic and does not assume the editor's coordinate labels. Numeric examples in `tools/models.json` use R=identity and zero noise. Confidence is high for plane count, stored-frame algebra and output signs. Visual editor-axis naming and dynamic validation remain untested.
+158:- #94: "Missile radar uses five inward frustum planes plus a spherical range constraint. Its swept frame is A*B*R in the documented stored-row convention, with forward M1. Reported angles use unswept right R0, forward R1 and up -R2; positive azimuth points toward R0 and positive elevation toward -R2. Plane equality is rejected."

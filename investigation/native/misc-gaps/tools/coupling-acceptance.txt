@@ -1,0 +1,56 @@
+                         iVar28 * (int)plVar16[10];
+                iVar11 = iVar6 * (int)plVar16[6] + iVar27 * *(int *)((longlong)plVar16 + 0x3c) +
+                         iVar28 * (int)plVar16[9];
+LAB_1404b38e4:
+                bVar5 = true;
+                if ((*(char *)(lVar15 + 0x5c) != '\0') || ((char)piVar4[0x17] != '\0')) {
+                  if ((*(char *)(lVar15 + 0x5d) == '\0') &&
+                     (*(char *)((longlong)piVar4 + 0x5d) == '\0')) {
+                    if (((iVar11 != iStackX_18) || (iVar21 != iStackX_10)) || (iVar24 != iVar22)) {
+LAB_1404b391c:
+                      bVar5 = false;
+                    }
+                  }
+                  else {
+                    if (((iVar11 != iStackX_18) || (iVar21 != iStackX_10)) || (iVar24 != iVar22)) {
+                      if (((iVar11 != -iStackX_18) || (iVar21 != -iStackX_10)) ||
+                         (iVar24 != -iVar22)) goto LAB_1404b391c;
+                    }
+                    bVar5 = true;
+                  }
+                }
+                if (((((iVar9 == *(int *)(puStack_58 + 1)) &&
+                      (iVar10 == *(int *)((longlong)puStack_58 + 0xc))) &&
+                     (iVar20 == *(int *)(puStack_58 + 2))) &&
+                    ((iVar26 * (int)plVar16[9] +
+                      iVar25 * *(int *)((longlong)plVar16 + 0x3c) + iVar9 + iVar23 * (int)plVar16[6]
+                      == iVar7 &&
+                     (iVar26 * *(int *)((longlong)plVar16 + 0x4c) +
+                      iVar25 * (int)plVar16[8] + iVar10 +
+                      iVar23 * *(int *)((longlong)plVar16 + 0x34) == iVar8)))) &&
+                   ((iVar26 * (int)plVar16[10] +
+                     iVar25 * *(int *)((longlong)plVar16 + 0x44) + iVar20 + iVar23 * (int)plVar16[7]
+                     == iVar19 && (bVar5)))) {
+                  plVar13[1] = *plVar17;
+                  plVar13[2] = (longlong)plVar16;
+                  plVar17[1] = *plVar13;
+                  plVar17[2] = (longlong)plVar3;
+                  break;
+                }
+LAB_1404b3963:
+                uVar29 = uVar29 + 1;
+                uVar12 = (**(code **)(*plVar16 + 0x400))(plVar16);
+              } while (uVar29 < uVar12);
+            }
+          }
+        }
+LAB_1404b3985:
+        uStackX_20 = uStackX_20 + 1;
+        uVar29 = (**(code **)(*plVar3 + 0x400))(plVar3);
+      } while (uStackX_20 < uVar29);
+    }
+    iVar18 = iVar18 + 1;
+  } while( true );
+}
+
+

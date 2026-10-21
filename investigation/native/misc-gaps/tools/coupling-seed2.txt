@@ -1,0 +1,24 @@
+1-# Connectors, magnets and hardpoints decode
+2-
+3:Target `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`. The local executable matches. Static analysis only. Distances below use the native world coordinate scale. Force and impulse use internal mass units. No kilogram or newton calibration is claimed.
+4-
+5-## Scope and issue mapping
+6-
+--
+26-
+27-The 0.5 m result is deliberate. Small/fluid/electric/torque and hardpoint branches compare squared distance directly with 0.25. At `0x14054e11d`, bytes `f3 41 0f 10 87 78 09 00 00`, the small branch reads that value. `0x14054e126`, `0f 2f c7`, compares it with squared distance, and `0x14054e129`, `0f 86 a8 16 00 00`, rejects equality and greater distances. Large and hinge branches square 0.25 before comparing.
+28-
+29:For large, hinge and hardpoints, each source sample must find a peer sample with squared separation strictly below `0.25²*0.2`, giving 0.1118034 m. This is a point-matching condition, not a universal angular tolerance. Large uses definition-space points `(0,0,1), (1,0,0), (0,0,-1), (-1,0,0)`; hinge uses `(0,0,-1), (0,0,1)`. The transform scales definition coordinates by 0.25 m and adds `magnet_offset`. Hardpoints start with the same two axial samples and apply definition mirror flags. The center search also checks compatible connector types, eligibility flags, existing links and distinct bodies. These figures do not promise attachment through arbitrary obstructing geometry or to a disabled partner.
+30-
+31:The point constants include `0x140bb1990`, `0x140bb1240`, `0x140bb13e0` and hardpoint `0x140bb13a0`. The match multiplier 0.2 is at `0x140bafb70`, bytes `cd cc 4c 3e`.
+32-
+33-## Attraction model and holding constraints
+34-
+--
+132-
+133-## Reproduction
+134-
+135:Run from a checkout containing the matching executable and shipped resources:
+136-
+137-```sh
+138-python3 -I investigation/native/connectors/tools/collect.py "$PWD" "$PWD/investigation/native/connectors"

@@ -1,0 +1,61 @@
+14-
+15-The Jet engines category in `wiki/data/behavior.json` and the matching families in `wiki/data/families.json` identify 14 `jet_engine*.xml` definitions. Each has component type 34. Definition `jet_engine_component_type` is read at definition+0xed4:
+16-
+17:- 0: small and large intakes.
+18-- 1: compressor.
+19-- 2: combustion chamber.
+20-- 3: small and medium turbines.
+--
+36-```
+37-r0 = 0.99 * (r + 0.01*electric_draw_return)  if enabled
+38-r0 = 0.99*r                                otherwise
+39:exchange pressure and temperature with neighbors
+40-q = 0.2 * (100*r0 - (p_out-p_in))
+41-p_in -= q
+42-p_out += q
+--
+46-
+47-The pressure update uses a signed difference. Back pressure can reduce or reverse `q`; there is no positive-flow clamp in this branch. `q` is a pressure-state transfer, not measured volume flow. One cannot convert it to L/s.
+48-
+49:Combustion chamber, subtype 2, after neighbor exchange and fluid-port exchange:
+50-
+51-```
+52-f = 0.0002*r
+--
+67-
+68-Consumption is `0.12*u*r` L/s at 60 updates/s and 10 L/amount. Infinite fuel bypasses availability and subtraction, while leaving the local pressure and heating arithmetic. The chamber clears non-jet-fuel contents and recomputes its liquid total. The ignition gate is internal RPS strictly above 0.5, not a pressure threshold. No separate spark input or chamber-temperature threshold appears in this branch.
+69-
+70:Turbine, subtype 3, after neighbor exchange:
+71-
+72-```
+73-q = 0.5*p_in
+--
+83-
+84-Both shipped turbines have `electric_magnitude=0.025`. Positive electrical additions go to the connected electric group. This is an internal charge quantity per update, not watts. The medium turbine's mechanical port additionally submits weight `160` and the resulting RPS, then replaces its local speed with `max(published_shaft_RPS,0)`. The small turbine has no mechanical port. Pressure capture is identical in the two subtype-3 definitions. `k` has no explicit lower clamp in this arithmetic; the displayed equations should use ordinary nonnegative speeds.
+85-
+86:Exhaust, subtype 4, after neighbor and fluid exchange:
+87-
+88-```
+89-a = clamp(1 - altitude*1.5/40000, 0, 1)
+--
+100-
+101-## Network exchange and startup
+102-
+103:`0x1403555a0` implements pressure and temperature exchange. The list at +0x420, count +0x430, supplies neighbors' incoming values. The list at +0x408, count +0x418, supplies neighbors' outgoing values. It first computes
+104-
+105-```
+106:p_out = (old_p_out + sum(next_neighbor.p_in))/(next_count+1)
+107:t_out = (old_t_out + sum(next_neighbor.t_in))/(next_count+1)
+108:p_in  = (old_p_in  + sum(prev_neighbor.p_out))/(prev_count+1)
+109:t_in  = (old_t_in  + sum(prev_neighbor.t_out))/(prev_count+1)
+110-```
+111-
+112-The compressor, chamber, turbine and exhaust call this helper before their local pressure arithmetic. These are averages of stored states, not conservation of an identified mass-flow quantity. A multi-component engine needs the actual lists, stored states and phase order. One cannot simply add all chamber pressure gains and multiply by turbine count.
+--
+156-2. Afterburner external fuel flow remains open. The complete subtype-4 branch, fuel exchange helper, purge helper, constructor and initializer were inspected. They rule out an explicit jet-fuel debit proportional to pressure, RPS, enable state or thrust in that branch, and rule out replacing the native stored-fuel multiplier with a fixed 1.5. The port helper can redistribute liquid with the external network. Other external writers and a complete fluid-network operating point were not reconstructed, so this report does not claim that every connected afterburner arrangement consumes zero tank fuel.
+157-3. Pressure and temperature physical units remain open. Resource port names, save keys and arithmetic are traced, and the jet fields are separate from the ordinary fluid compartment. No conversion to pascals, atmospheres, kelvin or degrees Celsius appears in the traced jet paths. Ordinary fluid temperature units do not establish jet-temperature units. Calibration or a native UI/unit conversion outside these paths is still needed.
+158-4. SI torque, power and efficiency remain open. Mechanical port speed is RPS and submitted weight is 160. The solver weight, raw pressure and charge additions rule out treating the medium turbine's tooltip as a measured N m output. No physical energy balance or mass-flow rate was recovered.
+159:5. General damage, immersion and intake behavior are not a complete model here. Both intake definitions use subtype 0 and are retained in the update. The intake includes directional vehicle velocity, altitude, damage and water checks. Those paths were checked to avoid assigning the intake-only final damping block to every jet part. The complete intake force/damage behavior and overspeed damage propagation need a separate decode if an assembled-engine simulator is required.
+160-
+161-## Replacement wording for the recorded gaps
+162-

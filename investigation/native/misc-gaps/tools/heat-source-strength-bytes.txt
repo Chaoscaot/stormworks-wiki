@@ -1,0 +1,29 @@
+845256-   14030c10e:	cc                   	int3
+845257-   14030c10f:	cc                   	int3
+845258-   14030c110:	48 8b 01             	mov    rax,QWORD PTR [rcx]
+845259-   14030c113:	48 85 c0             	test   rax,rax
+845260-   14030c116:	74 10                	je     0x14030c128
+845261-   14030c118:	48 8b 00             	mov    rax,QWORD PTR [rax]
+845262-   14030c11b:	48 85 c0             	test   rax,rax
+845263-   14030c11e:	74 08                	je     0x14030c128
+845264:   14030c120:	f3 0f 11 88 18 01 00 	movss  DWORD PTR [rax+0x118],xmm1
+845265-   14030c127:	00 
+845266-   14030c128:	c3                   	ret
+845267-   14030c129:	cc                   	int3
+845268-   14030c12a:	cc                   	int3
+845269-   14030c12b:	cc                   	int3
+--
+847412-   14030dcf5:	48 89 87 d8 00 00 00 	mov    QWORD PTR [rdi+0xd8],rax
+847413-   14030dcfc:	48 89 af e0 00 00 00 	mov    QWORD PTR [rdi+0xe0],rbp
+847414-   14030dd03:	48 89 af e8 00 00 00 	mov    QWORD PTR [rdi+0xe8],rbp
+847415-   14030dd0a:	48 89 af f0 00 00 00 	mov    QWORD PTR [rdi+0xf0],rbp
+847416-   14030dd11:	48 89 af f8 00 00 00 	mov    QWORD PTR [rdi+0xf8],rbp
+847417-   14030dd18:	48 89 87 00 01 00 00 	mov    QWORD PTR [rdi+0x100],rax
+847418-   14030dd1f:	48 89 af 08 01 00 00 	mov    QWORD PTR [rdi+0x108],rbp
+847419-   14030dd26:	48 89 af 10 01 00 00 	mov    QWORD PTR [rdi+0x110],rbp
+847420:   14030dd2d:	c7 87 18 01 00 00 00 	mov    DWORD PTR [rdi+0x118],0x42200000
+847421-   14030dd34:	00 20 42 
+847422-   14030dd37:	c7 87 1c 01 00 00 ff 	mov    DWORD PTR [rdi+0x11c],0xffffffff
+847423-   14030dd3e:	ff ff ff 
+847424-   14030dd41:	48 89 af 20 01 00 00 	mov    QWORD PTR [rdi+0x120],rbp
+847425-   14030dd48:	8b 4b 30             	mov    ecx,DWORD PTR [rbx+0x30]

@@ -1,0 +1,85 @@
+26-|---|---|---:|---:|---:|---:|---:|---:|
+27-| #101 | rope_hook_winch | 48 | 40 | 0.008 | 0.48 | 0.1 to 10 | 0.048 to 4.8 |
+28-| #102 | rope_hook_winch_huge | 48 | 600 | 0.12 | 7.2 | 0.1 to 10 | 0.72 to 72 |
+29-| #103 | rope_hook_winch_large | 48 | 150 | 0.03 | 1.8 | 0.1 to 10 | 0.18 to 18 |
+30-| #104 | rope_hook_winch_small | 48 | 10 | 0.002 | 0.12 | 0.1 to 10 | 0.012 to 1.2 |
+31-| #117 | winch_a | 20 | 20 | 0.004 | 0.24 | 0.1 to 5 | 0.024 to 1.2 |
+32-| #119 | winch_electric | 20 | 10 | 0.004 | 0.24 | 0.1 to 5 | 0.024 to 1.2 |
+33-| #121 | winch_huge_a | 20 | 500 | 0.004 | 0.24 | 0.1 to 5 | 0.024 to 1.2 |
+34-| #123 | winch_large_a | 20 | 100 | 0.004 | 0.24 | 0.1 to 5 | 0.024 to 1.2 |
+35-| #115 | water_hose | 20 | 16 | 0.004 | 0.24 | 0.1 to 5 | 0.024 to 1.2 |
+36-
+37-All capacities are root definition attributes at line 2. The current small winch omits `cable_radius`; this report does not invent an explicit radius for it. The older and current capacities differ even when their display names match. `native/winches/winches.json` contains the figures, source identities, conditions, end-head relationships and null fields for unresolved force/break limits.
+38-
+39-The executable binds `cable_radius` to definition+0x398 and `cable_length` to definition+0x39c. At `0x14031731a`, bytes `4c 8d 8e 9c 03 00 00`, the parser selects +0x39c; `0x140317327`, bytes `4c 8d 05 72 4b 84 00`, selects the `cable_length` string at `0x140b5bea0`. `asm/definition-cable-binding.asm` retains the call sequence. This ties the table to the member used by the reel code.
+40-
+41-## Current type-48 arithmetic
+--
+136-
+137-Decoded family rule: the head is the physical child endpoint and fluid endpoint of its named parent reel. The parent owns reeling, Length output, capacity, Speed and electrical draw. The head's zero `cable_length` is not a zero limit on its parent's rope. The head does not supply a second powered reel or an extra spool capacity. Force ratings and breakage thresholds remain unresolved for these assemblies too.
+138-
+139:## Rope constraint, stiffness, tension and breakage
+140-
+141-### Recovered structure
+142-
+143:The old rope-creation callback `0x1403e3090` and the current cable construction helper `0x140519e30` call `0x1401a5f00`. That helper queues construction through `0x14019d630`. The common constructor creates a Bullet soft body through `0x140159370` and `0x1401462c0`. The installed vtable is `0x140ae3690`, whose RTTI name is `.?AVbtSoftBody@@`. This is a chain of nodes and distance links, rather than a hinge, slider or generic six-axis `btTypedConstraint` with a winch motor impulse cap.
+144-
+145:`0x140159370` interpolates the nodes and calls `0x140147790` for consecutive links. `0x140147600` gives each link the default material pointer. `0x1401462c0` initializes that material's three double coefficients to 1.0. The constructor additionally writes 5 at soft-body+0x404, approximately 0.01 at +0x368 and 1.0 at +0x3a0, +0x3a8 and +0x3b0. The relevant stores are `0x14019d71f`, `0x14019d72d`, `0x14019d741`, `0x14019d74b`, `0x14019d755`. The exact 0.01 double bit pattern is `0x3f847ae140000000`. These are retained raw solver/configuration settings. A physical spring constant in N/m is not established by these stores alone.
+146-
+147-The rest-length event vtable `0x140b610f8` has RTTI `.?AUevent_set_object_rope_rest_length@mm_physics_scene@@` and handler `0x1401a1f30`. The handler writes each of n links' rest length as `L/n` and its squared value. `0x1401489e0` contains the same link-length operation used by initial construction. No reel force or torque limit is supplied by these calls.
+148-
+149-### Additional current-cable impulse
+150-
+151-There is an explicit corrective impulse in `0x140524c80`, before its reel adjustment. When attachment-point separation D exceeds L, it takes each connected physics body's float at +8. Values below 0.0001 are replaced with 100000. Let the resulting values be K_A and K_B. It computes:
+152-
+153-```
+154-J = min(K_A, K_B) * (D - L)
+155-impulse_A = normalize(B - A) * J
+156-impulse_B = -impulse_A
+157-```
+158-
+159-It queues the two impulses through `0x1401a7470`. That helper's event vtable `0x140b82d30` has RTTI `.?AUevent_set_impulse@mm_physics_scene@@`. The complete branch is retained in `asm/140524c80.asm` and pseudocode lines around the `D > L` comparison. Interpreting the body+8 value as a mass is an inference here. The recovered fact is the member read and arithmetic. The branch has no explicit cap on J and no deletion/break call. This is one contribution to rope response, not a complete tension model or proof that the whole assembly has unlimited strength.
+160-
+161-### Still open, with ruled-out paths
+162-
+163-| Question | Status and bounded negative result |
+164-|---|---|
+165:| Force-equivalent stiffness | Open. Default material coefficients 1.0 and the common configuration stores are recovered. The inspected constructor, link creation and rest-length handlers do not convert these to N/m. Full soft-body solver calibration and timestep/iteration interpretation have not been recovered. |
+166:| Maximum tension or impulse | Open. Type-20 `0x1403e3b30` performs length arithmetic, charge requests, geometric correction and a rest-length event, with no tensile-force comparison. Current `0x140524c80` has the uncapped local corrective-impulse branch above, but this does not rule out a cap elsewhere in the solver, contacts or global damage handling. The hinge/slider motor impulse caps in `mechanical-joints.md` cannot be transferred to this soft-body chain. |
+167:| Tensile break condition and threshold | Open. Neither reel callback nor the shared construction/rest-length path compares a measured force or strain to a break threshold. The current system's +0xc4 deletion flag is handled by `0x1405288d0` and set by `0x14052c290`, which removes the rope and clears endpoint state. Those functions do not themselves test tensile force. `0x14051f1a0` and `0x1405201e0` remove cables for endpoint/object removal. This rules out treating those deletion calls as evidence of a numeric snap threshold. Global damage, other deletion-flag writers and all solver-internal failure paths have not been exhaustively traced. |
+168-| Runtime effective travel | Open as a measurement. The rest-length rates and bounds are recovered. Loaded head displacement, slack, collisions, saved initial length and pulley routing can change physical travel. No measurement was performed. |
+169-
+170-This investigation does not claim that ropes cannot break. No 600 m, 500 m or other tooltip capacity is a recovered force/strain failure threshold.
+171-
+172-## Hose and pressure loss
+173-
+174-The prior fluids-network result answers the quoted hose pressure-loss gap. Old Hose uses exchange factor 1 at `0x1403e3b09`, bytes `e8 c2 9d f0 ff`. Current rope-hook hose paths use factor 1 or 0.5 according to the path. There is no length term or separate hose storage compartment in those inspected exchange calls. This means no additional length-dependent hose-loss factor was found in that bridge, not that the ordinary connected fluid network has zero losses. The previous fluid report retains the complete transport equation and its own limits. Reeling length does not enter the decoded bridge factor.
+175-
+176-## Model and worked examples
+177-
+178-`native/winches/tools/model.py` is a small executable scalar model. It omits Bullet motion, callback scheduling and float32 rounding. It covers one current winch plus an inactive anchor and the old reel's sequential draws, optional geometric floor and clamp. `model-examples.json` retains its output.
+179-
+180-* Old Medium, starting at 5 m, default Speed, Up for 60 updates, ample charge: 4.76 m and 0.6 charge units consumed.
+181-* Old reel at 5 m with both controls on and ample charge: nominally 5 m after one update, consuming 0.02 units.
+182-* The same old reel with only 0.015 units available: 4.998 m after one update, consuming all 0.015 units.
+183-* Old reel at its maximum with Down held: remains at its maximum but still requests 0.01 units/update at full effectiveness.
+184-* Current Medium, 5 m, Down: 5.008 m after one update. Current Huge under the same conditions: 5.12 m.
+185-* Current Small, 9.999 m, Down: a 10.001 m candidate is rejected; it stays at 9.999 m. This is not a clamp to 10 m.
+186-* Current Medium with both digital controls on, Relative Speed zero: nominally unchanged, movement flag false. Relative Speed 0.5 instead extends by 0.004 m/update, including the decoded path where the digital electrical gate is disabled.
+187-
+188-## Issue dispositions and replacement wording
+189-
+190-These dispositions describe research coverage, not changes or closure on GitHub. Force and break questions remain open where stated.
+191-
+192-| Issue | Disposition and proposed replacement wording |
+193-|---|---|
+194-| #101 | Partial: "Medium rope-node winch reels at 0.48 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 40 m to the shared cable limit. Maximum tension and snap threshold remain undecoded." |
+195-| #102 | Partial: "Huge rope-node winch reels at 7.2 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 600 m. Maximum tension and snap threshold remain undecoded." |
+196-| #103 | Partial: "Large rope-node winch reels at 1.8 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 150 m. Maximum tension and snap threshold remain undecoded." |
+197-| #104 | Partial: "Small rope-node winch reels at 0.12 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 10 m. Maximum tension and snap threshold remain undecoded." |
+198-| #117 | Partial: "Legacy Medium Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 20 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+199-| #119 | Partial: "Legacy Small Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 10 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+200-| #121 | Partial: "Legacy Huge Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 500 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+201-| #123 | Partial: "Legacy Large Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 100 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+202-| #116 | Endpoint role decoded: "Physical and fluid end head of the 16 m legacy Hose. Its parent owns the reel controls, Speed and electrical draw; the head has no independent reel." |
+203-| #118 | Endpoint role decoded: "Physical and fluid end head of the 20 m legacy Medium Winch. Its parent owns the reel controls, Speed and electrical draw; the head has no independent reel." |

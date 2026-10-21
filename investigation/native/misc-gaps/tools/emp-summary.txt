@@ -1,0 +1,34 @@
+5:## 1. EMP trigger, #27
+6-
+7-Partly closed. This is scene event **116**, not an unidentified discriminator. At `0x14085aff7`, `8b 48 08`, the dispatcher reads the event type; `0x14085affa`, `ff c9`, subtracts one. Table entry `0x140863ba8`, bytes `2a fa 85 00`, sends event 116 to `0x14085fa2a`. Constructor `0x14022d0a0` writes type 116 at `0x14022d0d8`, bytes `48 c7 40 08 74 00 00 00`.
+8-
+9-The event payload contains world position at `+0x10`, integer strength/count at `+0x28`, inner radius at `+0x2c` and outer radius at `+0x30`. The dispatcher forwards these at `0x14085fa39..0x14085fa49`, then calls pulse routine `0x14077dd80` at `0x14085fa4d`, bytes `e8 2e e3 f1 ff`.
+10-
+11-The falloff is:
+12-
+13-```text
+14-count(d) = trunc(strength * (1 - clamp((d-inner)/(outer-inner), 0, 1)))
+15-```
+16-
+17-Here d is distance from the pulse to the affected vehicle/body transform origin, not a separate distance for each electronic component. The routine then calls each component's apply method. `0x14077e04e`, `f3 4c 0f 2c f2`, truncates the scaled float; `0x14077e085`, `ff 90 f0 03 00 00`, calls slot `+0x3f0`. This report does not reinterpret the existing EMP countdown and electrical attenuation equations.
+18-
+19-There are five decoded direct relative-call sites for the event constructor:
+20-
+21-- Weather update `0x1405e1e30`, call `0x1405e2732`, bytes `e8 69 a9 c4 ff`, sends strength **800**, inner radius **100 m**, outer radius **300 m**. `0x1405e2728`, `41 b8 20 03 00 00`, supplies 800. Constants at `0x140bb0790`, `00 00 c8 42`, and `0x140bb07f8`, `00 00 96 43`, are 100 and 300. Inference: this is the lightning pulse, based on weather-update ownership and its strike-point selection. At 200 m this pulse supplies 400 counts; at or beyond 300 m it supplies zero.
+22-- Queued pulses in `0x1405e8fb0`, call `0x1405ec2e4`, carry a variable count and outer radius from 40-byte records. The inner radius is half the outer radius. The queue lives at object `+0x5f00`, with count at `+0x5f10`. The producer of these records is not decoded here.
+23-- `0x140757ef0`, call `0x140758f61`, and `0x14075a190`, call `0x14075aecb`, supply strength **30**, inner radius **100 m**, outer radius **300 m**. Dispatcher `0x14074347e..0x1407434bb` selects these updates for object-kind values 4 and 0 at object `+0x208`. Their gameplay identities remain unassigned. They are additional sources, so an exclusively weather-triggered interpretation is ruled out.
+24-- `0x140851630`, call `0x140856002`, forwards a received payload's count and radii. It is not evidence for another physical source.
+25-
+26-The binary also contains `spawn_emp` and RTTI names `c_client_to_server_request_spawn_emp`, `c_server_to_client_event_spawn_emp` and `c_event_game_to_logic_spawn_emp`. `tools/emp-strings.txt` retains their file offsets. A string or request name alone does not establish a public addon/Lua API.
+27-
+28-Still open: identify the queued-pulse producers, map object kinds 0 and 4 to gameplay identities, and trace the `spawn_emp` command/request handler. Warhead, ordinary-explosion and addon/Lua attribution is not ruled out. The EMP-warhead tooltip is supporting resource evidence only. Direct pulse calls and the event payload are high confidence; the lightning label is an inference. The unrelated immediate-116 registry initializer is excluded as an event constructor by its surrounding sequential registrations.
+29-
+30-## 2. Shaft group bridges, #27 and #32
+31-
+32-Closed for a fixed graph, including loops and same-group ports. Connector rebuild ordering remains open.
+33-
+34-`0x1404bd940` invokes component preparation, then collect `0x1404c9d20`, then publish `0x1404c9b00`. For each source group, collect computes its local weighted speed and propagates that source through the graph. Source groups use the logical order of the ring container at context `+0x80`, head `+0x8c`, count `+0x90`. Members use group `+0x10`, head `+0x1c`, count `+0x20`. These are container orders, not sorted component IDs or guaranteed build order.
+35-
+36-For source s, local weight and speed remain:
+37-
+38-```text

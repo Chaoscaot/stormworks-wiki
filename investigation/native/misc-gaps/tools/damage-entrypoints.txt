@@ -1,0 +1,135 @@
+7-## Results and limits
+8-
+9:Ballistic integration, class constants, barrel dispersion, recoil submission, heat hysteresis, timed fuses, impact magnitude and solid rocket consumption are recovered. Loading state and transfer delays are recovered in part. A complete ammunition-network throughput model, controlled maximum cannon firing rates, and the final target-specific voxel damage and blast-occlusion rules remain open. These qualifications apply to #16 and #158; they do not leave the rotary heat or solid rocket equations undecoded.
+10-
+11-`native/weapons/weapons.json` contains all 94 shipped type-44 and type-47 definitions, 7 native gun-class records and all 15 native projectile records. Each native record includes its address and bytes. Resource entries include the source path, line and hash. Numeric fields without a decoded consumer keep an offset-based name.
+12-
+13-## Gun classes, velocity and firing cycle
+14-
+15-The definition parser binds `weapon_type` at definition `+0x2930`, `weapon_class` at `+0x2934`, `weapon_belt_type` at `+0x2938`, ammunition capacity at `+0x293c`, feed at `+0x2c60`, and barrel length at `+0x2c64`. See [definition-weapons.asm](native/weapons/asm/definition-weapons.asm). Resource names tie gun classes 0 through 6 to the rows below. This interpretation is for weapon type 2; the rocket launcher uses its class field differently.
+16-
+17-The gun table starts at `0x140cc0870`, with 52-byte records. Projectile records start at `0x140cc0540`, also 52 bytes each.
+18-
+19-| Gun class | Projectile | Muzzle speed | Breech transition, updates | Load-transfer delay, updates | Ideal automatic RPM |
+20-|---|---:|---:|---:|---:|---:|
+21-| 0 Machine Gun | 6 | 800 | 2 | 0 | 900 |
+22-| 1 Light Autocannon | 7 | 1000 | 4 | 0 | 450 |
+23-| 2 Rotary Autocannon | 8 | 1000 | 1 | 0 | 1800 |
+24-| 3 Heavy Autocannon | 9 | 900 | 16 | 6 | 94.737 |
+25-| 4 Battle Cannon | 12 | 800 | 75 | 30 | manual cycle |
+26-| 5 Artillery Cannon | 13 | 700 | 250 | 90 | manual cycle |
+27-| 6 Bertha Cannon | 14 | 600 | 600 | 240 | manual cycle |
+28-
+29-The automatic RPM values are **inferences from the state machine with an immediately available matching round**, not measurements or guaranteed belt throughput. An automatic gun needs an opening and closing transition, plus its load delay: `period = 2*T + delay`, `RPM = 3600/period`. Rotary spin-up is separate: its counter increases toward 30 while not firing and decreases by one per update while firing. Native gun updates are at `0x140427390`; see [gun-update.asm](native/weapons/asm/gun-update.asm), [breech-transition.asm](native/weapons/asm/breech-transition.asm) and [ammo-transfer.asm](native/weapons/asm/ammo-transfer.asm).
+30-
+31-The timer at component `+0x330` counts down once per update. `0x14042b310` requests a breech-state change and loads the class transition time. The actual and requested states are at `+0x334/+0x335`. Artillery and Bertha have additional empty-chamber half-transition shortcuts in `0x140428305` onward. Their normal operation also depends on the external opening/loading control. A single unconditional RPM for those guns is not established here.
+32-
+33-At `0x140428aed`, bytes `f3 43 0f 10 44 17 24`, the firing path reads the table velocity. It multiplies the dispersed forward vector by that value and adds the firing body's velocity at `+0x98/+0xa0`. Barrel length is absent from this calculation:
+34-
+35-```text
+36-V_projectile = muzzle_speed[class] * dispersed_forward + V_body
+37-```
+38-
+39-The 52-byte gun records also contain two loading-related integer fields at offsets 8 and 12. Their values are retained; their complete relationship to animation and feed throughput is not claimed as another firing-rate formula.
+40-
+41-## Barrel extensions, dispersion and recoil
+--
+107-After the water flag at projectile `+0x54` is set, the gravity step becomes 0.2 m/s/update and retention is multiplied by 0.8. Projectile type 3 instead uses 0.98 as its additional water multiplier. Water entry and collision paths have further effects. The air-only examples do not claim underwater ranges.
+108-
+109:## Impact magnitude, penetration and explosions
+110-
+111-Ammunition damage IDs are 0 kinetic, 1 HE, 2 fragmentation, 3 AP and 4 incendiary. `0x140424120` binds these selector IDs to localization entries 1996 through 2000. See [ammo-properties.asm](native/weapons/asm/ammo-properties.asm) and [ammo-labels.asm](native/weapons/asm/ammo-labels.asm).
+112-
+113-`0x140593b50` prepares the impact event's magnitude M. Let B be projectile table offset 16 and v its speed at impact:
+114-
+115-```text
+116-kinetic:   M = B*v/1000
+117-AP:        M = 0.4*B*v/1000
+118-incendiary:M = 0.65*B*v/1000
+119-HE:        M = B                  when projectile supports explosives
+120-fragment:  M = 0.4*B              when projectile supports explosives
+121-```
+122-
+123-For an unsupported HE or fragmentation selection, this helper retains the speed-scaled base magnitude and the explosion-support gate prevents the normal blast. These are internal magnitudes, not a universal hit-point decrement. See [impact-magnitude.asm](native/weapons/asm/impact-magnitude.asm), especially `0x140593bcb` onward and the 0.4 and 0.65 consumers.
+124-
+125-| Gun | B | Kinetic M at stationary muzzle | HE M | HE broadphase radius, m | Fragmentation M | Fragmentation broadphase radius, m | Fragment count / projectile type |
+126-|---|---:|---:|---:|---:|---:|---:|---|
+127-| Machine Gun | 0.1 | 0.08 | unsupported | 0 | unsupported | 0 | 0 / 0 |
+128-| Light Autocannon | 0.2 | 0.2 | 0.2 | 1.5 | 0.08 | 0.6 | 2 / 0 |
+129-| Rotary Autocannon | 0.3 | 0.3 | 0.3 | 2.25 | 0.12 | 0.9 | 2 / 0 |
+130-| Heavy Autocannon | 0.6 | 0.54 | 0.6 | 4.5 | 0.24 | 1.8 | 12 / 0 |
+131-| Battle Cannon | 1 | 0.8 | 1 | 7.5 | 0.4 | 3 | 40 / 1 |
+132-| Artillery Cannon | 2 | 1.4 | 2 | 15 | 0.8 | 6 | 60 / 1 |
+133-| Bertha Cannon | 4 | 2.4 | 4 | 30 | 1.6 | 12 | 80 / 2 |
+134-
+135-The AP path can process multiple struck component cells. It subtracts speed and preserves the direction:
+136-
+137-```text
+138-v_after = max(0, v_before - 100*p*component_mass/max(1, definition_cell_count))
+139-```
+140-
+141:At `0x1405928c0`, bytes `ff 90 98 02 00 00`, it calls the component mass getter at virtual slot `+0x298`; `0x1405928d2` reads definition `+0xb8` as the divisor when greater than 1. The base getter `0x140328ea4`, bytes `f3 0f 10 80 b0 02 00 00`, reads definition mass `+0x2b0`; the parser binds that field to `mass`. A separate AP collision path subtracts `200*p`. These are speed-loss rules, not a recovered universal millimetres-of-armour rating. Target traversal, incidence and component overrides still matter. See [penetration-material-getter.asm](native/weapons/asm/penetration-material-getter.asm), [definition-mass.asm](native/weapons/asm/definition-mass.asm) and the complete projectile update.
+142-
+143-Impact dispatch is `0x1405947d0`. It calls direct-hit handling `0x140596540` and, for damage IDs 1 or 2, explosion handling `0x140597950`. Explosion support is also checked in the latter. Explosion broadphase radius is `7.5*M`, and its raw radial-force scale is `50000*M`. The routine has a narrower `5*M` radius in one target-specific damage branch. Several branches use `u=max(0,1-distance/radius)` and falloff `u*u*(3-2*u)`; one damage scale is `100*M*falloff`, with separate force and mass caps. Consequently the broadphase number is not a guarantee that every target takes damage at that radius. See [direct-hit.asm](native/weapons/asm/direct-hit.asm) and [explosion.asm](native/weapons/asm/explosion.asm). At `0x140597950` onward, constants `0x140bb0920` and `0x140bb05a0` supply 50000 and 7.5.
+144-
+145:Fragmentation dispatch additionally creates the table's count of secondary projectiles using the type at offset 32 and count at offset 36, with kinetic damage ID 0. This is separate from its reduced explosion magnitude. The final voxel destruction, armour-incidence and blast-occlusion model is still open. The retained work rules out treating B or the table's offset-20 visual-effect value as a single universal damage number.
+146-
+147-## Timed fuses
+148-
+149-The gun reads the positive seconds input at component `+0x1a0` only when `damage_id == 2`, or when `damage_id == 1` and gun class exceeds 2. Otherwise fuse time is zero. At `0x140428c50` onward:
+150-
+151-```text
+152-T = max(1/60, input_seconds + 0.02*u - 0.01)  for eligible positive input
+153-T = 0                                      otherwise
+154-```
+155-
+156-`u` comes from another 15-bit LCG draw divided by 32767. `0x140428ca5` uses `maxss` against float32 1/60, bytes `f3 0f 5f 0d df 6c 78 00`. The spawned projectile retains T at `+0x4c`; [projectile-spawn.asm](native/weapons/asm/projectile-spawn.asm) shows the copy.
+157-
+158-At age n, the projectile update tests `T > 0`, `n != 0` and `T <= (n+1)/60`. It computes `a=clamp((T-n/60)/(1/60),0,1)` and queues an impact at `position + a*V_old/60`, then removes the projectile. Thus detonation location is interpolated within an update, while the event is processed on an update. See `0x140592b55` through `0x140592d09` in the projectile update and `0x140593b50`. Lifetime or speed deletion can happen before a long fuse expires. Fragmentation fuse eligibility alone does not override a projectile's explosion-support flag.
+159-
+160-## Loading and ammunition
+161-
+162-The ammunition-store path keeps five damage-type bins at component `+0x4fc..+0x50c`. Type-5 stores enforce definition capacity, halving it for projectile ID 8 and dividing it by 5 for ID 9. For the autocannon drums with capacities 100/200/500, this gives light 100/200/500, rotary 50/100/250 and heavy 20/40/100. Resource capacities and all individual parts are retained in JSON.
+163-
+164-`0x14042ba60` transfers between adjacent parts. A gun or single-round transport slot must be empty with both `+0x330` and `+0x3c4` timers zero. It copies calibre at `+0x3f0`, damage kind at `+0x3f4` and loaded amount at `+0x3f8`. Gun/store calibre mismatches are rejected. Transfers out of a source store decrement one bin; store-to-store movement considers all five bins. The source is emptied after a normal single-round transfer, subject to the native unlimited-ammunition setting branch. Receiver delays are 30, 90 and 240 updates for battle, artillery and Bertha, otherwise 6 for projectile ID 9 and zero for the other gun calibres.
+165-
+166-`0x14042b870` searches connected neighbours. Junction gating at `0x14042b7e0` recognizes route labels `b1` and `b2` and the junction logic input. In gun update, a spent round at `+0x510` is ejected on the appropriate breech transition by `0x14042b3a0`; automatic-feed guns then request ammunition. The per-group shot counters at `+0x3b8` and table offset 28 limit grouped firing. They are not the heat float at `+0x384`.
+167-
+168-Still open: a complete direction/order/throughput model for arbitrary belt networks and the tightest firing schedule for externally controlled cannons. The code above rules out instantaneous unrestricted loading, identical capacities across autocannon calibres, and a barrel-length fire-rate multiplier. The numeric breech and receiver delays are recovered; they should not be advertised as a complete cannon RPM measurement.
+169-
+170-## Rotary autocannon heat
+171-
+172-Thermal state is component float `+0x384`; the stop flag is `+0x388`. The same update structure is used by the other guns, with their class heat additions.
+173-
+174-| Gun | Heat per shot |
+175-|---|---:|
+176-| Machine Gun | 0.0125 |
+177-| Light Autocannon | 0.025 |
+--
+235-- **#127, resolved for the quoted gap:** "Full fuel is 20000 units per connected volume unit, including nozzle volume. Each burning update consumes min(remaining, trunc(400*w²*burn_rate)+1) and submits raw thrust 60 times consumption, with pressure attenuation and a 1000*S cap. Burn time follows capacity divided by consumption at 60 updates/s."
+236-- **#134, resolved for the quoted gap:** "Heavy and light autocannon extensions use the same class-matched accuracy path: subtract 0.2 from dispersion multiplier per extension, to a minimum 0.5. The different tooltip wording does not select different velocity or recoil-multiplier mechanics."
+237:- **#158, partial:** "Gun classes, barrel offset and dispersion, muzzle speed, drag, gravity, lifetime, AP speed loss, impact/explosion magnitudes, loading timers and timed-fuse interpolation are decoded. Complete belt throughput, maximum controlled cannon cadence, and final voxel damage and blast occlusion remain open."
+238-
+239:For the remaining damage gap, the search has ruled out table offset 20 as a universal damage figure and 7.5*M as an unconditional target-damage radius. It has recovered the magnitude dispatcher and target-specific direct/explosion routines, retained here, but has not completed their downstream voxel destruction and occlusion consumers. For firing rate, it has ruled out a barrel-length multiplier and unrestricted instant transfers; externally controlled opening, transfer delays, neighbour traversal and grouped firing limits still need a combined schedule model.
+240-
+241-## Reproduction
+242-
+243-From the repository root:
+244-
+245-```bash
+246-bash investigation/native/weapons/tools/reproduce.sh
+247-bash investigation/native/weapons/tools/reproduce.sh --decompile
+248-sha256sum -c investigation/native/weapons/SHA256SUMS > /tmp/weapons-sha256-check.txt
+249-```
+250-
+251-The first command verifies the executable hash, extracts definitions and native tables, retains bounded objdump ranges, and regenerates worked examples. The second imports the executable into a fresh `/tmp` Ghidra project with `-noanalysis` and decompiles the listed entry points. It writes its log to `/tmp/weapons-ghidra-reproduce.log`. It never executes the target. The retained `DecompileAt.java` is copied from the supplied update-rate tool. `native.py` imports the supplied read-only `PE` mapper. Python 3.14, GNU objdump and Ghidra 12.1.4 with JDK 21 were used.
+252-
+253-Some `.pdata` entries describe fragments rather than whole functions, and leaf functions may lack entries. The collector therefore uses explicit ranges in `tools/assembly-ranges.json`. Ghidra prototypes can omit XMM arguments and produce overlapping locals. Assembly, constant bytes and shipped-resource lines take precedence over its variable names. Incorrect exploratory function starts were discarded; the main retained routines were decompiled again in a fresh project.
+254-
+255-## Retained files
+256-
+257-- `native/weapons/weapons.json`: native bytes, decoded and offset-named fields, per-definition values and source hashes.
+258-- `native/weapons/asm/`: original-byte disassembly for gun updates, barrels, loading, projectile updates, impact/explosion, heat, rocket fuel and force application.
+259-- `native/weapons/pseudocode/`: Ghidra output. Files are named by entry address.
+260-- `native/weapons/tools/`: extractor, collector, model, reproduction script, Ghidra script, assembly-range index, constants, source-line excerpts, issue snapshots, retained searches, worked examples and the heat trace.
+261-- `native/weapons/SHA256SUMS`: evidence, tools, report, executable and cited resource hashes, with paths relative to the repository root.

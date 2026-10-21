@@ -1,0 +1,74 @@
+investigation/connectors.md-26-
+investigation/connectors.md-27-The 0.5 m result is deliberate. Small/fluid/electric/torque and hardpoint branches compare squared distance directly with 0.25. At `0x14054e11d`, bytes `f3 41 0f 10 87 78 09 00 00`, the small branch reads that value. `0x14054e126`, `0f 2f c7`, compares it with squared distance, and `0x14054e129`, `0f 86 a8 16 00 00`, rejects equality and greater distances. Large and hinge branches square 0.25 before comparing.
+investigation/connectors.md-28-
+investigation/connectors.md:29:For large, hinge and hardpoints, each source sample must find a peer sample with squared separation strictly below `0.25²*0.2`, giving 0.1118034 m. This is a point-matching condition, not a universal angular tolerance. Large uses definition-space points `(0,0,1), (1,0,0), (0,0,-1), (-1,0,0)`; hinge uses `(0,0,-1), (0,0,1)`. The transform scales definition coordinates by 0.25 m and adds `magnet_offset`. Hardpoints start with the same two axial samples and apply definition mirror flags. The center search also checks compatible connector types, eligibility flags, existing links and distinct bodies. These figures do not promise attachment through arbitrary obstructing geometry or to a disabled partner.
+investigation/connectors.md-30-
+investigation/connectors.md-31-The point constants include `0x140bb1990`, `0x140bb1240`, `0x140bb13e0` and hardpoint `0x140bb13a0`. The match multiplier 0.2 is at `0x140bafb70`, bytes `cd cc 4c 3e`.
+investigation/connectors.md-32-
+--
+investigation/nuclear.md-4-
+investigation/nuclear.md-5-## Result
+investigation/nuclear.md-6-
+investigation/nuclear.md:7:Reaction kinetics, numerical control direction and slew, fuel consumption, local coolant heat exchange, reactor radiation generation and sensor sampling, the temperature damage threshold, and the three nuclear type labels are recovered for this build. The reaction routine walks four coupling slots; it does not perform a spherical neighbour search. Generic coupling matching tolerances, a global ordering guarantee, radiation persistence, and final downstream damage-event effects remain open.
+investigation/nuclear.md-8-
+investigation/nuclear.md-9-All constants below are native per-update values. Use 60 updates per simulated second, as already established in `update-rate.md`. Do not interpret reaction as watts, or native amount-temperature products as joules. The existing `heat-exchangers.md`, `fluid-transport.md`, `steam.md`, and `numeric-codes.md` supply capacity, transport, phase-change and label-table context. This report does not repeat those investigations. Water boiling at 100 C belongs to the separately decoded steam machinery; the nuclear update has no 100 C branch.
+investigation/nuclear.md-10-
+--
+investigation/nuclear.md-78-
+investigation/nuclear.md-79-`0x14041c8e0` binds four `control_rod` coupling names `x+`, `x-`, `z+`, `z-` for assemblies and controls into component `+0x1f8`, with count at `+0x208`. The reaction update walks that count, loads each connection's peer pointer at record `+0x10`, invokes peer slot `+0x1a8`, and branches on the peer's nuclear type. Allocation of four slots is at `0x14041c934` onward in `asm/coupling-bind.asm`; the update walk is `0x14041e9aa-0x14041ea20`. This is a coupling graph, not all fuel rods within a radius.
+investigation/nuclear.md-80-
+investigation/nuclear.md:81:Resource evidence: `steam_nuclear_fuel_assembly.xml:221-231` puts the four couplings at local `(0,6,0)` with orientations 0,1,4,5. `steam_nuclear_control_rod.xml:152-162` puts its four at local `(0,0,0)` with the same orientations. Both require alignment and allow bipolar alignment. No diagonal coupling is defined. Inference: a normally aligned block grid supplies four horizontal cardinal neighbours; the control origin must align with the assembly's coupling plane. The exact positional and angular tolerance in the shared coupling matcher has not been decoded here. A numeric metre radius cannot be justified from the nuclear update, and is left open rather than invented. See `tools/resource-lines.txt` and `asm/coupling-bind.asm`.
+investigation/nuclear.md-82-
+investigation/nuclear.md-83-For a control rod with damage state zero:
+investigation/nuclear.md-84-
+--
+investigation/nuclear.md-97-
+investigation/nuclear.md-98-## Heat transfer to coolant
+investigation/nuclear.md-99-
+investigation/nuclear.md:100:An assembly uses its enclosing compartment pointer at `+0x420`. The thermal and contamination path runs only with an inserted rod and compartment total amount A strictly greater than 1. The compartment's fluid state begins at `+0x30`; V is at `+0x38`, A at `+0x70`, temperature Tc at `+0x74`, and radiation concentration Z at `+0x78`. The liquid amount q is the shared helper `0x1402eb5e0` applied to state `+0x30`, already decoded in `heat-exchangers.md`. It counts liquid species equally.
+investigation/nuclear.md-101-
+investigation/nuclear.md-102-The code transforms two points on the assembly axis, local distances 2 and 11 blocks, into world Y, then sorts them into ylow,yhigh. It computes a liquid surface proxy `h = compartment_ymin + (compartment_ymax-compartment_ymin)*q/V`, then `w=clamp((h-ylow)/(yhigh+0.00015-ylow),0,1)`. Interpretation of compartment bounds as the fill-height proxy is an inference from these operations; this is not a recovered free-surface fluid simulation. The division by V is only reached with A>1 in this branch; normal compartments have positive V.
+investigation/nuclear.md-103-
+--
+investigation/nuclear.md-110-Z_new = Z + 0.001*assembly_react_next/A
+investigation/nuclear.md-111-```
+investigation/nuclear.md-112-
+investigation/nuclear.md:113:The Z increment is radiation contamination, not heating. The sensor path below proves it reads that scalar. Without the 0.5 cap, the mutual heat exchange conserves `q*Tc+100*Tr`, identifying native rod thermal capacity 100 relative to liquid amount q. This is an inference about native capacity, not a joule calibration. Immersion, composition, multiple rods sharing one compartment, component order, environment exchange and fluid transport all affect actual temperatures.
+investigation/nuclear.md-114-
+investigation/nuclear.md-115-Full instruction range `0x14041ea9b-0x14041ed15`, retained in `asm/update.asm`. Liquid capacity calls at `0x14041ec0f`, `0x14041ec64` and `0x14041ecaa`, divide-by-100 and 0.5 cap follow. Radiation injection loads reaction at `0x14041ecf6: f3 0f 10 80 30 04 00 00`. Constants 0.001, 100 and 0.5 have bytes `6f 12 83 3a`, `00 00 c8 42`, `00 00 00 3f` in `nuclear.json`.
+investigation/nuclear.md-116-
+--
+investigation/nuclear.md-130-
+investigation/nuclear.md-131-For an ordinary rate capped at 50, same-compartment live radius is at most 50 m and centre reading at most 5 native dose-rate units. A different compartment subtracts 200 m from radius, blocking that ordinary live contribution entirely. Multiple sources add. This is linear radial falloff, not inverse-square falloff. Source strength and radius instructions begin at `0x14030fb22`; attenuation and summation are `0x14030fbd3: f3 44 0f 59 d0`. `asm/radiation-sample.asm` retains all bytes.
+investigation/nuclear.md-132-
+investigation/nuclear.md:133:For a sample inside a compartment, the sampler also adds compartment `+0x78` directly: `0x14030fd12: f3 0f 58 7e 78`. Outside a compartment, it instead queries the persistent contamination spatial index. `0x14030f740` merges a damage deposit into a nearby record or creates a record with radius 200 and deposited amplitude. The sampler adds `(1-distance/radius)*amplitude` for each spatial-index candidate. There is no additional clamp in that final arithmetic; the exact candidate-set shape and global decay/removal are still open. The sampler also includes a separate fixed-world background source gated by global flags. That source is not fuel-rod generation and has not been interpreted here.
+investigation/nuclear.md-134-
+investigation/nuclear.md-135-`radiation_detector.xml` selects logic gate 59. The evaluator `0x1403c4d20` jump-table entry at `0x1403c9640` is bytes `08 88 3c 00`, target `0x1403c8808`. It clears the output, checks `0x140141280`, transforms component position to world position, calls the radiation sampler at `0x1403c886e: e8 4d 71 f4 ff`, then sends its float return to numeric output via `0x1402ea270` at `0x1403c887d`. There is no scale conversion between sampler and output. Gate-check failure leaves output zero. Its exact gate semantics and a physical dose unit such as Sv/h remain unassigned. Shipped node description is "The detected radiation dose rate." See `asm/sensor-dispatch.asm`, `asm/sensor-case59.asm`, `tools/sensor-table.txt`, and `tools/resource-lines.txt`.
+investigation/nuclear.md-136-
+--
+investigation/nuclear.md-144-
+investigation/nuclear.md-145-## 60 Hz model and worked grid
+investigation/nuclear.md-146-
+investigation/nuclear.md:147:Run `python3 investigation/native/nuclear/tools/model.py`. Retained output: `tools/examples.json`. The model applies recovered local equations using Python doubles. Native SSE single precision will differ slightly. It supplies a four-cardinal-neighbour graph directly; it does not emulate the unresolved coupling matcher.
+investigation/nuclear.md-148-
+investigation/nuclear.md:149:Example fuel grid: `(0,0),(1,0),(0,1),(1,1)`, one outer control per fuel rod. Each fuel rod has two fuel neighbours and one control neighbour. Start at 20 C, F=1, R=0, insertion zero. Bath and environmental-record temperatures are prescribed 20 C, liquid and total amount 100, full immersion. The bath is held fixed by an external boundary, so these are not predictions for a sealed uncooled tank. Explicit step order is controls, all assemblies, all fuel rods, post-pass commit. Damage, background radiation, global ambient solver, pipe flow and contamination transport are excluded.
+investigation/nuclear.md-150-
+investigation/nuclear.md-151-For frozen F=1, equal rods, insertion I, define `m=0.999*(1-0.01*I)`. The independently solved fixed point for that order is:
+investigation/nuclear.md-152-
+--
+investigation/nuclear.md-165-
+investigation/nuclear.md-166-Still open, with bounded negative results:
+investigation/nuclear.md-167-
+investigation/nuclear.md:168:1. Generic coupling matcher positional/angular tolerance and therefore an exact physical adjacency range. The nuclear update has no distance comparison, radius constant or scan over all rods. Its initializer binds four named coupling slots. This rules out a nuclear-local radius formula, not shared coupling geometry. Capture/release routine `0x14041ee60` was retained, but its constraints were not fully interpreted.
+investigation/nuclear.md-169-2. A guarantee of assembly/rod update ordering across all vehicles and loaded saves. The main update and post-pass dispatch sites are identified. Both local writers of `react_next` were recovered; neither proves a universal component iteration order. The model states its order explicitly.
+investigation/nuclear.md:170:3. Persistent radiation decay/removal, precise spatial-index candidate boundaries, fixed-world background configuration, sensor enable-gate meaning, and physical dose units. Live-source sampling and direct compartment-scalar addition are recovered. No inverse-square law or sensor unit conversion occurs in the decoded sampler/output path.
+investigation/nuclear.md-171-4. Final effects and named setting gates of the one-time damage event. The 1500 C comparison, hot-time damage cadence, damage >1 event gate, creator and numeric arguments are recovered. The creator builds an event record; tracing only that allocation does not prove the final blast/fire geometry or all global damage thresholds.
+investigation/nuclear.md-172-
+investigation/nuclear.md-173-## Issue disposition
+investigation/nuclear.md-174-
+investigation/nuclear.md-175-#113 research gap resolved for the numerical control/reaction mechanism. Replace "Reaction kinetics not recovered." with: "Insertion is clamped to 0..1 and moves by at most 0.005/update at 60 Hz; larger insertion reduces coupled reaction amplification. The assembly applies multiplier 1-0.01*sum(insertion) around fuel baseline 0.1*fuel_fraction, with neighbour sums and 0.999/0.998 relaxation as documented in investigation/nuclear.md."
+investigation/nuclear.md-176-
+investigation/nuclear.md:177:#151 substantially decoded, retain the bounded open work. Replace the blanket limitation with: "Native nuclear types are 0 fuel assembly, 1 fuel rod and 2 control rod. Reaction kinetics, 0..1 insertion, fuel depletion, immersed coolant exchange, live radiation/sensor sampling and damage above 1500 C are recovered. Generic coupling matching tolerances, universal component order, persistent radiation decay and downstream damage-event effects remain unresolved."
+investigation/nuclear.md-178-
+investigation/nuclear.md-179-These dispositions concern research evidence. The issues' wiki/extractor/interactive-graph integration criteria were not performed in this write-restricted task.
+investigation/nuclear.md-180-

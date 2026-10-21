@@ -1,0 +1,17 @@
+94-
+95-The exchanger computes one sample position from its grid coordinate at component+0x18, scales it by 0.25, subtracts the body's origin offset, and transforms it by the body's world transform. It uses this component position for both compartments, not each port's location. Calls at `0x1403f4a19`, `0x1403f4a2d` and `0x1403f4a3d` select helpers `0x140290320`, `0x14019b570` and `0x14017a230`. Their instructions and pseudocode are retained. Constant `0x140bafbbc`, bytes `00 00 80 3e`, is 0.25.
+96-
+97:`0x1403f4c98`, bytes `a8 0f`, tests the low four bits of the update counter. On zero it calls `0x14030fd60` at `0x1403f4cd8`, bytes `e8 83 b0 f1 ff`, with the sample position, scene services, a true weather flag, and component+0x4b0 enclosing-compartment pointer.
+98-
+99-### Raw environmental temperature
+100-
+101-`0x1403100a0` obtains wave-surface height h from `0x1402bbbb0`, water weather temperature Tw from `0x1402c15e0` and air weather temperature Ta from `0x1402c16d0`. At the exchanger call the latter's flag is 1. These are the same water and air helpers selected by exterior fluid intakes in `air-scoop.md`. Assembly and fresh pseudocode for all four functions are retained here.
+102-
+103-```
+104-w = clamp((h-y+0.25)/24, 0, 1)
+105-Tweather = Ta + w*(Tw-Ta)
+106-```
+107-
+108-The exact instruction calculation is float((y+11.75)-h), minus 12, negated, divided by 24, then clamped. Constants `0x140bb0338` are `00 00 00 00 00 80 27 40`, double 11.75; `0x140bb0664` is `00 00 40 41`, 12; and `0x140bb06dc` is `00 00 c0 41`, 24. See `0x1403100ec-0x14031013b` in `asm/weather-temperature.asm`. The compact equation above is algebraically equivalent before float rounding. It gives pure air at y>=h+0.25, pure water at y<=h-23.75, and w=1/96 at the wave surface. This is a depth blend, not a binary underwater switch.
+109-
+110:The wrapper `0x14030fd60` can then replace and modify that bas

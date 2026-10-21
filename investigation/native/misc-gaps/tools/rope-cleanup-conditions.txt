@@ -1,0 +1,64 @@
+1-// entry 1405288d0
+2-
+3:void FUN_1405288d0(longlong param_1,undefined8 param_2,undefined8 param_3,longlong param_4)
+4-
+5-{
+6-  longlong *plVar1;
+7-  longlong lVar2;
+8-  uint uVar3;
+9-  uint uVar4;
+10-  uint uVar5;
+11-  
+12-  uVar4 = 0;
+13:  if (*(uint *)(param_1 + 0x18) != 0) {
+14:    plVar1 = (longlong *)(param_1 + 8);
+15:    uVar5 = *(uint *)(param_1 + 0x14);
+16-    uVar3 = uVar4;
+17-    do {
+18:      if (*(longlong *)(*plVar1 + ((ulonglong)uVar5 % (ulonglong)*(uint *)(param_1 + 0x10)) * 8) ==
+19:          param_4) {
+20:        FUN_14052c290();
+21-        lVar2 = *(longlong *)
+22-                 (*plVar1 +
+23:                 ((ulonglong)(*(int *)(param_1 + 0x14) + uVar3) %
+24:                 (ulonglong)*(uint *)(param_1 + 0x10)) * 8);
+25-        uVar4 = uVar3;
+26:        goto joined_r0x000140528992;
+27-      }
+28-      uVar3 = uVar3 + 1;
+29-      uVar5 = uVar5 + 1;
+30:    } while (uVar3 < *(uint *)(param_1 + 0x18));
+31-  }
+32:  if (*(uint *)(param_1 + 0x30) != 0) {
+33:    plVar1 = (longlong *)(param_1 + 0x20);
+34:    uVar5 = *(uint *)(param_1 + 0x2c);
+35-    do {
+36:      if (*(longlong *)(*plVar1 + ((ulonglong)uVar5 % (ulonglong)*(uint *)(param_1 + 0x28)) * 8) ==
+37:          param_4) {
+38:        FUN_14052c290((ulonglong)uVar5,param_2,param_3);
+39-        lVar2 = *(longlong *)
+40-                 (*plVar1 +
+41:                 ((ulonglong)(*(int *)(param_1 + 0x2c) + uVar4) %
+42:                 (ulonglong)*(uint *)(param_1 + 0x28)) * 8);
+43:joined_r0x000140528992:
+44-        if (lVar2 != 0) {
+45-          if (*(int *)(lVar2 + 0x20) != 0) {
+46-            if (*(longlong *)(lVar2 + 0x18) != 0) {
+47-              FUN_1409b2d50();
+48-              *(undefined8 *)(lVar2 + 0x18) = 0;
+49-            }
+50-            *(undefined4 *)(lVar2 + 0x20) = 0;
+51-          }
+52:          func_0x00014095881c(lVar2,0x148);
+53-        }
+54-        FUN_1408b56a0(plVar1,uVar4);
+55-        return;
+56-      }
+57-      uVar4 = uVar4 + 1;
+58-      uVar5 = uVar5 + 1;
+59:    } while (uVar4 < *(uint *)(param_1 + 0x30));
+60-  }
+61-  return;
+62-}
+63-
+64-

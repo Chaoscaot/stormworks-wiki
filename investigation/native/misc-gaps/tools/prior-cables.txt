@@ -1,0 +1,77 @@
+1-# Composite transport and microprocessor limits
+2-
+3-Target `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`, verified locally. Static analysis only. Issues #140 and #63 and their comments were read first and retained. No game process ran. No wiki files or GitHub state were changed.
+4-
+5:Composite values contain 32 binary32 numbers and 32 Boolean bits, with public channels 1..32. The producer-to-input-cache copy, cable-anchor payload copy, and composite/video/audio microprocessor bridge copies are recovered. The editor dimension controls accept 1..6 on both axes. Maximum total port count, complete cable-chain and cross-vehicle tick latency, ultimate video resource ownership, and Lua scheduling remain open.
+6-
+7-Prior reports are inputs, not new results here: `logic.md` establishes graph gathering before evaluation; `numeric-codes.md` establishes port IDs 5/6/7; `displays.md` identifies monitor touch writers; `config.md` establishes the cached scalar getter; `connectors.md` establishes connector transport; `radio.md` identifies payload flags 8/16; `update-rate.md` establishes the normal component cadence. Their results do not establish a cable packet format or a universal cable delay.
+8-
+9-## Decoded payload
+--
+25-`0x140638e00` constructs two dimension controls using `0x14024cb90`, with minimum 1.0, maximum 6.0 and step 1.0. Constants `0x140bafecc` contain `00 00 80 3f`, and `0x140bb0540` contain `00 00 c0 40`. Upload validator `0x1407c6040` rejects either dimension at object +0x158/+0x15c above 6 and emits the executable string at `0x140b06c60`, `Microcontroller must not be larger than 6x6 voxels`.
+26-
+27-Port validity routine `0x14038fee0` requires 0 <= x < width, y=0, and 0 <= z < height. It rejects a second port with the same position and kind +0x34. Kinds 0 and 1 also conflict with each other. Other different kinds are not rejected by this particular test. A total port-count limit cannot be derived from the 6x6 grid alone. The accepted kind set and all creation/serialization checks still need reconciliation.
+28-
+29:## Cable anchor storage and endpoint transport
+30-
+31:Resource evidence is retained with source line numbers. `rope_hook_composite.xml:2` specifies vehicle type 48 and `logic_gate_subtype="2"`. Lines 63..84 label composite send/receive, on/off send/receive, video send/receive and audio send/receive. `winch_pulley_cable.xml:2` identifies the electrical pulley subtype 9. Subtype 9 branches in the native routine are pulley routing, not a different composite channel count.
+32-
+33-Rope-hook constructor `0x1403b3ca0` installs the composite input at component +0x238 and constructs its output at +0x2d8. It also constructs video input/output at +0x3e8/+0x620 and audio input/output at +0x870/+0x8b8. Port binder `0x1403b4a50` binds their definition records using types 5, 6 and 7. Each payload begins at slot +0x18.
+34-
+35:For the ordinary-anchor branch in transport routine `0x1403b6840`, peer = component pointer +0xa98. If both component state values at +8 are below 5, the routine sends:
+36-
+37-| Signal | Local sending payload | Ordinary peer receiving payload | Operation |
+38-| --- | --- | --- | --- |
+39-| Composite | +0x250 | +0x2f0 | Mask plus eight 16-byte numeric copies at `0x1403b6b37..0x1403b6b93` |
+40-| Video | +0x400 | +0x638 | `0x1402e9ab0`, called at `0x1403b6b0a` |
+41-| Audio | +0x888 | +0x8d0 | `0x1402ea000`, called at `0x1403b6b24` |
+42-
+43:The subtype 9 branch routes the two sides through video +0xce0/+0xf00, audio +0x1120/+0x1150 and composite +0x1180/+0x1204. A later branch handles the second peer pointer +0xaa0. Its reverse payload forwarding is conditional on local subtype 9. The report does not treat +0xa98 and +0xaa0 as interchangeable reciprocal links on every anchor. Resolving their construction and the full pulley traversal is still necessary for a cable-chain timing model.
+44-
+45:The composite receiver stores a value copy. Audio assignment `0x1402ea000` reallocates the destination buffer when its count differs, allocates `count*4` bytes, copies each 32-bit sample word, then copies metadata. Its data structure starts with buffer pointer +0, uint32 count +8, copied 64-bit metadata at +0x10/+0x18/+0x20, and a copied 32-bit field at +0x28. Metadata meanings and sample encoding were not decoded here. The receiving anchor owns a separate sample allocation on this path. Source and receiver do not merely share the source sample pointer.
+46-
+47-Video assignment `0x1402e9ab0` copies fixed descriptor fields through +0x21d in an aggregate with extent 0x220. It performs no allocation, free, resource acquisition or reference-count increment. Opaque 64-bit fields are copied unchanged. This recovers assignment behavior, but does not identify the ultimate owner or lifetime of resources represented by those fields. A dynamic pixel-buffer deep copy in this helper is ruled out. An exclusive transmitter/receiver ownership rule is still open.
+48-
+49-## Microprocessor video and audio bridges
+50-
+51:`0x140394500` invokes input bridge slot +0x58, updates graph `0x14038d270`, then invokes output bridge slot +0x48. Composite payloads use `0x140371fa0` and `0x140371e10` as described above.
+52-
+53-Video input bridge `0x1403722c0` copies physical slot payload +0x18 into node cache +0x38. Ordinary graph video gathering uses `0x1403722a0`, from producer payload +0x20. Video output bridge `0x1403721b0` tail-calls descriptor assignment `0x1402e9ab0` from node +0x20 to physical output +0x18. Video is not inserted into the composite number array.
+54-
+55-Audio input bridge `0x140372510` deep-copies the physical input's audio buffer into node cache +0x38. Ordinary graph gathering uses `0x1403724f0`, from producer +0x20. Audio output bridge `0x140372430` tail-calls `0x1402ea000` from node +0x20 to physical output +0x18. Each destination maintains its own sample buffer. These boundary bridges do not mix, resample or convert audio into composite channels in the recovered routines.
+--
+59-## Endpoint order and latency limits
+60-
+61-The normal scene dispatcher first evaluates the selected components of all selected vehicles. In its later vehicle traversal it calls `0x1404baf80` at `0x140549a5b`, then flushes that vehicle's outputs at `0x140549ad2`. `0x1404baf80` calls `0x1404995b0` at `0x1404bb2b3`; that routine invokes each component's +0x360 method at `0x1404996a7`. Rope-hook +0x360 is `0x1403b6840`.
+62-
+63:Consequently cable copying takes place after the main component-evaluation pass, inside a traversal where each vehicle's component transport precedes that vehicle's output flush. It is not one global cable-copy pass followed by one global output-flush pass. A write into another vehicle's receiving output can land before or after that vehicle's output flush. Inference: cross-vehicle ordering can add a cache-publication boundary. A fixed tick count for all endpoint orders, cable chains and pulley arrangements is not established.
+64-
+65:The one-update inference for an ordinary physical composite wire does not automatically extend to an entire route through producer wire, cable anchors and consumer wire. Additional unresolved conditions include construction of +0xa98/+0xaa0, vehicle ordering, alternate +0x360 dispatch paths, state guards, sleeping vehicles and reduced-rate microprocessors. A wall-clock latency measurement was not performed.
+66-
+67-## Remaining questions and exact exclusions
+68-
+69-- Maximum total external ports remains open. The recovered controls bound each physical axis to 1..6, and placement validity bounds coordinates and rejects certain same-position kinds. The total accepted kind set and all creation/serialization caps were not exhaustively traced. The editor scan retained as `asm/editor-search-window.asm` contains allocation-capacity comparisons to 0x20, including `0x14063cc76`, in container shrinking code. Those are not evidence of a 32-port cap. Neither the 32-channel payload nor the 6x6 area supplies the missing total count. A 36-port total is also unproved because the validity routine can accept different kinds at the same position.
+70:- Cross-vehicle and pulley-chain latency remains open as described above. Recursive evaluation in the cached getter, pointer aliasing for composite copies and a universally fixed one-tick delay are ruled out as explanations of the recovered path. This does not rule out a one-tick result for a particular tested wiring arrangement.
+71-- Ultimate video resource ownership remains open. Fixed descriptor assignment and the absence of dynamic pixel allocation/copy or reference-count arithmetic in `0x1402e9ab0` are established. Producer allocation, opaque field interpretation, renderer consumption and destruction were not traced.
+72-- Lua scheduling remains open. The input API guards and getters were traced only to establish channel access. Deriving onTick/onDraw cadence, inactive behavior or execution budgets from these getters, channel counts or XML type IDs is ruled out. Executable help at `0x140af1270` says onDraw may run for multiple monitors and input/output functions have no effect there; that description is not a complete scheduler trace.
+73-- Composite network packet/save format remains open. The 0x84-byte layout is an in-memory value and copy contract. No network serializer was traced.
+74-
+75-## Confidence and issue disposition
+76-
+77-High confidence in the 32+32 layout, public integer channel bounds, copy offsets, independent audio sample buffers, typed bridge copies and dimension-control/upload bounds. Moderate confidence in the ordinary-wire update-boundary inference because it follows native phase order but lacks runtime confirmation. No fixed cross-vehicle tick count, total port cap or ultimate video owner is claimed.
+78-
+79:#140, partially resolved. Replacement wording: "Native composite transport uses 32 binary32 number channels and 32 Boolean bits, numbered 1..32. Producer-to-input-cache copies and type-48 cable-anchor composite/video/audio transport are recovered. Ordinary physical composite wires cross one component-update boundary in the normal dispatcher. Still open: complete cross-vehicle and pulley-chain latency, ultimate video resource ownership, total microcontroller port limit, Lua scheduling and network packet format."
+80-
+81-#63, partially resolved. Replacement wording: "Microprocessor composite bridges copy the complete 132-byte value, video bridges copy descriptors and audio bridges deep-copy sample buffers. Editor dimensions are 1..6 per axis, and upload rejects dimensions above 6. Still open: maximum total external ports and reconciliation of all creation/serialization limits."
+82-
+83-## Instruction evidence
+--
+100-| `0x140549ad2` | `ff 50 28` | later per-vehicle output flush |
+101-| `0x1404996a7` | `41 ff 92 60 03 00 00` | component transport slot |
+102-| `0x1403b6b0a` | `e8 a1 2f f3 ff` | copy video descriptor to ordinary peer |
+103-| `0x1403b6b24` | `e8 d7 34 f3 ff` | copy audio to ordinary peer |
+104:| `0x1403b6b37` | `8b 83 50 02 00 00` | ordinary anchor outgoing composite mask |
+105-| `0x1403b6b93` | `0f 11 49 74` | final 16 numeric bytes to peer+0x74 |
+106-| `0x1402ea043` | `48 c1 e1 02` | audio allocation length = count*4 |
+107-| `0x1402ea047` | `e8 20 8d 6c 00` | allocate independent audio buffer |
+108-| `0x1402ea06d` | `89 04 91` | copy audio sample word into destination buffer |

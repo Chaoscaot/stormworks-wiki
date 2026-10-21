@@ -1,0 +1,59 @@
+148:## Windows
+149-
+150-`tools/resources.json` retains all 41 `window*.xml` definitions with numbered source lines and hashes. Every one uses `type="9"`, category 15. `tools/window-inventory.json` compares them with the other shipped definitions. There are no top-level attribute names unique to windows and no unique tag/attribute-name pairs anywhere in their definition text. The same type 9 is used by 18 non-window definitions: two linear modules, fourteen railing parts and two stair parts. A type-9 check alone is not a glass test.
+151-
+152-The factory at `0x14045dd20`, case 9, allocates 0xa8 bytes and installs vtable `0x140afe2a0`. The final installation is at `0x14045e005`, bytes `48 8d 0d 94 02 6a 00`, followed by the store to the object. A second factory at `0x1404b8f30` installs the same table at `0x1404b922a`, bytes `48 8d 0d 6f 50 64 00`. MSVC RTTI at `0x140cdb8e0` identifies `c_scene_vehicle_component_basic`. Slot `+0x30` points to `0x140373be0`, bytes `b8 09 00 00 00 c3`, which returns type 9. The complete 88-slot table, its bytes and comparison against block/base classes are retained in `tools/window-vtable-comparison.txt`.
+153-
+154-This basic table ends at slot `+0x2b8`; it has no extended component update slot `+0x358`. Slots `+0x38..+0x1f8` are the shared return stub `0x14008fd10`. Shared methods bind the definition pointer at `+0x58`, access definition geometry and perform generic component work. The only basic-versus-block differences are slot `+0x30` for the type return, `+0x40` for the block method versus a basic no-op, and `+0x208` for the definition-backed query. Neither the factory nor this table selects a window-specific class or update. Generic rendering and serialization methods still reach other code, so this is not a whole-program proof of no window behavior.
+155-
+156-Window geometry includes buoyancy data. For example, `window_1x1.xml` has one `flags="1"`, `physics_shape="0"` voxel and one buoyancy surface; `window_large.xml` has nine such voxels and nine buoyancy surfaces; `window_porthole.xml` has fifteen voxels and 46 buoyancy surfaces. `01_block.xml` uses the same voxel flags and shape for its single voxel and has six buoyancy surfaces. These resource observations rule out the assumption that transparent windows simply omit collision or buoyancy data. They do not establish how every shape seals a compartment or how damage modifies that data.
+157-
+158-The executable-wide bounded searches were:
+159-
+160-- All printable ASCII and UTF-16LE strings containing `window`, `glass`, `shatter`, `transparent`, `transparency`, `flood`, `pressure`, `buoy`, `damage` or `seal`, retained in `tools/window-string-search.json`. No component RTTI name containing window or glass was found. No `shatter` string was found. Many window hits concern OS/UI windows; those are not component evidence.
+161-- Definition field names, component type, both factory installations, all basic vtable entries and their generic targets. Pseudocode and byte-bearing disassembly are retained. No dedicated breaking, pressure, flooding or transparency callback appeared in that table.
+162-- Glass shader names and the lowercase material name. `graphics/shaders/glass_anim` at `0x140af0b20` is referenced at `0x140680528`; `graphics/shaders/glass` at `0x140af42d0` is referenced at `0x14068a0e8` and `0x14068a7f8`. The material string `glass` at `0x140b03880` is referenced at `0x1407a6c46`. These are retained rendering/material candidates, not evidence of water or pressure behavior.
+163-
+164-Still open for #18: whether global damage code breaks any glass geometry, whether mesh/material classification changes ingress or buoyancy, and whether a pressure/compartment solver distinguishes a window. Resolving those requires tracing mesh material/voxel classification through global damage and compartment construction. This pass rules out a unique window-only field name, dedicated component class, or basic-vtable update as the mechanism. Combinations of shared field values and mesh metadata remain possible, as do those global paths. No glass-breaking threshold or pressure/flooding equation is claimed.
+165-
+166-## Issue disposition
+167-
+168-- #14: Replace "Tooltip statements; keel force code was not decoded." with "Keel water resistance, fixed downward force, upright pair and forward-velocity memory are decoded for this build; full-boat heel equilibrium still requires assembly and sail inputs."
+169-- #36: Replace the force/size/tuning gaps with "All sizes share the area-saturated lateral law. Definition masses 500/1000/2000 scale upright and memory terms through min(S,4*m). Embedded values 200, 40 and 1000 are active; reading the matching file settings is unproven, and lateral application uses 100 rather than shipped 20. A universal heel curve is not defined without the boat's moments and application scale."
+170-- #18: Keep open, replacing the broad gap with "All 41 windows use shared type 9 and basic vtable 0x140afe2a0 with ordinary collision/buoyancy resources. No dedicated window callback was found; glass damage, material-dependent ingress and global pressure handling remain untraced."
+171-
+172-Confidence is high for finite-input keel algebra, constants, per-definition figures and the type-9/vtable identification. The heel torque is an explicitly derived consequence of the recovered force pair. Confidence is bounded for window absence claims and external tuning-file loading. No runtime validation was performed.
+173-
+174-## Reproduction
+175-
+176-Run from the repository root. Requires Python 3 and GNU objdump; Ghidra 12.1.4 and JDK 21 are needed only to regenerate pseudocode.
+177-
+178-```sh
+179-sha256sum stormworks64.exe
+180-python3 investigation/native/keel-windows/tools/collect.py
+181-objdump -d -M intel --insn-width=16 stormworks64.exe > /tmp/keel-full.asm
+182-python3 investigation/native/keel-windows/tools/native.py
+183-python3 investigation/native/keel-windows/tools/windows.py
+184-python3 investigation/native/keel-windows/tools/model.py
+185-python3 investigation/native/keel-windows/tools/verify.py
+186-```
+187-
+188-The collector hashes the executable before using it. Native assembly extraction uses PE unwind-function bounds and GNU objdump; string searches scan the entire file in both encodings. Numeric XML attribute names are handled as shipped text rather than assuming XML-standard syntax. Window field comparisons cover all shipped definition files.
+189-
+190-`tools/reproduce-ghidra.sh` documents the fresh no-analysis import and selected decompilations. Ghidra creates only a scratch project under `/tmp`. All retained pseudocode was regenerated by this script. The regenerated main rudder routine matched the prior control-surface evidence byte for byte. No whole-program analysis or target execution is required. Check retained files with `sha256sum -c investigation/native/keel-windows/SHA256SUMS`.
+191-
+192-`tools/model.py` writes the figures and worked examples and checks the saturated coefficient, application cap, forward-memory step and restoring torque. Those are algebra checks, not measured game behavior.
+193-
+194-## Retained files
+195-
+196-- `keel.json`: per-definition masses, area, voxel counts/bounds, source lines and coefficient ceilings.
+197-- `tools/resources.json`, `tools/window-inventory.json`, `tools/window-fields.json`: full numbered keel/window resources and bounded definition comparisons.
+198-- `tools/tuning-search.json`, `tools/window-string-search.json`, `tools/binary-strings.txt`, `tools/glass-references.txt`: resource tuning lines and binary string/reference evidence.
+199-- `asm/rudder-update.asm`, `pseudocode/0x1403dfd20.c`: full force routine. `asm/force-queue.asm` and corresponding pseudocode retain the application cap. Constructor, mass binding, normal-mode gating, two factories, basic vtable methods and glass candidates have separate byte-bearing excerpts.
+200-- `tools/constants.txt`, `tools/keel-anchors.txt`, `tools/native-tables.txt`, `tools/window-vtable.txt`, `tools/window-vtable-comparison.txt`: exact constant bytes, instruction anchors and RTTI/vtable identification.
+201-- `tools/model.py`, `tools/model-examples.json`: small model and worked lateral, heel and forward-step examples.
+202-- `tools/collect.py`, `tools/native.py`, `tools/windows.py`, `tools/pe.py`, `tools/DecompileAt.java`, `tools/reproduce-ghidra.sh`, `tools/verify.py`: reproduction and byte/resource verification tools. Ghidra logs are retained as `tools/ghidra-initial.log` and `tools/ghidra-reproduction.log`. `SHA256SUMS` contains paths relative to the repository root.
+203-
+204-## Corrections after resource review
+205-
+206-The wiki agent checked the window inventory against the definitions. The 18 other type-9 parts are 2 linear modules, 12 railings, 2 stairs and the two tyres (`tyre_large`, `tyre_small`), as `window-inventory.json` already lists, not 14 railings. The voxels of `window_large` have no `physics_shape` attribute at all; the shared property of every window voxel is `flags="1"`. Correction by the parent session.

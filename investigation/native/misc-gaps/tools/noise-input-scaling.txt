@@ -1,0 +1,42 @@
+   1401e34ff:	41 0f 28 c0          	movaps xmm0,xmm8
+   1401e3503:	f3 0f 11 74 24 44    	movss  DWORD PTR [rsp+0x44],xmm6
+   1401e3509:	f3 0f 5e c6          	divss  xmm0,xmm6
+   1401e350d:	e8 c6 22 7f 00       	call   0x1409d57d8
+   1401e3512:	f3 0f 59 c6          	mulss  xmm0,xmm6
+   1401e3516:	8d 04 37             	lea    eax,[rdi+rsi*1]
+   1401e3519:	0f 57 c9             	xorps  xmm1,xmm1
+   1401e351c:	0f 57 d2             	xorps  xmm2,xmm2
+   1401e351f:	f3 0f 2a cf          	cvtsi2ss xmm1,edi
+   1401e3523:	f3 0f 2c c8          	cvttss2si ecx,xmm0
+   1401e3527:	0f 28 c1             	movaps xmm0,xmm1
+   1401e352a:	f3 0f 11 4c 24 34    	movss  DWORD PTR [rsp+0x34],xmm1
+   1401e3530:	f3 0f 5c c7          	subss  xmm0,xmm7
+   1401e3534:	45 0f 57 ff          	xorps  xmm15,xmm15
+   1401e3538:	f3 0f 2a d1          	cvtsi2ss xmm2,ecx
+   1401e353c:	f3 0f 11 44 24 28    	movss  DWORD PTR [rsp+0x28],xmm0
+   1401e3542:	0f 57 c0             	xorps  xmm0,xmm0
+   1401e3545:	f3 0f 2a c0          	cvtsi2ss xmm0,eax
+   1401e3549:	8d 04 0b             	lea    eax,[rbx+rcx*1]
+   1401e354c:	44 0f 28 d2          	movaps xmm10,xmm2
+   1401e3550:	f3 0f 11 54 24 40    	movss  DWORD PTR [rsp+0x40],xmm2
+   1401e3556:	f3 0f 11 84 24 18 01 	movss  DWORD PTR [rsp+0x118],xmm0
+   1401e355d:	00 00 
+   1401e355f:	44 0f 28 da          	movaps xmm11,xmm2
+   1401e3563:	f3 0f 5c c7          	subss  xmm0,xmm7
+   1401e3567:	f3 45 0f 59 d7       	mulss  xmm10,xmm15
+   1401e356c:	f3 45 0f 5c d8       	subss  xmm11,xmm8
+   1401e3571:	45 0f 28 ca          	movaps xmm9,xmm10
+   1401e3575:	f3 44 0f 59 0d fa d1 	mulss  xmm9,DWORD PTR [rip+0x9cd1fa]        # 0x140bb0778
+   1401e357c:	9c 00 
+   1401e357e:	f3 0f 11 44 24 2c    	movss  DWORD PTR [rsp+0x2c],xmm0
+   1401e3584:	0f 57 c0             	xorps  xmm0,xmm0
+   1401e3587:	f3 0f 2a c0          	cvtsi2ss xmm0,eax
+   1401e358b:	f3 44 0f 11 5c 24 24 	movss  DWORD PTR [rsp+0x24],xmm11
+   1401e3592:	f3 0f 11 84 24 00 01 	movss  DWORD PTR [rsp+0x100],xmm0
+   1401e3599:	00 00 
+   1401e359b:	f3 41 0f 5c c0       	subss  xmm0,xmm8
+   1401e35a0:	f3 0f 11 44 24 30    	movss  DWORD PTR [rsp+0x30],xmm0
+   1401e35a6:	0f 28 c1             	movaps xmm0,xmm1
+   1401e35a9:	f3 41 0f 59 c7       	mulss  xmm0,xmm15
+   1401e35ae:	44 0f 28 f0          	movaps xmm14,xmm0
+   1401e35b2:	f3 0f 11 44 24 20    	movss  DWORD PTR [rsp+0x20],xmm0

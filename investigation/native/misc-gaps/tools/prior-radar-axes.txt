@@ -1,0 +1,39 @@
+investigation/leftovers.md-103-## 5. Missile radar frame and angles, #94
+investigation/leftovers.md-104-
+investigation/leftovers.md-105-Closed algebraically for type-56 `radar_type=1`. There are **five plane records, not six**. The collector at `0x140909e40` advances by 24 bytes and compares its loop counter with 5 at `0x140909fed`, bytes `83 f9 05`. Plane equality fails via `0x140909fe5`, `76 0d`. Its additional radius check is a sphere constraint, not a sixth plane.
+investigation/leftovers.md-106-
+investigation/leftovers.md:107:Use literal matrix storage to avoid a game/editor Euler convention. Let R be the world component transform produced at `0x1403ba776` by helper `0x14017a380`. R0, R1 and R2 are its three stored basis rows, and O its translation. Let:
+investigation/leftovers.md-108-
+investigation/leftovers.md-109-```text
+investigation/leftovers.md-110-a = float32(-2*pi*component[0x420])
+investigation/leftovers.md-111-b = -component[0x468]
+--
+investigation/leftovers.md-134-
+investigation/leftovers.md-135-Reported angles use the **unswept** basis, selected at `0x1403bb16e`:
+investigation/leftovers.md-136-
+investigation/leftovers.md-137-```text
+investigation/leftovers.md:138:right = R0
+investigation/leftovers.md:139:forward = R1
+investigation/leftovers.md:140:up = -R2
+investigation/leftovers.md-141-x = unit_direction dot right
+investigation/leftovers.md-142-y = unit_direction dot forward
+investigation/leftovers.md-143-z = unit_direction dot up
+investigation/leftovers.md-144-azimuth = atan2(x,y)/(2*pi)
+--
+investigation/leftovers.md-146-```
+investigation/leftovers.md-147-
+investigation/leftovers.md-148-These are ideal-real equivalents for nonsingular directions before SDK noise. The actual azimuth code normalizes the horizontal pair, uses signed acos helper `0x1401753d0`, negates its result at `0x1403bc3d5`, bytes `0f 57 05 b4 5b 7f 00`, and divides by `2*pi` at `0x1403bc3dc`. Elevation uses `0.25-acos(z)/(2*pi)` at `0x1403bc426..0x1403bc437`. A horizontal zero-length direction substitutes `(1,0)` before the signed-angle helper. At the exact rear-axis tie the helper chooses negative pi, so the caller reports +0.5 turn. Do not replace this with an unspecified atan2 signed-zero convention.
+investigation/leftovers.md-149-
+investigation/leftovers.md:150:Positive azimuth points toward R0 from R1. Positive elevation points toward -R2. At zero scan angles the forward direction is R1, not R2. Relative to an oriented R basis, `right cross forward = -up`; these named output axes reverse that basis's handedness. This statement is algebraic and does not assume the editor's coordinate labels. Numeric examples in `tools/models.json` use R=identity and zero noise. Confidence is high for plane count, stored-frame algebra and output signs. Visual editor-axis naming and dynamic validation remain untested.
+investigation/leftovers.md-151-
+investigation/leftovers.md-152-## Suggested replacement wording
+investigation/leftovers.md-153-
+investigation/leftovers.md-154-- #27: "EMP is scene event 116. The weather strike path sends 800 counts with a 100 m inner radius and 300 m outer radius. Other decoded sources include variable queued pulses and two object-kind updates sending 30 counts. Their gameplay identities and warhead/Lua producers remain open. Fixed shaft graphs use one FIFO traversal per source, compatible revisits are suppressed, and ratio conflicts clear remote numerators and add braking weight. Connector rebuild timing remains open."
+investigation/leftovers.md-155-- #32: "Shaft-group loops do not run a convergence solver. Each source contributes through its first accepted FIFO path. Conflicting ratios brake all groups visited by that source, with order-dependent accumulator resets. Same-group ratio-1 bridges add no contribution; incompatible self-bridges brake the group. Connector rebuild scheduling and resulting container order remain open."
+investigation/leftovers.md-156-- #147: "The intact afterburner update exchanges fuel with its port, purges liquids other than jet fuel, and uses stored jet fuel in the thrust multiplier. No intrinsic jet-fuel debit exists in these decoded paths. Its steady replenishment is zero when inventory and net port exchange are steady; transient and whole-network flow remain network-dependent."
+investigation/leftovers.md-157-- #153: "Legacy type-16 case-50 radar and sonar write geometric outputs without SDK noise. Advanced-sensor noise uses a deterministic 32-bit LCG whose 15-bit output maps to 32768 discrete values over [-1,1], uniform over a full state cycle. Samples are not independent Gaussian draws."
+investigation/leftovers.md:158:- #94: "Missile radar uses five inward frustum planes plus a spherical range constraint. Its swept frame is A*B*R in the documented stored-row convention, with forward M1. Reported angles use unswept right R0, forward R1 and up -R2; positive azimuth points toward R0 and positive elevation toward -R2. Plane equality is rejected."
+investigation/leftovers.md-159-
+investigation/leftovers.md-160-## Reproduction
+investigation/leftovers.md-161-
+investigation/leftovers.md-162-From the repository root:

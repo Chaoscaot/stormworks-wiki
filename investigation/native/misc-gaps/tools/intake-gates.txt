@@ -1,0 +1,50 @@
+1845-   140352dfe:	74 55                	je     0x140352e55
+1846-   140352e00:	f3 0f 10 87 b8 04 00 	movss  xmm0,DWORD PTR [rdi+0x4b8]
+1847-   140352e07:	00 
+1848:   140352e08:	f3 0f 5c 05 48 cb 85 	subss  xmm0,DWORD PTR [rip+0x85cb48]        # 0x140baf958
+1849-   140352e0f:	00 
+1850-   140352e10:	0f 57 c9             	xorps  xmm1,xmm1
+1851-   140352e13:	f3 0f 5f c8          	maxss  xmm1,xmm0
+1852-   140352e17:	f3 0f 11 8f b8 04 00 	movss  DWORD PTR [rdi+0x4b8],xmm1
+--
+2401-   140353772:	ba 02 00 00 00       	mov    edx,0x2
+2402-   140353777:	e8 c4 ba ff ff       	call   0x14034f240
+2403-   14035377c:	e9 a7 08 00 00       	jmp    0x140354028
+2404-   140353781:	45 0f 57 c0          	xorps  xmm8,xmm8
+2405:   140353785:	f3 44 0f 10 0d ca c1 	movss  xmm9,DWORD PTR [rip+0x85c1ca]        # 0x140baf958
+2406-   14035378c:	85 00 
+2407-   14035378e:	44 38 bf 40 02 00 00 	cmp    BYTE PTR [rdi+0x240],r15b
+2408-   140353795:	74 2a                	je     0x1403537c1
+2409-   140353797:	48 8d 8f e0 01 00 00 	lea    rcx,[rdi+0x1e0]
+--
+2519-   14035395c:	f3 0f 11 7c 24 20    	movss  DWORD PTR [rsp+0x20],xmm7
+2520-   140353962:	ba 01 00 00 00       	mov    edx,0x1
+2521-   140353967:	e8 d4 b8 ff ff       	call   0x14034f240
+2522-   14035396c:	e9 b7 06 00 00       	jmp    0x140354028
+2523:   140353971:	4c 39 bf e0 04 00 00 	cmp    QWORD PTR [rdi+0x4e0],r15
+2524-   140353978:	0f 85 aa 06 00 00    	jne    0x140354028
+2525-   14035397e:	48 8b cf             	mov    rcx,rdi
+2526-   140353981:	e8 1a 1c 00 00       	call   0x1403555a0
+2527-   140353986:	0f 57 c0             	xorps  xmm0,xmm0
+--
+2597-   140353ab3:	f3 44 0f 58 ae 98 00 	addss  xmm13,DWORD PTR [rsi+0x98]
+2598-   140353aba:	00 00 
+2599-   140353abc:	f2 0f 10 86 80 00 00 	movsd  xmm0,QWORD PTR [rsi+0x80]
+2600-   140353ac3:	00 
+2601:   140353ac4:	f2 0f 59 05 1c c7 85 	mulsd  xmm0,QWORD PTR [rip+0x85c71c]        # 0x140bb01e8
+2602-   140353acb:	00 
+2603:   140353acc:	f2 0f 5e 05 ac ca 85 	divsd  xmm0,QWORD PTR [rip+0x85caac]        # 0x140bb0580
+2604-   140353ad3:	00 
+2605-   140353ad4:	66 0f 5a c0          	cvtpd2ps xmm0,xmm0
+2606-   140353ad8:	f3 44 0f 10 3d eb c3 	movss  xmm15,DWORD PTR [rip+0x85c3eb]        # 0x140bafecc
+2607-   140353adf:	85 00 
+--
+2737-   140353d10:	48 8b 4d d0          	mov    rcx,QWORD PTR [rbp-0x30]
+2738-   140353d14:	e8 d7 a4 fb ff       	call   0x14030e1f0
+2739-   140353d19:	41 0f 28 d7          	movaps xmm2,xmm15
+2740-   140353d1d:	f3 0f 5c d0          	subss  xmm2,xmm0
+2741:   140353d21:	f3 0f 5f 15 2f bc 85 	maxss  xmm2,DWORD PTR [rip+0x85bc2f]        # 0x140baf958
+2742-   140353d28:	00 
+2743-   140353d29:	45 0f 57 c0          	xorps  xmm8,xmm8
+2744-   140353d2d:	f3 41 0f 5f d0       	maxss  xmm2,xmm8
+2745-   140353d32:	f3 41 0f 5d d7       	minss  xmm2,xmm15

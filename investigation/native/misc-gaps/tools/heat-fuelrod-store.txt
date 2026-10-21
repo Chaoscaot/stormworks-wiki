@@ -1,0 +1,13 @@
+561-   14041e5dc:	00 
+562-   14041e5dd:	f3 0f 5d c8          	minss  xmm1,xmm0
+563-   14041e5e1:	48 8b 03             	mov    rax,QWORD PTR [rbx]
+564-   14041e5e4:	48 85 c0             	test   rax,rax
+565-   14041e5e7:	74 16                	je     0x14041e5ff
+566-   14041e5e9:	48 83 38 00          	cmp    QWORD PTR [rax],0x0
+567-   14041e5ed:	74 10                	je     0x14041e5ff
+568-   14041e5ef:	48 8b 00             	mov    rax,QWORD PTR [rax]
+569-   14041e5f2:	f3 41 0f 59 ce       	mulss  xmm1,xmm14
+570:   14041e5f7:	f3 0f 11 88 18 01 00 	movss  DWORD PTR [rax+0x118],xmm1
+571-   14041e5fe:	00 
+572-   14041e5ff:	41 8b 96 1c 04 00 00 	mov    edx,DWORD PTR [r14+0x41c]
+573-   14041e606:	49 8b 8e 20 04 00 00 	mov    rcx,QWORD PTR [r14+0x420]

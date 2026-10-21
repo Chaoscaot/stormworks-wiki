@@ -1,0 +1,26 @@
+71-F_recoil = -50 * recoil_coefficient[class] * component[0x380] * V_projectile
+72-```
+73-
+74:`+0x380` initializes to 1. The barrel traversal writes muzzle offset and dispersion, not this recoil multiplier or the velocity table. `0x140429092` loads the multiplier; `0x1404290b1` onward multiplies by 50. The queued handler `0x1401a16a0` calls the force accumulator helper `0x14019a370` at `0x1401a1750`, bytes `e8 1b 8c ff ff`. See [recoil-force-handler.asm](native/weapons/asm/recoil-force-handler.asm). This is the submitted force for a firing update, not a force that should be multiplied by 60. At nominal timing its corresponding one-update impulse is force/60. Vehicle mass, force direction and application point affect resulting motion.
+75-
+76-For #134, `gun_m_barrel.xml:59` says extensions add weight; `gun_s_barrel.xml:59` says they produce more recoil. Both are type 4 and use the same class-matched decrement. No separate heavy-autocannon accuracy rule or explicit extension-count recoil increase was found. The wording difference is not a branch selecting different mechanics. Extra weight and changed geometry can still change vehicle response. Retained resource lines are in [definition-fields.txt](native/weapons/tools/definition-fields.txt).
+77-
+78-## Projectile update: gravity, drag, wind and deletion
+79-
+80-`0x140591d80` updates the projectile ring. Ordinary dry-air bullets and cannon shells follow this order, with y measured above sea level:
+81-
+82-```text
+83-position_next = position + V_old / 60
+84-V_work = V_old + wind_sample/60 * (1 - clamp((r - 0.91)/0.10, 0, 1))
+85-V_work.y -= 0.5 * (138750 / (138750 + position_next.y))^2
+86-V_next = r * V_work
+87-```
+88-
+89-The wind expression describes the returned sample's arithmetic; the complete world wind-sampling function is not modeled. In the code, wind modifies stored velocity after displacement has already been calculated from the old velocity. The worked examples use zero wind.
+90-
+91-Sea-level gravity before drag is 30 m/s². The force-helper application scale does not replace the fixed 60 in this integration. This is linear per-update velocity retention, not a quadratic speed-drag law. With constant gravity and no wind, `Vx(n)=Vx(0)*r^n` and `Vy(n)=r^n*Vy(0)-0.5*r*(1-r^n)/(1-r)`.
+92-
+93-| Projectile / gun | Retention r | Lifetime cap, updates / seconds | Penetration loss multiplier p |
+94-|---|---:|---:|---:|
+95-| 6 Machine Gun | 0.975 | 300 / 5 | 1 |
+96-| 7 Light Autocannon | 0.98 | 300 / 5 | 1 |

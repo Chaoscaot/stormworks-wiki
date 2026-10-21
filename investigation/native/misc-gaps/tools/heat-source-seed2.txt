@@ -1,0 +1,50 @@
+309-
+310-### Issue #19, quoted gap 2
+311-
+312-> How gas pressure affects the capacity term was not recovered; measure the exchanger at different manifold pressures.
+313-
+314-Replacement wording:
+315-
+316-For pure gas q=P*V/60. At fixed geometric volume, doubling pressure doubles that side's q. There is no separate pressure coefficient or temperature correction in the capacity helper. For a gas/liquid mixture, sum gas slots directly rather than deriving G from P*V/60.
+317-
+318-### Issue #19, quoted gap 3
+319-
+320-> Heat-transfer coefficients, effectiveness, flow dependence and time to equilibrium are unknown. The tooltip's size rule is not a measured performance curve.
+321-
+322-Replacement wording:
+323-
+--
+413-Still open, with the ruled-out alternatives stated:
+414-
+415:1. Complete identities, registration rules and virtual implementations of the local environmental source services passed to `0x14030fd60`. The wrapper's arithmetic, position, weather base, enclosing override, max operations and final 400-degree expression are decoded. Weather alone, a binary air/water switch and a generic exponential sample filter are ruled out. This report does not infer every fire/heater/zone behavior from unnamed lists.
+416-2. Automatic exchanger startup fill, saved-state restoration and complete enclosing-compartment thermal evolution. The constructor and volume setter do not establish a universal operating inventory. Volume equals capacity in geometric units; it does not prove that a side starts full of a particular fluid. All model fills and gas pressures are explicit inputs. This boundary does not leave the q helper or volume formula open.
+417-3. A flow and outlet prediction for a particular complete vehicle whose graph, pressure boundaries, inventory and component order have not been supplied. The port solver and temperature transport are decoded. A universal exchanger flow rate, implicit internal pump, one-way port labels and a spatial counterflow coefficient are ruled out. The supplied prescribed-flow model checks local port bounds and includes low-flow transport, but it does not simulate the external operations maintaining its reservoirs or the complete delayed allocation graph. Arbitrary multiphase boundary mixtures are outside its pure-phase implementation; the report retains the all-species native routines.
+418-4. Physical joule/watt calibration and in-game validation. q is the selected stored native amount and the isolated q-weighted invariant is recovered. A conservative physical-flow heat balance is ruled out by the native recipient weighting and sequential low-flow exchange. No physical specific heat or measured effectiveness is claimed.
+419-
+420-The exact original gap quotations and replacement text above are also retained in `tools/issue-replacements.json`, generated from the four saved issue bodies. There are 3 dispositions for #6, 3 for #19, 5 for #20 and 5 for #38. Wiki, extractor, interactive-graph and website-check completion criteria remain downstream work for the authorized wiki editor. No wiki change or issue closure was made here.
+421-
+422-## Reproduction and retained files
+423-
+424-From the repository root, with GNU objdump available:
+425-
+426-```bash
+427-python3 -I investigation/native/heat-exchangers/tools/excerpt.py . /tmp/heat-exchanger-reproduced
+428-diff -ru investigation/native/heat-exchangers/asm /tmp/heat-exchanger-reproduced/asm
+429-diff -u investigation/native/heat-exchangers/tools/definitions.json /tmp/heat-exchanger-reproduced/tools/definitions.json
+430-diff -u investigation/native/heat-exchangers/tools/tables.json /tmp/heat-exchanger-reproduced/tools/tables.json
+431-diff -u investigation/native/heat-exchangers/tools/meter-resources.json /tmp/heat-exchanger-reproduced/tools/meter-resources.json
+432-python3 -I investigation/native/heat-exchangers/tools/check_model.py > /tmp/heat-exchanger-checks.json
+433-diff -u investigation/native/heat-exchangers/tools/examples.json /tmp/heat-exchanger-checks.json
+434-python3 -I investigation/native/heat-exchangers/tools/replacements.py > /tmp/heat-exchanger-replacements.md
+435-sha256sum -c investigation/native/heat-exchangers/SHA256SUMS
+436-```
+437-
+438-The extractor rejects a different executable hash. It reads resources and PE bytes and invokes objdump; it never executes the game or modifies source resources. The older liquid-liquid resource has numeric rotation attribute names accepted by the game but rejected by standard XML parsers. The script removes only those unrelated rotation tags in its temporary parse buffer; retained resource lines and hashes come from the original file.
+--
+448-  0x14030fd60 0x1403100a0 0x1408cddd0 0x1408cde20 0x1403ef450 \
+449-  0x1403ef860 0x1402eb5e0 0x1402eb660 0x1402ec710 0x1402ed390 \
+450:  0x1402bbbb0 0x1402c15e0 0x1402c16d0 0x14030bd10 0x1402ec1a0 \
+451-  0x140290320 0x14019b570 0x14017a230 0x140900500
+452-```
+453-
+454-`native/heat-exchangers/SHA256SUMS` covers this report and every retained evidence/tool file with paths relative to the repository root. The directory contains 23 assembly excerpts, 19 pseudocode files, original-byte constant and jump-table extracts, ten numbered definition extracts, meter resource lines, four issue bodies, 16 exact quoted-gap dispositions, model outputs and reproduction tools. The only root `.gitignore` additions for this task are `!/investigation/heat-exchangers.md` and `!/investigation/native/heat-exchangers/`, appended without a blank line. No existing investigation, wiki or research file, commit, push or GitHub mutation is part of this work.

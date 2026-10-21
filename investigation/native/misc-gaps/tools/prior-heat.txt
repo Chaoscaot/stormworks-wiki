@@ -1,0 +1,238 @@
+8-
+9-All ten shipped exchanger definitions have two compartments of V=0.5*voxel_count each. Capacity is the unweighted stored amount of the phase selected for that side. Water, seawater, diesel, jet fuel, oil and both slurries have identical weighting on a liquid side. All six gas slots have identical weighting on a gas side. The exchanger fraction is 0.03 per update; it has no extra size or pressure coefficient. Size increases capacity through stored amount. Pressure increases pure-gas capacity through G=P*V/60.
+10-
+11:The ambient target comes from the component's world position, wave-surface height, air/water weather temperatures, an enclosing fluid compartment when present, and local source modifiers. It is resampled every 16 updates and passed through a 16-update linear controller. Four port exchanges run before heat exchange. Each side is one mixed state, with no spatial counterflow or parallel-flow cells. The model under `native/heat-exchangers/tools/` computes conditional outlet temperatures at stated actual flows and checks local hydraulic bounds. It does not infer a flow from exchanger size or a pump name.
+12-
+13-## Verified starting points
+14-
+--
+16-
+17-## Compartment volumes
+18-
+19:Initializer `0x1403ef450` dispatches water types 16, 17 and 18 to `0x1403ef79f`. It converts definition+0xb8 voxel count to float, multiplies by 0.5 and writes both volumes. Evidence `native/heat-exchangers/asm/initializer.asm`, addresses `0x1403ef79f-0x1403ef7d3`. The multiply at `0x1403ef7ad` has bytes `f3 0f 59 05 07 05 7c 00`; volume stores at `0x1403ef7b5` and `0x1403ef7d3` have bytes `f3 0f 11 83 a0 05 00 00` and `f3 0f 11 83 ec 05 00 00`. Constant `0x140bafcbc` is `00 00 00 3f`, 0.5. `tools/tables.json` decodes the two-stage initializer jump table. Evidence paths below are relative to `native/heat-exchangers/` unless stated otherwise.
+20-
+21:The count is tied to shipped voxels rather than a mesh estimate. `0x140316997`, bytes `48 8d 86 a8 00 00 00`, passes definition+0xa8 to voxel-list loader `0x140900500`. That loader matches literal `voxels` at `0x140b5bbe8` and `voxel` at `0x140b5ba8c`, then calls `0x1408c65d0` once per element at `0x140900633`, bytes `e8 98 5f fc ff`. The append helper increments list+0x10 at `0x1408c6605-0x1408c6607`, bytes `ff c1 89 4b 10`. Thus the count lives at definition+0xa8+0x10=+0xb8. See `asm/definition-voxels.asm`, `asm/voxel-list-load.asm` and `pseudocode/0x140900500.c`.
+22-
+23-All entries below are per side. Each definition contains two such compartments. These litres express native geometric compartment capacity using 10 L per volume unit. They are not gas litres expanded to atmospheric pressure.
+24-
+--
+39-
+40-## Capacity q
+41-
+42:Let a[i] be the stored amount at compartment+0x0c+4*i and A its total at +0x40. `0x1402eb5e0` and `0x1402eb660` return zero when A<=0. Otherwise they iterate exactly 13 slots, adding selected slots with coefficient 1 and skipping the others. Their jump-table bytes and all targets are retained in `tools/tables.json`; their instruction loops are in `asm/capacity.asm`.
+43-
+44-```
+45-L = a[0]+a[1]+a[2]+a[5]+a[6]+a[8]+a[9]
+--
+51-
+52-There is no per-species multiplier within either phase. Gas pressure is not an extra multiplier inside the helper. For pure gas the recovered pressure law P=60*G/V gives q=G=P*V/60. At fixed V, doubling pressure doubles gas capacity. Gas display litres use 600*G, while liquid litres use 10*L. Equal displayed litres therefore give gas 1/60 the selected capacity of liquid.
+53-
+54:Family selection and both temperature updates are at `0x1403f4bb1-0x1403f4c87`, retained in `asm/exchange.asm`. Type 17 calls the gas helper twice. Type 16 calls the liquid helper twice. Type 18 calls gas for A and liquid for B. All three update-table entries point to `0x1403f49b9`.
+55-
+56:The complete weights by slot are below. Names and channel numbers come from the shipped meters, `water_measure.xml:48` and `gas_measure.xml:48`, retained in `tools/meter-resources.json`. Channel number is slot+1. This corrects the older cooling note's legacy names for slots 4 and 10-12.
+57-
+58-| Slot | Fluid | Liquid helper coefficient | Gas helper coefficient |
+59-|---:|---|---:|---:|
+--
+71-| 11 | Nitrogen | 0 | 1 |
+72-| 12 | Hydrogen | 0 | 1 |
+73-
+74:The gas meter says its Air value sums oxygen, CO2 and nitrogen. That display convention does not merge the six gas slots inside the capacity helper. The helpers do not multiply gas by the displayed 60 expansion factor. `0x1402ec233`, bytes `f3 0f 59 05 25 45 8c 00`, applies 60 on the separate port-readout path; `0x1402ec242`, bytes `f3 0f 59 05 02 44 8c 00`, applies 10 to all slots. `asm/gas-litres.asm` and its 13-entry table in `tools/tables.json` retain the distinction.
+75-
+76-For qA+qB>0.001, the exchanger uses both old temperatures:
+77-
+--
+84-
+85-For qA+qB<=0.001 it skips the mutual exchange but still applies ambient relaxation. The threshold is a sum, not a requirement that both sides contain selected fluid. If only one side has nonzero q, the empty or wrong-phase side can move toward the occupied side, which stays unchanged by the mutual term. Wrong-phase material still moves through the unfiltered ports, affects pressure and temperature transport, and counts in the B-port factor. It does not contribute to that side's selected q.
+86-
+87:Instruction evidence includes `0x1403f4c25`, `45 0f 2f c1`, comparing the summed weight with 0.001; `0x1403f4c47`, `f3 0f 59 15 b1 ad 7b 00`, multiplying qB by 0.03; and `0x1403f4c6a`, `f3 0f 59 3d 8e ad 7b 00`, multiplying qA. The stacks retain old A for the B update even though A has already been stored. The lerp helper is `0x1408f04b0`, whose entire arithmetic is `f3 0f 10 02 f3 0f 5c 01 f3 0f 59 c2 f3 0f 58 01 c3`. Constants are binary32 0.029999999329447746 and 0.0010000000474974513; formulas and Python examples use the rounded decimal coefficients.
+88-
+89-Inference: at fixed q, the mutual term conserves qA*Ta+qB*Tb and removes 3% of the gap each update. The corresponding exchanged amount-temperature quantity is Q=0.03*qA*qB/(qA+qB)*(Ta-Tb). This is a native capacity unit, not a recovered joule or watt calibration. Port transport and ambient relaxation do not preserve that same closed-system invariant.
+90-
+91-For pure gas, q=P*V/60 follows for both V<=8 and V>8 from the window pressure law in `asm/pressure.asm` and `asm/port.asm`. At equal volume, 1 atm gas has q=V/60; a completely liquid-filled selected side has q=V. At 60 atm pure gas q=V. With liquids also present, P*V/60 is not generally the gas amount; use G directly or the full mixed pressure equation below. Temperature is absent from that pressure law. There is no extra ideal-gas T correction in q.
+92-
+93:## Ambient sample and filter
+94-
+95:The exchanger computes one sample position from its grid coordinate at component+0x18, scales it by 0.25, subtracts the body's origin offset, and transforms it by the body's world transform. It uses this component position for both compartments, not each port's location. Calls at `0x1403f4a19`, `0x1403f4a2d` and `0x1403f4a3d` select helpers `0x140290320`, `0x14019b570` and `0x14017a230`. Their instructions and pseudocode are retained. Constant `0x140bafbbc`, bytes `00 00 80 3e`, is 0.25.
+96-
+97:`0x1403f4c98`, bytes `a8 0f`, tests the low four bits of the update counter. On zero it calls `0x14030fd60` at `0x1403f4cd8`, bytes `e8 83 b0 f1 ff`, with the sample position, scene services, a true weather flag, and component+0x4b0 enclosing-compartment pointer.
+98-
+99-### Raw environmental temperature
+100-
+101:`0x1403100a0` obtains wave-surface height h from `0x1402bbbb0`, water weather temperature Tw from `0x1402c15e0` and air weather temperature Ta from `0x1402c16d0`. At the exchanger call the latter's flag is 1. These are the same water and air helpers selected by exterior fluid intakes in `air-scoop.md`. Assembly and fresh pseudocode for all four functions are retained here.
+102-
+103-```
+104-w = clamp((h-y+0.25)/24, 0, 1)
+105-Tweather = Ta + w*(Tw-Ta)
+106-```
+107-
+108:The exact instruction calculation is float((y+11.75)-h), minus 12, negated, divided by 24, then clamped. Constants `0x140bb0338` are `00 00 00 00 00 80 27 40`, double 11.75; `0x140bb0664` is `00 00 40 41`, 12; and `0x140bb06dc` is `00 00 c0 41`, 24. See `0x1403100ec-0x14031013b` in `asm/weather-temperature.asm`. The compact equation above is algebraically equivalent before float rounding. It gives pure air at y>=h+0.25, pure water at y<=h-23.75, and w=1/96 at the wave surface. This is a depth blend, not a binary underwater switch.
+109-
+110:The wrapper `0x14030fd60` can then replace and modify that base:
+111-
+112:1. If component+0x4b0 is nonzero, use enclosing_compartment+0x74 instead of Tweather. This is its fluid state's temperature, since the fluid state begins at +0x30 and temperature is +0x44. The load at `0x14030fdcd` is `f3 45 0f 10 5f 74`.
+113:2. Let H be the maximum source increment, starting at 0. From service+0x20, consider only sources whose +0x120 enclosing pointer equals the supplied enclosing pointer. Their candidate is `shape_weight(position)*source[+0x118]`. `0x14030bd10` computes the sphere or transformed-box falloff. A second scene collection at scene+0x11d8 contributes `(1-clamp(distance/5,0,1))*entry[+0x94]*40`. The maximum of both collections is H.
+114-3. Let F start at 0. A service+0x08 collection contributes `entry[+0x00]*(1-clamp((distance-entry[+0x04])/5,0,1))` at positions entry+0x40. Take the maximum with service[+0x00]'s virtual slot 0 return and the scene service virtual slot +0x28's output at the same position.
+115-4. With B=base+H, return `B + F*(min(400,B+400)-B)`.
+116-
+117:These numeric operations are decoded, including max rather than sum. Constants 5, 40 and 400 are at `0x140bb04e0`, `0x140bb072c` and `0x140bb0814`. Wrapper instructions are in `asm/ambient.asm`; final arithmetic is `0x14031002e-0x14031007d`. It is therefore incorrect to promise weather alone as the target near local sources or in a compartment. The complete identities, creation policies and virtual implementations of these source services were not traced. They remain inputs to this report, rather than grounds for a claim about every heater, fire or modded source.
+118-
+119-### Linear controller
+120-
+121:The controller starts at component+0x630. Constructor `0x1403ee82e-0x1403ee86c` clears its mode fields, initializes target/output/start to 20 C, age/delta to 0 and duration to 16. The duration store at `0x1403ee846` is `c7 86 4c 06 00 00 00 00 80 41`. Zero mode selects linear interpolation at `0x14092c985-0x14092c988` and `0x14092d28c-0x14092d29a`, not an exponential smoothing constant.
+122-
+123:Relative controller fields are target+0x10, output+0x14, age+0x18, duration+0x1c, start+0x20 and delta+0x24. Each new sample S is submitted through `0x1408cddd0`:
+124-
+125-```
+126-if S != target:
+--
+130-    delta=S-output
+131-```
+132-
+133:Every update then calls `0x1408cde20`:
+134-
+135-```
+136-if abs(delta)>0.001 and age<=16:
+--
+141-    delta=age=0
+142-```
+143-
+144:The reset compares S with the previous target, not the previous output. Changes <=0.1 retarget without clearing age. An isolated target step holds the old output on the submission update, then reaches the new output 16 updates later. A new step before completion retargets from the current output. The filter continues each tick between the 16-tick samples.
+145-
+146:Exchanger ambient lerps read controller output at component+0x644, use coefficient 0.001, and run after mutual exchange. The final output functions then publish component+0x5dc as Temp A and +0x628 as Temp B at `0x1403f5073-0x1403f5098`. These are stored compartment temperatures after ambient relaxation. They are not the packet temperatures emitted earlier through the ports.
+147-
+148-## Ports and through-flow
+149-
+150:Initializer `0x1403ef450` binds the first four type-3 input-mode resource nodes to ports at component+0x148, +0x180, +0x1b8 and +0x1f0. The definitions label them A In, A Out, B In, B Out, or Air In, Air Out, Fluid In, Fluid Out. `tools/definitions.json` retains the numbered resource lines and adjacent positions.
+151-
+152-The normal update executes the following order, before capacity calculation:
+153-
+154-| Order | Port | Internal state | Bias | Factor | Evidence call and bytes |
+155-|---:|---|---|---:|---|---|
+156:| 1 | A In, +0x148 | A, +0x598 | 0 | 1 | `0x1403f4aa2`, `e8 69 7c ef ff` |
+157:| 2 | A Out, +0x180 | A, +0x598 | 0 | 1 | `0x1403f4af4`, `e8 17 7c ef ff` |
+158:| 3 | B In, +0x1b8 | B, +0x5e4 | 0 | 1 | `0x1403f4b4d`, `e8 be 7b ef ff` |
+159:| 4 | B Out, +0x1f0 | B, +0x5e4 | 0 | clamp(0.5*B.total,0,1) | `0x1403f4ba9`, `e8 62 7b ef ff` |
+160-
+161:All calls pass mode flags 0,0 and species mask -1. A pair's two calls require both ports in that pair to have network pointers. The other side's connectivity does not gate the pair. Mutual heat and ambient exchange run even if neither pair is connected. `0x1402ec1a0` only checks port+0x20 !=0, retained in `asm/port-connected.asm`.
+162-
+163:The B Out factor is loaded from B.total at component+0x624 by `0x1403f4b71`, bytes `f3 41 0f 10 9e 24 06 00 00`, and multiplied by 0.5 at `0x1403f4b7a`, bytes `f3 0f 59 1d 3a b1 7b 00`. The solver clamps that factor. This scales both transfer bounds and the extra low-flow exchange. It is evaluated after B In changes the amount. It does not change the 0.03 mutual fraction.
+164-
+165:The input/output resource labels do not impose one-way flow here. Pressure and allocated demand can reverse either port, because both suppression flags are zero. There is no pump pressure bias, electric-power request or internal pump in this branch. Physical flow is a result of the connected network states, not the shipped pump_pressure=0.01 metadata.
+166-
+167-### Pressure and movement
+168-
+169:The port solver is `0x1402ec710`. Below N is the connected pipe network and C the internal state. For each state compute L, G, total A and volume V:
+170-
+171-```
+172-W=min(V,8)
+--
+184-else: d=0
+185-```
+186-
+187:The code substitutes ratio 1 when source pressure is not positive. Store d as next demand at port+0x28, take the previous allocation at +0x2c, clear it and clamp actual signed transfer to `+-0.5*factor*abs(d)`. Positive transfer N->C is additionally bounded by N's amount/window and W_C. Negative transfer C->N is bounded by C's total and 1 amount/update. The reverse transfer has no separate direct F_C clamp after this step; F_C participates in current demand. See `0x1402ec94e-0x1402eca16` and `0x1402ece88-0x1402eced2`. Actual species move proportionally to source total, using all 13 allowed slots.
+188-
+189:Port demands are allocated network by network before the component pass. `0x1404c9d20` computes positive/negative demand sums and scales by source amount or free room. Each allocation is `sign(d)*d*d/same_sign_sum * scale`, then the following component call applies the current-demand step bound above. `asm/allocation.asm` retains `0x1404c9f80-0x1404ca061`. Thus a prescribed pump name, a port label or an exchanger volume alone does not fix flow. For an entire installation, use the topology, delayed allocations and component ordering in `fluid-transport.md`.
+190-
+191-### Temperature transport and zero flow
+192-
+--
+199-T_R_new=T_R+x/(A_R+2*x)*(T_D-T_R)
+200-```
+201-
+202:The recipient uses its post-transfer amount in the numerator and adds the packet again in the denominator. This is the native rule, not ordinary pre-transfer mixing. It is independent of the q phase selection used for mutual heat. Its denominator threshold is >0.001, otherwise the recipient temperature is retained. Evidence `0x1402ece2b-0x1402ece61` and `0x1402ed264-0x1402ed29c` in `asm/port.asm`. At `0x1402ece31`, bytes `f3 0f 58 cb`, the packet is added to the already updated amount.
+203-
+204:Each port also enables `0x1402ed390` when abs(actual packet)<0.01. With both sides' selected amounts >0.0001:
+205-
+206-```
+207-e=min(0.1*factor*max(0,1-abs(x)/0.01), A_C, A_N)
+--
+209-T_N_new=T_N+e/V_N*(T_C_new-T_N)
+210-```
+211-
+212:For all-species exchange, e of each side's composition is replaced by half the combined removed composition. Totals stay unchanged. For pure same-phase fluid it changes temperature but not composition. The second temperature uses the first temperature's new value. `0x1402ed839-0x1402ed893` retains this arithmetic. This can transport heat at zero net flow and prevents a universal heat-per-second = flow*gap formula. Even the same total flow can give different results with extra connected reservoirs, unequal port flows or different port order.
+213-
+214-Each side is one mixed volume. There are no axial cells or a physical counterflow/parallel-flow coefficient. Inference: the appropriate reduced model is two stirred compartments. Reversing a side can still change the emitted packet's phase in the sequential update, and B Out's amount-dependent factor can change flow. This is a discrete ordering effect, not a conventional counterflow performance curve.
+215-
+--
+233-python3 -I investigation/native/heat-exchangers/tools/check_model.py
+234-```
+235-
+236:Unless stated otherwise, the examples use inlet A=100 C, inlet B=20 C, ambient=20 C, liquid fill 0.8, pure-gas pressure 30 atm and 600 simulated seconds. Both sides receive through their first port and discharge through their second. Emitted packet temperatures are sampled during the port calls, before the current update's mutual and ambient terms. Temp A/B signals are sampled after those terms. The final tick temperature change is below 1e-8 C in every retained case.
+237-
+238-| Variant | Flow A L/s | Flow B L/s | Emitted A C | Emitted B C | Stored A C | Stored B C |
+239-|---|---:|---:|---:|---:|---:|---:|
+--
+253-
+254-For the two liquid-liquid variants at 60 L/s, hot-side temperature reduction divided by inlet gap is 18.0809% and 42.4742%. These figures include ambient cooling and the native mixing rule. They must not be called conservative thermodynamic heat-exchanger effectiveness. Equal inlet and outlet fluid flow does not restore energy conservation to the native temperature transport.
+255-
+256:At x>=0.01, forward first-in/second-out operation and fixed final side amount A, incoming mixing gives alpha=x/(A+2*x). The emitted temperature is U=(1-alpha)*Tstored+alpha*Tin. Its new stored value follows the two-compartment mutual term and 0.001 ambient relaxation. `tools/check_model.py` independently solves the resulting two-by-two affine steady system and compares emitted temperatures with the stepped model for the high-flow cases. It also checks the 40 C post-transfer mixing example, q-weighted mutual conservation, the entire 18-sample ambient step response, retarget/reset behavior and rejection of an impossible port flow. All checks pass. `tools/examples.json` retains the outputs and assumptions.
+257-
+258-At equal selected fill and gas pressure, size multiplies both q values by the volume ratio. The liquid-liquid 5x5 has 6.25 times the 2x2 capacity per side. Air-liquid volumes relative to 1x2 are 1, 5, 22.5, 40.5 and 112.5. Air-air volumes relative to 2x2 are 1, 12.5 and 60.75. Inference: at the same initial temperatures, phase fractions and normalized fill, the mutual exchanged quantity Q scales by those ratios, while the isolated fractional gap decay stays unchanged. At equal external flow, inventory, ambient loss and pressure windows also change, so those ratios are not outlet-performance multipliers.
+259-
+260-## Update rate and time conversion
+261-
+262:`update-rate.md` establishes nominal 60 component updates per simulated second for active normally simulated vehicles. The physics worker's tick-count division by 60 is at `0x1405e3aea`, bytes `f3 0f 5e 0d 6e cc 5c 00`, constant `0x140bb0760`, bytes `00 00 70 42`. This excerpt is retained in `asm/update-rate.asm`; the complete dispatch proof remains in that earlier report.
+263-
+264-At constant q with qA+qB>0.001, no ports and the mutual term alone:
+265-
+--
+285-
+286-> The fluid-component update gives every exchanger two internal compartments, A and B. Each update A moves toward B by 0.03·qB/(qA+qB) of the temperature gap and B moves toward A by 0.03·qA/(qA+qB), so heat is conserved and the gap shrinks by a constant fraction regardless of variant. The q terms are capacity values taken from the fluid inside each compartment. The fraction itself does not depend on the variant, so any size advantage must come through q or through-flow; it is plausible that larger variants hold more fluid, but their compartment volumes were not recovered, so that advantage is inferred, not shown.
+287-> 
+288:> Both compartments also leak toward the surrounding temperature by 0.001 per update. Radiators use a separate rule: the compartment moves toward the surrounding temperature by 0.003 × (1 + fan), with the fan term clamped to 0…2.
+289-
+290-Replacement wording:
+291-
+--
+293-
+294-### Issue #6, quoted gap 3
+295-
+296:> The unit and per-fluid weighting of the q capacity terms, the update rate, and the filter applied to the surrounding-temperature sample (refreshed every 16 updates) were not recovered. Measure exchanger outlet temperatures at fixed flow to turn the per-update fractions into per-second rates.
+297-
+298-Replacement wording:
+299-
+300:q uses native stored amount units, with liquid litres=10*amount and expanded gas litres=600*amount. Pure-gas q=P*V/60, so pressure changes q through stored gas amount. Updates run at nominal 60/s; mutual exchange alone leaves 0.97^60=0.160807 of a gap after one simulated second. Ambient is sampled at the component world position every 16 updates, blends air and water weather temperatures by clamp((surface_y-position_y+0.25)/24,0,1), can use enclosing fluid temperature and local modifiers, and passes through the decoded 16-update linear controller. The retained Python model computes conditional outlet temperatures at specified actual flows.
+301-
+302-### Issue #19, quoted gap 1
+303-
+--
+406-
+407-## Confidence and exact remaining boundaries
+408-
+409:Confidence is high for the per-definition volume chain, complete phase sums and coefficients, family q selection, four port arguments and ordering, raw ambient blend, enclosing-compartment override, controller recurrence and nominal rate conversion. The conclusions use original instruction bytes, decoded jump tables and numbered shipped-resource lines. Ghidra pseudocode is supporting evidence; unresolved switch tables and omitted floating-point arguments in its inferred signatures are not treated as source code. The target was not executed.
+410-
+411-The flow examples are conditional static-model results. Their independent affine steady calculation agrees with the stepped high-flow calculation. That checks the transcription's arithmetic under its stated assumptions; it does not validate an arbitrary real installation.
+412-
+413-Still open, with the ruled-out alternatives stated:
+414-
+415:1. Complete identities, registration rules and virtual implementations of the local environmental source services passed to `0x14030fd60`. The wrapper's arithmetic, position, weather base, enclosing override, max operations and final 400-degree expression are decoded. Weather alone, a binary air/water switch and a generic exponential sample filter are ruled out. This report does not infer every fire/heater/zone behavior from unnamed lists.
+416-2. Automatic exchanger startup fill, saved-state restoration and complete enclosing-compartment thermal evolution. The constructor and volume setter do not establish a universal operating inventory. Volume equals capacity in geometric units; it does not prove that a side starts full of a particular fluid. All model fills and gas pressures are explicit inputs. This boundary does not leave the q helper or volume formula open.
+417-3. A flow and outlet prediction for a particular complete vehicle whose graph, pressure boundaries, inventory and component order have not been supplied. The port solver and temperature transport are decoded. A universal exchanger flow rate, implicit internal pump, one-way port labels and a spatial counterflow coefficient are ruled out. The supplied prescribed-flow model checks local port bounds and includes low-flow transport, but it does not simulate the external operations maintaining its reservoirs or the complete delayed allocation graph. Arbitrary multiphase boundary mixtures are outside its pure-phase implementation; the report retains the all-species native routines.
+418-4. Physical joule/watt calibration and in-game validation. q is the selected stored native amount and the isolated q-weighted invariant is recovered. A conservative physical-flow heat balance is ruled out by the native recipient weighting and sequential low-flow exchange. No physical specific heat or measured effectiveness is claimed.
+--
+428-diff -ru investigation/native/heat-exchangers/asm /tmp/heat-exchanger-reproduced/asm
+429-diff -u investigation/native/heat-exchangers/tools/definitions.json /tmp/heat-exchanger-reproduced/tools/definitions.json
+430-diff -u investigation/native/heat-exchangers/tools/tables.json /tmp/heat-exchanger-reproduced/tools/tables.json
+431:diff -u investigation/native/heat-exchangers/tools/meter-resources.json /tmp/heat-exchanger-reproduced/tools/meter-resources.json
+432-python3 -I investigation/native/heat-exchangers/tools/check_model.py > /tmp/heat-exchanger-checks.json
+433-diff -u investigation/native/heat-exchangers/tools/examples.json /tmp/heat-exchanger-checks.json
+434-python3 -I investigation/native/heat-exchangers/tools/replacements.py > /tmp/heat-exchanger-replacements.md
+435-sha256sum -c investigation/native/heat-exchangers/SHA256SUMS
+436-```
+437-
+438:The extractor rejects a different executable hash. It reads resources and PE bytes and invokes objdump; it never executes the game or modifies source resources. The older liquid-liquid resource has numeric rotation attribute names accepted by the game but rejected by standard XML parsers. The script removes only those unrelated rotation tags in its temporary parse buffer; retained resource lines and hashes come from the original file.
+439-
+440-Fresh Ghidra 12.1.4 pseudocode was generated in `/tmp/heat-exchangers-ghidra` using the retained `DecompileAt.java`. It explicitly disassembles and creates each requested function without auto-analysis. To reproduce in a fresh scratch project, with `analyzeHeadless` and a suitable Java 21 installation available:
+441-
+--
+445-  -import "$PWD/stormworks64.exe" -noanalysis \
+446-  -scriptPath "$PWD/investigation/native/heat-exchangers/tools" \
+447-  -postScript DecompileAt.java /tmp/heat-exchanger-pseudocode \
+448:  0x14030fd60 0x1403100a0 0x1408cddd0 0x1408cde20 0x1403ef450 \
+449:  0x1403ef860 0x1402eb5e0 0x1402eb660 0x1402ec710 0x1402ed390 \
+450:  0x1402bbbb0 0x1402c15e0 0x1402c16d0 0x14030bd10 0x1402ec1a0 \
+451:  0x140290320 0x14019b570 0x14017a230 0x140900500
+452-```
+453-
+454:`native/heat-exchangers/SHA256SUMS` covers this report and every retained evidence/tool file with paths relative to the repository root. The directory contains 23 assembly excerpts, 19 pseudocode files, original-byte constant and jump-table extracts, ten numbered definition extracts, meter resource lines, four issue bodies, 16 exact quoted-gap dispositions, model outputs and reproduction tools. The only root `.gitignore` additions for this task are `!/investigation/heat-exchangers.md` and `!/investigation/native/heat-exchangers/`, appended without a blank line. No existing investigation, wiki or research file, commit, push or GitHub mutation is part of this work.

@@ -1,0 +1,69 @@
+840-          while (ppppdVar24 = ppppdStack_3d8, iVar32 = 0, iVar28 != iVar20) {
+841-            lVar33 = *(longlong *)
+842-                      (*plVar10 +
+843-                      ((ulonglong)(uint)(*(int *)((longlong)plVar10 + 0xc) + iVar28) %
+844-                      (ulonglong)*(uint *)(plVar10 + 1)) * 8);
+845:            iVar20 = *(int *)(lVar33 + 0x418);
+846-            for (; iVar32 != iVar20; iVar32 = iVar32 + 1) {
+847-              plVar9 = *(longlong **)
+848-                        (*(longlong *)(lVar33 + 0x408) +
+849:                        ((ulonglong)(uint)(*(int *)(lVar33 + 0x414) + iVar32) %
+850:                        (ulonglong)*(uint *)(lVar33 + 0x410)) * 8);
+851-              lVar26 = (**(code **)(*plVar9 + 0x150))(plVar9);
+852-              if (lVar26 != 0) {
+853-                (**(code **)(*plVar9 + 0x2d0))(plVar9,ppppdVar24);
+854-                (**(code **)(*plVar9 + 0x2c8))(plVar9,ppppdVar24,*(undefined4 *)(*param_1 + 0x932));
+855-              }
+--
+1605-    *(float *)((longlong)uStack_3f8 + 0x34) = fVar47 * 0.0 + fVar49 * 0.0 + fVar48;
+1606-    *(float *)(uStack_3f8 + 7) = fVar40 * 0.0 + fVar44 * 0.0 + fVar45;
+1607-    *(undefined4 *)((longlong)uStack_3f8 + 0x3c) = 0x3f800000;
+1608-    FUN_140234890(param_4 + 0x68,uStack_3f8);
+1609-    break;
+1610:  case 0x37:
+1611-    ppdVar29 = (*param_1)[0x1773f];
+1612-    if (((ppdVar29 == (double **)0x0) || (*(int *)ppdVar29 != 4)) ||
+1613-       ((ppdVar29[0x12] == (double *)0x0 ||
+1614-        (pppdVar56 = (double ***)*ppdVar29[0x12], pppdVar56 == (double ***)0x0)))) {
+1615-      pppdVar56 = pppdVar21;
+1616-    }
+1617-    FUN_1404e0a40(pppdVar56,&pppdStack_368,*(undefined1 *)((longlong)pppdVar56 + 0x468c),0x140000001
+1618-                 );
+1619-    uStack_3f8 = (double ****)FUN_140958c28(0x38);
+1620:    uStack_3f8[1] = (double ***)0x41;
+1621:    *uStack_3f8 = (double ***)&UNK_140b680b0;
+1622-    uStack_3f8[2] = (double ***)0x0;
+1623-    uStack_3f8[3] = (double ***)0x0;
+1624-    uStack_3f8[4] = (double ***)0x0;
+1625-    uStack_3f8[5] = (double ***)0x0;
+1626-    *(undefined4 *)(uStack_3f8 + 6) = 0;
+--
+1756-            if (iVar28 == iVar20) break;
+1757-            lVar33 = *(longlong *)
+1758-                      (*plVar10 +
+1759-                      ((ulonglong)(uint)(*(int *)((longlong)plVar10 + 0xc) + iVar28) %
+1760-                      (ulonglong)*(uint *)(plVar10 + 1)) * 8);
+1761:            iVar20 = *(int *)(lVar33 + 0x418);
+1762-            pppdVar56 = pppdVar21;
+1763-            while (iVar28 = (int)pppdVar56, iVar28 != iVar20) {
+1764-              plVar9 = *(longlong **)
+1765-                        (*(longlong *)(lVar33 + 0x408) +
+1766:                        ((ulonglong)(uint)(*(int *)(lVar33 + 0x414) + iVar28) %
+1767:                        (ulonglong)*(uint *)(lVar33 + 0x410)) * 8);
+1768-              lVar26 = (**(code **)(*plVar9 + 0x1c0))(plVar9);
+1769-              if ((lVar26 != 0) &&
+1770-                 (lVar26 = (**(code **)(*plVar9 + 0x1c0))(plVar9),
+1771-                 *(int *)(*(longlong *)(lVar26 + 0x58) + 0x2ccc) == 5)) {
+1772-                uVar18 = *(undefined4 *)(param_7 + 1);
+--
+1823-      dStack_180 = dVar57 + (double)*(float *)((longlong)param_7 + 0xc);
+1824-      uStack_178 = uStack_178 + (double)*(float *)(param_7 + 2);
+1825-      FUN_1402a4b70(plVar10,pppdVar21 + 0xc99,&uStack_1e8);
+1826-    }
+1827-    break;
+1828:  case 0x41:
+1829-    pppdVar21 = *param_1;
+1830-    ppdVar29 = pppdVar21[0x1773f];
+1831-    if ((((ppdVar29 != (double **)0x0) && (*(int *)ppdVar29 == 4)) &&
+1832-        (ppdVar29[0x12] != (double *)0x0)) &&
+1833-       (uStack_388 = (longlong ****)*ppdVar29[0x12], uStack_388 != (longlong ****)0x0)) {

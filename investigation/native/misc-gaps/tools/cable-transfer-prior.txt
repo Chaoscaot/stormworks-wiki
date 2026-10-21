@@ -1,0 +1,21 @@
+## Cable anchor storage and endpoint transport
+
+Resource evidence is retained with source line numbers. `rope_hook_composite.xml:2` specifies vehicle type 48 and `logic_gate_subtype="2"`. Lines 63..84 label composite send/receive, on/off send/receive, video send/receive and audio send/receive. `winch_pulley_cable.xml:2` identifies the electrical pulley subtype 9. Subtype 9 branches in the native routine are pulley routing, not a different composite channel count.
+
+Rope-hook constructor `0x1403b3ca0` installs the composite input at component +0x238 and constructs its output at +0x2d8. It also constructs video input/output at +0x3e8/+0x620 and audio input/output at +0x870/+0x8b8. Port binder `0x1403b4a50` binds their definition records using types 5, 6 and 7. Each payload begins at slot +0x18.
+
+For the ordinary-anchor branch in transport routine `0x1403b6840`, peer = component pointer +0xa98. If both component state values at +8 are below 5, the routine sends:
+
+| Signal | Local sending payload | Ordinary peer receiving payload | Operation |
+| --- | --- | --- | --- |
+| Composite | +0x250 | +0x2f0 | Mask plus eight 16-byte numeric copies at `0x1403b6b37..0x1403b6b93` |
+| Video | +0x400 | +0x638 | `0x1402e9ab0`, called at `0x1403b6b0a` |
+| Audio | +0x888 | +0x8d0 | `0x1402ea000`, called at `0x1403b6b24` |
+
+The subtype 9 branch routes the two sides through video +0xce0/+0xf00, audio +0x1120/+0x1150 and composite +0x1180/+0x1204. A later branch handles the second peer pointer +0xaa0. Its reverse payload forwarding is conditional on local subtype 9. The report does not treat +0xa98 and +0xaa0 as interchangeable reciprocal links on every anchor. Resolving their construction and the full pulley traversal is still necessary for a cable-chain timing model.
+
+The composite receiver stores a value copy. Audio assignment `0x1402ea000` reallocates the destination buffer when its count differs, allocates `count*4` bytes, copies each 32-bit sample word, then copies metadata. Its data structure starts with buffer pointer +0, uint32 count +8, copied 64-bit metadata at +0x10/+0x18/+0x20, and a copied 32-bit field at +0x28. Metadata meanings and sample encoding were not decoded here. The receiving anchor owns a separate sample allocation on this path. Source and receiver do not merely share the source sample pointer.
+
+Video assignment `0x1402e9ab0` copies fixed descriptor fields through +0x21d in an aggregate with extent 0x220. It performs no allocation, free, resource acquisition or reference-count increment. Opaque 64-bit fields are copied unchanged. This recovers assignment behavior, but does not identify the ultimate owner or lifetime of resources represented by those fields. A dynamic pixel-buffer deep copy in this helper is ruled out. An exclusive transmitter/receiver ownership rule is still open.
+
+## Microprocessor video and audio bridges

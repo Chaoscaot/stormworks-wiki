@@ -1,0 +1,45 @@
+210-
+211-Remaining limits are specific:
+212-
+213-1. **Application scale across joined bodies.** The cap is exactly `5*S` for air and `100*S` for water, and the list provenance above is recovered. The complete policy producing vehicle `+0x72c` and partition IDs is not. Ruled out: taking solver dt, voxel count, or the raw area's coefficient as `S`; the dispatcher supplies a separate aggregate scalar. Minimal in-game check: hold one surface at fixed airspeed and angle, increase area until capped, and compare the capped per-tick linear-speed change for one rigid body and then for the same craft split by a locked joint. Log body masses and input state. This tests whether the same effective mass aggregate applies. A further static trace of `0x1404be190` and the component mass slot is preferable to fitting an arbitrary cap.
+214-2. **Mesh-facing signs.** Resource axes and all native transformations are retained, but the visible leading edge and editor arrow were not decoded from meshes. Ruled out: input decimals being degrees or turns; sine/cosine consume radians. Minimal in-game check: a single powered surface on a constrained test body, local axis markers visible, command -1, 0, +1 and move in each direction at a fixed speed above 15 m/s. Record deflection sign and force direction. This labels the coordinate convention; it does not fit the recovered coefficients.
+215-3. **Other application modes.** The ordinary enabled/null-`+0x178` path queues the force directly. Global-zero and non-null-`+0x178` paths were not followed to their final consumer. Ruled out: treating the event name as a velocity impulse. The downstream solver multiplies accumulated force by inverse mass and substep time. Minimal in-game check if equivalence is needed: repeat a fixed surface acceleration test at each selectable physics detail and on an otherwise matching attached body; compare change per simulation tick, not per render frame.
+216:4. **SI mass and load labels.** Native m/s, mass/inverse-mass structure and direct force application are established. Kilograms per editor mass unit remain uncalibrated. Minimal check: measure known per-tick velocity change under an independently calibrated thrust or weight load on an isolated rigid body. Until then keep graph output in internal force units, and use `F*dt` only when displaying impulse.
+217:5. **calculate_air_density elsewhere.** Ruled out: a read or gate of that setting in the complete rudder air producer or its force helper. The rest of the executable has not been proven independent of it. Minimal in-game check: repeat an altitude series with only that setting changed and compare wing force; this tests effect on the observed surface behavior, not the identity of all other consumers. It is still open for #137.
+218-
+219-The force equations themselves do not require an in-game fit to fill issue #1's two quoted gaps. The remaining checks delimit application, labels and other systems.
+220-
+221-## Reproduction
+222-
+223:GNU objdump and Ghidra 12.1.4 were used. The scripts only read the executable and shipped resources. From the installation root:
+224-
+225-```bash
+226-sha256sum stormworks64.exe
+227-python3 -I investigation/native/control-surfaces/tools/collect.py . /tmp/control-surfaces-reproduced
+228-python3 -I investigation/native/control-surfaces/tools/model.py --verify
+229-diff -ru investigation/native/control-surfaces/asm /tmp/control-surfaces-reproduced/asm
+230-diff -u investigation/native/control-surfaces/tools/tables.txt /tmp/control-surfaces-reproduced/tools/tables.txt
+231-diff -u investigation/native/control-surfaces/tools/resources.json /tmp/control-surfaces-reproduced/tools/resources.json
+232-```
+233-
+234-The retained verification reproduced all 23 assembly excerpts, constant/RTTI tables and resource records with no differences, checked the report's byte anchors against the PE, and passed the graph model's threshold, area, immersion, altitude and cap checks. See `tools/verification.txt`. The collector rejects a different executable hash. `tools/pe.py` maps preferred virtual addresses to original file bytes. Pseudocode was generated in a fresh temporary project, without whole-program auto-analysis:
+235-
+236-```bash
+237-mkdir -p /tmp/control-surfaces-ghidra /tmp/control-surfaces-pseudocode
+238-JAVA_HOME=/home/maxsp/.local/opt/jdk-21.0.12.1+1 \
+239-GHIDRA_HEADLESS_MAXMEM=6G \
+240-/home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/support/analyzeHeadless \
+241-  /tmp/control-surfaces-ghidra control-surfaces \
+242-  -import "$PWD/stormworks64.exe" -noanalysis \
+243-  -scriptPath "$PWD/investigation/native/control-surfaces/tools" \
+244-  -postScript DecompileAt.java /tmp/control-surfaces-pseudocode \
+245-  0x1403dfd20 0x1401a7ad0 0x1401a16a0 0x14019a370 0x14019b050 \
+246-  0x1409b9c10 0x1409d4b80 0x1409d6c20 0x1402eeca0 0x140293a40 \
+247-  0x140128560 0x14013a380 0x140133bb0 0x1401341b0
+248-```
+249-
+250:Ghidra's guessed prototypes omit some register float arguments and overlap scalar/vector locals. The report resolves those from the assembly, including `powf`'s XMM0/XMM1 operands and the electrical helper's return fraction. Decompiled text is evidence to inspect, not original source.
+251-
+252-## Retained files
+253-
+254:`native/control-surfaces/SHA256SUMS` covers the retained evidence and tools. The directory contains 23 assembly excerpts, 14 pseudocode files, resource lines and hashes, constant and RTTI tables, issue #1's read-only response, the graph model and its verification output. Only this report, `investigation/native/control-surfaces/` and the two matching root `.gitignore` whitelist entries were written. No wiki or research source, game execution, commit, push or GitHub write is part of this investigation.

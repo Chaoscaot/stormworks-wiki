@@ -1,0 +1,82 @@
+6-
+7-## Answer in brief
+8-
+9:- Use **60 component updates per nominal simulated second** for active, normally simulated vehicles. The logic path calls the component dispatcher, then submits one physics interval. At `0x1407439c6` it sets the physics tick count to 1; at `0x1405e3aea` the worker divides that count by 60. The actual argument is `double(float(1)/float(60))`, approximately `0.01666666753590107` seconds.
+10-- Component updates are outside the physics substep loop. The dispatcher at `0x1405498d6` calls virtual slot `+0x358` once for each component. The water, electric and modular-engine vtables resolve that slot to `0x1403ef860`, `0x1404008a0` and `0x140449670`.
+11-- Rigid-body physics has a separate substep. The worker passes either `double(float(1)/physics_rate)` or the fallback `double(float(1/60))` to the physics solver. The coordinator contains 60, 120 and 180 settings. Those are solver rates, not three possible multipliers for the recovered component formulas.
+12:- Both `server64.exe` and `server.exe` contain the same tick-count/60 call pattern. Shipped Lua code also converts a callback interval of N ticks to N/60 seconds.
+13-- Multiply amounts per update by 60. For a constant relaxation fraction `k`, compound the recurrence: a gap retains `(1-k)^60` after one simulated second. This establishes simulation-time conversion, not a guarantee of 60 updates per wall-clock second under every load or game mode.
+14-
+15-## Evidence map
+--
+37-    0x1405ebd5c -> 0x140549240, vehicle/component dispatcher
+38-      0x1405498d6 -> component vtable +0x358
+39-      0x140549a9d -> 0x1404cb790, modular-engine group update
+40:  0x1407439c6: tick_count = 1
+41-  0x1407439df: submit scene physics worker
+42:    0x1405e3a80: elapsed = tick_count / 60
+43-    0x1405e3b16 -> physics world vtable +0x60
+44-      0x140133ea0: accumulate elapsed and execute solver substeps
+45-```
+--
+74-The following is a reconstruction of the instructions, not original source [W]:
+75-
+76-```text
+77:elapsed = float(worker.tick_count) / 60.0f
+78-substep = 1.0f / worker.physics_rate
+79-if byte[0x140ceb6ff] == 0:
+80-    substep = float_bits(0x3c888889)
+--
+83-
+84-| Address | Bytes | Meaning |
+85-|---|---|---|
+86:| `0x1405e3ad7` | `8b 83 d0 00 00 00` | Load unsigned tick count. |
+87-| `0x1405e3ae5` | `f3 48 0f 2a c8` | Convert count to binary32 in XMM1. |
+88-| `0x1405e3aea` | `f3 0f 5e 0d 6e cc 5c 00` | Divide XMM1 by binary32 60 at `0x140bb0760`. |
+89-| `0x1405e3add` | `f3 0f 5e 83 b8 00 00 00` | Divide binary32 1 by the worker's solver-rate field. |
+--
+109-
+110-The component-dispatch call is outside this accumulator. Inferring the component rate from the solver's internalSingleStep calls would give the wrong multiplier when physics detail changes.
+111-
+112:The coordinator's automatic solver-rate branch stores 60 at `0x140743954`, 180 at `0x140743968`, and 120 at `0x140743987` [S]. Their immediate binary32 encodings are `00 00 70 42`, `00 00 34 43`, and `00 00 f0 42`. It also accepts a nonzero rate from a context field, so the three automatic choices do not establish a complete list of allowed overrides. The `physics_timestep` string at `0x140b10a58` is bound to a settings field at `+0x40` by `0x1402765d9-0x1402765f0` [stormworks64-settings-binding.asm]. This report does not claim to have traced every setting-copy operation or identified the global branch flag `0x140ceb6ff` by name.
+113-
+114-## Do the recovered formulas receive a dt?
+115-
+--
+131-| `server64.exe` | `b261e81eb8a4e5bb84782e521212dcc94151fc2c2b5940bcff5aabef85bbe20f` |
+132-| `server.exe` | `9efa034560840a0e020e06f35441c5f92d46a22a3e67d37d62bffb0b9aaff82e` |
+133-
+134:In `server64.exe`, `0x1404e9cac`, bytes `f3 0f 5e 0d a4 ed 4b 00`, divides the tick count by 60 at `0x1409a8a58`. `0x1404e9cb6` loads the fallback 1/60, and `0x1404e9cd8`, `ff 50 60`, calls the physics world. The matching 32-bit worker starts at `0x8c6680`; `0x8c66b7`, `f3 0f 5e 0d 78 b8 d0 00`, divides by 60 at `0xd0b878`, and `0x8c66f1`, `ff 50 30`, makes the 32-bit virtual call. Both pass a maximum of 1000 substeps [server64-physics-worker.asm, server-physics-worker.asm]. These are matching worker routines; the full server component call graphs were not separately reconstructed.
+135-
+136-The bounded search in `tools/derived.py` covered 3278 text resource files in `rom/` and `sdk/`. `derived.txt` retains the search pattern, matches and source hashes. The shipped weapons AI script provides useful independent corroboration:
+137-
+138:- `rom/data/missions/dlc_weapons_ai/script.lua:2086-2087` increments `g_tick_counter` once in `onTick`.
+139:- Its `isTickID` at lines 2431-2432 tests `(g_tick_counter + id) % rate == 0`.
+140:- At lines 932-938, it sets the interval to 60 ticks and applies `ISLAND_CAPTURE_AMOUNT_PER_SECOND * vehicle_tick_rate / 60`.
+141-
+142:This is resource evidence that the shipped mission code treats 60 ordinary ticks as a second. It does not replace the native call-chain evidence. `rom/data/realtime_values/general_debug.txt:173` contains `mp_physics_update_tick_limit 6`; its name and value alone do not make it the solver or component frequency. No tick-setting override was recovered from the searched SDK text.
+143-
+144:The embedded microcontroller documentation explicitly separates `onTick` from `onDraw`: `0x140af1140` says tick runs once per logic tick; `0x140af1270` says drawing can happen multiple times for multiple monitors. These strings, plus the worker and component call chain, distinguish rendering from the simulation interval [tables.txt].
+145-
+146-## Per-second conversions
+147-
+--
+160-| Radiator heat rejection `A*0.003*(1+f)*gap` heat/update | Instantaneous rate `0.18*A*(1+f)*gap` heat/s. |
+161-| Refresh every 16 component updates | Every `16/60 = 0.266667` simulated seconds. |
+162-
+163:For `gap_next = (1-k)*gap`, with fixed coefficients, fixed target and no other sources, `gap(t) = gap(0)*(1-k)^(60*t)` at tick boundaries. The exponential time constant is `-1/(60*ln(1-k))`. Using `60*k` as the fraction removed in one whole second is incorrect.
+164-
+165-| Recurrence | Residual after 60 updates | Time constant |
+166-|---|---|---|
+--
+211-
+212-## Confidence and limits
+213-
+214:Confidence is high for the normal component-to-simulation-time conversion. The evidence links actual component vtables to one update pass, fixes the scheduled count to 1, follows it into a tick-count/60 argument, resolves the physics virtual target, and identifies the accumulator consuming that argument. Matching server code and the shipped Lua conversion corroborate it.
+215-
+216-Wall-clock scheduling is a different question. The threaded logic wrapper at `0x140844ff1-0x140844ffb` busy-waits until an integer millisecond timer has advanced at least 16 ms [stormworks64-wall-clock-worker.asm]. `0x140174f60` derives that timer from nanoseconds divided by 1,000,000 [stormworks64-clock-ms.asm]. This is not a `dt=0.016` physics call and does not establish a 62.5 Hz simulation unit. The outer scheduler's complete pacing policy was not recovered. Report rates as per simulated second, and do not promise an exact wall-clock rate under overload, pause or network catch-up.
+217-
+218:Sleep/fast-forward and inactive vehicles are also outside the normal-rate conversion. The embedded addon documentation says `game_ticks` is normally 1 and can be 400 while sleeping [tables.txt]. That is not evidence that every component gets 400 calls. No such extrapolation is made here. The physics-detail flag's name, arbitrary rate override limits and all multiplayer synchronization paths remain untraced.
+219-
+220-No in-game measurement is needed to settle the nominal dt. If a future task needs wall-clock throughput, the minimal additional check is to count 3600 microcontroller `onTick` calls in an active vehicle and compare the interval with a stopwatch at full simulation speed, then repeat under load. That would measure real-time throughput, not change the recovered per-update formulas or establish sleeping behavior.
+221-

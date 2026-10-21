@@ -1,0 +1,57 @@
+7-## Results and limits
+8-
+9:Ballistic integration, class constants, barrel dispersion, recoil submission, heat hysteresis, timed fuses, impact magnitude and solid rocket consumption are recovered. Loading state and transfer delays are recovered in part. A complete ammunition-network throughput model, controlled maximum cannon firing rates, and the final target-specific voxel damage and blast-occlusion rules remain open. These qualifications apply to #16 and #158; they do not leave the rotary heat or solid rocket equations undecoded.
+10-
+11-`native/weapons/weapons.json` contains all 94 shipped type-44 and type-47 definitions, 7 native gun-class records and all 15 native projectile records. Each native record includes its address and bytes. Resource entries include the source path, line and hash. Numeric fields without a decoded consumer keep an offset-based name.
+--
+44-
+45-```text
+46:internal_muzzle_offset = 0.175 + 0.25 * base_barrel_length_voxels
+47:accepted extension: internal_muzzle_offset += 0.25 * extension_length_voxels
+48-spread_multiplier = max(0.5, 1 - 0.2 * accepted_extension_count)
+49-angle_half_width = 0.25 * dispersion_base[class] * spread_multiplier
+50-```
+51-
+52:Each accepted extension gives multipliers 0.8, 0.6, then 0.5; more extensions keep 0.5. This decrement is per component, not per voxel. At `0x1404b3129`, bytes `f3 0f 5c c7`, the code subtracts 0.2; `0x1404b312d` and `0x1404b3132` clamp against 0.5 and 1. Constants and bytes are retained in [constants.txt](native/weapons/tools/constants.txt).
+53-
+54-The firing path at `0x140428926`, bytes `f3 0f 10 54 08 30`, reads dispersion at table offset 48. It draws two successive 15-bit random values from the component LCG, `state = state*0x343fd + 0x269ec3`, modulo 2^32. Each is mapped with `u = ((state>>16)&32767)/32767` and `angle = (2*u-1)*angle_half_width`. `0x140177040` consumes XMM1 and XMM3 as the two angular arguments and XMM2 as zero. The angles are radians; [spread-rotation.asm](native/weapons/asm/spread-rotation.asm) retains the trigonometric consumer. The decompiler omits some of these float arguments.
+--
+109-## Impact magnitude, penetration and explosions
+110-
+111:Ammunition damage IDs are 0 kinetic, 1 HE, 2 fragmentation, 3 AP and 4 incendiary. `0x140424120` binds these selector IDs to localization entries 1996 through 2000. See [ammo-properties.asm](native/weapons/asm/ammo-properties.asm) and [ammo-labels.asm](native/weapons/asm/ammo-labels.asm).
+112-
+113-`0x140593b50` prepares the impact event's magnitude M. Let B be projectile table offset 16 and v its speed at impact:
+--
+139-```
+140-
+141:At `0x1405928c0`, bytes `ff 90 98 02 00 00`, it calls the component mass getter at virtual slot `+0x298`; `0x1405928d2` reads definition `+0xb8` as the divisor when greater than 1. The base getter `0x140328ea4`, bytes `f3 0f 10 80 b0 02 00 00`, reads definition mass `+0x2b0`; the parser binds that field to `mass`. A separate AP collision path subtracts `200*p`. These are speed-loss rules, not a recovered universal millimetres-of-armour rating. Target traversal, incidence and component overrides still matter. See [penetration-material-getter.asm](native/weapons/asm/penetration-material-getter.asm), [definition-mass.asm](native/weapons/asm/definition-mass.asm) and the complete projectile update.
+142-
+143:Impact dispatch is `0x1405947d0`. It calls direct-hit handling `0x140596540` and, for damage IDs 1 or 2, explosion handling `0x140597950`. Explosion support is also checked in the latter. Explosion broadphase radius is `7.5*M`, and its raw radial-force scale is `50000*M`. The routine has a narrower `5*M` radius in one target-specific damage branch. Several branches use `u=max(0,1-distance/radius)` and falloff `u*u*(3-2*u)`; one damage scale is `100*M*falloff`, with separate force and mass caps. Consequently the broadphase number is not a guarantee that every target takes damage at that radius. See [direct-hit.asm](native/weapons/asm/direct-hit.asm) and [explosion.asm](native/weapons/asm/explosion.asm). At `0x140597950` onward, constants `0x140bb0920` and `0x140bb05a0` supply 50000 and 7.5.
+144-
+145:Fragmentation dispatch additionally creates the table's count of secondary projectiles using the type at offset 32 and count at offset 36, with kinetic damage ID 0. This is separate from its reduced explosion magnitude. The final voxel destruction, armour-incidence and blast-occlusion model is still open. The retained work rules out treating B or the table's offset-20 visual-effect value as a single universal damage number.
+146-
+147-## Timed fuses
+148-
+149:The gun reads the positive seconds input at component `+0x1a0` only when `damage_id == 2`, or when `damage_id == 1` and gun class exceeds 2. Otherwise fuse time is zero. At `0x140428c50` onward:
+150-
+151-```text
+--
+160-## Loading and ammunition
+161-
+162:The ammunition-store path keeps five damage-type bins at component `+0x4fc..+0x50c`. Type-5 stores enforce definition capacity, halving it for projectile ID 8 and dividing it by 5 for ID 9. For the autocannon drums with capacities 100/200/500, this gives light 100/200/500, rotary 50/100/250 and heavy 20/40/100. Resource capacities and all individual parts are retained in JSON.
+163-
+164:`0x14042ba60` transfers between adjacent parts. A gun or single-round transport slot must be empty with both `+0x330` and `+0x3c4` timers zero. It copies calibre at `+0x3f0`, damage kind at `+0x3f4` and loaded amount at `+0x3f8`. Gun/store calibre mismatches are rejected. Transfers out of a source store decrement one bin; store-to-store movement considers all five bins. The source is emptied after a normal single-round transfer, subject to the native unlimited-ammunition setting branch. Receiver delays are 30, 90 and 240 updates for battle, artillery and Bertha, otherwise 6 for projectile ID 9 and zero for the other gun calibres.
+165-
+166-`0x14042b870` searches connected neighbours. Junction gating at `0x14042b7e0` recognizes route labels `b1` and `b2` and the junction logic input. In gun update, a spent round at `+0x510` is ejected on the appropriate breech transition by `0x14042b3a0`; automatic-feed guns then request ammunition. The per-group shot counters at `+0x3b8` and table offset 28 limit grouped firing. They are not the heat float at `+0x384`.
+--
+231-## Issue dispositions and replacement wording
+232-
+233:- **#16, partial:** "Ballistic integration, class muzzle speeds, drag and lifetime, barrel dispersion, recoil submission and impact magnitudes are decoded for the verified build. Final target-specific voxel damage and arbitrary feed-network firing throughput remain open."
+234-- **#55, resolved for the quoted gap:** "Rotary heat adds 0.01 per shot and loses 0.002 per update; firing stops at heat >=1 and resumes below 0.25. Ideal two-update feeding reaches the stop on shot 166; transport and startup change burst timing."
+235-- **#127, resolved for the quoted gap:** "Full fuel is 20000 units per connected volume unit, including nozzle volume. Each burning update consumes min(remaining, trunc(400*w²*burn_rate)+1) and submits raw thrust 60 times consumption, with pressure attenuation and a 1000*S cap. Burn time follows capacity divided by consumption at 60 updates/s."
+236-- **#134, resolved for the quoted gap:** "Heavy and light autocannon extensions use the same class-matched accuracy path: subtract 0.2 from dispersion multiplier per extension, to a minimum 0.5. The different tooltip wording does not select different velocity or recoil-multiplier mechanics."
+237:- **#158, partial:** "Gun classes, barrel offset and dispersion, muzzle speed, drag, gravity, lifetime, AP speed loss, impact/explosion magnitudes, loading timers and timed-fuse interpolation are decoded. Complete belt throughput, maximum controlled cannon cadence, and final voxel damage and blast occlusion remain open."
+238-
+239:For the remaining damage gap, the search has ruled out table offset 20 as a universal damage figure and 7.5*M as an unconditional target-damage radius. It has recovered the magnitude dispatcher and target-specific direct/explosion routines, retained here, but has not completed their downstream voxel destruction and occlusion consumers. For firing rate, it has ruled out a barrel-length multiplier and unrestricted instant transfers; externally controlled opening, transfer delays, neighbour traversal and grouped firing limits still need a combined schedule model.
+240-
+241-## Reproduction

@@ -1,0 +1,20 @@
+With noise factor set to 1, the long-run nominal pulse rate is `6 * clamp(1/(0.002*d+0.5), 0, 1)` Hz. It is 6 Hz for `d <= 250`, 2.4 Hz at 1000 m, and approximately 0.292683 Hz at 10000 m. The corresponding nominal intervals are 10, 25 and 205 updates. Threshold accumulation can alternate integer intervals for other distances. This is not a continuous sine-wave output.
+
+The spatial-noise helper `0x1401e3460` is retained. Its output is scaled by `1/128 * 0.1`, then added to 1. Its full spatial/time input mapping and exact bound have not been reproduced. The figures above omit spatial noise. Its output bound is unproved. Full beacon eligibility and behavior across disabled, unloaded or remote beacons remain open. The shipped `radar_range=20000` on the locator is not used as a distance cutoff in this recovered loop.
+
+## SDK noise and realtime names
+
+Shipped `sdk/data/game_constants.xml:86-88` specifies `sonar_noise=0.001`, `radar_noise=0.001`, `radar_distance_noise=0.01`; comment lines 7-9 describe them. Exact lines are retained in `tools/resource-lines.txt`.
+
+There is a complete reader-to-consumer chain:
+
+- Startup path `0x140846920` constructs `data/game_constants.xml`, parses its content, obtains settings from `0x140294520`, and passes settings `+0x5c` to `0x140929950`.
+- `0x140929950` selects the `game_constants` node and invokes `0x140293a40`.
+- The three names are at `0x140b53ae0`, `0x140b53b28` and `0x140b53b10`. The readers write subobject `+0x9c`, `+0xa0`, `+0xa4`, hence settings `+0xf8`, `+0xfc`, `+0x100`.
+- The corresponding consumer offsets and arithmetic are shown in the radar and sonar sections above. Built-in defaults also match: packed constants `0x140bb18a8` and `0x140bb18ac` contain `6f 12 83 3a`, float32 `0.0010000000474974513`; distance default at `0x140baf958` is float32 approximately `0.01`.
+
+Thus these names are neither merely unused SDK documentation nor absent binary literals. The executable loads a relative `data/game_constants.xml`; this does not mean it always opens the repository's literal `sdk/data/...` path in an ordinary installed-game launch.
+
+Every recognized declaration in the current `rom/data/realtime_values` directory was checked separately. This checkout has 334 unique declarations, of which 25 occur as complete terminated names in the executable, rather than the earlier stated total of 199. The retained per-name result is `tools/realtime-name-check.json`. Both `radar_coord_delta_stiffness` and `radar_coord_delta_damping` are absent as complete names. No claim that they configure runtime tracking is made. Raw suffix matches were excluded. SDK XML names were checked independently and are present. Literal absence alone does not prove there is no hardcoded equivalent.
+
+## Issue dispositions

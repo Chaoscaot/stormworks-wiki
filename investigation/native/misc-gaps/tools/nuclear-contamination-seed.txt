@@ -1,0 +1,65 @@
+132-
+133:For a sample inside a compartment, the sampler also adds compartment `+0x78` directly: `0x14030fd12: f3 0f 58 7e 78`. Outside a compartment, it instead queries the persistent contamination spatial index. `0x14030f740` merges a damage deposit into a nearby record or creates a record with radius 200 and deposited amplitude. The sampler adds `(1-distance/radius)*amplitude` for each spatial-index candidate. There is no additional clamp in that final arithmetic; the exact candidate-set shape and global decay/removal are still open. The sampler also includes a separate fixed-world background source gated by global flags. That source is not fuel-rod generation and has not been interpreted here.
+134-
+135-`radiation_detector.xml` selects logic gate 59. The evaluator `0x1403c4d20` jump-table entry at `0x1403c9640` is bytes `08 88 3c 00`, target `0x1403c8808`. It clears the output, checks `0x140141280`, transforms component position to world position, calls the radiation sampler at `0x1403c886e: e8 4d 71 f4 ff`, then sends its float return to numeric output via `0x1402ea270` at `0x1403c887d`. There is no scale conversion between sampler and output. Gate-check failure leaves output zero. Its exact gate semantics and a physical dose unit such as Sv/h remain unassigned. Shipped node description is "The detected radiation dose rate." See `asm/sensor-dispatch.asm`, `asm/sensor-case59.asm`, `tools/sensor-table.txt`, and `tools/resource-lines.txt`.
+136-
+137-## Damage and meltdown
+138-
+139-The fuel update first heats and relaxes temperature, then compares the result strictly against 1500 C: `0x14041e117: 0f 2f 0d 46 27 79 00`. If hotter, and hot-counter `+0x454` is zero, it calls damage setter slot `+0x20` with `min(damage+1,50)`. It advances that counter modulo 300 only while hot. It does not reset the counter on cooler updates. Consequently, the first hot update damages the rod immediately and later increments occur every 300 accumulated hot updates, five simulated seconds of hot time.
+140-
+141-Setter `0x14041dc00` marks pending damage processing `+0x450` when a previously undamaged rod becomes damaged. In the fuel update, if damage >1, `fire` byte `+0x451` is still false and settings bytes `+0x35` and `+0x4a` are both enabled, a one-time event is created through `0x140288f70`. The call also submits a world record with floats 200 and 40000 at `0x14041e484` onward. These values are retained; assigning them a blast radius or damage unit requires tracing their consumers. The serialization name `fire` supports describing a fire/damage event, but is insufficient to claim an instantaneous explosion at 1500 C. The downstream event consumers and the exact setting names remain open. Source anchors include `0x14041e166-0x14041e1a0`, the call to `0x140288f70`, and `asm/meltdown-event.asm`.
+142-
+143-No independent neutron-flux damage threshold, universal instant-meltdown temperature, steam-pressure rupture rule or joule-based fuel conversion appears in the recovered nuclear update. This rules out those interpretations of this routine only, not all engine-wide destruction mechanisms.
+144-
+145-## 60 Hz model and worked grid
+146-
+147-Run `python3 investigation/native/nuclear/tools/model.py`. Retained output: `tools/examples.json`. The model applies recovered local equations using Python doubles. Native SSE single precision will differ slightly. It supplies a four-cardinal-neighbour graph directly; it does not emulate the unresolved coupling matcher.
+148-
+149:Example fuel grid: `(0,0),(1,0),(0,1),(1,1)`, one outer control per fuel rod. Each fuel rod has two fuel neighbours and one control neighbour. Start at 20 C, F=1, R=0, insertion zero. Bath and environmental-record temperatures are prescribed 20 C, liquid and total amount 100, full immersion. The bath is held fixed by an external boundary, so these are not predictions for a sealed uncooled tank. Explicit step order is controls, all assemblies, all fuel rods, post-pass commit. Damage, background radiation, global ambient solver, pipe flow and contamination transport are excluded.
+150-
+151-For frozen F=1, equal rods, insertion I, define `m=0.999*(1-0.01*I)`. The independently solved fixed point for that order is:
+152-
+153-```text
+154-Rsteady = 0.1*(1-0.999002*m)/(1-1.001002*m)
+155-Tsteady = 20 + (0.0999/0.001999)*Rsteady
+156-```
+157-
+158-The executable model asserts numerical convergence to that analytical fixed point after 600 simulated seconds. With insertion 0.1, 0.25 and 1.0, temperatures converge to 34.982471, 28.983102 and 25.986112 C; rates converge to 0.299799, 0.179752 and 0.119782. With real fuel depletion enabled, temperatures after 600 seconds are 34.980967, 28.982542 and 25.985859 C; fuel fractions are 0.99989508, 0.99993603 and 0.99995707. These are slowly drifting quasi-steady temperatures. Finite depleting fuel has no permanent nonzero-generation steady state.
+159-
+160-## Confidence and remaining work
+161-
+162-High confidence: class and update identity, literal type names, serialized field names, local reaction transformations, sums instead of averages, input clamp/direction/slew, reaction cap, fuel debit, heat exchange coefficients, coolant radiation increment, sensor data path, live-source falloff and 1500 C damage comparison. These have retained instruction bytes and resource evidence.
+163-
+164-Medium confidence: fill-height interpretation, relative rod heat capacity, normal-grid cardinal interpretation, and calling the gated event a fire/damage event. Each interpretation is labelled above and separable from the literal arithmetic.
+165-
+166-Still open, with bounded negative results:
+167-
+168-1. Generic coupling matcher positional/angular tolerance and therefore an exact physical adjacency range. The nuclear update has no distance comparison, radius constant or scan over all rods. Its initializer binds four named coupling slots. This rules out a nuclear-local radius formula, not shared coupling geometry. Capture/release routine `0x14041ee60` was retained, but its constraints were not fully interpreted.
+169-2. A guarantee of assembly/rod update ordering across all vehicles and loaded saves. The main update and post-pass dispatch sites are identified. Both local writers of `react_next` were recovered; neither proves a universal component iteration order. The model states its order explicitly.
+170-3. Persistent radiation decay/removal, precise spatial-index candidate boundaries, fixed-world background configuration, sensor enable-gate meaning, and physical dose units. Live-source sampling and direct compartment-scalar addition are recovered. No inverse-square law or sensor unit conversion occurs in the decoded sampler/output path.
+171-4. Final effects and named setting gates of the one-time damage event. The 1500 C comparison, hot-time damage cadence, damage >1 event gate, creator and numeric arguments are recovered. The creator builds an event record; tracing only that allocation does not prove the final blast/fire geometry or all global damage thresholds.
+172-
+173-## Issue disposition
+174-
+175-#113 research gap resolved for the numerical control/reaction mechanism. Replace "Reaction kinetics not recovered." with: "Insertion is clamped to 0..1 and moves by at most 0.005/update at 60 Hz; larger insertion reduces coupled reaction amplification. The assembly applies multiplier 1-0.01*sum(insertion) around fuel baseline 0.1*fuel_fraction, with neighbour sums and 0.999/0.998 relaxation as documented in investigation/nuclear.md."
+176-
+177:#151 substantially decoded, retain the bounded open work. Replace the blanket limitation with: "Native nuclear types are 0 fuel assembly, 1 fuel rod and 2 control rod. Reaction kinetics, 0..1 insertion, fuel depletion, immersed coolant exchange, live radiation/sensor sampling and damage above 1500 C are recovered. Generic coupling matching tolerances, universal component order, persistent radiation decay and downstream damage-event effects remain unresolved."
+178-
+179-These dispositions concern research evidence. The issues' wiki/extractor/interactive-graph integration criteria were not performed in this write-restricted task.
+180-
+181-## Reproduction
+182-
+183-1. From the repository root, verify `sha256sum stormworks64.exe` against the hash above.
+184-2. Run `python3 investigation/native/nuclear/tools/locate.py` to reproduce RTTI, locator and vtable discovery. Its current retained result is `tools/locations.txt`.
+185-3. Run `python3 investigation/native/nuclear/tools/extract.py` to reproduce selected GNU objdump disassembly, raw label/constant bytes, jump-table entry, per-definition source hashes and `nuclear.json`. Only local file reads and static disassembly are used.
+186-4. Run `bash investigation/native/nuclear/tools/reproduce-ghidra.sh` for a fresh Ghidra import with analysis disabled and targeted decompilation. Ghidra 12.1.4 and JDK 21 were used. A fresh import completed 26 targeted decompilations with zero ERROR log entries; the update, post-pass and float-return radiation sampler matched the retained pseudocode byte for byte. Decompiler prototypes and stack arguments are reading aids; retained machine instructions take precedence. Some unwind-range boundaries split a larger function, so function membership is checked using instruction flow as well as `.pdata`.
+187-5. Run `python3 investigation/native/nuclear/tools/model.py > /tmp/nuclear-examples.json` for worked results and fixed-point convergence assertions. It needs Python's standard library only.
+188-6. Run `sha256sum -c investigation/native/nuclear/SHA256SUMS`. Paths in that manifest are relative to the repository root. Regeneration can change presentation of disassembly with another objdump version; compare address/instruction bytes when versions differ.
+189-
+190-## Retained files
+191-
+192-- `native/nuclear/nuclear.json`: per-definition figures, source hashes, literal label bytes, constant bytes and open items.
+193-- `native/nuclear/asm/`: update, post-pass, bindings, constructor, state serialization, type selector/loader, radiation sampler/depositor, sensor case and dispatch, spawn conversion, and damage-event instructions with addresses and bytes.
+194-- `native/nuclear/pseudocode/`: targeted Ghidra reading aids, including nuclear updates, binding, serialization, rod association, radiation, spawn handling and event creator.
+195-- `native/nuclear/tools/`: PE mapper, static discovery/extraction, Ghidra scripts and reproduction command, resource excerpts, issue snapshots, model, worked output, and discovery/xref logs.
+196-- `native/nuclear/SHA256SUMS`: target, shipped-resource and retained-artifact checksums. No executable is copied into the evidence directory.

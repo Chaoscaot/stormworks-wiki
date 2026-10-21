@@ -1,0 +1,15 @@
+4:FUN_14030dc30(longlong param_1,undefined8 *param_2,undefined8 param_3,undefined8 param_4)
+50:  *(undefined4 *)(puVar3 + 0x118) = 0x42200000;
+53:  uVar4 = *(uint *)(param_1 + 0x30);
+54:  uVar2 = *(uint *)(param_1 + 0x28);
+56:    FUN_1408de0b0(param_1 + 0x20);
+57:    uVar4 = *(uint *)(param_1 + 0x30);
+58:    uVar2 = *(uint *)(param_1 + 0x28);
+60:  *(uint *)(param_1 + 0x30) = uVar4 + 1;
+62:           (*(longlong *)(param_1 + 0x20) +
+63:           ((ulonglong)(*(int *)(param_1 + 0x2c) + -1 + uVar4 + 1) % (ulonglong)uVar2) * 8);
+66:  *param_2 = 0;
+67:  FUN_1408e6d40(param_2,*(longlong *)(param_1 + 0x20) +
+68:                        ((ulonglong)(uint)(*(int *)(param_1 + 0x2c) + *(int *)(param_1 + 0x30) + -1)
+69:                        % (ulonglong)*(uint *)(param_1 + 0x28)) * 8);
+70:  return param_2;

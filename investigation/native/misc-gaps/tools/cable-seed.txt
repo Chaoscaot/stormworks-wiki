@@ -1,0 +1,12 @@
+2-
+3-Target `stormworks64.exe`, SHA-256 `f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699`, verified locally. Static analysis only. Issues #140 and #63 and their comments were read first and retained. No game process ran. No wiki files or GitHub state were changed.
+4-
+5:Composite values contain 32 binary32 numbers and 32 Boolean bits, with public channels 1..32. The producer-to-input-cache copy, cable-anchor payload copy, and composite/video/audio microprocessor bridge copies are recovered. The editor dimension controls accept 1..6 on both axes. Maximum total port count, complete cable-chain and cross-vehicle tick latency, ultimate video resource ownership, and Lua scheduling remain open.
+6-
+7-Prior reports are inputs, not new results here: `logic.md` establishes graph gathering before evaluation; `numeric-codes.md` establishes port IDs 5/6/7; `displays.md` identifies monitor touch writers; `config.md` establishes the cached scalar getter; `connectors.md` establishes connector transport; `radio.md` identifies payload flags 8/16; `update-rate.md` establishes the normal component cadence. Their results do not establish a cable packet format or a universal cable delay.
+8-
+9-## Decoded payload
+10-
+11-The in-memory composite value occupies 0x84 bytes. Offset +0 is a 32-bit Boolean mask. Offset +4 contains 32 consecutive binary32 numbers, through +0x80. For public channel c in 1..32, the Boolean mask is `1 << (c-1)` and the number address is `payload+4*c`. This is an in-memory layout, not a recovered network packet format.
+12-
+13-Lua registration at `0x1402e5552..0x1402e557a` binds `getBool` to `0x1402e8d00` and `getNumber` to `0x1402e8e10`. Both convert the supplied channel to integer, subtract one, and require the resulting unsigned index to be below 0x20. The Boolean getter tests the corresponding bit. The numeric getter loads one float. Out-of-range inte

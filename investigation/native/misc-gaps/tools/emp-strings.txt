@@ -1,0 +1,69 @@
+0x140ae90b0 Attempts to spawn a tsunami epicentered at the target transform, only one tsunami/whirlpool can be active at a time; stronger events will override weaker ones. Magnitude ranges from 0-1.
+0x140ae9180 is_success = server.spawnWhirlpool(transform_matrix, magnitude)
+0x140ae91d0 Attempts to spawn a whirlpool near to the target transform, can fail based on ocean depth, only one tsunami/whirlpool can be active at a time; stronger events will override weaker ones. Magnitude ranges from 0-1.
+0x140ae92e0 Cancels the active ocean gerstner wave event (tsunami or whirlpool).
+0x140ae9338 is_success = server.spawnTornado(transform_matrix)
+0x140ae9380 Spawns a tornado at the target transform.
+0x140ae93c0 is_success = server.spawnMeteor(transform_matrix, magnitude, is_spawn_tsunami)
+0x140ae9420 Spawns a meteor to land at the target transform. Magnitude ranges from 0-1 and scales the main meteor up to 20x default size.
+0x140ae94b0 is_success = server.spawnMeteorShower(transform_matrix, magnitude, is_spawn_tsunami)
+0x140ae9520 Spawns a meteor to land at the target location, preceded by several smaller meteors. Magnitude ranges from 0-1 and scales the main meteor up to 20x default size, this magnitude also increases the number of secondary meteors spawned.
+0x140aeea68 whirlpool_factor
+0x140af5b68 tornado_base_pos
+0x140af5b88 graphics/shaders/tornado
+0x140af5bb8 tornado_base_radius
+0x140af5be8 tornado_top_pos
+0x140af5c48 tornado_active_factor
+0x140af96a8 Cancel Whirlpool
+0x140af96e0 Spawn Whirlpool
+0x140af9710 Cancel Tornado
+0x140af9748 Spawn Tornado
+0x140af9780 Spawn Meteor Shower
+0x140af97e0 Spawn Meteor
+0x140afc958 meshes/meteor_additive.mesh
+0x140afc988 meshes/meteor_1.mesh
+0x140afef40 whirlpool
+0x140afefb8 meteor
+0x140b058b0 despawn tornado
+0x140b058d8 spawn tornado
+0x140b0b078 spawn_tornado
+0x140b0b090 spawn_whirlpool
+0x140b0b0a0 spawn_meteor
+0x140b0b0c0 despawn_tornado
+0x140b0b0e0 spawn_emp
+0x140b0d018 s.Meteor
+0x140b0d598 meteor_impact
+0x140b4b790 audio/fx4/tornado.ogg
+0x140b4b810 audio/fx4/meteor_loop.ogg
+0x140b57300 tornados
+0x140b57320 tornado
+0x140b5b2f0 meteors
+0x140b946f0 spawnWhirlpool
+0x140b947d0 spawnMeteor
+0x140b947f0 spawnTornado
+0x140b94830 spawnMeteorShower
+0x140b96d40 onWhirlpool
+0x140b96e38 onTornado
+0x140b96e80 onMeteor
+0x140ba5160 Called when a tornado is spawned.
+0x140ba51f0 Called when a meteor is spawned.
+0x140ba5220 function onTornado(transform)
+0x140ba5278 function onMeteor(transform, magnitude)
+0x140ba53e8 Called when a whirlpool is spawned.
+0x140ba55d8 function onWhirlpool(transform, magnitude)
+0x140ba9bed 70 = meteorite,
+0x140ccd8e0 .?AUc_client_to_server_request_spawn_emp@@
+0x140ccd9e0 .?AUc_server_to_client_event_meteor_impact@@
+0x140ccf290 .?AUc_event_game_to_logic_spawn_meteor@@
+0x140cd1538 .?AUc_server_to_client_event_spawn_emp@@
+0x140cd6028 .?AUc_material_tornado@@
+0x140cd6eb0 .?AUc_client_to_server_request_spawn_meteor@@
+0x140cd7230 .?AUc_client_to_server_request_despawn_tornado@@
+0x140cd76c0 .?AUc_server_to_client_event_spawn_tornado@@
+0x140cd7750 .?AUc_client_to_server_request_spawn_whirlpool@@
+0x140cd9ad8 .?AUc_server_to_client_event_despawn_tornado@@
+0x140cdaad8 .?AUc_event_game_to_logic_spawn_emp@@
+0x140cdbbf0 .?AUc_client_to_server_request_spawn_tornado@@
+0x140cdc248 .?AUc_event_game_to_logic_spawn_whirlpool@@
+0x140cddcc8 .?AUc_event_game_to_logic_spawn_tornado@@
+0x140ce13d8 .?AUc_server_to_client_event_spawn_meteor@@

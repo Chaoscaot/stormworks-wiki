@@ -4751,7 +4751,7 @@
       "title": "Jet startup, turbines and afterburners",
       "category": "Engines",
       "summary": "Jet component descriptions separate electrical startup, combustion and exhaust controls.",
-      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. A later decode (investigation/leftovers.md) found no jet-fuel debit in the afterburner: its Fuel port exchange fills the buffer or returns fuel, and its purge of other liquids skips jet fuel, so with the buffer level steady the afterburner draws 0 L/s. The tooltip's increased fuel consumption has no counterpart in that code; more stored fuel raises thrust, not burn.",
+      "body": "The compressor requires electrical power to begin compression. The combustion chamber takes jet fuel and throttle from 0 to 1, and its tooltip says combustion begins when internal pressure is high enough without giving a threshold. Turbines convert air pressure to RPS. The medium turbine documents a torque connection for motor startup or driving props and generators. The afterburner adds thrust at increased fuel consumption. Its thrust spoiler input runs from 0 for no reduction to 1 for total reduction. The separate Turbine Engine part (turbine.xml) is not a jet part: a native decode (investigation/classic-engines.md) found it runs the classic diesel engine update, so its engine_max_force of 100000 says nothing about jet turbines. A native decode of the modular jet update (investigation/jet-engines.md, shown on the Jet engines parts pages) found that combustion needs internal RPS strictly above 0.5, not a pressure threshold. The effective throttle u is clamped to 0 to 1 and limited by the jet fuel in the chamber, which burns 0.12 × u × RPS L/s. The compressor, enabled and powered, requests 0.1 charge per update, transfers 0.2 × (100 × r0 - (p_out - p_in)) of pressure state and loses 0.0001 times that transfer in RPS after its starter input and 0.99 retention. Combustion adds 1600 × u × RPS pressure and 0.1 × u × RPS internal temperature per update. Turbines halve the incoming pressure, gain 0.0000375 × pressure RPS when undamaged and charge their Electric connection. The power connection of the medium turbine submits its RPS with shaft weight 160. Exhaust force is 32 × (incoming pressure - 1000), scaled by altitude, the thrust spoiler and an afterburner multiplier of 1 + 500 × the jet fuel stored in the exhaust, and capped at 100 × S, S being the summed adjusted mass of the bodies joined by joints (investigation/force-cap.md). RPS reaches the exhaust only through the pressure the chamber adds. A later decode (investigation/leftovers.md) found no jet-fuel debit in the afterburner: its Fuel port exchange fills the buffer or returns fuel, and its purge of other liquids skips jet fuel, so with the buffer level steady the afterburner draws 0 L/s. The tooltip's increased fuel consumption has no counterpart in that code; more stored fuel raises thrust, not burn. A later decode (investigation/misc-gaps.md) found how the parts connect: a port at grid cell p facing n joins only a part with a port at exactly p + n facing back, and the search passes through ducts and every splitter branch, skipping ducts it has already visited, to the next active jet parts. An intake that the shared grid lookup pairs with no other part sets its outgoing pressure to 0.1 × its signed forward speed × clamp(1 - 1.5 × height ÷ 40000, 0, 1), and the large intake also pushes along its axis with 2600 × (RPS - 5) × that altitude factor above 5 RPS.",
       "findings": [
         {
           "label": "Jet Compressor: Compressor",
@@ -5211,12 +5211,64 @@
           },
           "status": "observed",
           "evidenceType": "native-static"
+        },
+        {
+          "label": "Jet port cell match",
+          "value": "exact integer cell",
+          "detail": "The port follower 0x1404b2670 needs a candidate port at exactly port position + direction (x here, y at 0x1404b28f6, z at 0x1404b2903) facing the opposite way; there is no distance tolerance. Bytes 3b 44 24 50 at 0x1404b28e5. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b28e5",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b28e5"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Jet duct pass-through",
+          "value": "jet_engine_component_type 5",
+          "detail": "A matched duct goes into a visited set and the search continues from its other ports (recursive call at 0x1404b2ce4), so every splitter branch is followed and duct loops end. Bytes 41 83 b8 d4 0e 00 00 05 at 0x1404b299a. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b299a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b299a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Intake pressure factor",
+          "value": 0.1,
+          "detail": "An intake with no partner at component+0x4e0 (test at 0x140353971) overwrites its outgoing pressure with 0.1 × signed forward speed × A (store at 0x140353d5e), A = clamp(1 - 1.5 × h ÷ 40000, 0, 1) from the constants 1.5 and 40000 at 0x140bb01e8 and 0x140bb0580. Bytes f3 44 0f 10 0d 90 bd 85 00 at 0x140353d37, literal cd cc cc 3d at 0x140bafad0, literal 00 00 00 00 00 00 f8 3f at 0x140bb01e8, literal 00 00 00 00 00 88 e3 40 at 0x140bb0580. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140353d37",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353d37"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Large intake axial force",
+          "value": "2600 × (RPS - 5) × A",
+          "detail": "Only an intake whose force_emitter_blade_physics_length exceeds 0.75 (compare at 0x140353db1) builds this force above 5 RPS. Bytes f3 0f 10 05 90 ca 85 00 at 0x140353de8, literal 00 80 22 45 at 0x140bb0880, literal 00 00 40 3f at 0x140bafdb0, literal 00 00 a0 40 at 0x140bb04e0. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140353de8",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140353de8"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced, because how ducts and branches connect the parts was not reconstructed. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m."
+        "The ignition, fuel, compressor, combustion, turbine and exhaust equations come from that native decode. Physical units of jet pressure and temperature were not established, and SI torque, power and efficiency were not recovered. The equilibrium and startup time of an assembled engine were not traced: the duct and splitter search is decoded, but how merged and attached assemblies supply the body map it searches was not. The intake's pairing partner and the sources behind its source sample were not traced either. The medium turbine port described as torque carries RPS with solver weight 160, not a torque in N m."
       ]
     },
     {
@@ -5835,7 +5887,7 @@
       "title": "Nuclear fuel assemblies and control rods",
       "category": "Engines",
       "summary": "Fuel assemblies add the reactions of up to four coupled fuel assemblies, control rods scale the excess over 0.1 × fuel by 1 − 0.01 × insertion, and fuel rods heat by 0.1 × r per update and take damage above 1500.",
-      "body": "A fuel rod can be inserted into a fuel assembly to begin fission. The assembly tooltip says fuel rods consume uranium ingots from workbench inventory to fuel. A control rod decreases the reaction rate of adjacent rods. The assembly labels Release Fuel Rod and Fuel Rod Temperature, while the control rod labels Insertion Target and Insertion; their port descriptions are empty. A native decode (investigation/nuclear.md, shown on the Nuclear parts pages) names the three nuclear_component_type values from the editor selector: 0 fuel assembly, 1 fuel rod and 2 control rod. Each update an assembly with a rod computes A = b + 0.999 × (R − b), B = S + 0.998 × (A − S) and b + (1 − 0.01 × C) × (B − b), with b = 0.1 × fuel fraction, R the rod's reaction, S the summed reaction of coupled fuel assemblies and C the summed insertion of coupled control rods; the rod then clamps its reaction r to 0 to 50. Adjacency is the four control_rod couplings x+, x-, z+ and z-, not a radius, so an assembly sees at most four neighbours, fuel or control. Insertion follows Insertion Target clamped to 0 to 1 by at most 0.005 per update, 200 updates or 3.333 s for a full stroke; larger insertion lowers the reaction but never below the 0.1 × fuel baseline. A rod uses 1e-8 × r of its fuel per update, so a full rod lasts 33333 s, 9.259 simulated hours, at r = 50. It heats by 0.1 × r per update, exchanges heat with immersed coolant at k = 0.001 × (q ÷ A) × w, the rod counting as 100 liquid amount and its own step capped at 0.5, and moves 0.001 of the way to its surroundings. A rod above r = 0.001 is a live radiation source of strength s = 0.1 × r with linear falloff over 10 × s metres, cut by 200 m across compartments, and assemblies add 0.001 × reaction ÷ A to their coolant's contamination, which a radiation detector inside reads. Strictly above 1500 a rod takes damage at once and then every 300 hot updates, up to 50; the update has no separate meltdown or explosion temperature.",
+      "body": "A fuel rod can be inserted into a fuel assembly to begin fission. The assembly tooltip says fuel rods consume uranium ingots from workbench inventory to fuel. A control rod decreases the reaction rate of adjacent rods. The assembly labels Release Fuel Rod and Fuel Rod Temperature, while the control rod labels Insertion Target and Insertion; their port descriptions are empty. A native decode (investigation/nuclear.md, shown on the Nuclear parts pages) names the three nuclear_component_type values from the editor selector: 0 fuel assembly, 1 fuel rod and 2 control rod. Each update an assembly with a rod computes A = b + 0.999 × (R − b), B = S + 0.998 × (A − S) and b + (1 − 0.01 × C) × (B − b), with b = 0.1 × fuel fraction, R the rod's reaction, S the summed reaction of coupled fuel assemblies and C the summed insertion of coupled control rods; the rod then clamps its reaction r to 0 to 50. Adjacency is the four control_rod couplings x+, x-, z+ and z-, not a radius, so an assembly sees at most four neighbours, fuel or control. A later decode (investigation/misc-gaps.md) found that two couplings link only when each sits at the other's grid cell plus its outward direction, one cell apart and facing each other, with alignment vectors equal or exactly opposite; there is no distance or angle tolerance. Insertion follows Insertion Target clamped to 0 to 1 by at most 0.005 per update, 200 updates or 3.333 s for a full stroke; larger insertion lowers the reaction but never below the 0.1 × fuel baseline. A rod uses 1e-8 × r of its fuel per update, so a full rod lasts 33333 s, 9.259 simulated hours, at r = 50. It heats by 0.1 × r per update, exchanges heat with immersed coolant at k = 0.001 × (q ÷ A) × w, the rod counting as 100 liquid amount and its own step capped at 0.5, and moves 0.001 of the way to its surroundings. A rod above r = 0.001 is a live radiation source of strength s = 0.1 × r with linear falloff over 10 × s metres, cut by 200 m across compartments, and assemblies add 0.001 × reaction ÷ A to their coolant's contamination, which a radiation detector inside reads. Strictly above 1500 a rod takes damage at once and then every 300 hot updates, up to 50; the update has no separate meltdown or explosion temperature.",
       "findings": [
         {
           "label": "Nuclear Fuel Rod",
@@ -6169,12 +6221,65 @@
           },
           "status": "observed",
           "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Coupling cell match",
+          "value": "pB = pA + nA",
+          "detail": "The shared coupling matcher 0x1404b3270 requires the other coupling's transformed integer position to equal this one's plus its outward direction (y at 0x1404b3933, z at 0x1404b393c). Bytes 3b 43 08 at 0x1404b392a. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b392a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b392a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Coupling reciprocal match",
+          "value": "pA = pB + nB",
+          "detail": "The reverse condition must hold too (0x1404b394f, 0x1404b3955), so matched couplings sit one grid step apart and face each other; no distance or angle tolerance is applied. Bytes 39 44 24 58 at 0x1404b3945. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b3945",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b3945"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Coupling bipolar test",
+          "value": "descriptor+0x5d",
+          "detail": "With alignment required (+0x5c) the transformed alignment vectors must be equal; with allow_bipolar_alignment (+0x5d, bound at 0x1402f7ed7) they may also be exact opposites. Bytes 80 7f 5d 00 at 0x1404b38f1, literal 4c 8d 05 f2 1a 86 00 at 0x1402f7ed7. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b38f1",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b38f1"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Nuclear Control Rod: coupling alignment",
+          "value": "alignment_required, allow_bipolar_alignment",
+          "detail": "Each control_rod coupling sets alignment_required and allow_bipolar_alignment to true.",
+          "evidenceId": "resource:rom/data/definitions/steam_nuclear_control_rod.xml:b5c8d2e5068d:L152-L152",
+          "source": {
+            "path": "rom/data/definitions/steam_nuclear_control_rod.xml",
+            "sha256": "b5c8d2e5068dfa61d41f4298a5006d6a330744a963f30189733d801edd6584ff",
+            "lineStart": 152,
+            "lineEnd": 152
+          },
+          "status": "observed",
+          "evidenceType": "component-configuration"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: the positional and angular tolerance of the shared coupling matcher, and with it the exact physical adjacency range; whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments. Temperatures, reaction and detector readings are internal game values."
+        "The reaction, coupling, heat, radiation and damage figures come from that native decode, not from these definitions alone. Still not decoded: whether assemblies and fuel rods update in the same order on every vehicle and loaded save; how compartment contamination and persistent contamination records decay or are removed, beyond the records being saved and restored with their spatial index; which records the contamination index returns, the fixed-world background source and its global switches, and a physical dose unit such as Sv/h for the detector reading; what the one-time fuel rod damage event does downstream, including any fire or blast and its 200 and 40000 arguments. Temperatures, reaction and detector readings are internal game values."
       ]
     },
     {
@@ -6991,12 +7096,25 @@
           },
           "status": "observed",
           "evidenceType": "component-interface-description"
+        },
+        {
+          "label": "Recoil multiplier initial value",
+          "value": 1,
+          "detail": "The gun constructor 0x140423a90 stores binary32 1 at component+0x380, the multiplier both firing reads (0x140427f21, 0x140429092) use. A search of direct accesses finds no store that applies a muzzle brake. Bytes 48 c7 87 80 03 00 00 00 00 80 3f at 0x140423cf1. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140423cf1",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140423cf1"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The velocity, flight, spread, impact, loading and fuse figures come from that native decode, not from these definitions alone. Still not decoded: a throughput model for arbitrary belt networks, the fastest firing schedule for cannons whose breech is opened and loaded by external control, and the final voxel damage, armour incidence and blast occlusion applied to a target. The firing rates above are state-machine inferences, not measurements."
+        "The velocity, flight, spread, impact, loading and fuse figures come from that native decode, not from these definitions alone. Still not decoded: a throughput model for arbitrary belt networks, the fastest firing schedule for cannons whose breech is opened and loaded by external control, and what follows the decoded impact magnitude and armour-piercing speed loss: the target voxel damage, the armour-angle response and blast shielding. The recoil multiplier starts at 1 and no write that applies a muzzle brake was found, so the reduction its tooltip promises is not established. The firing rates above are state-machine inferences, not measurements."
       ]
     },
     {
@@ -7004,7 +7122,7 @@
       "title": "Composite data over electrical cables",
       "category": "Control",
       "summary": "A composite value is 32 on/off channels and 32 binary32 numbers, numbered 1 to 32, in 132 bytes. Wires, microprocessor bridges and Electrical Cable Anchors copy it whole, and anchors also pass a video descriptor and a private copy of the audio samples.",
-      "body": "The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports are composite, on/off, video and audio send and receive pairs. A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph.\n\nA native decode (investigation/composite.md, shown on the Electrical Cable Anchor, Microprocessor and Logic pages) recovered the value and every copy of it. The value starts with a 32-bit on/off mask, channel c at bit c - 1, followed by 32 numbers, channel c at byte 4 × c, so channel 32 starts at byte 128. Lua getBool and getNumber return false and 0 outside 1 to 32. This is the in-memory value, not a network or save format.\n\nTable: Composite value\n| Part | Where | Channel c |\n| --- | --- | --- |\n| On/off mask | 32-bit word at byte 0 | bit c - 1 |\n| Numbers | 32 binary32 values from byte 4 | byte 4 × c |\n\nWires: the dispatcher first runs every component update, then goes through the vehicles one at a time. For each vehicle it runs the transport pass, which holds the cable copy, and then flushes that vehicle's outputs: each output pushes its value into the cache of every input wired to it. Inference: on an ordinary wire a consumer reads a new value one update after the producer wrote it.\n\nCables: an anchor reads its linked peer and, while both states are below 5, copies its Composite Input value, all 132 bytes, to the peer's Composite Output, its on/off input to the peer's On/Off Output, its video descriptor to the peer's Video Data Receive and its audio samples to the peer's Audio Data Receive. Video is copied by value with no allocation; audio goes into a buffer the receiving anchor owns. Electric Cable Pulleys (subtype 9) route the same copies through their own buffers. Because cable copies and output flushes interleave vehicle by vehicle, a write to an anchor on another vehicle can land before or after that vehicle's flush, so the number of updates a cable adds depends on vehicle order.\n\nMicrocontrollers: composite bridges copy the whole value, video bridges the descriptor and audio bridges the samples. The editor limits width and length to 1 to 6, and upload rejects anything above 6.",
+      "body": "The electrical cable anchor tooltip permits one rope logic link between two anchors, carrying data and electricity. Its ports are composite, on/off, video and audio send and receive pairs. A native check (investigation/config.md) of the scalar input getter 0x1408cacf0 found that it copies a cached value and returns, so reading an input does not evaluate the upstream graph.\n\nA native decode (investigation/composite.md, shown on the Electrical Cable Anchor, Microprocessor and Logic pages) recovered the value and every copy of it. The value starts with a 32-bit on/off mask, channel c at bit c - 1, followed by 32 numbers, channel c at byte 4 × c, so channel 32 starts at byte 128. Lua getBool and getNumber return false and 0 outside 1 to 32. This is the in-memory value, not a network or save format.\n\nTable: Composite value\n| Part | Where | Channel c |\n| --- | --- | --- |\n| On/off mask | 32-bit word at byte 0 | bit c - 1 |\n| Numbers | 32 binary32 values from byte 4 | byte 4 × c |\n\nWires: the dispatcher first runs every component update, then goes through the vehicles one at a time. For each vehicle it runs the transport pass, which holds the cable copy, and then flushes that vehicle's outputs: each output pushes its value into the cache of every input wired to it. Inference: on an ordinary wire a consumer reads a new value one update after the producer wrote it.\n\nCables: an anchor reads its linked peer and, while both states are below 5, copies its Composite Input value, all 132 bytes, to the peer's Composite Output, its on/off input to the peer's On/Off Output, its video descriptor to the peer's Video Data Receive and its audio samples to the peer's Audio Data Receive. Video is copied by value with no allocation; audio goes into a buffer the receiving anchor owns. Electric Cable Pulleys (subtype 9) route the same copies through their own buffers. A later decode (investigation/misc-gaps.md) found how the links are set up: each end stores its peer per side, a connection named Rope 2 in the second link slot (+0xaa0) and any other in the first (+0xa98), so the two ends of one link can use different slots. A pulley hands what one side receives straight to the peer on its other side in the same pass. A value crosses several pulleys in one pass when they are processed in route order, and each hop whose next pulley is processed earlier adds a pass: passes = 1 + the number of such reversals. Because cable copies and output flushes interleave vehicle by vehicle, a write to an anchor on another vehicle can land before or after that vehicle's flush, so the number of updates a cable adds depends on vehicle order.\n\nMicrocontrollers: composite bridges copy the whole value, video bridges the descriptor and audio bridges the samples. The editor limits width and length to 1 to 6, and upload rejects anything above 6.",
       "findings": [
         {
           "label": "Electrical Cable Anchor: Composite Input",
@@ -7172,6 +7290,45 @@
           },
           "status": "observed",
           "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Cable link second slot",
+          "value": "+0xaa0 for Rope 2",
+          "detail": "The link builder 0x140521500 compares the connection name with Rope 2 (literal at 0x140b87094) and stores the peer here; other names use +0xa98 (0x140521d1c). The other end chooses its own slot. Bytes 48 89 be a0 0a 00 00 at 0x140521c3b, literal 52 6f 70 65 20 32 00 at 0x140b87094. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521c3b",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521c3b"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Pulley side selection",
+          "value": "which peer slot points back",
+          "detail": "The cable pass picks a pulley's receiving side by testing which of the peer's link slots points back to the sender. Bytes 48 39 99 a0 0a 00 00 at 0x1403b6919. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6919",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6919"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Pulley composite forwarding",
+          "value": "side buffer to the opposite peer, same pass",
+          "detail": "The pulley copies the value received in one side buffer (+0x1180 or +0x1204) to the peer on its other side with no countdown; a route crosses 1 + the number of reversals in processing order passes. Bytes 8b 83 04 12 00 00 at 0x1403b69aa. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b69aa",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b69aa"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         },
         {
           "label": "Composite number read",
@@ -7346,7 +7503,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "Native findings are static readings of this executable build. No game process was executed, and no latency was measured.",
-        "Still not recovered: how many updates a value needs through cable anchors, pulleys and between vehicles, which needs the setup of the two anchor link pointers (+0xa98, +0xaa0), the full pulley traversal, the vehicle order and the inactive, sleeping and reduced-rate paths traced; who owns and frees the resources behind a video descriptor; when Lua onTick and onDraw run and what budget they have; and any network or save format for composite data. The microcontroller port limit is listed on the Microprocessor part page."
+        "Still not recovered: how many updates a value needs through a particular cable route and between vehicles, which depends on the processing order of that vehicle's anchors and pulleys, the vehicle order and the inactive, sleeping and reduced-rate paths; who owns and frees the resources behind a video descriptor; when Lua onTick and onDraw run and what budget they have; and any network or save format for composite data. The microcontroller port limit is listed on the Microprocessor part page."
       ]
     },
     {
@@ -7551,12 +7708,51 @@
           },
           "status": "observed",
           "evidenceType": "component-interface-description"
+        },
+        {
+          "label": "Rope removal request",
+          "value": "call 0x14052c290",
+          "detail": "The removal routine 0x1405288d0 finds the requested rope, calls the removal helper (also at 0x14052899c), frees the rope's data and removes its entry. Bytes e8 17 39 00 00 at 0x140528974. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140528974",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140528974"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Rope deleted flag",
+          "value": "rope+0xc4 = 1",
+          "detail": "The removal helper 0x14052c290 marks the rope deleted and clears its endpoint state. Bytes 41 c6 81 c4 00 00 00 01 at 0x14052c2b9. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14052c2b9",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14052c2b9"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Rope removal from the cable update",
+          "value": "call 0x1405288d0",
+          "detail": "The cable-system update 0x140524c80 calls the removal on a branch driven by endpoint and control state, including the endpoint byte +0x1288, not by a measured link force. Bytes e8 17 28 00 00 at 0x1405260b4. Report: investigation/misc-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405260b4",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405260b4"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The reel rates, length limits, charge requests, simultaneous controls and hose exchange come from that native decode. Rates are changes of the rope's rest length; travel of a loaded hook was not measured. Still not recovered: a force-equivalent rope stiffness, a maximum tension or impulse, and a force or strain at which a rope snaps. The rope is a Bullet soft-body chain whose material coefficients are 1 without a conversion to N/m, and rope-node ropes get an uncapped corrective impulse min(K_A, K_B) × (D - L) when stretched beyond their length; neither reel routine compares a force with a break threshold."
+        "The reel rates, length limits, charge requests, simultaneous controls and hose exchange come from that native decode. Rates are changes of the rope's rest length; travel of a loaded hook was not measured. Still not recovered: a force-equivalent rope stiffness. The rope is a Bullet soft-body chain whose material coefficients are 1 without a conversion to N/m. The decoded reel and rope paths have no maximum tension, maximum solver impulse or tensile snapping threshold: rope-node ropes get an uncapped corrective impulse min(K_A, K_B) × (D - L) when stretched beyond their length, neither reel routine compares a force with a break threshold, and the explicit rope removal is called from requests, endpoint cleanup and endpoint control state, not from a force or strain test. Whether the Bullet link solver or collision and damage code caps the load or severs a rope was not traced."
       ]
     },
     {
@@ -16231,7 +16427,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 571,
+    "findingCount": 586,
     "sourceCount": 84,
     "categories": [
       "Control",
