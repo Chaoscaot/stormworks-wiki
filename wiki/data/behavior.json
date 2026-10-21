@@ -1689,7 +1689,7 @@
         }
       ],
       "limitations": [
-        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. The spawns that run the diesel and jet-fuel tank fill, the order of saved-content restore, rebuild and reset, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
+        "Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. Custom-compartment volume from wall geometry and hull flooding were not decoded. Which editor, mission, career or creative and save-loading workflows enable the diesel and jet-fuel fill or keep restored contents, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -22625,11 +22625,11 @@
         },
         {
           "title": "Diesel and jet fuel at spawn",
-          "body": "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. This operation adds to the existing contents and does not clear them."
+          "body": "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. This operation adds to the existing contents and does not clear them.\n\nThe fill runs only when the spawn request's fuel-fill byte is set. Request construction clears it and then copies the caller's argument, and the shared spawn job passes a byte from another object, so a fresh spawn does not always fill. One identified path sets it: the Lua call resetVehicleState marks the vehicle's pending request and enables the fuel fill. The stock-capped branch also needs request mode 1, a second request flag, an inventory record and a cleared settings byte. The limitations below cover which workflows and options set them."
         },
         {
           "title": "Saved contents and reset",
-          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call."
+          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again."
         }
       ],
       "findings": [
@@ -23201,6 +23201,90 @@
           }
         },
         {
+          "label": "Tank runtime serialization mask",
+          "value": "mask bit 4",
+          "detail": "The water serializer tests the runtime bit before it serializes spawner_pending and the contained volumes, so restoring runtime state restores the species, totals and fill-pending flag together. Report: investigation/fluid-gaps.md. Function 0x1403f649a-0x1403f69d5; instruction bytes f6451004 at 0x1403f65ad. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/tank-serializer.asm:L310; ../fluid-gaps/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x1403f65ad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f65ad"
+          }
+        },
+        {
+          "label": "Spawn request defaults",
+          "value": "fuel-fill byte +0x45 = 0",
+          "detail": "Request construction initializes the adjacent bytes with the fuel-fill gate +0x45 clear. Report: investigation/fluid-gaps.md. Function 0x1405470d0-0x14054734c; instruction bytes 66c740440100 at 0x14054712f. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/request-construction.asm:L35; ../fluid-gaps/pseudocode/1405470d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405470d0@0x14054712f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14054712f"
+          }
+        },
+        {
+          "label": "Spawn request fuel-fill argument",
+          "value": "+0x45 = argument",
+          "detail": "Then stores the caller's argument in +0x45, the byte the resource fill tests. Report: investigation/fluid-gaps.md. Function 0x1405470d0-0x14054734c; instruction bytes 884745 at 0x14054727f. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/request-construction.asm:L109; ../fluid-gaps/pseudocode/1405470d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405470d0@0x14054727f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14054727f"
+          }
+        },
+        {
+          "label": "Spawn job fuel-fill flag",
+          "value": "source byte +0xd4",
+          "detail": "The shared spawn job reads another object's byte +0xd4 and passes it (0x1405d762a) to request construction (call at 0x1405d7676), so the gate is not always set on a fresh spawn. Report: investigation/fluid-gaps.md. Function 0x1405d67b0-0x1405d91b4; instruction bytes 410fb68424d4000000 at 0x1405d7621. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/spawn-request-call1.asm:L35-L36. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405d67b0@0x1405d7621",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405d7621"
+          }
+        },
+        {
+          "label": "resetVehicleState binding",
+          "value": "resetVehicleState",
+          "detail": "The Lua registry pairs this name with the wrapper 0x1405a1680 (lea at 0x140599cda). The wrapper calls slot +0xb0 of c_script_operators, which holds 0x140727580 (at 0x140b11ad8; the extractor re-reads it). Report: investigation/fluid-gaps.md. Function 0x140599990-0x14059b276; it references the string 'resetVehicleState' at 0x140b91890. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/reset-api-binding.asm:L8. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140599990@0x140b91890",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b91890"
+          }
+        },
+        {
+          "label": "resetVehicleState enables the fuel fill",
+          "value": "+0x45 = 1",
+          "detail": "The reset routine marks the vehicle's pending request and sets its fuel-fill gate; the other request path sets it at 0x140727eff. Report: investigation/fluid-gaps.md. Function 0x140727580-0x140727f3d; instruction bytes c6404501 at 0x140727ed2. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/reset-fuel-request.asm:L19; ../fluid-gaps/pseudocode/140727580.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140727580@0x140727ed2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140727ed2"
+          }
+        },
+        {
+          "label": "Stock-limited fill request tests",
+          "value": "request mode 1 and +0x47",
+          "detail": "Besides the gate +0x45, the stock-limited branch needs request mode 1, the request byte +0x47 (0x1405dbd89), a cleared settings byte +8, a non-null inventory record and the inventory-origin condition. Report: investigation/fluid-gaps.md. Function 0x1405dafa0-0x1405df408; instruction bytes 837e3001 at 0x1405dbd83. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/fuel-fill-gate.asm:L38; ../fluid-gaps/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dbd83",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dbd83"
+          }
+        },
+        {
           "label": "Liquid tank start pressure",
           "value": "about 60.4, 60.9 and 63.5 atm (small, medium, large)",
           "detail": "Inference from the fill branch and the pressure law, before any exchange: a fresh tank with a liquid other than diesel or jet fuel selected and fill 1 holds 0.99 × V of it plus V ÷ 60 of air, so L = 0.99 × V and G = V ÷ 60. Small (V 3.125): 60 × 1.0067 = 60.40 atm. Medium (V 18.75) and large (V 70.3125): the air fills the last 1 % of room, giving 60.94 and 63.52 atm. A liquid tank set to a gas instead receives 0.99 × fill × V ÷ 60 of it, 0.99 atm at fill 1. Report: investigation/fluids-network.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79e0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79d0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79f6, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b7a52, derived:d59de08c3571, derived:a9832b465a8c, derived:7d5295c1ec2b, derived:c4f70b880444.",
@@ -23368,7 +23452,7 @@
         }
       ],
       "limitations": [
-        "Which spawns run the diesel and jet-fuel fill was not traced: request byte +0x45 and the inventory branch are not yet mapped to editor placement, career or creative settings, missions or save loading. The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a tank's contents and which refill it is unknown.",
+        "Diesel and jet fuel use a separate request-gated fill, and resetVehicleState is one identified path that enables it; which editor, mission, career or creative and save-loading workflows enable it is not yet mapped. The pending fill follows network reconstruction, while the fuel fill has its own request gate; the reset and restore choices each loading and editor workflow makes are not yet mapped.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -23510,6 +23594,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f65ad"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b76a2"
         },
         {
@@ -23545,7 +23634,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14054712f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14054727f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405498d6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405d7621"
         },
         {
           "path": "stormworks64.exe",
@@ -23561,6 +23665,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1405dbcf7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dbd83"
         },
         {
           "path": "stormworks64.exe",
@@ -23605,6 +23714,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140727ed2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407435bb"
         },
         {
@@ -23641,6 +23755,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b6d9c0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b91890"
         },
         {
           "path": "stormworks64.exe",
@@ -24264,7 +24383,7 @@
         },
         {
           "title": "Saved contents and reset",
-          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call."
+          "body": "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.\n\nA separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again."
         },
         {
           "title": "Pressure limits",
@@ -24745,6 +24864,18 @@
           }
         },
         {
+          "label": "Tank runtime serialization mask",
+          "value": "mask bit 4",
+          "detail": "The water serializer tests the runtime bit before it serializes spawner_pending and the contained volumes, so restoring runtime state restores the species, totals and fill-pending flag together. Report: investigation/fluid-gaps.md. Function 0x1403f649a-0x1403f69d5; instruction bytes f6451004 at 0x1403f65ad. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/tank-serializer.asm:L310; ../fluid-gaps/pseudocode/1403f6150.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403f649a@0x1403f65ad",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403f65ad"
+          }
+        },
+        {
           "label": "Gas tank start pressure",
           "value": "59.4 atm at fill 1",
           "detail": "Inference from the fill branch and the pressure law, before any exchange: a fresh gas tank receives q = 0.99 × fill × V of the selected gas and no ambient air, so P = 60 × 0.99 × fill = 59.4 × fill atm for every size. Tank Content then reads 10 × 0.99 × V, 0.99 of the geometric litres; the species list shows 600 × amount. Report: investigation/fluids-network.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79e0, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b79f6, native:stormworks64.exe:f9206d85c82f:0x1404b7664@0x1404b7a52, derived:d59de08c3571, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f3863, native:stormworks64.exe:f9206d85c82f:0x1403f9e40@0x1403f9fa7.",
@@ -24988,8 +25119,8 @@
         }
       ],
       "limitations": [
-        "The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a gas tank's contents and which refill it is unknown.",
-        "No maximum safe pressure or pressure-triggered damage was recovered. The generic max pressure and high_pressure strings and the common vehicle damage paths were not traced to tanks.",
+        "Gas-tank contents and the fill-pending flag are saved, a reset clears the contents and sets fill pending, and the pending fill follows network reconstruction; which loading and editor workflows run each of these is not yet mapped.",
+        "No maximum safe pressure or pressure-triggered gas-tank damage threshold was found. A generic damage path or inlined pressure logic elsewhere in the executable was not traced, so this static investigation has not established that none exists.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -25156,6 +25287,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f387e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403f65ad"
         },
         {
           "path": "stormworks64.exe",
@@ -102023,11 +102159,23 @@
     },
     {
       "id": "part-oil-rig-pumpjack",
-      "summary": "Pumps fluid from a drilled oil well out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B.",
+      "summary": "Pumps crude from a finite well buffer out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B: the piston sets a chamber of volume 10 × its travel fraction, and a pump_pressure bias of 10000 pushes the excess out.",
       "sections": [
         {
           "title": "Piston",
           "body": "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port."
+        },
+        {
+          "title": "Pump chamber",
+          "body": "Each update the pumpjack reads the piston's displacement x, its travel range r and the sign s of its mirrored axis, and forms the travel fraction u = clamp((s × x + r ÷ 2) ÷ r, 0, 1). It sets the chamber's volume to V = 10 × u, 100 L at full travel. With A the amount already in the chamber, the exchange factor is h = clamp(A − V, 0, 1): fluid leaves only while the chamber holds more than its volume, as when the piston compresses a filled chamber. This step changes the chamber's size and adds no crude."
+        },
+        {
+          "title": "Outflow",
+          "body": "The pumpjack calls the port solver between Fluid Out and the chamber with bias pump_pressure, 10000, factor h and all species, allowing only flow from the chamber to the port. The solver's signed difference is d = P_port − P_chamber − 10000, so the bias pushes crude out against outlet pressure. It is a pressure bias in the transfer, not a rupture pressure or an outlet ceiling. The delivered amount still depends on the solver, the pressures on both sides and h."
+        },
+        {
+          "title": "Well supply",
+          "body": "A separate branch tops the piston up from the well buffer: q = min(10 × u − A, buffer crude). A positive q moves that crude from the buffer into the piston, so the pumpjack draws a finite supply rather than creating oil. The buffer refills from an oil deposit by q = min(free buffer room × 0.05, deposit remaining), and the deposit loses what it gives. The deposit used is the non-empty one with the most remaining crude whose region contains the sampling point."
         }
       ],
       "findings": [
@@ -102081,6 +102229,186 @@
           }
         },
         {
+          "label": "Pumpjack piston travel range",
+          "value": "definition+0x38c",
+          "detail": "The pump branch reads the piston's travel range r from its definition, along with the piston displacement x and the sign s of its mirrored axis. Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f3410f10908c030000 at 0x140357ac4. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L25; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357ac4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357ac4"
+          }
+        },
+        {
+          "label": "Pumpjack half-range term",
+          "value": "0.5",
+          "detail": "Forms r × 0.5 for both half-range terms (the second at 0x140357aef). The branch divides s × x + r ÷ 2 by r and clamps the result to 0 … 1: u = clamp((s × x + r ÷ 2) ÷ r, 0, 1). Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f590dcd818500 at 0x140357ae7 address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L31; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357ae7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357ae7"
+          }
+        },
+        {
+          "label": "Pumpjack chamber volume scale",
+          "value": "10",
+          "detail": "Multiplies u by this: the chamber volume is V = 10 × u, at most 10 units (100 L) at full travel. It is a chamber volume, not a delivered amount per stroke. Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f591d1d8b8500 at 0x140357b27 address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L47; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357b27",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357b27"
+          }
+        },
+        {
+          "label": "Pumpjack exchange factor",
+          "value": "h = clamp(A − V, 0, 1)",
+          "detail": "Reads the chamber's amount A (+0x478, 0x140357b2f) and subtracts V. The difference, clamped to 0 … 1, is the solver factor h, so fluid leaves only once the chamber holds more than its new volume. Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f5cd3 at 0x140357b37. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L49; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357b37",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357b37"
+          }
+        },
+        {
+          "label": "Pumpjack chamber volume store",
+          "value": "V",
+          "detail": "Stores V as the chamber's volume. The branch changes the chamber's size; it adds no crude. Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f119940040000 at 0x140357b3b. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L50; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357b3b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357b3b"
+          }
+        },
+        {
+          "label": "Pumpjack pressure bias read",
+          "value": "pump_pressure (definition+0xec8)",
+          "detail": "Loads the definition's pump_pressure, 10000 in oil_rig_pumpjack.xml, as the solver bias. The value comes from the definition, not from an immediate in this branch. Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f3410f1090c80e0000 at 0x140357b7a. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L64; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357b7a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357b7a"
+          }
+        },
+        {
+          "label": "Pumpjack outflow only",
+          "value": "chamber to port",
+          "detail": "Sets the direction restriction that permits only chamber-to-port flow; the other restriction stays off (0x140357ba4) and all species move (mask −1 at 0x140357b86). Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes c644242801 at 0x140357b95. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L68; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357b95",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357b95"
+          }
+        },
+        {
+          "label": "Pumpjack outlet exchange",
+          "value": "port solver 0x1402ec710",
+          "detail": "Calls the port solver with the Fluid Out port, the moving chamber, bias pump_pressure and factor h. In that solver the signed difference is d = P_port − P_chamber − pump_pressure, and the restriction suppresses the positive, inward direction. The bias is a pressure term in the transfer equation, not a rupture pressure or an outlet ceiling. Report: investigation/fluid-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e8354bf9ff at 0x140357bd6. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/pumpjack-fluid.asm:L77; ../fluid-gaps/pseudocode/140357a60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357bd6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357bd6"
+          }
+        },
+        {
+          "label": "Well supply chamber scale",
+          "value": "10",
+          "detail": "The oil-rig update resolves the coupled piston and computes 10 × u, the chamber volume, then subtracts the piston's amount A (0x140451653). Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f5915f9ef7500 at 0x14045164b address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-piston-supply.asm:L36; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045164b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045164b"
+          }
+        },
+        {
+          "label": "Well supply limit",
+          "value": "q = min(10 × u − A, buffer crude)",
+          "detail": "Limits the top-up by the crude in the well buffer (+0x43c). Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f5d933c040000 at 0x14045165b. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-piston-supply.asm:L38; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045165b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045165b"
+          }
+        },
+        {
+          "label": "Well supply into the piston",
+          "value": "piston crude + q",
+          "detail": "For q above 0 adds q to the piston's crude (+0x458) and recomputes both totals from their species. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f118058040000 at 0x140451678. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-piston-supply.asm:L43; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140451678",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140451678"
+          }
+        },
+        {
+          "label": "Well buffer debit",
+          "value": "buffer crude − q",
+          "detail": "Takes the same q from the well buffer, so the piston's crude comes from a finite buffer. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f118b3c040000 at 0x14045168c. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-piston-supply.asm:L46; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045168c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045168c"
+          }
+        },
+        {
+          "label": "Well buffer refill fraction",
+          "value": "0.05",
+          "detail": "Another branch refills the buffer from an oil deposit: free = max(buffer capacity − buffer total, 0), times this. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f3440f592da2f57500 at 0x140450495 address binary32 0.05 (bytes cdcc4c3d) at 0x140bafa40. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-replenish.asm:L73; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450495",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450495"
+          }
+        },
+        {
+          "label": "Well buffer refill limit",
+          "value": "q = min(free × 0.05, deposit remaining)",
+          "detail": "Limits the refill by the deposit's remaining crude. The deposit used is the non-empty entry with the most remaining crude whose region contains the sampling point. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f3440f5d6f20 at 0x14045049e. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-replenish.asm:L74; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045049e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045049e"
+          }
+        },
+        {
+          "label": "Deposit debit",
+          "value": "deposit remaining − q",
+          "detail": "Stores the reduced deposit after adding q to the buffer's crude and recomputing its total, so deposits run out. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f114720 at 0x14045054c. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-replenish.asm:L97; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045054c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045054c"
+          }
+        },
+        {
           "label": "Oil Rig Pumpjack · child_name",
           "value": "oil_rig_pumpjack_b",
           "detail": "oil_rig_pumpjack: definition attribute child_name. Names the piston.",
@@ -102096,7 +102424,7 @@
         {
           "label": "Oil Rig Pumpjack · pump_pressure",
           "value": "10000",
-          "detail": "oil_rig_pumpjack: definition attribute pump_pressure. Pump pressure field.",
+          "detail": "oil_rig_pumpjack: definition attribute pump_pressure. Bias the pump branch passes to the port solver: d = P_port − P_chamber − pump_pressure, outflow only.",
           "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L2-L2",
           "status": "observed",
           "source": {
@@ -102148,7 +102476,7 @@
       ],
       "limitations": [
         "Static analysis of one build; no game process was run.",
-        "The volume pumped per stroke and per simulated second was not decoded: the pumpjack's own pump branch, its pressure limit and the oil well supply are still open."
+        "The chamber scale and the supply equations are decoded, but delivered volume per stroke or per second depends on piston motion and the connected fluid system. The piston's motion under a mechanical drive, which deposits a well may draw from, the scheduling of the pump and supply branches and the outflow over a real cycle were not traced, so no amount per stroke or per simulated second is given."
       ],
       "sources": [
         {
@@ -102190,6 +102518,81 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140357a79"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357ac4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357ae7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357b27"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357b37"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357b3b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357b7a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357b95"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357bd6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450495"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045049e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045054c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045164b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045165b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140451678"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045168c"
         },
         {
           "path": "stormworks64.exe",
@@ -111112,11 +111515,15 @@
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "A rope logic link between two anchors forms the hose. Each update a valid link calls the two-port solver between the Fluid Node networks at its two ends with bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. When the far end is a hose pulley the link uses the pulley's matching port."
+          "body": "A rope logic link between two anchors forms the hose. Each update the end that holds the link's exchange flag calls the two-port solver between the Fluid Node networks at the two ends with bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. When the far end is a hose pulley the link uses the pulley's matching port."
         },
         {
           "title": "Setup and interactions",
           "body": "The anchor stores no fluid and the exchange reads no length, so a long hose moves fluid as readily as a short one."
+        },
+        {
+          "title": "Which end exchanges",
+          "body": "When a hose link between two components is completed, the end that started it gets the exchange flag for that side and the receiving end's flag is cleared, so the link exchanges once per update, from the starting end. A cleared flag on one end does not mean the link is invalid. On hooks with two attachment positions the coupling name Rope 2 selects the second side. A hose end held by a character is a separate link to that character: it clears the component's exchange flag and adds no second hook, so the hook-to-hook exchange does not run for it."
         }
       ],
       "findings": [
@@ -111171,7 +111578,7 @@
         {
           "label": "Hose-link exchange",
           "value": "two-port solver, bias 0, two-way",
-          "detail": "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c4a",
           "status": "observed",
           "source": {
@@ -111190,6 +111597,66 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1402edbb2"
+          }
+        },
+        {
+          "label": "Link exchange flag, initiating end",
+          "value": "1",
+          "detail": "The completed component-to-component link constructor sets the exchange flag of the initiating end's first side (+0xaa8); for its second side it sets +0xaa9 (0x140521b72). Report: investigation/fluid-gaps.md. Function 0x140521500-0x14052202c; instruction bytes c686a80a000001 at 0x140521c53. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/link-owner-first.asm:L65; ../fluid-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140521c53",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521c53"
+          }
+        },
+        {
+          "label": "Link exchange flag, receiving end",
+          "value": "0",
+          "detail": "Clears the receiving end's matching flag (+0xaa9 at 0x140521ddc) and keeps the link. One end performs the exchange; a cleared flag does not mark the link invalid. Report: investigation/fluid-gaps.md. Function 0x140521500-0x14052202c; instruction bytes c687a80a000000 at 0x140521ebd. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/link-owner-second.asm:L65; ../fluid-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140521ebd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521ebd"
+          }
+        },
+        {
+          "label": "Held hose end clears the exchange flag",
+          "value": "0",
+          "detail": "Interaction handler 0x140776910 maps held Hose equipment to a hose link and calls this constructor for a loose, character-held end. It records the component end and a character reference and clears the component's exchange flag. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; instruction bytes c687a80a000000 at 0x140520ea4. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L94; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520ea4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520ea4"
+          }
+        },
+        {
+          "label": "Held hose link on the character",
+          "value": "character+0x4098",
+          "detail": "Stores the link on the character. No second rope-hook component end is installed, so the hook-to-hook exchange does not run against a hidden second hook. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; instruction bytes 4989b798400000 at 0x140520f79. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L137; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520f79",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520f79"
+          }
+        },
+        {
+          "label": "Second coupling name",
+          "value": "Rope 2",
+          "detail": "The coupling name that selects a hook's second attachment side. It distinguishes positions; it is not a fluid or hose compatibility test. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; it references the string 'Rope 2' at 0x140b87094. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L27; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140b87094",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b87094"
           }
         },
         {
@@ -111233,7 +111700,7 @@
         }
       ],
       "limitations": [
-        "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced."
+        "Completed links exchange fluid once, through the end assigned to perform the exchange. A character-held loose hose uses a separate link path; its fluid operation and the complete attachment restrictions across the interaction, scripting, loading and editing paths remain untraced."
       ],
       "sources": [
         {
@@ -111283,6 +111750,31 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404996a7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520ea4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520f79"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140521c53"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140521ebd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b87094"
         }
       ]
     },
@@ -111797,7 +112289,7 @@
         {
           "label": "Hose-link exchange",
           "value": "two-port solver, bias 0, two-way",
-          "detail": "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c4a",
           "status": "observed",
           "source": {
@@ -112565,7 +113057,7 @@
         {
           "label": "Hose-link exchange",
           "value": "two-port solver, bias 0, two-way",
-          "detail": "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c4a",
           "status": "observed",
           "source": {
@@ -113333,7 +113825,7 @@
         {
           "label": "Hose-link exchange",
           "value": "two-port solver, bias 0, two-way",
-          "detail": "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c4a",
           "status": "observed",
           "source": {
@@ -114088,7 +114580,7 @@
         {
           "label": "Hose-link exchange",
           "value": "two-port solver, bias 0, two-way",
-          "detail": "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c4a",
           "status": "observed",
           "source": {
@@ -135672,11 +136164,15 @@
     },
     {
       "id": "part-water-pump-manual",
-      "summary": "Hold either interact action to pump: bias 3, one-way, with a smoothed handle factor; at most 60 L/s at equal pressure.",
+      "summary": "Hold either interact action to pump: bias 3, one-way, with a handle factor that eases over 60 controller updates; at most 60 L/s at equal pressure.",
       "sections": [
         {
           "title": "Operating conditions",
-          "body": "Holding an interact action sets the handle target to 1, and a smoothing controller with duration 60 moves the factor h toward it. While h is above 0.01 the pump calls the two-port solver with bias pump_pressure = 3 and factor h, one-way, all species. Released, h falls back, and at or below 0.01 nothing moves. The pump holds no fluid; its ports connect straight to the pipe networks."
+          "body": "Holding an interact action sets the handle target to 1, and the handle factor h eases toward it over 60 controller updates. While h is above 0.01 the pump calls the two-port solver with bias pump_pressure = 3 and factor h, one-way, all species. Released, h eases back, and at or below 0.01 nothing moves. The pump holds no fluid; its ports connect straight to the pipe networks."
+        },
+        {
+          "title": "Handle easing",
+          "body": "When the target changes, the controller keeps the current factor as a, takes the new target b and restarts its count t at 0. Then h = a + (b − a) × E(t ÷ 60), with E(u) = 2u² for u < 0.5 and E(u) = 1 − 2(1 − u)² from 0.5 to 1: slow at both ends and fastest halfway. On the update with t = 0 it keeps h. At t = 60, or once the remaining difference is 0.001 or less, h snaps to the target. Letting go before the handle is fully up restarts the curve from the current factor. From rest h is 0.0139 at t = 5, the first count above the 0.01 pumping threshold, and 0.5 at t = 30."
         },
         {
           "title": "Flow",
@@ -135769,6 +136265,114 @@
           }
         },
         {
+          "label": "Manual pump easing mode",
+          "value": "mode 3, family 0",
+          "detail": "The water component constructor selects easing mode 3 for the handle controller at component+0x8e8, with quadratic order 2 (0x1403ee9e3). Report: investigation/fluid-gaps.md. Function 0x1403ee3d0-0x1403eea64; instruction bytes 48c786f008000003000000 at 0x1403ee9bc. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-controller-construction.asm:L9. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee9bc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee9bc"
+          }
+        },
+        {
+          "label": "Manual pump easing duration",
+          "value": "60 controller updates",
+          "detail": "Stores binary32 60 (bytes 00007042) as the controller's duration. Report: investigation/fluid-gaps.md. Function 0x1403ee3d0-0x1403eea64; instruction bytes 48c7860409000000007042 at 0x1403ee9ce. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-controller-construction.asm:L11. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee9ce",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee9ce"
+          }
+        },
+        {
+          "label": "Easing half duration",
+          "value": "0.5",
+          "detail": "Halves the duration; the curve divides the elapsed count by it (0x14092cb48), so u = t ÷ 60 maps to 2u. Report: investigation/fluid-gaps.md. Function 0x14092c960-0x14092ceea; instruction bytes f30f590dcd322800 at 0x14092c9e7 address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-quadratic.asm:L18; ../fluid-gaps/pseudocode/0x14092c960.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092c9e7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14092c9e7"
+          }
+        },
+        {
+          "label": "Easing first half",
+          "value": "E(u) = 2u² for u < 0.5",
+          "detail": "Squares the scaled time (0x14092cb54, 0x14092cb58) and halves it: 2u² in the first half. Report: investigation/fluid-gaps.md. Function 0x14092c960-0x14092ceea; instruction bytes f30f59c3 at 0x14092cb54. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-quadratic.asm:L103; ../fluid-gaps/pseudocode/0x14092c960.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092cb54",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14092cb54"
+          }
+        },
+        {
+          "label": "Easing second half offset",
+          "value": "-1",
+          "detail": "In the second half adds this to the scaled time. Report: investigation/fluid-gaps.md. Function 0x14092c960-0x14092ceea; instruction bytes f30f5825bb402800 at 0x14092cb65 address binary32 -1 (bytes 000080bf) at 0x140bb0c28. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-quadratic.asm:L107; ../fluid-gaps/pseudocode/0x14092c960.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092cb65",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14092cb65"
+          }
+        },
+        {
+          "label": "Easing second half term",
+          "value": "2",
+          "detail": "Subtracts this and finishes the multiply and subtract sequence at 0x14092cb87: E(u) = 1 − 2(1 − u)² for u from 0.5 to 1, the same as −2u² + 4u − 1. Report: investigation/fluid-gaps.md. Function 0x14092c960-0x14092ceea; instruction bytes f30f5c0d9d362800 at 0x14092cb73 address binary32 2 (bytes 00000040) at 0x140bb0218. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-quadratic.asm:L110; ../fluid-gaps/pseudocode/0x14092c960.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092cb73",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14092cb73"
+          }
+        },
+        {
+          "label": "Easing restart",
+          "value": "elapsed count = 0",
+          "detail": "A changed target captures the current output as the start a and the target difference b − a. When the change exceeds binary32 0.1 (bytes cdcccc3d at 0x140bafad0, compared at 0x1408cddee) the elapsed count is reset to 0; a binary interaction change always does. Report: investigation/fluid-gaps.md. Function 0x1408cddd0-0x1408cde20; instruction bytes c7411800000000 at 0x1408cddf7. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-controller.asm:L30; ../fluid-gaps/pseudocode/0x1408cddd0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cddd0@0x1408cddf7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cddf7"
+          }
+        },
+        {
+          "label": "Easing count step",
+          "value": "1",
+          "detail": "Adds 1 to the elapsed count each controller update. At a count of 0 the update keeps the output. It eases only while the retained difference exceeds binary32 0.001 (bytes 6f12833a at 0x140baf8f8, compared at 0x1408cde35) and the count is within the duration; otherwise it snaps to the target and clears the count and difference. Report: investigation/fluid-gaps.md. Function 0x1408cde20-0x1408cdec8; instruction bytes f30f58353f202e00 at 0x1408cde85 address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/manual-controller.asm:L67; ../fluid-gaps/pseudocode/0x1408cde20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1408cde20@0x1408cde85",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1408cde85"
+          }
+        },
+        {
+          "label": "Manual pump handle easing",
+          "value": "h = a + (b − a) × E(t ÷ 60)",
+          "detail": "E(u) = 2u² for u < 0.5 and 1 − 2(1 − u)² for u from 0.5 to 1, with t the controller's elapsed count. From rest (a = 0, b = 1) h is 0.0139 at t = 5, 0.125 at t = 15, 0.5 at t = 30 and 0.875 at t = 45; t = 5 is the first count at which h exceeds the pump's 0.01 threshold. The count is in controller updates, not converted to seconds. Report: investigation/fluid-gaps.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee9bc, native:stormworks64.exe:f9206d85c82f:0x1403ee3d0@0x1403ee9ce, native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092c9e7, native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092cb54, native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092cb65, native:stormworks64.exe:f9206d85c82f:0x14092c960@0x14092cb73, native:stormworks64.exe:f9206d85c82f:0x1403ef860@0x1403f34eb.",
+          "evidenceId": "derived:90ea7df308d8",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403ee9bc"
+          }
+        },
+        {
           "label": "Fluid Pump (Manual) · pump_pressure",
           "value": "3",
           "detail": "water_pump_manual: definition attribute pump_pressure. Bias passed to the two-port solver.",
@@ -135845,7 +136449,7 @@
         }
       ],
       "limitations": [
-        "The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure."
+        "No unit is documented for pump_pressure."
       ],
       "sources": [
         {
@@ -135879,6 +136483,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee9bc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403ee9ce"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403f3491"
         },
         {
@@ -135904,17 +136518,51 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cddf7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1408cde85"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14092c9e7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14092cb54"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14092cb65"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14092cb73"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140b5ce98"
         }
       ]
     },
     {
       "id": "part-water-spawner",
-      "summary": "Fills its enclosing custom compartment once, at the first build, with up to 0.99 × fill × volume of the selected fluid, limited by free room.",
+      "summary": "Fills its enclosing custom compartment with up to 0.99 × fill × volume of the selected fluid, limited by free room: most fluids at the first build, diesel and jet fuel through a vehicle spawn's fuel fill.",
       "sections": [
         {
           "title": "Operating conditions",
           "body": "On the first build the spawner adds min(free room, 0.99 × fill × V) of the selected fluid to the compartment it sits in, where V is that compartment's volume. Air is split into nitrogen, oxygen and CO2. Diesel and jet fuel are skipped by this branch. Its tooltip says gases are spawned compressed at 60 atm; under the pressure law a compartment whose gas reaches A = V reads 60 atm."
+        },
+        {
+          "title": "Diesel and jet fuel",
+          "body": "Diesel and jet fuel are added by the request-gated fuel fill of a vehicle spawn, the same operation that fills diesel and jet-fuel tanks (see Fluid Tank). For a spawner with an enclosing compartment C it adds q = min(C.V − C.A, 0.99 × fill × C.V) of the selected fuel to C. On the inventory branch q is first capped to that fuel in stock, which then loses q. The fuel is added to what C already holds, so q depends on earlier fills, other spawners and restored contents. Unlike a fuel tank, the spawner gets no air with it."
         }
       ],
       "findings": [
@@ -136002,10 +136650,94 @@
             "lineStart": 75,
             "lineEnd": 75
           }
+        },
+        {
+          "label": "Spawner fuel arm type",
+          "value": "water_component_type 7",
+          "detail": "Inside the request-gated resource fill, a second arm runs for the fluid spawner, type 7, with diesel (selection 1) or jet fuel (selection 2, 0x1405dc236). Report: investigation/fluid-gaps.md. Function 0x1405dafa0-0x1405df408; instruction bytes 83b9cc0e000007 at 0x1405dc1ee. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/spawner-fuel-fill.asm:L17; ../fluid-gaps/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc1ee",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc1ee"
+          }
+        },
+        {
+          "label": "Spawner fuel compartment",
+          "value": "enclosing compartment C",
+          "detail": "Resolves the spawner's enclosing compartment C and forms its free room C.V − C.A (0x1405dc271). Report: investigation/fluid-gaps.md. Function 0x1405dafa0-0x1405df408; instruction bytes 488b88b0040000 at 0x1405dc24f. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/spawner-fuel-fill.asm:L37; ../fluid-gaps/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc24f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc24f"
+          }
+        },
+        {
+          "label": "Spawner fuel amount",
+          "value": "q = min(C.V − C.A, 0.99 × fill × C.V)",
+          "detail": "Multiplies C.V by the fill setting (0x1405dc282) and by 0.99 held in xmm14 (0x1405dc28a), then takes the smaller of that and the free room. Report: investigation/fluid-gaps.md. Function 0x1405dafa0-0x1405df408; instruction bytes f30f5dfe at 0x1405dc28f. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/spawner-fuel-fill.asm:L50; ../fluid-gaps/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc28f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc28f"
+          }
+        },
+        {
+          "label": "Spawner fuel stock debit",
+          "value": "stock − q",
+          "detail": "On the inventory branch q is capped to the selected fuel in stock, and a positive q is taken from that stock. Report: investigation/fluid-gaps.md. Function 0x1405dafa0-0x1405df408; instruction bytes f30f11848b4c010000 at 0x1405dc3bd. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/spawner-fuel-fill.asm:L114; ../fluid-gaps/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc3bd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc3bd"
+          }
+        },
+        {
+          "label": "Spawner fuel store",
+          "value": "C.amount[fuel] + q",
+          "detail": "Adds q to the selected species of C and to its total (0x1405dc41c). Existing contents stay; this arm adds no air. Report: investigation/fluid-gaps.md. Function 0x1405dafa0-0x1405df408; instruction bytes f30f11448b3c at 0x1405dc3fe. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/spawner-fuel-fill.asm:L127; ../fluid-gaps/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dc3fe",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dc3fe"
+          }
+        },
+        {
+          "label": "Spawn resource fill gate",
+          "value": "request byte +0x45 nonzero",
+          "detail": "The vehicle spawn and resource operation 0x1405dafa0 calls the vehicle builder 0x1404bc700 (0x1405db70e) and enters its resource-fill traversal only when byte +0x45 of its request is nonzero (je at 0x1405dbcfb). Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes 44386645 at 0x1405dbcf7. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L848; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405dbcf7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405dbcf7"
+          }
+        },
+        {
+          "label": "Spawn fuel fill fraction",
+          "value": "0.99",
+          "detail": "Held in xmm14. The arm multiplies the compartment volume V (component+0x5a0) by the fill setting at +0x590 (0x1405dc4b5) and by this (0x1405dc4bd): requested fuel = 0.99 × fill × V. Report: investigation/tanks-ports.md. Function 0x1405dafa0-0x1405df408; instruction bytes f3440f1035e84d5d00 at 0x1405db0bb address binary32 0.99 (bytes a4707d3f) at 0x140bafeac. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/inventory-fill.asm:L73-L74; ../tanks-ports/pseudocode/1405dafa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405dafa0@0x1405db0bb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405db0bb"
+          }
         }
       ],
       "limitations": [
-        "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced."
+        "Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded."
       ],
       "sources": [
         {
@@ -136043,6 +136775,41 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404bc38a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405db0bb"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dbcf7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc1ee"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc24f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc28f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc3bd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405dc3fe"
         }
       ]
     },
@@ -140122,6 +140889,10 @@
         {
           "title": "Operating conditions",
           "body": "The extra network builder gives a subtype 8 pulley one network of volume 4, 40 L, and registers both fluid ports in it, so fluid passes through the pulley freely. Exchanges started from the pulley use factor 1 instead of the hose links' 0.5. The network's volume does not change with deployed hose length."
+        },
+        {
+          "title": "Linked side",
+          "body": "A hook linked to the pulley picks the pulley's port by the reciprocal attachment pointer: when the pulley's back pointer leads to that hook it uses the pulley's second fluid port, otherwise its first. As for every hose link, only the end holding the exchange flag runs the exchange."
         }
       ],
       "findings": [
@@ -140176,7 +140947,7 @@
         {
           "label": "Hose-link exchange",
           "value": "two-port solver, bias 0, two-way",
-          "detail": "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c4a",
           "status": "observed",
           "source": {
@@ -140195,6 +140966,78 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1402edbb2"
+          }
+        },
+        {
+          "label": "Link exchange flag, initiating end",
+          "value": "1",
+          "detail": "The completed component-to-component link constructor sets the exchange flag of the initiating end's first side (+0xaa8); for its second side it sets +0xaa9 (0x140521b72). Report: investigation/fluid-gaps.md. Function 0x140521500-0x14052202c; instruction bytes c686a80a000001 at 0x140521c53. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/link-owner-first.asm:L65; ../fluid-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140521c53",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521c53"
+          }
+        },
+        {
+          "label": "Link exchange flag, receiving end",
+          "value": "0",
+          "detail": "Clears the receiving end's matching flag (+0xaa9 at 0x140521ddc) and keeps the link. One end performs the exchange; a cleared flag does not mark the link invalid. Report: investigation/fluid-gaps.md. Function 0x140521500-0x14052202c; instruction bytes c687a80a000000 at 0x140521ebd. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/link-owner-second.asm:L65; ../fluid-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140521ebd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521ebd"
+          }
+        },
+        {
+          "label": "Held hose end clears the exchange flag",
+          "value": "0",
+          "detail": "Interaction handler 0x140776910 maps held Hose equipment to a hose link and calls this constructor for a loose, character-held end. It records the component end and a character reference and clears the component's exchange flag. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; instruction bytes c687a80a000000 at 0x140520ea4. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L94; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520ea4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520ea4"
+          }
+        },
+        {
+          "label": "Held hose link on the character",
+          "value": "character+0x4098",
+          "detail": "Stores the link on the character. No second rope-hook component end is installed, so the hook-to-hook exchange does not run against a hidden second hook. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; instruction bytes 4989b798400000 at 0x140520f79. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L137; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520f79",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520f79"
+          }
+        },
+        {
+          "label": "Second coupling name",
+          "value": "Rope 2",
+          "detail": "The coupling name that selects a hook's second attachment side. It distinguishes positions; it is not a fluid or hose compatibility test. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; it references the string 'Rope 2' at 0x140b87094. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L27; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140b87094",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b87094"
+          }
+        },
+        {
+          "label": "Pulley side selection",
+          "value": "reciprocal pointer",
+          "detail": "Before the first-side exchange (call at 0x1403b6c4a) the pass compares the linked hook's back pointer (+0xaa0) with this component and uses the linked pulley's second port (+0x950, 0x1403b6c1a) when it matches, otherwise its first port (+0x918, 0x1403b6c23). Report: investigation/fluid-gaps.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 48399aa00a0000 at 0x1403b6c11. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/hose-side1.asm:L31; ../fluid-gaps/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c11",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6c11"
           }
         },
         {
@@ -140275,7 +141118,7 @@
         }
       ],
       "limitations": [
-        "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced."
+        "The hose pulley selects its linked side through reciprocal attachment pointers, and one end performs each exchange. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced."
       ],
       "sources": [
         {
@@ -140325,6 +141168,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6c11"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403b6c4a"
         },
         {
@@ -140341,6 +141189,31 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404a226f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520ea4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520f79"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140521c53"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140521ebd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b87094"
         }
       ]
     },
@@ -140351,6 +141224,10 @@
         {
           "title": "Operating conditions",
           "body": "The extra network builder gives a subtype 8 pulley one network of volume 4, 40 L, and registers both fluid ports in it, so fluid passes through the pulley freely. Exchanges started from the pulley use factor 1 instead of the hose links' 0.5. The network's volume does not change with deployed hose length."
+        },
+        {
+          "title": "Linked side",
+          "body": "A hook linked to the pulley picks the pulley's port by the reciprocal attachment pointer: when the pulley's back pointer leads to that hook it uses the pulley's second fluid port, otherwise its first. As for every hose link, only the end holding the exchange flag runs the exchange."
         }
       ],
       "findings": [
@@ -140405,7 +141282,7 @@
         {
           "label": "Hose-link exchange",
           "value": "two-port solver, bias 0, two-way",
-          "detail": "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed. Report: investigation/fluids-network.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes e8816cf3ff at 0x1403b6c4a. Interpretation rests on retained output investigation/native/behavior/../fluids-network/asm/rope-hook-exchange.asm; ../fluids-network/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c4a",
           "status": "observed",
           "source": {
@@ -140424,6 +141301,78 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1402edbb2"
+          }
+        },
+        {
+          "label": "Link exchange flag, initiating end",
+          "value": "1",
+          "detail": "The completed component-to-component link constructor sets the exchange flag of the initiating end's first side (+0xaa8); for its second side it sets +0xaa9 (0x140521b72). Report: investigation/fluid-gaps.md. Function 0x140521500-0x14052202c; instruction bytes c686a80a000001 at 0x140521c53. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/link-owner-first.asm:L65; ../fluid-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140521c53",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521c53"
+          }
+        },
+        {
+          "label": "Link exchange flag, receiving end",
+          "value": "0",
+          "detail": "Clears the receiving end's matching flag (+0xaa9 at 0x140521ddc) and keeps the link. One end performs the exchange; a cleared flag does not mark the link invalid. Report: investigation/fluid-gaps.md. Function 0x140521500-0x14052202c; instruction bytes c687a80a000000 at 0x140521ebd. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/link-owner-second.asm:L65; ../fluid-gaps/pseudocode/140521500.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140521500@0x140521ebd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140521ebd"
+          }
+        },
+        {
+          "label": "Held hose end clears the exchange flag",
+          "value": "0",
+          "detail": "Interaction handler 0x140776910 maps held Hose equipment to a hose link and calls this constructor for a loose, character-held end. It records the component end and a character reference and clears the component's exchange flag. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; instruction bytes c687a80a000000 at 0x140520ea4. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L94; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520ea4",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520ea4"
+          }
+        },
+        {
+          "label": "Held hose link on the character",
+          "value": "character+0x4098",
+          "detail": "Stores the link on the character. No second rope-hook component end is installed, so the hook-to-hook exchange does not run against a hidden second hook. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; instruction bytes 4989b798400000 at 0x140520f79. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L137; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140520f79",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140520f79"
+          }
+        },
+        {
+          "label": "Second coupling name",
+          "value": "Rope 2",
+          "detail": "The coupling name that selects a hook's second attachment side. It distinguishes positions; it is not a fluid or hose compatibility test. Report: investigation/fluid-gaps.md. Function 0x1405209d0-0x14052101b; it references the string 'Rope 2' at 0x140b87094. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/held-link-construction.asm:L27; ../fluid-gaps/pseudocode/1405209d0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1405209d0@0x140b87094",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140b87094"
+          }
+        },
+        {
+          "label": "Pulley side selection",
+          "value": "reciprocal pointer",
+          "detail": "Before the first-side exchange (call at 0x1403b6c4a) the pass compares the linked hook's back pointer (+0xaa0) with this component and uses the linked pulley's second port (+0x950, 0x1403b6c1a) when it matches, otherwise its first port (+0x918, 0x1403b6c23). Report: investigation/fluid-gaps.md. Function 0x1403b6840-0x1403b6f1d; instruction bytes 48399aa00a0000 at 0x1403b6c11. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/hose-side1.asm:L31; ../fluid-gaps/pseudocode/0x1403b6840.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403b6840@0x1403b6c11",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403b6c11"
           }
         },
         {
@@ -140504,7 +141453,7 @@
         }
       ],
       "limitations": [
-        "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced."
+        "The corner hose pulley uses the same end exchange scheme as the straight pulley. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced."
       ],
       "sources": [
         {
@@ -140554,6 +141503,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403b6c11"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403b6c4a"
         },
         {
@@ -140570,6 +141524,31 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404a226f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520ea4"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140520f79"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140521c53"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140521ebd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140b87094"
         }
       ]
     },
@@ -161061,12 +162040,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8808,
+    "findingCount": 8864,
     "findingsByStatus": {
-      "derived": 742,
-      "observed": 8066
+      "derived": 743,
+      "observed": 8121
     },
-    "nativeFindingCount": 6412,
+    "nativeFindingCount": 6468,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -161117,8 +162096,8 @@
       }
     ],
     "evidenceUse": {
-      "derived": 428,
-      "native": 1447,
+      "derived": 429,
+      "native": 1488,
       "resource": 2661
     }
   }

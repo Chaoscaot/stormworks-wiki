@@ -1,0 +1,148 @@
+11:## 1. Fixed fluid tank startup, issue #29
+12-
+13-The constructor starts with zero species amounts and zero total amount. Selection at component+0x588 is diesel index 1, pending-fill at +0x58c is true, fill fraction at +0x590 is 1, and primary temperature at +0x5dc is 20 Celsius. This is the unfilled object state, not the final spawned contents. The gas initializer changes diesel selection 1 to air selection 3 for water type 20. The prior report already traces the non-fuel pending-fill operation `0x1404b7640`.
+14-
+15-The separate vehicle spawn/resource operation is `0x1405dafa0`. After calling vehicle builder `0x1404bc700`, it enters its resource-fill traversal only when request byte +0x45 is nonzero. The fixed-tank arm specifically requires water type 8 and selection 1 or 2. In the fixed-tank arm at `0x1405dc46e..0x1405dc690`:
+16-
+17-```
+18-requested_fuel = 0.99f * fill_fraction * V
+19-ambient_air = V / 60.0f
+20-if inventory_branch:
+21-    fuel_added = min(requested_fuel, inventory[selection])
+22-    if fuel_added > 0:
+23-        inventory[selection] -= fuel_added
+24-else:
+25-    fuel_added = requested_fuel
+26-if fuel_added > 0:
+27-    tank.amount[selection] += fuel_added
+28-    tank.total += fuel_added
+29-tank.amount[3] += ambient_air
+30-tank.total += ambient_air
+31-```
+32-
+33-The inventory record stores diesel at +0x150 and jet fuel at +0x154, addressed as `+0x14c + 4*selection`. The available-stock comparison also sets an insufficient-resource flag. The native constant at `0x140bafeac` is `a4 70 7d 3f`, binary32 0.9900000095367432; `0x140bb0760` is `00 00 70 42`, or 60.
+34-
+35-Consequently a cleared tank that reaches the non-inventory arm receives 99% of geometric liquid capacity at fill fraction 1, plus the ambient-air term. A tank that reaches the inventory arm can receive a partial fuel charge, or no diesel/jet fuel when stock is zero. It still receives the ambient-air term. This rules out both "diesel always starts empty because the pending-fill routine skips it" and "diesel always starts full regardless of stock". These are the amounts added by this operation; it does not clear old amounts itself. For the prior decoded small/medium/large geometric capacities, the requested liquid quantities are approximately 30.9375, 185.625 and 696.09375 litres at fill=1, before subsequent exchange.
+36-
+37-Still open: request byte +0x45 is a necessary gate, and the inventory arm depends on the surrounding request/global conditions. The precise mapping of all these flags to editor placement, career/creative settings, mission spawning and save loading was not completed. Do not apply this operation to every spawn or assume it runs when restoring a runtime save. The pending-fill byte is not tested or cleared by this fixed-fuel arm. Ambient-air conversion after this separate operation was not followed here.
+38-
+39-Instruction anchors:
+40-
+41-- `0x1403ee777`, bytes `c7 86 88 05 00 00 01 00 00 00`: default diesel selection.
+42-- `0x1403ee781`, bytes `c6 86 8c 05 00 00 01`: fill pending defaults true.
+43-- `0x1403ee788`, bytes `48 c7 86 90 05 00 00 00 00 80 3f`: fill fraction defaults one.
+44-- `0x1403ee7a1`, bytes `48 c7 86 dc 05 00 00 00 00 a0 41`: initial temperature 20 Celsius.
+45-- `0x1405dc46e`, bytes `83 b8 88 05 00 00 01`: diesel selection.
+46-- `0x1405dc483`, bytes `83 b8 88 05 00 00 02`: jet fuel selection.
+47-- `0x1405dc4b5`, bytes `f3 0f 59 b8 90 05 00 00`: multiply by fill fraction.
+48-- `0x1405dc4bd`, bytes `f3 41 0f 59 fe`: multiply by 0.99.
+49-- `0x1405dc5bf`, bytes `f3 0f 5d bc 8b 4c 01 00 00`: cap to available inventory.
+50-- `0x1405dc5f1`, bytes `f3 0f 11 84 8b 4c 01 00 00`: subtract inventory.
+51-- `0x1405dc62d`, bytes `f3 0f 11 84 8b a4 05 00 00`: add selected species.
+52-- `0x1405dc687`, bytes `f3 44 0f 11 80 d8 05 00 00`: add ambient air to total.
+53-
+54:## 2. Saved compartments and rebuilding, issues #29 and #30
+55-
+56-Water component serializer `0x1403f6150`, virtual slot +0x260, applies to both fixed fluid tanks and gas tanks. It serializes configuration under context flag 1 and runtime fields under context flag 4, from context+0x10. Runtime state includes the pending-fill Boolean, tagged `spawner_pending`, default true. It then invokes the shared compartment serializer for:
+57-
+58-- `contained_volume`, component+0x598.
+59-- `contained_volume_secondary`, component+0x5e4.
+60-
+61-`0x1408fce80` wraps the named child and calls `0x1402eb750`. Under context flag 4, that shared routine serializes:
+62-
+63-- `vol_total`: binary32 at state+0x40. For the primary tank this is component+0x5d8.
+64-- `temp`: binary32 at state+0x44, primary component+0x5dc.
+65-- `rad`: binary32 at state+0x48, primary component+0x5e0.
+66-- `vol_0` through `vol_12`: thirteen binary32 species amounts at state+0x0c + 4*i, primary component+0x5a4 + 4*i. These are the same internal amount units used by the prior pressure and content calculations, not an extra save-time conversion to litres.
+67-
+68-The serializer's text branch uses these names. Its binary branch transfers four bytes per scalar and per species. Temperature validation maps nonfinite input to 0 and bounds finite values to [-273,100000]. Those numbers bound the temperature field, not pressure. Species amounts and `vol_total` have no analogous pressure/rupture threshold in this routine. The geometric volume at state+8 is not among these serialized fields.
+69-
+70-The initializer `0x1403ef450` recalculates state+8 from the tank definition for water types 8 and 20. It does not replace the thirteen amounts or temperature in those tank branches. The component-loading/build window contains virtual serializer calls at `0x1404b8502` and `0x1404b87d4`; the water vtable at `0x140b08f18` resolves slot +0x260 to `0x1403f6150`. Thus this is a native component-state restore path, not just a standalone unused serializer.
+71-
+72-There is also a distinct reset method `0x1403eebf0`, water virtual slot +0x3c8. It zeros primary and secondary species and totals and sets pending-fill true. It does not zero the temperature fields. A rebuild that preserves the component object or reloads runtime fields must therefore be distinguished from a reset that deliberately clears its inventory. The prior build caller `0x1404bc38a` invokes pending fill after network reconstruction. An already restored false pending-fill byte prevents that operation from refilling the gas tank. A restored true byte allows its existing pending-fill behavior. For diesel/jet fuel, the separate request-gated operation in section 1 still requires its own caller analysis.
+73-
+74-Still open: the exact ordering and flag selection for every saved-world, stored-vehicle, editor rebuild and explicit reset entry point. The serializer, constructor defaults, volume initializer, reset method and pending-fill test are recovered, but they do not prove which combination every workflow selects. In particular, no claim is made that all rebuilds preserve contents or that all rebuilds refill tanks. Ruled out: amounts/temperature being absent from native serialization; treating `fluid_fill` as saved live inventory; treating a geometry-volume recalculation as a species reset; treating the explicit reset as temperature restoration.
+75-
+76-Instruction anchors:
+77-
+78-- `0x1403f6988`, bytes `4c 8d 0d 39 ca 76 00`: contained_volume tag.
+79-- `0x1403f699a`, bytes `e8 e1 64 50 00`: serialize primary compartment.
+80-- `0x1403f69a9`, bytes `4c 8d 0d 10 70 77 00`: contained_volume_secondary tag.
+81-- `0x1402eb7ca`, bytes `4c 8d 05 57 df 86 00`: vol_total tag.
+82-- `0x1402eb837`, bytes `4c 8d 05 32 df 86 00`: temp tag.
+83-- `0x1402eb8a4`, bytes `4c 8d 05 91 38 7f 00`: rad tag.
+84-- `0x1402eb924`, bytes `f3 41 0f 11 46 44`: store validated temperature.
+85-- `0x1402eb95b`, bytes `48 8d 15 ea dd 86 00`: vol_ prefix.
+86-- `0x1402ebaf2`, bytes `41 83 fd 0d`: 13 species loop.
+87-- `0x1403eec18`, bytes `4c 89 81 a4 05 00 00`: reset clears amounts.
+88-- `0x1403eec73`, bytes `c6 81 8c 05 00 00 01`: reset re-arms pending fill.
+89-- `0x1404b84ed`, bytes `4c 8b 91 60 02 00 00`: component serializer virtual slot +0x260.
+90-- `0x1404b8502`, bytes `41 ff d2`: component serializer invocation.
+91-- `0x1404bc38a`, bytes `e8 b1 b2 ff ff`: pending-fill call.
+92-
+93:## 3. Pressure safety, issue #30
+94-
+95-Still open. No maximum safe tank pressure, rupture threshold or pressure-to-damage equation was recovered. This investigation does not establish that pressure damage is impossible.
+96-
+97-The previously decoded compartment pressure calculation `0x1402eb460` and pressure conversion `0x1402eb500` and fixed-tank update arm `0x1403f3766..0x1403f39cc` were retained as baseline evidence. The gas formula has no maximum-pressure constant in that calculation, and the inspected tank update arm exchanges contents and updates content/pressure outputs without a pressure-triggered rupture branch. The newly traced compartment serializer and fixed-fuel fill arm also do not supply such a threshold. The inspected shipped tank definitions have no maximum-pressure or rupture field.
+98-
+99-Ruled out as a safety rating: the 59.4-atmosphere cleared gas startup result, the 0.99 initialization multiplier, and the serializer's 100000 temperature bound. These are initialization or temperature values. They cannot be substituted for a tank pressure limit.
+100-
+101-The complete executable ASCII string/reference search for `pressure|rupture|burst|overpressure` is retained. It finds no ASCII identifier containing rupture, burst or overpressure, but it does find `max pressure` at `0x140b3ede0`, referenced at `0x1408798aa`, and `high_pressure` at `0x140b971d0`, referenced at `0x1405c0114` and `0x1406f9b0a`. Those generic references were not resolved to a tank failure mechanism and are not ruled out globally. Unlabelled comparisons, common vehicle damage code and geometry-compartment failure paths remain untraced. The scoped negative results above are not an executable-wide absence proof.
+102-
+103-## 4. Microprocessor ports and graph counts, issue #63
+104-
+105-The editor event dispatcher `0x1407c1b60`, case 0x71, creates an external node. At `0x1407c3eac` it selects the definition at editor+0x118, allocates 0x58 bytes, initializes the node, increments the 32-bit node-ID counter, creates its bridge with `0x14038f150`, grows the node list if capacity equals count, and appends it. There is no comparison against a maximum node count in this Add Input handler. The 0x20 value in list growth is a minimum allocation capacity, not a 32-port cap. This does not prove every other creation/import path has no guard.
+106-
+107-Definition serializer `0x14038db30` serializes width, length, ID counters, the external node list at definition+0x48, and the embedded group. The external-node list serializer is `0x140908830`:
+108-
+109-- XML read iterates `nodes/node` elements and grows the list dynamically. XML write traverses the list. No count cap was found in those paths.
+110-- Binary write stores the low 16 bits of the list's 32-bit in-memory count, then traverses the actual count. Binary read consumes an unsigned 16-bit count. Therefore 65535 is the largest count representable by this binary field, not a demonstrated enforced editor maximum. A larger in-memory count is not safely round-trippable through that count field.
+111-
+112-The embedded group's serializer is `0x14038b940`. Its `components` and `components_bridge` collections go through `0x1409077b0`. That serializer uses a four-byte count, not the external list's two-byte count. There is no recovered small fixed graph-size constant in this path. A 32-bit count is a format width, not a promise that billions of components can be allocated, assigned valid IDs, edited or evaluated.
+113-
+114-Placement and upload are separate from creation. `0x14038fee0` requires 0 <= X < width, 0 <= Z < length and Y=0. At the same cell it rejects an equal type and also rejects the 0/1 type pair. Other unequal types are allowed to share the cell. The bridge builder `0x1403929f0` supports types 0,1,5,6,7, corresponding to Boolean, number, composite, video and audio. Inference: for these five functioning types the collision rule gives four compatible groups per cell, or an upper bound of 144 placed ports over 6 by 6 cells. This is a derived bound for supported types, not a recovered constant or a demonstrated accepted maximum across all imported definitions.
+115-
+116-The upload validator `0x1407c6040` checks dimensions <=6, nonempty embedded component and external-node lists, output presence, and placement of each external node through `0x14038fee0`. The inspected validation path has no separate numerical port-count ceiling. The existing editor controls impose the lower dimension bound of 1.
+117-
+118-Still open: an unconditional maximum across editor creation, XML import, binary serialization and graph execution; any additional limits in untraced graph creation, ID validation or allocation paths; whether the derived 144 supported-port arrangement is accepted end to end. Ruled out: 32 as a cap from dynamic-list growth; 36 as a total-port cap from cell count; 65535 as an enforced editor limit; applying the 16-bit external-port count to the embedded component list. No runtime experiment was performed.
+119-
+120-Instruction anchors:
+121-
+122-- `0x1407c3eb3`, bytes `b9 58 00 00 00`: allocate external node.
+123-- `0x1407c3ec8`, bytes `e8 83 df b1 ff`: initialize external node.
+124-- `0x1407c3eda`, bytes `ff 47 74`: increment node ID.
+125-- `0x1407c3f60`, bytes `8b 4f 58`: load list count.
+126-- `0x14038ff0c`, bytes `3b 41 44`: Z dimension bound.
+127-- `0x14038ff11`, bytes `83 7a 24 00`: require Y zero.
+128-- `0x140908d17`, bytes `0f b7 10`: read unsigned 16-bit node count.
+129-- `0x140908d4f`, bytes `0f b7 57 10`: truncate list count to 16 bits.
+130-- `0x140908d76`, bytes `66 89 10`: write 16-bit node count.
+131-- `0x140907d7a`, bytes `44 8b 30`: read 32-bit component count.
+132-- `0x140907d92`, bytes `44 89 30`: write 32-bit component count.
+133-- `0x1407c65e1`, bytes `41 83 bc 24 58 01 00 00 06`: width upper bound six.
+134-- `0x1407c65ec`, bytes `41 83 bc 24 5c 01 00 00 06`: length upper bound six.
+135-- `0x1407c676f`, bytes `e8 6c 97 bc ff`: validate port placement.
+136-
+137-## Confidence and replacement wording
+138-
+139-High confidence in instruction bytes, field names and offsets, count widths, the Add Input handler, the inventory-limited fill calculation and type-sensitive collision test. Moderate confidence in the conditional 144-port bound. Workflow-wide persistence, settings-to-request mapping and any global absence claim remain open.
+140-
+141-#29: "Diesel and jet fuel have a separate request-gated spawn fill path. It requests 0.99 × fill fraction × geometric liquid capacity, capped to available stock on the inventory branch, and adds ambient air. Runtime compartments serialize vol_0..vol_12, vol_total, temp and rad under contained_volume and contained_volume_secondary, plus spawner_pending. Still open: complete flag/ordering trace for saved-world loading, stored-vehicle spawning and rebuild/reset workflows."
+142-
+143-#30: "Gas tanks use the same recovered runtime compartment serializer as fluid tanks. Geometric capacity is reconstructed separately; explicit reset clears amounts and re-arms fill. Still open: complete save/rebuild workflow ordering and a maximum safe pressure or pressure-triggered rupture/damage threshold. The 59.4 atm startup result is not a safety limit."
+144-
+145-#63: "The Add Input handler has no fixed count test. External-node binary serialization uses a 16-bit count; embedded component serialization uses a 32-bit count. XML lists grow dynamically. Placement allows some different signal types to share a cell, so 36 cells is not a total-port limit. Still open: an unconditional accepted port/graph maximum and end-to-end confirmation of the derived 144-port bound for the five supported types."
+146-
+147-## Reproduction
+148-
+149-Run from the repository root. All commands read the executable without running it.
+150-
+151-```
+152-sha256sum stormworks64.exe
+153-objdump -d -Mintel stormworks64.exe > /tmp/tanks-ports-all.asm
+154-python investigation/native/tanks-ports/tools/evidence.py stormworks64.exe /tmp/tanks-ports-all.asm /tmp/tanks-ports-evidence.json
+155-python investigation/native/tanks-ports/tools/search.py stormworks64.exe /tmp/tanks-ports-all.asm 'pressure|rupture|burst|overpressure' /tmp/tanks-ports-pressure.txt
+156-python investigation/native/tanks-ports/tools/window.py stormworks64.exe 1403f6150 1403f69d5 /tmp/tanks-ports-tank-serializer.asm
+157-sha256sum -c investigation/native/tanks-ports/SHA256SUMS
+158-```

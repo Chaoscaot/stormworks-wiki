@@ -84,6 +84,10 @@ const FINDINGS = {
     'Clutch input', 'Clutch input exponent', 'Clutch power call', 'Clutch coupling', 'Clutch availability divisor', 'Clutch availability factor',
     'Bridge edge factor', 'Bridge path cutoff', 'Clutch target exponent', 'Clutch engagement slew', 'Component updates per simulated second',
   ],
+  manual: [
+    'Manual pump easing mode', 'Manual pump easing duration', 'Easing half duration', 'Easing first half', 'Easing second half offset',
+    'Easing second half term', 'Easing restart', 'Easing count step', 'Manual pump handle easing', 'Manual pump handle threshold', 'Manual pump bias',
+  ],
   ballistics: [
     'Muzzle speed read', 'Age and position step', 'Gravity step in air', 'Gravity radius constant', 'Gravity subtraction', 'Velocity retention',
     'Lifetime test', 'Speed gate selection', 'Speed deletion threshold', 'Component updates per simulated second',
@@ -147,6 +151,7 @@ const TITLES = {
   radio: 'Radio signal strength against distance, height and power',
   propeller: 'Propeller and rotor force and shaft load against RPS',
   clutch: 'Clutch coupling against Clutch Pressure',
+  manual: 'Manual pump handle factor against controller updates',
   ballistics: 'Projectile height and drop against distance',
   heat: 'Rotary autocannon heat over a burst',
   booster: 'Solid rocket thrust and burn time against Burn Rate',
@@ -732,6 +737,36 @@ const CLUTCH = {
   ],
 };
 
+const MANUAL = {
+  intro: (
+    <p>
+      Holding an interact action sets the handle target to 1 and releasing it sets 0. The handle factor h eases from the factor it
+      had when the target changed to the new target over 60 controller updates, slow at both ends and fastest halfway. The pump
+      passes h to the two-port solver as its factor and moves fluid only while h is above 0.01.
+    </p>
+  ),
+  formula: (
+    <Formula
+      lines={[
+        <mrow key="u">{mi('u')}{mo('=')}<mfrac>{mi('t')}{mn('60')}</mfrac><mspace width="1em" />{mi('h')}{mo('=')}{mi('a')}{mo('+')}<mrow>{mo('(')}{mi('b')}{mo('−')}{mi('a')}{mo(')')}</mrow>{mi('E')}<mrow>{mo('(')}{mi('u')}{mo(')')}</mrow></mrow>,
+        <mrow key="e1">{mi('E')}<mrow>{mo('(')}{mi('u')}{mo(')')}</mrow>{mo('=')}{mn('2')}<msup>{mi('u')}{mn('2')}</msup><mspace width="1em" /><mtext>for </mtext>{mi('u')}{mo('<')}{mn('0.5')}</mrow>,
+        <mrow key="e2">{mi('E')}<mrow>{mo('(')}{mi('u')}{mo(')')}</mrow>{mo('=')}{mn('1')}{mo('−')}{mn('2')}<msup><mrow>{mo('(')}{mn('1')}{mo('−')}{mi('u')}{mo(')')}</mrow>{mn('2')}</msup><mspace width="1em" /><mtext>for </mtext>{mn('0.5')}{mo('≤')}{mi('u')}{mo('≤')}{mn('1')}</mrow>,
+      ]}
+      text={[
+        'u = t / 60, t = controller updates since the target changed',
+        'h = a + (b - a) * E(u), a = factor when the target changed, b = new target (1 held, 0 released)',
+        'E(u) = 2u^2 for u < 0.5; 1 - 2(1 - u)^2 for 0.5 <= u <= 1',
+        'at t = 0 h = a; from t = 60, or when |b - a| <= 0.001, h = b',
+      ].join('\n')}
+    />
+  ),
+  assumptions: [
+    'The horizontal axis counts controller updates, not seconds. The decode gives the curve per update and no conversion to time.',
+    'An interaction change restarts the count from the current factor, so releasing halfway eases back down from where the handle was.',
+    'The 60 × h L/s readout is the equal-pressure bound at bias 3. Backpressure, fill and other ports lower the actual flow.',
+  ],
+};
+
 const BALLISTICS = {
   intro: (
     <p>
@@ -1023,7 +1058,7 @@ const REACTOR = {
 const CONTENT = {
   engine: ENGINE, radiator: RADIATOR, exchanger: EXCHANGER, scoop: SCOOP, surface: SURFACE, classic: CLASSIC_ENGINE, jet: JET_EXHAUST, chamber: JET_CHAMBER,
   pid: PID_CONTROLLER, gear: GEAR, radar: RADAR_DETECTION, legacy: LEGACY_DETECTION, radio: RADIO_STRENGTH, propeller: PROPELLER,
-  clutch: CLUTCH, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED, winch: WINCH_REEL, keel: KEEL_FORCE,
+  clutch: CLUTCH, manual: MANUAL, ballistics: BALLISTICS, heat: HEAT, booster: BOOSTER, steam: STEAM_CYCLE, piston: STEAM_PISTON, wheel: WHEEL_SPEED, winch: WINCH_REEL, keel: KEEL_FORCE,
   reactor: REACTOR,
 };
 

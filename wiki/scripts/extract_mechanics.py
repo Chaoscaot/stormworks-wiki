@@ -42,6 +42,7 @@ COMPOSITE = 'investigation/composite.md'
 COMPOSITE_DATA = 'investigation/native/composite/composite.json'
 WEATHER = 'investigation/weather.md'
 LEFTOVERS = 'investigation/leftovers.md'
+FLUID_GAPS = 'investigation/fluid-gaps.md'
 WEATHER_EXAMPLES = 'investigation/native/weather/tools/examples.json'
 HAZARDS = 'investigation/hazards.md'
 HAZARD_SUMS = 'investigation/native/hazards/SHA256SUMS'
@@ -328,7 +329,7 @@ def storage_native():
         raise ValueError(f'Storage figures in {SMALL_PARTS_DATA} differ from the script')
     r = SMALL_PARTS
     return [
-        lua('Example output transfer', x, 'Capacity 100, old total 40, tile stock 25: delta = min(100 - 40, 25) = 25, requested total 65, stock 0. Arithmetic of the script; whether the tank ends at 65 depends on how the queued request is applied.',
+        lua('Example output transfer', x, 'Capacity 100, old total 40, tile stock 25: delta = min(100 - 40, 25) = 25, requested total 65, stock 0. Arithmetic of the script; once applied, the request leaves the tank\'s whole liquid class as 65 of its fluid_type, within the tank volume.',
             STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_out")', 'is_update = true', status='inferred'),
         native('setVehicleTank name', 'setVehicleTank', 'The server API table loads this name before its C function.',
                '0x14059a9f3', '48 8d 05 ee 92 5f 00', report=r, literals={'0x140b93ce8': '73 65 74 56 65 68 69 63 6c 65 54 61 6e 6b 00'}),
@@ -342,6 +343,37 @@ def storage_native():
                '0x140730f64', '48 81 c1 f0 01 00 00', report=r),
         native('Tank request record', 'kind 2', 'It fills the 36-byte slot with the vehicle ID, voxel position, value and fluid ID and stores request kind 2.',
                '0x140730fdc', 'c7 40 20 02 00 00 00', report=r),
+    ] + setter_native()
+
+
+def setter_native():
+    """How a queued setVehicleTank request reaches an ordinary tank, from the fluid-gaps decode."""
+    r = FLUID_GAPS
+    liquid, gas = 'c2 8b 77 00', 'bd 8b 77 00'
+    phase = ' '.join(liquid if i in (0, 1, 2, 5, 6, 8, 9) else gas for i in range(13))
+    return [
+        native('Tank request delay', '0', 'The enqueue routine 0x140730f50 packs a zero (0x140730f75) into the delay and value fields it writes at 0x140730fd8, so a setter request is ready at once.',
+               '0x140730fd8', '0f 11 48 10', report=r),
+        native('Tank request consumer', 'queue order', 'The consumer 0x1405993e0 walks the queue from the start, reads the requested fluid ID (0x1405994ad) and value (0x1405994b4) of each ready request and calls slot +0x370 of c_script_operators. '
+               'It removes the record without testing the return and continues at the same index, so later records move down and two requests to one tank are applied in queue order, neither reordered nor merged.',
+               '0x1405994d1', '41 ff 92 70 03 00 00', report=r),
+        native('Tank request value scale', 0.1, 'Slot +0x370, 0x140734fd0, multiplies the requested value (0x140735121) by binary32 0.1 before it builds the tank-level event: the API value times 0.1 is the stored amount.',
+               '0x1407350cb', 'f3 0f 10 3d fd a9 47 00', report=r, literals={'0x140bafad0': 'cd cc cc 3d'}),
+        native('Tank level event', 'kind 0x1c', 'The event constructor 0x14022a0f0 writes event kind 0x1c, which the event receiver dispatches to the tank handler 0x140778a70 (call at 0x14085c330).',
+               '0x14022a120', '48 c7 40 08 1c 00 00 00', report=r),
+        native('Tank request target types', 'water types 8 and 0x14', 'The tank handler applies the request only to fixed fluid tanks (type 8) and gas tanks (0x14, 0x140778b5c), after resolving a loaded vehicle, its body and the voxel component.',
+               '0x140778b57', '83 f8 08', report=r),
+        native('Tank request fluid ID check', 'ID < 13', 'An unsigned compare rejects fluid IDs of 13 or more (jae at 0x140778b71), negative IDs included.',
+               '0x140778b6d', '41 83 fb 0d', report=r),
+        native('Tank request clamp', '0 to tank volume', 'Reads the tank volume (component+0x5a0) and clamps the stored amount to 0 … volume (zero at 0x140778b92, moves through 0x140778b9a).',
+               '0x140778b88', 'f3 0f 10 82 a0 05 00 00', report=r),
+        native('Tank request phase classes', 'liquid 0, 1, 2, 5, 6, 8, 9; gas 3, 4, 7, 10, 11, 12',
+               'Two dispatch tables after the handler, at 0x140778c9c and 0x140778cd0, classify each fluid ID as liquid (targets 0x140778bc2 and 0x140778bd9, value 1) or gas (0x140778bbd and 0x140778bd5, value 0). The cited row is the first table, one image-relative dword per ID.',
+               '0x140778c9c', phase, report=r),
+        native('Tank request class clear', 'same-class species = 0', 'For each of the 13 species (loop test at 0x140778bf1) the handler compares its class with the requested one (0x140778bde) and sets it to 0 when they match; the other class is skipped (0x140778be1).',
+               '0x140778be3', '41 c7 02 00 00 00 00', report=r),
+        native('Tank request store', 'amount[ID] + clamped value', 'After the clear it adds the clamped amount to the requested species (0x140778c09) and stores the sum of all 13 species as the total (0x140778c8f). No temperature is written.',
+               '0x140778c09', 'f3 42 0f 11 84 9a a4 05 00 00', report=r),
     ]
 
 
@@ -1085,8 +1117,14 @@ def build_articles():
             'Diesel input adds the tank\'s whole diesel entry to the tile inventory, with no per-callback limit, then requests 0 fresh water and 0 nitrogen in the inlet. Jet input does the same with the jet fuel entry. '
             'Diesel output computes the free space as capacity minus the tank\'s total value, clamps it to the tile\'s diesel stock, subtracts that delta from the stock and requests old total plus delta of the tank\'s current dominant fluid_type, then 0 nitrogen. Jet output does the same with jet fuel. '
             'Inputs run before outputs, so fuel credited by an inlet can leave through an outlet in the same callback. Example: an outlet of capacity 100 holding 40 with 25 in stock requests 65 and leaves 0 in stock. '
-            'The output request keeps the tank\'s existing fluid_type, so a diesel outlet holding mostly jet fuel debits diesel stock while asking for more of the jet fuel; the input clears fresh water and nitrogen, not the fuel it credited. '
+            'The output request uses the tank\'s reported fluid_type, so a diesel outlet holding mostly jet fuel debits diesel stock while asking for more jet fuel. '
             f'A native decode ({SMALL_PARTS}) found that server.setVehicleTank does not write the tank itself. Its binding resolves the named tank and appends a 36-byte request, kind 2, holding the vehicle ID, voxel position, value and fluid ID, to a queue; the tank changes only when that queue is applied. '
+            f'A later decode ({FLUID_GAPS}) followed the queue to the tank. A setter request has no delay, and ready requests are applied in queue order, so two requests to one tank are neither reordered nor merged. '
+            'The application scales the value by 0.1 to a stored amount and clamps it to 0 … tank volume. It sets every species of the requested one\'s class, liquid or gas, to 0, adds the clamped amount to the requested species and recomputes the total. '
+            'The other class and the temperature stay as they were. Only fixed fluid and gas tanks are written, and fluid IDs of 13 or more are rejected. '
+            'For this script that means the inlet\'s 0 fresh-water request clears every liquid in the inlet while only the diesel or jet fuel entry was credited, so water or another fuel in an inlet is lost, and the 0 nitrogen request clears every gas. '
+            'An outlet\'s fill replaces its whole liquid class with old total plus delta of its fluid_type, and the following 0 nitrogen request clears gases without touching that liquid. '
+            'Nothing is rolled back: the script changes its tile inventory when it queues the requests, and a request that later fails, because the vehicle is not loaded or the target is not a fixed tank or the fluid ID is out of range, is dropped without undoing that change. '
             'This is addon bookkeeping rather than the fluid network solver.',
             [lua('Port scheduling', 'port.id % 60 == tick', 'Counter increments per onTick callback and wraps at 60; game_ticks is not used by this counter.', STORAGE, 'function onTick(game_ticks)', 'if port.id % 60 == tick then'),
              lua('Diesel input', 'd = d + tank_data.values[1]', 'Uses the diesel species entry, then requests 0 of fluid 0 and 0 of nitrogen in the inlet.', STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_in")', 'is_update = true'),
@@ -1094,8 +1132,7 @@ def build_articles():
              lua('Diesel output', 'delta = min(capacity - value, d)', 'Transfers only when space and inventory allow; source uses total tank value to compute space and requests value + delta of the existing fluid_type.', STORAGE, 'local tank_data, success = server.getVehicleTank(port.id, "diesel_out")', 'is_update = true'),
              lua('Jet output', 'delta = min(capacity - value, j)', 'Same rule against jet fuel stock.', STORAGE, 'local tank_data2, success2 = server.getVehicleTank(port.id, "jet_out")', 'is_update = true'),
              *store],
-            [lua_limit, 'Still unverified: how the queued setVehicleTank requests are applied (clamping, replacing or adding, the order of two requests to one tank, and failures), and so whether fuel is conserved, especially with mixed fluids. '
-             'The wall-clock period of 60 onTick callbacks was not measured either. A runtime test or a decode of the queue consumer is needed.'])
+            [lua_limit, 'The wall-clock period of 60 onTick callbacks was not measured. The queued-request decode covers the ordinary loaded-tank path, not network loss, reconnects or saving while requests are queued.'])
     article('oil-survey-economy', 'Buying oil survey data', 'Economy',
             'Oil survey data starts at 25000 and later purchases randomize the quoted cost.',
             'On world creation, the addon marks deposit entries with index at most 5 as purchased. Initial survey cost is 25000. A purchase requires infinite money or currency strictly greater than the quoted cost. After selecting more deposit data, the script chooses a random next cost from 25000 to 80000. Exact-balance currency fails this source-level greater-than check.',

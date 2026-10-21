@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { NUCLEAR, REACTOR_FAMILIES, reactorCritical, reactorLayout, reactorRun, reactorSteady, KEEL, KEELS, keelFor, keelLateral, keelMemory, keelScale, keelUpright, WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { NUCLEAR, REACTOR_FAMILIES, reactorCritical, reactorLayout, reactorRun, reactorSteady, KEEL, KEELS, keelFor, keelLateral, keelMemory, keelScale, keelUpright, WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, MANUAL_PUMP, manualEase, manualHandle, manualPumpSwitch, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1021,6 +1021,31 @@ test('standalone clutch couples with e × input^6 and the 0.95 path weight', () 
   close(standaloneClutchOnset(0.001), (0.001 / 0.095) ** (1 / 6));
   assert.deepEqual(graphKindsForFamily('part-torque-clutch'), ['clutch']);
   assert.deepEqual(graphKindsForFamily('modular-engine-clutch'), ['clutch']);
+});
+
+test('manual pump handle eases quadratically over 60 controller updates from the current factor', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) <= 1e-12, `${a} != ${b}`);
+  close(manualEase(0.25), 0.125);
+  close(manualEase(0.5), 0.5);
+  close(manualEase(0.75), 0.875);
+  assert.equal(manualHandle({ from: 0, to: 1, t: 0 }), 0, 'the first update keeps the factor');
+  close(manualHandle({ from: 0, to: 1, t: 5 }), 2 / 144);
+  close(manualHandle({ from: 0, to: 1, t: 30 }), 0.5);
+  assert.equal(manualHandle({ from: 0, to: 1, t: 60 }), 1);
+  close(manualHandle({ from: 0.6, to: 0, t: 30 }), 0.3);
+  assert.equal(manualHandle({ from: 0.9995, to: 1, t: 1 }), 1, 'a difference of 0.001 or less snaps');
+  assert.equal(manualPumpSwitch({ from: 0, to: 1 }), 5);
+  assert.equal(manualPumpSwitch({ from: 1, to: 0 }), 56);
+  assert.equal(manualPumpSwitch({ from: 0.5, to: 1 }), null);
+  assert.deepEqual(graphKindsForFamily('part-water-pump-manual'), ['manual']);
+  const data = JSON.parse(readFileSync(new URL('../../data/behavior.json', import.meta.url), 'utf8'));
+  const pump = data.families.find((f) => f.id === 'part-water-pump-manual');
+  const value = (label) => pump.findings.find((x) => x.label === label)?.value;
+  assert.equal(value('Manual pump easing duration'), `${MANUAL_PUMP.duration} controller updates`);
+  assert.equal(value('Easing half duration'), '0.5');
+  assert.equal(value('Easing second half term'), '2');
+  assert.equal(value('Easing second half offset'), '-1');
+  assert.ok(pump.findings.find((x) => x.label === 'Manual pump handle easing').detail.includes('0.0139 at t = 5'));
 });
 
 test('shaft bridge pass matches investigation/native/transmission/tools/examples.json when present', (t) => {

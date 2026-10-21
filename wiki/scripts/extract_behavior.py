@@ -844,7 +844,7 @@ def fluid_network(E):
     f["r_half"] = op(F_ROPE_FLUID, 0x1403B6BF5, "f30f101dbf907f00", 0x140BAFCBC, "Hose-link exchange factor",
                      "Factor for any other rope hook, such as a hose anchor or a rope-hook winch. The second side applies the same choice at 0x1403b6e99." + rep)
     f["r_call"] = code(F_ROPE_FLUID, 0x1403B6C4A, "e8816cf3ff", "Hose-link exchange", "two-port solver, bias 0, two-way",
-                       "With a connected network (component+0x938) and a valid link (+0xaa8) it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed." + rep)
+                       "With a connected network (component+0x938) and its exchange flag for that side (+0xaa8) set it calls 0x1402ed8d0 between its first fluid port (+0x918) and the linked hook's first port, or its second port when the linked hook is a hose pulley pointing back from that side; mask −1, one-way flag 0. The second side (+0x950, call at 0x1403b6ef1) does the same. No length is loaded and no hose compartment is passed." + rep)
     f["p_sub"] = code(F_PULLEY_NET, 0x1404A21A5, "83f908", "Hose-pulley network test", "subtype 8",
                       "The extra network builder handles rope hooks of subtype 8 whose first fluid port has no network yet." + rep)
     f["p_vol"] = code(F_PULLEY_NET, 0x1404A226F, "c7400800008040", "Hose-pulley shared network", "volume 4",
@@ -4101,7 +4101,7 @@ def fluids(B, E):
                p + [spawn, tank_leak, tank_s] + meters + N["damping"] + T["solver"] + T["electric"][:2] + T["impeller"][:2] + T["modular"][:1] + R +
                vols + links + law + start + manual + rooms + [tanks_ports_native(E)[k] for k in ("sp_099", "sp_60", "sp_cap", "sv_species", "sv_loop", "sv_pending")],
                ["Native coverage for this build: ordinary and enclosed pipe networks, fixed liquid and gas tanks, the electric, impeller, modular and manual pumps, both filters, the old Hose and mechanical winches, rope-hook hoses, hose pulleys and the fluid connector. "
-                "Custom-compartment volume from wall geometry and hull flooding were not decoded. The spawns that run the diesel and jet-fuel tank fill, the order of saved-content restore, rebuild and reset, handheld hose free ends, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
+                "Custom-compartment volume from wall geometry and hull flooding were not decoded. Which editor, mission, career or creative and save-loading workflows enable the diesel and jet-fuel fill or keep restored contents, the fluid operation of a character-held hose end, slurry processing and steam or seawater behaviour outside the selected phase-change callers were not traced. "
                 "The four realtime fluid damping names do not occur in the executable, so their effect on this build was not recovered.", TICK])
     B.family("electric-fluid-pump",
              "Pushes fluid with a bias of electrical supply × pump_pressure × Max Power; at equal pressure the small pump moves at most 200 L/s and the large one 400 L/s.",
@@ -4133,12 +4133,15 @@ def fluids(B, E):
                    N["fill_099"], N["fill_q"], N["fill_gas"], N["fill_add"], N["fill_skip"]] + R
     t = tanks_ports_native(E)
     spawn_fuel = [t[k] for k in ("sp_gate", "sp_type", "sp_fuel", "sp_099", "sp_60", "sp_cap", "sp_add", "sp_air", "sp_litres")]
-    saved = [t[k] for k in ("sv_pending", "sv_primary", "sv_secondary", "sv_total", "sv_temp", "sv_species", "sv_loop", "sv_hi", "sv_lo", "sv_call", "rs_clear", "rs_arm", "ct_temp")]
+    fg = fluid_gaps_native(E)
+    saved = [t[k] for k in ("sv_pending", "sv_primary", "sv_secondary", "sv_total", "sv_temp", "sv_species", "sv_loop", "sv_hi", "sv_lo", "sv_call", "rs_clear", "rs_arm", "ct_temp")] + [fg["b_mask"], N["fill_call"]]
+    request = [fg[k] for k in ("r_default", "r_arg", "r_job", "r_lua", "r_set", "r_mode")]
     saved_s = section("Saved contents and reset",
                       "Fluid and gas tanks share one serializer. It saves the fill-pending flag as spawner_pending and both compartments, contained_volume and contained_volume_secondary. Each compartment keeps vol_0 to vol_12, the 13 species amounts in the internal unit, plus vol_total, temp and rad. "
                       "The geometric volume is not saved; it is recomputed from the definition without touching the amounts or temperature. A saved temperature is clamped to −273 … 100000 and a non-finite one becomes 0.",
                       "A separate reset zeroes both compartments' amounts and totals and sets fill pending again, so the next pending fill treats the tank as new. It leaves the temperature as it was. A new tank starts at 20 °C. "
-                      "The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call.")
+                      "The pending fill skips a tank whose fill-pending flag is 0, so a restored 0 keeps the restored contents through that call. "
+                      "A build reconstructs the pipe networks before it runs the pending fill, and the diesel and jet-fuel fill is a separate step with its own request gate. A restored 0 therefore keeps the contents unless a later reset sets fill pending again.")
     B.family("fluid-tank",
              "Small, medium and large tanks have 31.25, 187.5 and 703.125 L compartments that exchange with each port's pipe network; liquid pressure stays low until the last 80 L of room fills; contents drift toward ambient temperature with a time constant of 16.7 simulated seconds.",
              [section("Operating conditions",
@@ -4150,12 +4153,15 @@ def fluids(B, E):
               section("Diesel and jet fuel at spawn",
                       "The first-build fill skips diesel and jet fuel. A separate vehicle spawn operation fills them instead, only when its request enables the resource fill. It asks for 0.99 × fill × V of the selected fuel: 30.9375, 185.625 and 696.09375 L for the small, medium and large tank at full fill. "
                       "On its inventory branch the fuel is capped to the diesel or jet fuel in stock and taken from it, so a tank can spawn part full, or with no fuel when the stock is empty. Off that branch the whole request is added. Either way the tank also gets V ÷ 60 of air. "
-                      "This operation adds to the existing contents and does not clear them."),
+                      "This operation adds to the existing contents and does not clear them.",
+                      "The fill runs only when the spawn request's fuel-fill byte is set. Request construction clears it and then copies the caller's argument, and the shared spawn job passes a byte from another object, so a fresh spawn does not always fill. "
+                      "One identified path sets it: the Lua call resetVehicleState marks the vehicle's pending request and enables the fuel fill. "
+                      "The stock-capped branch also needs request mode 1, a second request flag, an inventory record and a cleared settings byte. The limitations below cover which workflows and options set them."),
               saved_s],
-             liquid + tank_common + spawn_fuel + saved + [N["start_liquid"], N["v_liquid"], N["v_gas_100"], E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"),
+             liquid + tank_common + spawn_fuel + saved + request + [N["start_liquid"], N["v_liquid"], N["v_gas_100"], E.tooltip("fluid_tank_small"), E.port("fluid_tank_small", "Tank Pressure"),
                                      E.attr("fluid_tank_small", "water_component_type", "Selects case 8 of the fluid update.")],
-             ["Which spawns run the diesel and jet-fuel fill was not traced: request byte +0x45 and the inventory branch are not yet mapped to editor placement, career or creative settings, missions or save loading. "
-              "The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a tank's contents and which refill it is unknown.", TICK])
+             ["Diesel and jet fuel use a separate request-gated fill, and resetVehicleState is one identified path that enables it; which editor, mission, career or creative and save-loading workflows enable it is not yet mapped. "
+              "The pending fill follows network reconstruction, while the fuel fill has its own request gate; the reset and restore choices each loading and editor workflow makes are not yet mapped.", TICK])
     B.family("gas-tank",
              "Small, medium, large and huge gas tanks have 46.875, 109.375, 984.375 and 3515.625 L compartments; pressure is 60 × amount ÷ volume, and a fresh tank starts at 59.4 atm at full fill.",
              [section("Operating conditions",
@@ -4170,8 +4176,8 @@ def fluids(B, E):
                       "The 59.4 atm start and the 100000 temperature bound are not safety ratings. General vehicle damage code lies outside these checks, so they do not show that tanks cannot fail.")],
              gas + tank_common + saved + [N["start_gas"], N["species_60"], N["gas_air"], N["v_gas_k"], N["v_gas_100"], spawn,
                                   E.attr("fluid_tank_compressed_gas_1_3", "water_component_type", "Selects case 0x14 of the fluid update."), E.port("fluid_tank_compressed_gas_1_3", "Tank Pressure")],
-             ["The order of restore, rebuild, reset and fill for saved worlds, stored vehicles and editor rebuilds was not traced, so which of them keep a gas tank's contents and which refill it is unknown.",
-              "No maximum safe pressure or pressure-triggered damage was recovered. The generic max pressure and high_pressure strings and the common vehicle damage paths were not traced to tanks.", TICK])
+             ["Gas-tank contents and the fill-pending flag are saved, a reset clears the contents and sets fill pending, and the pending fill follows network reconstruction; which loading and editor workflows run each of these is not yet mapped.",
+              "No maximum safe pressure or pressure-triggered gas-tank damage threshold was found. A generic damage path or inlined pressure logic elsewhere in the executable was not traced, so this static investigation has not established that none exists.", TICK])
 
 
 # winches pass; files under investigation/native/winches/, report investigation/winches.md.
@@ -4965,25 +4971,45 @@ def fluid_links(B, E):
     def simple(fid, summary, sections, findings, limits=()):
         B.family(fid, summary, [section(t, b) for t, b in sections], findings, list(limits))
 
-    links_open = "The complete link-validity policy and invalid attachments were not traced. Whether the carried hose equipment's free end uses this exchange was not traced."
+    fg = fluid_gaps_native(E)
+    ends = [fg[k] for k in ("l_init", "l_recv", "l_held", "l_char", "l_rope2")]
+    ends_s = ("Which end exchanges",
+              "When a hose link between two components is completed, the end that started it gets the exchange flag for that side and the receiving end's flag is cleared, so the link exchanges once per update, from the starting end. "
+              "A cleared flag on one end does not mean the link is invalid. On hooks with two attachment positions the coupling name Rope 2 selects the second side. "
+              "A hose end held by a character is a separate link to that character: it clears the component's exchange flag and adds no second hook, so the hook-to-hook exchange does not run for it.")
     simple("part-rope-hook-fluid", "Links the fluid networks at both ends of a hose with bias 0, both directions and exchange factor 0.5; hose length adds no volume or resistance.",
-           [("Operating conditions", "A rope logic link between two anchors forms the hose. Each update a valid link calls the two-port solver between the Fluid Node networks at its two ends with bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. When the far end is a hose pulley the link uses the pulley's matching port."),
-            ("Setup and interactions", "The anchor stores no fluid and the exchange reads no length, so a long hose moves fluid as readily as a short one.")],
-           rope + [Tt("rope_hook_fluid"), A("rope_hook_fluid", "logic_gate_subtype", "Rope-hook subtype 1, the hose anchor."), P("rope_hook_fluid", "Fluid Node")], [links_open])
+           [("Operating conditions", "A rope logic link between two anchors forms the hose. Each update the end that holds the link's exchange flag calls the two-port solver between the Fluid Node networks at the two ends with bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. When the far end is a hose pulley the link uses the pulley's matching port."),
+            ("Setup and interactions", "The anchor stores no fluid and the exchange reads no length, so a long hose moves fluid as readily as a short one."), ends_s],
+           rope + ends + [Tt("rope_hook_fluid"), A("rope_hook_fluid", "logic_gate_subtype", "Rope-hook subtype 1, the hose anchor."), P("rope_hook_fluid", "Fluid Node")],
+           ["Completed links exchange fluid once, through the end assigned to perform the exchange. A character-held loose hose uses a separate link path; its fluid operation and the complete attachment restrictions across the interaction, scripting, loading and editing paths remain untraced."])
+    pulley_open = {
+        "part-winch-pulley-hose": "The hose pulley selects its linked side through reciprocal attachment pointers, and one end performs each exchange. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced.",
+        "part-winch-pulley-hose-corner": "The corner hose pulley uses the same end exchange scheme as the straight pulley. The complete attachment restrictions and the fluid behavior of a character-held loose end remain untraced.",
+    }
     for fid, bid in (("part-winch-pulley-hose", "winch_pulley_hose"), ("part-winch-pulley-hose-corner", "winch_pulley_hose_corner")):
         simple(fid, "Shares one 40 L fluid network between Fluid Node 1 and Fluid Node 2 and exchanges with linked hoses at factor 1.",
-               [("Operating conditions", "The extra network builder gives a subtype 8 pulley one network of volume 4, 40 L, and registers both fluid ports in it, so fluid passes through the pulley freely. Exchanges started from the pulley use factor 1 instead of the hose links' 0.5. The network's volume does not change with deployed hose length.")],
-               rope + [N["p_sub"], N["p_vol"], Tt(bid), A(bid, "logic_gate_subtype", "Rope-hook subtype 8, the hose pulley."), P(bid, "Fluid Node 1"), P(bid, "Fluid Node 2")], [links_open])
+               [("Operating conditions", "The extra network builder gives a subtype 8 pulley one network of volume 4, 40 L, and registers both fluid ports in it, so fluid passes through the pulley freely. Exchanges started from the pulley use factor 1 instead of the hose links' 0.5. The network's volume does not change with deployed hose length."),
+                ("Linked side", "A hook linked to the pulley picks the pulley's port by the reciprocal attachment pointer: when the pulley's back pointer leads to that hook it uses the pulley's second fluid port, otherwise its first. As for every hose link, only the end holding the exchange flag runs the exchange.")],
+               rope + ends + [fg["l_side"], N["p_sub"], N["p_vol"], Tt(bid), A(bid, "logic_gate_subtype", "Rope-hook subtype 8, the hose pulley."), P(bid, "Fluid Node 1"), P(bid, "Fluid Node 2")], [pulley_open[fid]])
     simple("part-connector-water", "When attached, links its fluid network to the other connector's with bias 0, both directions and exchange factor 0.5; the two networks stay separate.",
            [("Operating conditions", "With an attached connector, a network on its Fluid port and the transfer flag set, each update calls the two-port solver between the two Fluid ports: bias 0, both directions, all species and factor 0.5, which halves the per-update step limit. The connector holds no fluid and does not merge the networks, so each side keeps its own 40 L pipe pressure."),
             ("Setup and interactions", "Free flow in the tooltip means no bias and no species filter. The halved step limit still applies, so it is not unlimited flow.")],
            [N["c_half"], N["c_call"], step, T["solver"][5], Tt("connector_water"), P("connector_water", "Fluid")])  # the connectors pass adds attachment, release and the limitations
-    simple("part-water-pump-manual", "Hold either interact action to pump: bias 3, one-way, with a smoothed handle factor; at most 60 L/s at equal pressure.",
-           [("Operating conditions", "Holding an interact action sets the handle target to 1, and a smoothing controller with duration 60 moves the factor h toward it. While h is above 0.01 the pump calls the two-port solver with bias pump_pressure = 3 and factor h, one-way, all species. Released, h falls back, and at or below 0.01 nothing moves. The pump holds no fluid; its ports connect straight to the pipe networks."),
+    ease = [fg[k] for k in ("e_mode", "e_dur", "e_half", "e_in", "e_m1", "e_out", "e_retarget", "e_tick")]
+    E_at = {t: (2 * (t / 60) ** 2 if t < 30 else 1 - 2 * (1 - t / 60) ** 2) for t in (5, 15, 30, 45)}
+    ease.append(E.derived("Manual pump handle easing", "h = a + (b − a) × E(t ÷ 60)",
+                          "E(u) = 2u² for u < 0.5 and 1 − 2(1 − u)² for u from 0.5 to 1, with t the controller's elapsed count. From rest (a = 0, b = 1) h is %s at t = 5, %s at t = 15, %s at t = 30 and %s at t = 45; "
+                          "t = 5 is the first count at which h exceeds the pump's 0.01 threshold. The count is in controller updates, not converted to seconds." % tuple(_g(E_at[t], 3) for t in (5, 15, 30, 45)) + " Report: %s." % FG_REPORT,
+                          ease[:6] + [N["m_gate"]]))
+    simple("part-water-pump-manual", "Hold either interact action to pump: bias 3, one-way, with a handle factor that eases over 60 controller updates; at most 60 L/s at equal pressure.",
+           [("Operating conditions", "Holding an interact action sets the handle target to 1, and the handle factor h eases toward it over 60 controller updates. While h is above 0.01 the pump calls the two-port solver with bias pump_pressure = 3 and factor h, one-way, all species. Released, h eases back, and at or below 0.01 nothing moves. The pump holds no fluid; its ports connect straight to the pipe networks."),
+            ("Handle easing", "When the target changes, the controller keeps the current factor as a, takes the new target b and restarts its count t at 0. Then h = a + (b − a) × E(t ÷ 60), with E(u) = 2u² for u < 0.5 and E(u) = 1 − 2(1 − u)² from 0.5 to 1: slow at both ends and fastest halfway. "
+                              "On the update with t = 0 it keeps h. At t = 60, or once the remaining difference is 0.001 or less, h snaps to the target. "
+                              "Letting go before the handle is fully up restarts the curve from the current factor. From rest h is 0.0139 at t = 5, the first count above the 0.01 pumping threshold, and 0.5 at t = 30."),
             ("Flow", "At equal pressure between two pipe networks the bound is min(3, 20) ÷ 30 = 0.1 amount per update, 60 L/s at h = 1, against 200 L/s for the small electric pump. Backpressure, fill and other ports lower it, and backpressure cannot reverse it.")],
-           [N[k] for k in ("m_gate", "m_bias", "m_oneway", "m_idle", "m_cycle", "manual_env", "pp_name")] + [A("water_pump_manual", "pump_pressure", "Bias passed to the two-port solver."), Tt("water_pump_manual"),
-                                                                                                          P("water_pump_manual", "Flow Rate"), T["electric"][5], T["solver"][0], T["solver"][1]],
-           ["The handle factor's easing curve was not decoded to a formula; the report keeps it as pseudocode. No unit is documented for pump_pressure."])
+           [N[k] for k in ("m_gate", "m_bias", "m_oneway", "m_idle", "m_cycle", "manual_env", "pp_name")] + ease + [A("water_pump_manual", "pump_pressure", "Bias passed to the two-port solver."), Tt("water_pump_manual"),
+                                                                                                                 P("water_pump_manual", "Flow Rate"), T["electric"][5], T["solver"][0], T["solver"][1]],
+           ["No unit is documented for pump_pressure."])
     filt = [N["f_old"], N["f_call"], step]
     simple("part-fluid-filter", "Moves only the fluid types enabled in its mask between Fluid A and Fluid B, both ways, with bias 0 and factor 1; excluded types still count toward pressure.",
            [("Operating conditions", "Each update the filter calls the two-port solver between its two ports with bias 0, factor 1, both directions and its species mask, which defaults to all types. It has no compartment. Allowed species move in proportion to their share of the source's total, so the mask does not renormalize the source to the allowed species, and excluded species still count in each side's pressure.")],
@@ -4996,11 +5022,15 @@ def fluid_links(B, E):
         simple(fid, "Joins one 40 L network with every connected open or enclosed pipe; length adds no volume.",
                [("Operating conditions", "Open and enclosed pipes are both type 6. The network builder follows matching fluid faces through either kind and gives the whole connected run one compartment of volume 4, 40 L, no matter how many blocks it spans. For clean water the network pressure is 15 × the stored amount, 60 when full.")],
                pipe + [A(bid, "type", "Component type 6, followed by the pipe-network builder.")], [])
-    simple("part-water-spawner", "Fills its enclosing custom compartment once, at the first build, with up to 0.99 × fill × volume of the selected fluid, limited by free room.",
-           [("Operating conditions", "On the first build the spawner adds min(free room, 0.99 × fill × V) of the selected fluid to the compartment it sits in, where V is that compartment's volume. Air is split into nitrogen, oxygen and CO2. Diesel and jet fuel are skipped by this branch. Its tooltip says gases are spawned compressed at 60 atm; under the pressure law a compartment whose gas reaches A = V reads 60 atm.")],
-           [N["spawn_room"], N["fill_call"], N["fill_099"], N["law"], N["room_add"], N["room_v"], Tt("water_spawner")],
-           ["Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded. Spawning diesel or jet fuel was not traced."])
-
+    tp = tanks_ports_native(E)
+    sp_fuel = [fg[k] for k in ("s_type", "s_room", "s_q", "s_stock", "s_add")] + [tp["sp_gate"], tp["sp_099"]]
+    simple("part-water-spawner", "Fills its enclosing custom compartment with up to 0.99 × fill × volume of the selected fluid, limited by free room: most fluids at the first build, diesel and jet fuel through a vehicle spawn's fuel fill.",
+           [("Operating conditions", "On the first build the spawner adds min(free room, 0.99 × fill × V) of the selected fluid to the compartment it sits in, where V is that compartment's volume. Air is split into nitrogen, oxygen and CO2. Diesel and jet fuel are skipped by this branch. Its tooltip says gases are spawned compressed at 60 atm; under the pressure law a compartment whose gas reaches A = V reads 60 atm."),
+            ("Diesel and jet fuel", "Diesel and jet fuel are added by the request-gated fuel fill of a vehicle spawn, the same operation that fills diesel and jet-fuel tanks (see Fluid Tank). "
+                                    "For a spawner with an enclosing compartment C it adds q = min(C.V − C.A, 0.99 × fill × C.V) of the selected fuel to C. On the inventory branch q is first capped to that fuel in stock, which then loses q. "
+                                    "The fuel is added to what C already holds, so q depends on earlier fills, other spawners and restored contents. Unlike a fuel tank, the spawner gets no air with it.")],
+           [N["spawn_room"], N["fill_call"], N["fill_099"], N["law"], N["room_add"], N["room_v"], Tt("water_spawner")] + sp_fuel,
+           ["Custom-compartment volume from wall geometry, its default ambient gas and hull flooding were not decoded."])
 
 def engines(B, E):
     C = classic_engine(E)
@@ -10043,14 +10073,29 @@ def small_parts(B, E):
              pj + [A("oil_rig_pumpjack_b", "flags", "Value 128 sets bit 0x80."), A("oil_rig_pumpjack_b", "type", "Multibody component."),
                    A("oil_rig_pumpjack", "child_name", "Names the piston."), P("oil_rig_pumpjack", "Fluid Out"), T("oil_rig_pumpjack")],
              [SP_PLAIN])
+    fg = fluid_gaps_native(E)
+    pump = [fg[k] for k in ("pj_range", "pj_half", "pj_scale", "pj_h", "pj_store", "pj_bias", "pj_dir", "pj_call")]
+    well = [fg[k] for k in ("w_room", "w_min", "w_add", "w_debit", "d_rate", "d_min", "d_store")]
     B.family("part-oil-rig-pumpjack",
-             "Pumps fluid from a drilled oil well out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B.",
+             "Pumps crude from a finite well buffer out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B: the piston sets a chamber of volume 10 × its travel fraction, and a pump_pressure bias of 10000 pushes the excess out.",
              [section("Piston",
-                      "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port.")],
-             pj + [A("oil_rig_pumpjack", "child_name", "Names the piston."), A("oil_rig_pumpjack", "pump_pressure", "Pump pressure field."), A("oil_rig_pumpjack_b", "flags", "Value 128 sets bit 0x80."),
-                   P("oil_rig_pumpjack", "Fluid Out"), T("oil_rig_pumpjack")],
-             [SP_PLAIN, "The volume pumped per stroke and per simulated second was not decoded: the pumpjack's own pump branch, its pressure limit and the oil well supply are still open."])
-
+                      "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port."),
+              section("Pump chamber",
+                      "Each update the pumpjack reads the piston's displacement x, its travel range r and the sign s of its mirrored axis, and forms the travel fraction u = clamp((s × x + r ÷ 2) ÷ r, 0, 1). "
+                      "It sets the chamber's volume to V = 10 × u, 100 L at full travel. With A the amount already in the chamber, the exchange factor is h = clamp(A − V, 0, 1): fluid leaves only while the chamber holds more than its volume, as when the piston compresses a filled chamber. "
+                      "This step changes the chamber's size and adds no crude."),
+              section("Outflow",
+                      "The pumpjack calls the port solver between Fluid Out and the chamber with bias pump_pressure, 10000, factor h and all species, allowing only flow from the chamber to the port. "
+                      "The solver's signed difference is d = P_port − P_chamber − 10000, so the bias pushes crude out against outlet pressure. It is a pressure bias in the transfer, not a rupture pressure or an outlet ceiling. "
+                      "The delivered amount still depends on the solver, the pressures on both sides and h."),
+              section("Well supply",
+                      "A separate branch tops the piston up from the well buffer: q = min(10 × u − A, buffer crude). A positive q moves that crude from the buffer into the piston, so the pumpjack draws a finite supply rather than creating oil. "
+                      "The buffer refills from an oil deposit by q = min(free buffer room × 0.05, deposit remaining), and the deposit loses what it gives. "
+                      "The deposit used is the non-empty one with the most remaining crude whose region contains the sampling point.")],
+             pj + pump + well + [A("oil_rig_pumpjack", "child_name", "Names the piston."), A("oil_rig_pumpjack", "pump_pressure", "Bias the pump branch passes to the port solver: d = P_port − P_chamber − pump_pressure, outflow only."),
+                                 A("oil_rig_pumpjack_b", "flags", "Value 128 sets bit 0x80."), P("oil_rig_pumpjack", "Fluid Out"), T("oil_rig_pumpjack")],
+             [SP_PLAIN, "The chamber scale and the supply equations are decoded, but delivered volume per stroke or per second depends on piston motion and the connected fluid system. "
+              "The piston's motion under a mechanical drive, which deposits a well may draw from, the scheduling of the pump and supply branches and the outflow over a real cycle were not traced, so no amount per stroke or per simulated second is given."])
 
 NU_REPORT = "investigation/nuclear.md"
 NU_DATA = "investigation/native/nuclear/nuclear.json"
@@ -11162,6 +11207,161 @@ def new_issues_native(E):
                         "Zeroes the private fuel species at component+0x4f4. The engine serializer 0x14034e570 saves port state and engine values but passes neither private container to a serializer, "
                         "so on the current construction and save path these containers start empty.")
     E.new_issues = t
+    return t
+
+
+# Fluid-part gaps: pumpjack, hose links, manual pump easing, spawner fuel, tank fill requests; files under investigation/native/fluid-gaps/.
+FG_REPORT = "investigation/fluid-gaps.md"
+_FG = "fluid-gaps/"
+F_WELL = 0x14044FD00          # oil-rig component update: well-buffer debit into the piston, deposit refill
+F_HOSE_LINK = 0x140521500     # completed component-to-component rope link constructor
+F_HELD_LINK = 0x1405209D0     # character-held loose hose link constructor
+F_EASE = 0x14092C960          # easing curve evaluation, quadratic order
+F_EASE_TARGET = 0x1408CDDD0   # controller target change (leaf)
+F_EASE_STEP = 0x1408CDE20     # controller update
+F_SPAWN_REQUEST = 0x1405470D0  # vehicle spawn request construction
+F_SPAWN_JOB = 0x1405D67B0     # shared spawn job: passes a flag into the request
+F_RESET_STATE = 0x140727580   # c_script_operators slot +0xb0, reached from resetVehicleState
+OPERATORS_RESET_SLOT = 0x140B11AD8  # slot +0xb0 of c_script_operators (vtable 0x140b11a28)
+FG_PSEUDO = {
+    F_MB_UPDATE: "140357a60.c", F_WELL: "14044fd00.c", F_HOSE_LINK: "140521500.c", F_HELD_LINK: "1405209d0.c", F_ROPE_FLUID: "0x1403b6840.c",
+    F_EASE: "0x14092c960.c", F_EASE_TARGET: "0x1408cddd0.c", F_EASE_STEP: "0x1408cde20.c", F_SPAWN_FILL: "1405dafa0.c", F_SPAWN_REQUEST: "1405470d0.c",
+    F_RESET_STATE: "140727580.c", F_TANK_SAVE: "1403f6150.c",
+}
+
+
+def _fg_cite(E, func, address, hexbytes, listing, key=None):
+    """Cite fluid-gaps listing lines of the cited bytes, refusing to replace another listing's citation."""
+    k = (func, address if key is None else key)
+    old = WHERE.pop(k, None)
+    _wheel_cite(E, func, address, hexbytes, key=key, listing=_FG + "asm/" + listing)
+    if FG_PSEUDO.get(func):
+        WHERE[k] += "; ../" + _FG + "pseudocode/" + FG_PSEUDO[func]
+    if old is not None and old != WHERE[k]:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+
+
+def fluid_gaps_native(E):
+    """Pumpjack chamber and well supply, hose exchange ends, manual pump easing, spawner fuel and tank fill requests, verified once and shared."""
+    if hasattr(E, "fluid_gaps"):
+        return E.fluid_gaps
+    n = E.native
+    if not (E.root / FG_REPORT).is_file():
+        raise ValueError("Report missing: " + FG_REPORT)
+    if n.raw(OPERATORS_RESET_SLOT, 8) != struct.pack("<Q", F_RESET_STATE):
+        raise ValueError("c_script_operators slot +0xb0 no longer holds %#x" % F_RESET_STATE)
+    rep = " Report: %s." % FG_REPORT
+
+    def code(func, listing, address, hexbytes, label, value, detail):
+        _fg_cite(E, func, address, hexbytes, listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, listing, address, hexbytes, target, label, detail):
+        _fg_cite(E, func, address, hexbytes, listing)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    def name(func, listing, lea, hexbytes, target, expected, label, detail):
+        if lea + 7 + struct.unpack("<i", n.raw(lea + 3, 4))[0] != target:
+            raise ValueError("lea at %#x does not address %#x" % (lea, target))
+        _fg_cite(E, func, lea, hexbytes, listing, key=target)
+        return E.string(func, target, expected, label, detail + rep)
+
+    t = {}
+    # Oil Rig Pumpjack: the pump branch of the multibody update.
+    pj = "pumpjack-fluid.asm"
+    t["pj_range"] = code(F_MB_UPDATE, pj, 0x140357AC4, "f3410f10908c030000", "Pumpjack piston travel range", "definition+0x38c",
+                         "The pump branch reads the piston's travel range r from its definition, along with the piston displacement x and the sign s of its mirrored axis.")
+    t["pj_half"] = op(F_MB_UPDATE, pj, 0x140357AE7, "f30f590dcd818500", 0x140BAFCBC, "Pumpjack half-range term",
+                      "Forms r × 0.5 for both half-range terms (the second at 0x140357aef). The branch divides s × x + r ÷ 2 by r and clamps the result to 0 … 1: u = clamp((s × x + r ÷ 2) ÷ r, 0, 1).")
+    t["pj_scale"] = op(F_MB_UPDATE, pj, 0x140357B27, "f30f591d1d8b8500", 0x140BB064C, "Pumpjack chamber volume scale",
+                       "Multiplies u by this: the chamber volume is V = 10 × u, at most 10 units (100 L) at full travel. It is a chamber volume, not a delivered amount per stroke.")
+    t["pj_h"] = code(F_MB_UPDATE, pj, 0x140357B37, "f30f5cd3", "Pumpjack exchange factor", "h = clamp(A − V, 0, 1)",
+                     "Reads the chamber's amount A (+0x478, 0x140357b2f) and subtracts V. The difference, clamped to 0 … 1, is the solver factor h, so fluid leaves only once the chamber holds more than its new volume.")
+    t["pj_store"] = code(F_MB_UPDATE, pj, 0x140357B3B, "f30f119940040000", "Pumpjack chamber volume store", "V",
+                         "Stores V as the chamber's volume. The branch changes the chamber's size; it adds no crude.")
+    t["pj_bias"] = code(F_MB_UPDATE, pj, 0x140357B7A, "f3410f1090c80e0000", "Pumpjack pressure bias read", "pump_pressure (definition+0xec8)",
+                        "Loads the definition's pump_pressure, 10000 in oil_rig_pumpjack.xml, as the solver bias. The value comes from the definition, not from an immediate in this branch.")
+    t["pj_dir"] = code(F_MB_UPDATE, pj, 0x140357B95, "c644242801", "Pumpjack outflow only", "chamber to port",
+                       "Sets the direction restriction that permits only chamber-to-port flow; the other restriction stays off (0x140357ba4) and all species move (mask −1 at 0x140357b86).")
+    t["pj_call"] = code(F_MB_UPDATE, pj, 0x140357BD6, "e8354bf9ff", "Pumpjack outlet exchange", "port solver 0x1402ec710",
+                        "Calls the port solver with the Fluid Out port, the moving chamber, bias pump_pressure and factor h. In that solver the signed difference is d = P_port − P_chamber − pump_pressure, and the restriction suppresses the positive, inward direction. "
+                        "The bias is a pressure term in the transfer equation, not a rupture pressure or an outlet ceiling.")
+    # Well buffer and deposit, in the oil-rig update.
+    t["w_room"] = op(F_WELL, "well-piston-supply.asm", 0x14045164B, "f30f5915f9ef7500", 0x140BB064C, "Well supply chamber scale",
+                     "The oil-rig update resolves the coupled piston and computes 10 × u, the chamber volume, then subtracts the piston's amount A (0x140451653).")
+    t["w_min"] = code(F_WELL, "well-piston-supply.asm", 0x14045165B, "f30f5d933c040000", "Well supply limit", "q = min(10 × u − A, buffer crude)",
+                      "Limits the top-up by the crude in the well buffer (+0x43c).")
+    t["w_add"] = code(F_WELL, "well-piston-supply.asm", 0x140451678, "f30f118058040000", "Well supply into the piston", "piston crude + q",
+                      "For q above 0 adds q to the piston's crude (+0x458) and recomputes both totals from their species.")
+    t["w_debit"] = code(F_WELL, "well-piston-supply.asm", 0x14045168C, "f30f118b3c040000", "Well buffer debit", "buffer crude − q",
+                        "Takes the same q from the well buffer, so the piston's crude comes from a finite buffer.")
+    t["d_rate"] = op(F_WELL, "well-replenish.asm", 0x140450495, "f3440f592da2f57500", 0x140BAFA40, "Well buffer refill fraction",
+                     "Another branch refills the buffer from an oil deposit: free = max(buffer capacity − buffer total, 0), times this.")
+    t["d_min"] = code(F_WELL, "well-replenish.asm", 0x14045049E, "f3440f5d6f20", "Well buffer refill limit", "q = min(free × 0.05, deposit remaining)",
+                      "Limits the refill by the deposit's remaining crude. The deposit used is the non-empty entry with the most remaining crude whose region contains the sampling point.")
+    t["d_store"] = code(F_WELL, "well-replenish.asm", 0x14045054C, "f30f114720", "Deposit debit", "deposit remaining − q",
+                        "Stores the reduced deposit after adding q to the buffer's crude and recomputing its total, so deposits run out.")
+    # Hose link ends.
+    t["l_init"] = code(F_HOSE_LINK, "link-owner-first.asm", 0x140521C53, "c686a80a000001", "Link exchange flag, initiating end", "1",
+                       "The completed component-to-component link constructor sets the exchange flag of the initiating end's first side (+0xaa8); for its second side it sets +0xaa9 (0x140521b72).")
+    t["l_recv"] = code(F_HOSE_LINK, "link-owner-second.asm", 0x140521EBD, "c687a80a000000", "Link exchange flag, receiving end", "0",
+                       "Clears the receiving end's matching flag (+0xaa9 at 0x140521ddc) and keeps the link. One end performs the exchange; a cleared flag does not mark the link invalid.")
+    t["l_held"] = code(F_HELD_LINK, "held-link-construction.asm", 0x140520EA4, "c687a80a000000", "Held hose end clears the exchange flag", "0",
+                       "Interaction handler 0x140776910 maps held Hose equipment to a hose link and calls this constructor for a loose, character-held end. It records the component end and a character reference and clears the component's exchange flag.")
+    t["l_char"] = code(F_HELD_LINK, "held-link-construction.asm", 0x140520F79, "4989b798400000", "Held hose link on the character", "character+0x4098",
+                       "Stores the link on the character. No second rope-hook component end is installed, so the hook-to-hook exchange does not run against a hidden second hook.")
+    t["l_rope2"] = name(F_HELD_LINK, "held-link-construction.asm", 0x140520D6B, "4c8d0522636600", 0x140B87094, "Rope 2", "Second coupling name",
+                        "The coupling name that selects a hook's second attachment side. It distinguishes positions; it is not a fluid or hose compatibility test.")
+    t["l_side"] = code(F_ROPE_FLUID, "hose-side1.asm", 0x1403B6C11, "48399aa00a0000", "Pulley side selection", "reciprocal pointer",
+                       "Before the first-side exchange (call at 0x1403b6c4a) the pass compares the linked hook's back pointer (+0xaa0) with this component and uses the linked pulley's second port (+0x950, 0x1403b6c1a) when it matches, otherwise its first port (+0x918, 0x1403b6c23).")
+    # Manual pump handle easing.
+    t["e_mode"] = code(F_WATER_CTOR, "manual-controller-construction.asm", 0x1403EE9BC, "48c786f008000003000000", "Manual pump easing mode", "mode 3, family 0",
+                       "The water component constructor selects easing mode 3 for the handle controller at component+0x8e8, with quadratic order 2 (0x1403ee9e3).")
+    t["e_dur"] = code(F_WATER_CTOR, "manual-controller-construction.asm", 0x1403EE9CE, "48c7860409000000007042", "Manual pump easing duration", "60 controller updates",
+                      "Stores binary32 60 (bytes 00007042) as the controller's duration.")
+    t["e_half"] = op(F_EASE, "manual-quadratic.asm", 0x14092C9E7, "f30f590dcd322800", 0x140BAFCBC, "Easing half duration",
+                     "Halves the duration; the curve divides the elapsed count by it (0x14092cb48), so u = t ÷ 60 maps to 2u.")
+    t["e_in"] = code(F_EASE, "manual-quadratic.asm", 0x14092CB54, "f30f59c3", "Easing first half", "E(u) = 2u² for u < 0.5",
+                     "Squares the scaled time (0x14092cb54, 0x14092cb58) and halves it: 2u² in the first half.")
+    t["e_m1"] = op(F_EASE, "manual-quadratic.asm", 0x14092CB65, "f30f5825bb402800", 0x140BB0C28, "Easing second half offset",
+                   "In the second half adds this to the scaled time.")
+    t["e_out"] = op(F_EASE, "manual-quadratic.asm", 0x14092CB73, "f30f5c0d9d362800", 0x140BB0218, "Easing second half term",
+                    "Subtracts this and finishes the multiply and subtract sequence at 0x14092cb87: E(u) = 1 − 2(1 − u)² for u from 0.5 to 1, the same as −2u² + 4u − 1.")
+    # 0x1408cddee and 0x1408cde35 are cited by the heat-exchanger pass; their constants are re-read here.
+    if (fmt(n.f32(0x140BAFAD0)), fmt(n.f32(0x140BAF8F8))) != ("0.1", "0.001"):
+        raise ValueError("Controller thresholds differ")
+    t["e_retarget"] = code(F_EASE_TARGET, "manual-controller.asm", 0x1408CDDF7, "c7411800000000", "Easing restart", "elapsed count = 0",
+                           "A changed target captures the current output as the start a and the target difference b − a. When the change exceeds binary32 0.1 (bytes cdcccc3d at 0x140bafad0, compared at 0x1408cddee) the elapsed count is reset to 0; a binary interaction change always does.")
+    t["e_tick"] = op(F_EASE_STEP, "manual-controller.asm", 0x1408CDE85, "f30f58353f202e00", 0x140BAFECC, "Easing count step",
+                     "Adds 1 to the elapsed count each controller update. At a count of 0 the update keeps the output. It eases only while the retained difference exceeds binary32 0.001 (bytes 6f12833a at 0x140baf8f8, compared at 0x1408cde35) and the count is within the duration; otherwise it snaps to the target and clears the count and difference.")
+    # Fluid spawner diesel and jet fuel.
+    sp = "spawner-fuel-fill.asm"
+    t["s_type"] = code(F_SPAWN_FILL, sp, 0x1405DC1EE, "83b9cc0e000007", "Spawner fuel arm type", "water_component_type 7",
+                       "Inside the request-gated resource fill, a second arm runs for the fluid spawner, type 7, with diesel (selection 1) or jet fuel (selection 2, 0x1405dc236).")
+    t["s_room"] = code(F_SPAWN_FILL, sp, 0x1405DC24F, "488b88b0040000", "Spawner fuel compartment", "enclosing compartment C",
+                       "Resolves the spawner's enclosing compartment C and forms its free room C.V − C.A (0x1405dc271).")
+    t["s_q"] = code(F_SPAWN_FILL, sp, 0x1405DC28F, "f30f5dfe", "Spawner fuel amount", "q = min(C.V − C.A, 0.99 × fill × C.V)",
+                    "Multiplies C.V by the fill setting (0x1405dc282) and by 0.99 held in xmm14 (0x1405dc28a), then takes the smaller of that and the free room.")
+    t["s_stock"] = code(F_SPAWN_FILL, sp, 0x1405DC3BD, "f30f11848b4c010000", "Spawner fuel stock debit", "stock − q",
+                        "On the inventory branch q is capped to the selected fuel in stock, and a positive q is taken from that stock.")
+    t["s_add"] = code(F_SPAWN_FILL, sp, 0x1405DC3FE, "f30f11448b3c", "Spawner fuel store", "C.amount[fuel] + q",
+                      "Adds q to the selected species of C and to its total (0x1405dc41c). Existing contents stay; this arm adds no air.")
+    # Fill request flag, resetVehicleState and build order.
+    t["r_default"] = code(F_SPAWN_REQUEST, "request-construction.asm", 0x14054712F, "66c740440100", "Spawn request defaults", "fuel-fill byte +0x45 = 0",
+                          "Request construction initializes the adjacent bytes with the fuel-fill gate +0x45 clear.")
+    t["r_arg"] = code(F_SPAWN_REQUEST, "request-construction.asm", 0x14054727F, "884745", "Spawn request fuel-fill argument", "+0x45 = argument",
+                      "Then stores the caller's argument in +0x45, the byte the resource fill tests.")
+    t["r_job"] = code(F_SPAWN_JOB, "spawn-request-call1.asm", 0x1405D7621, "410fb68424d4000000", "Spawn job fuel-fill flag", "source byte +0xd4",
+                      "The shared spawn job reads another object's byte +0xd4 and passes it (0x1405d762a) to request construction (call at 0x1405d7676), so the gate is not always set on a fresh spawn.")
+    t["r_lua"] = name(F_LUA_GLOBALS, "reset-api-binding.asm", 0x140599CCC, "488d05bd7b5f00", 0x140B91890, "resetVehicleState", "resetVehicleState binding",
+                      "The Lua registry pairs this name with the wrapper 0x1405a1680 (lea at 0x140599cda). The wrapper calls slot +0xb0 of c_script_operators, which holds 0x140727580 (at 0x140b11ad8; the extractor re-reads it).")
+    t["r_set"] = code(F_RESET_STATE, "reset-fuel-request.asm", 0x140727ED2, "c6404501", "resetVehicleState enables the fuel fill", "+0x45 = 1",
+                      "The reset routine marks the vehicle's pending request and sets its fuel-fill gate; the other request path sets it at 0x140727eff.")
+    t["r_mode"] = code(F_SPAWN_FILL, "fuel-fill-gate.asm", 0x1405DBD83, "837e3001", "Stock-limited fill request tests", "request mode 1 and +0x47",
+                       "Besides the gate +0x45, the stock-limited branch needs request mode 1, the request byte +0x47 (0x1405dbd89), a cleared settings byte +8, a non-null inventory record and the inventory-origin condition.")
+    t["b_mask"] = code(F_TANK_SAVE, "tank-serializer.asm", 0x1403F65AD, "f6451004", "Tank runtime serialization mask", "mask bit 4",
+                       "The water serializer tests the runtime bit before it serializes spawner_pending and the contained volumes, so restoring runtime state restores the species, totals and fill-pending flag together.")
+    E.fluid_gaps = t
     return t
 
 

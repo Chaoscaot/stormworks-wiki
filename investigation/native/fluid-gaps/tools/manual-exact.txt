@@ -1,0 +1,121 @@
+7-## Findings
+8-
+9:- All four shipped fluid damping identifiers are absent from the entire executable in ASCII and UTF-16LE. No binding from those file settings to release code is established.
+10-- Fixed liquid and gas tanks use `V = 1.5625 * definition voxel count`, in native amount units. One volume unit is 10 L. They exchange through ports with an internal compartment, rather than enlarging the ordinary pipe network.
+11-- All 13 fluid slots use one pressure law. Species differ by gas or liquid classification, not by separate pressure coefficients. Pure gas gives `P = 60*A/V`. The liquid law changes at V=8 and near full occupancy.
+12-- The fixed gas-tank fill branch adds `0.99 * fill * V`, giving 59.4 atm at fill=1 from a cleared state before exchanges. The custom spawner has a different, room-limited fill branch; its shipped description says 60 atm. These statements must not be collapsed into one exact startup rule.
+13:- The manual pump uses bias 3, a smoothed interaction factor, one-way transfer and all species. Its ordinary-pipe equal-pressure envelope at factor 1 is 60 L/s.
+14-- The old coiled Hose, current rope-hook hoses, hose pulleys and fluid connector have explicit exchange paths. They bridge network states. Their inspected exchange calls contain no hose-length term or hose storage compartment.
+15-- Enclosed pipes are type 6 and follow the ordinary-pipe traversal. Both fluid filter versions are species masks on a two-port exchange, without added internal fluid volume.
+16-- Custom compartments use separate geometry-derived states. Their volume accumulation, component assignment and pressure calls are identified. The full geometry classification and aperture/flooding equations remain open.
+17-
+18-## Evidence and reproduction
+19-
+20-`native/fluids-network/asm/` contains objdump addresses and original instruction bytes. `pseudocode/` contains Ghidra 12.1.4 output. Decompiled signatures can omit SSE arguments, and several large routines have chained unwind chunks. Assembly and original PE bytes take precedence.
+21-
+22-`tools/resources.json` retains selected shipped definitions, original line numbers, complete text, voxel counts and SHA-256 hashes. `tools/anchors.json` retains constants, dispatch entries and RTTI/vtable bytes. `tools/string-search.json` retains whole-file search results. `tools/verification.txt` records byte checks and arithmetic checks. All evidence paths in `SHA256SUMS` are relative to the repository root.
+23-
+24-Run from the installation root:
+25-
+26-```bash
+27-python3 -I investigation/native/fluids-network/tools/collect.py . /tmp/fluids-network-reproduced
+28-python3 -I investigation/native/fluids-network/tools/verify.py .
+29-diff -ru investigation/native/fluids-network/asm /tmp/fluids-network-reproduced/asm
+30-diff -u investigation/native/fluids-network/tools/anchors.json /tmp/fluids-network-reproduced/tools/anchors.json
+31-diff -u investigation/native/fluids-network/tools/string-search.json /tmp/fluids-network-reproduced/tools/string-search.json
+32-```
+33-
+34-The collector rejects a different executable digest. It reads files and runs objdump; it never runs the target. For fresh pseudocode, use the retained `DecompileAt.java` with Ghidra `support/analyzeHeadless`, `-import stormworks64.exe -noanalysis`, and an output directory under `/tmp`. Each retained C filename gives its requested entry address. This pass used the matching existing temporary project `/tmp/fluid-transport-ghidra/fluid-transport` with `-process stormworks64.exe -noanalysis -readOnly`. No analysis database is required to reproduce the bytes.
+35-
+36-## 1. Realtime damping settings
+37-
+38-The shipped `rom/data/realtime_values/general_debug.txt` contains:
+--
+208-`connector_water.xml` is type 17. Its line 109 documents fluid transfer between attached connectors. Vtable `0x140b50988`, RTTI `c_scene_vehicle_component_connector`, has update slot +0x358 bytes `30 41 3d 40 01 00 00 00`, `0x1403d4130`.
+209-
+210:At `0x1403d44d4`, bytes `e8 f7 93 f1 ff`, it bridges ports self+0x8d0 and attached+0x8d0 with bias 0, factor 0.5, one-way false and mask -1. Gates include attached pointer +0x950, a network at +0x8f0 and flag +0x970. It does not merge the two network objects or add connector storage volume in this path. The connector's complete attachment/release mechanics are outside the hydraulic conclusion.
+211-
+212-### Enclosed pipes
+213-
+214-All retained `trans_block_*.xml` definitions are type 6, like the open pipe definitions. Their fluid connection faces are type 3. The existing `0x1404a0f50` traversal tests component virtual type 6 and matching connection faces. It does not distinguish enclosed pipe meshes when adding traversed faces and does not add per-block volume. They therefore participate in the ordinary V=4 network result. The resource evidence rules out treating an enclosed pipe as a separate tank merely because its mesh is enclosed.
+215-
+216:## 6. Manual pump and pressure units
+217-
+218-`water_pump_manual.xml:2` supplies type 24, water type 22 and pressure 3. Line 81 says to hold either interaction action to pump. Water dispatch entry `0x1403f5158`, bytes `3f 34 3f 00`, selects `0x1403f343f`.
+219-
+220:The branch submits interaction target 0 or 1 from component+0x8e5 to controller +0x8e8, then updates the controller. It reads controller output at +0x8fc through `0x1408cddc0`; `0x1408cddd0` retains target, previous output and difference, and `0x1408cde20` advances the easing state. Constructor `0x1403ee9ce` stores a duration of 60 at controller+0x1c. The exact interrupted-interaction easing curve is retained as pseudocode, not reduced to an instantaneous Boolean.
+221-
+222-When controller output h>0.01, `0x1403f360e`, bytes `f3 0f 10 90 c8 0e 00 00`, loads definition pressure into xmm2. Xmm3 is h. It sets one-way true and mask -1, then jumps to the common call at `0x1403f25fb`, bytes `e8 d0 b2 ef ff`, with ports self+0x148 and +0x180. For h<=0.01 it calls with bias 0 and factor 0 instead. Damage detection clears the interaction target. The 0.015*h increment at `0x1403f3491` advances the handle/sound-cycle state +0x918; it is not a fluid amount or extra pump-pressure multiplier.
+223-
+224-For ordinary networks V=4, adequate inventory and room, no competition, and h=1, inference from the prior pump equation gives:
+225-
+226-```
+227-q_equal <= 3/30 = 0.1 amount/update = 60 L/s
+228-```
+229-
+230:This is an envelope, not a measured sustained rate. While h is between 0 and 1 the transfer bound includes h, and the h<=0.01 cutoff applies.
+231-
+232-No inspected pump definition, tooltip or editor control labels `pump_pressure` with a physical unit. The definition loader binds that name to definition+0xec8 at `0x140317c96-0x140317cb0`, retained in `name-binding.asm`. Pressure itself is displayed using `0x140b605f0`, literal ` / %.1fAtm`, and the tank ports document atmospheres. Inference: pump bias is compatible with that native pressure scalar because the solver adds it to a pressure difference. It is not a documented flow unit, SI pressure conversion or guaranteed pump-head rating. In particular, do not describe manual pressure 3 as a guaranteed 3 atm delivered head; the target-pressure equation also contains the bias and can yield a different equilibrium difference.
+233-
+234-## 7. Filters, mixtures and seawater
+235-
+236-The legacy `fluid_filter.xml` is water type 10. It enters `0x1403f2394`, shares the valve path, and submits its configured species bit mask from component+0x594. The common two-port call uses bias 0, active factor 1 and one-way false. The constructor defaults the mask to -1 at `0x1403eea09`. The UI in `0x1403f87f0` exposes individual species controls. No internal compartment is part of the filter exchange.
+237-
+238-`fluid_filter_v2.xml` is type 27 and dispatches to `0x1403f262e`. That branch builds a mask from two phase flags. If bit 3 of component+0x594 is set, it enables gas indices 3,4,10,11,12,7. If bit 0 is set, it enables liquid indices 0,6,5,1,2,8,9. The calls to the bit helper `0x14017b3f0` and the final solver call at `0x1403f27b7`, bytes `e8 14 b1 ef ff`, are retained in `filter-new.asm`. Bias is 0, factor 1 and one-way false. Bit3 here means the group flag expanded into all gas indices, not a filter restricted to air slot 3.
+239-
+240-These masks select moved species. They do not create separate per-species network pressures or remove excluded species from the pressure sum. The existing two-port solver transfers allowed species in proportion to their fraction of source total; a filtered mixture is not equivalent to renormalizing the source to allowed species only.
+241-
+242-Seawater index 6 is liquid for hydraulics, with the same pressure contribution as fresh water. The prior exterior decode already proved seawater at submerged intakes. A separate phase helper `0x1402eb350`, retained in `phase-change.asm`, converts fresh water plus seawater to steam above 100 C, removing each water type in proportion to its share. Below 100 C it condenses steam into fresh-water index 0. Its limits are `min((100-T)*0.001, 0.1*steam)` below 100, and `min((T-100)*0.001, fresh+sea)` above 100; temperature changes by `0.01*converted/A`. The total amount is unchanged by this helper. Calls at `0x14040ce51`, bytes `e8 fa e4 ed ff`, and `0x14040d5c7`, bytes `e8 84 dd ed ff`, establish selected callers, not a universal every-network phase update. Exact caller/component coverage remains open.
+243-
+244-The report does not decode slurry-filter processing, every steam-producing component, gas solubility, or every seawater-specific thermal/damage multiplier. Those are not settled by the common hydraulic phase classification.
+245-
+246-## Confidence and exact remaining boundaries
+247-
+248:High confidence applies to the hash, bounded identifier absence, tank volume arithmetic, tank port routing, the stated nonfuel fill branch, phase groups and pressure law, direct hose/connector exchange arguments, enclosed-pipe membership, manual-pump bias/factor, and filter masks. Arithmetic consequences are labeled as inferences. No result is a game measurement.
+249-
+250-The following remain open, with the ruled-out alternatives made explicit:
+251-
+252-1. Realtime damping influence through mechanisms without embedded names. Direct ASCII/UTF-16LE name lookup is ruled out by whole-file searches; hardcoded constants, generated identifiers and configuration-independent behavior are not ruled out. The tank-fill 0.99 is identified as initialization, not general fluid damping.
+253-2. Diesel/jet-fuel startup and save/rebuild inventory. The explicit fixed-tank/spawner branch skips indices 1/2; this rules out blindly applying its nonfuel startup formula to them. Their pressure and tank capacity are still covered by the common law.
+254-3. Exact custom-compartment geometry and open-boundary flooding. V is accumulated from weighted geometry, not set to 4. Components point to a separate state and the aperture pass uses its pressure. Occupancy weights' full geometric meaning, default ambient inventory, aperture area/submergence and final flow equations are not fully decoded.
+255-4. Complete current hose attachment policy and handheld free ends. The old Hose and current rope-hook exchange paths are distinct, and their decoded transfer calls contain no length factor or stored hose volume. That rules out attributing a length-resistance formula to these calls. It does not rule out different topology, validity or activation outside them. The carried 20 m hose valve is resource documentation only here.
+256-5. Complete multiphase/component coverage, slurry processing and all seawater-specific effects. Common pressure, species masks and one phase-change helper are recovered. Universal phase conversion in every compartment is not established by that helper's existence.
+257-6. A documented unit or physical pump-head calibration for `pump_pressure`. Pressure outputs say atmospheres, but no inspected pump-field UI/resource assigns a unit or guaranteed delivered head to that parameter.
+258-
+259-## Proposed wiki replacements
+260-
+261-Fluids limitation 0:
+262-
+263:> Fixed liquid and gas tanks, enclosed pipes, filters, the manual pump, and explicit hose/connector exchange paths are decoded for this build. Custom-compartment geometry and flooding, diesel/jet-fuel startup, handheld hose free ends, and complete steam/slurry/seawater component behavior remain partly open. The realtime damping names are absent from the executable; their runtime effect is unestablished. Pump bias uses the pressure solver's scalar, while pressure outputs are documented in atmospheres; no separate unit or delivered-head rating is documented for pump_pressure.
+264-
+265:Measurement questions:
+266-
+267-> The shipped file lists gas/liquid base damping 0.99/0.9999, but all four fluid damping identifiers are absent from the complete executable in ASCII and UTF-16LE. No setting binding is recovered. Runtime checks should compare two setting values on the same layout and initial inventory. Check flow against the recovered solver using the actual network graph: ordinary and enclosed pipe length adds no volume; hoses and connectors bridge networks with component-specific exchange factors. Check fixed gas-tank startup separately from custom spawners: the recovered fixed-tank fill branch gives 59.4 atm at full selected fill before exchanges, while the custom-spawner tooltip documents 60 atm.
+268-
+269-Fluid Tank family:
+270-
+271-> The small, medium and large tanks have decoded compartment volumes of 31.25, 187.5 and 703.125 L. Each tank exchanges with connected pipe networks through its own internal compartment. Pressure depends on gas and liquid amounts through the recovered window equation; it is not generally proportional to total fill for these larger tanks. The inspected nonfuel liquid startup branch adds 99% of selected fill plus V/60 of ambient gas. Diesel and jet-fuel startup remains untraced. Tank Content outputs 10 times the internal total amount, and Tank Pressure outputs atmospheres.
+272-
+273-Gas Tank family:
+274-
+275-> The small, medium, large and huge gas tanks have geometric volumes of 46.875, 109.375, 984.375 and 3515.625 L. Pure-gas pressure is 60 times stored amount divided by native compartment volume. The recovered fresh-state fill branch adds 0.99 times selected fill times volume, giving 59.4 atm at full selected fill before exchange. Gas species tooltips expand amounts by 60 before converting to litres; the Tank Content signal uses total amount times 10. These are different readouts. The custom spawner's documented 60 atm is a separate startup path.
+276-
+277-Old Hose family:
+278-
+279-> The coiled Hose connects its base and child-end fluid networks through a zero-bias, two-way exchange with factor 1. The decoded exchange has no added hose storage or hose-length factor. Its shipped description gives a maximum deployed length of 16 m. This is a separate implementation from current rope-hook hoses and carried hose equipment.
+280-
+281-Fluid Hose Anchor / current winch-hose family:
+282-
+283-> Current rope-hook hose links exchange between endpoint fluid networks with zero bias and both directions enabled. The inspected ordinary endpoint branch uses factor 0.5; a hose-pulley endpoint uses factor 1. The pulley can share a V=4, 40 L network across its two fluid ports. These calls do not add volume proportional to deployed hose length. Full attachment validity and handheld free-end valve behavior remain open.
+284-
+285:Manual pump addition to Moving fluid:
+286-
+287:> The manual pump supplies bias 3 through a smoothed interaction factor and permits forward transfer only. At factor 1 its ordinary-pipe equal-pressure flow envelope is 60 L/s; actual flow depends on inventory, backpressure and port allocation.
+288-
+289-Use `fluid-transport.md` for the full pressure/flow equations rather than replacing the remaining questions with a claim of universal rated flow. The proposed text is supplied for the concurrently working wiki agent. No wiki source or extractor was changed here.
+290-
+291-## Issue coverage and files
+292-
+293-This answers #5's named damping-search question, pump-unit documentation boundary, manual-pump path and much of its nonordinary-network scope. It supplies decoded capacity, pressure and selected initialization evidence for #29 fluid tank and #30 gas tank; explicit old-Hose transfer for #115; capacity, pump and damping evidence for #146; and current winch/anchor/pulley fluid exchange evidence for #160. It also contributes to fluid connector and filter articles, manual-pump coverage and the existing fluid transport work. The remaining boundaries above prevent claiming those broader issues closed.
+294-
+295-Files written are this report, `native/fluids-network/asm/`, `native/fluids-network/pseudocode/`, `native/fluids-network/tools/`, `native/fluids-network/SHA256SUMS`, and the two matching whitelist lines appended to the root `.gitignore`, without a blank line. No wiki/research source, existing investigation, commit, push or GitHub mutation was made.

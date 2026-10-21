@@ -6,6 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   CLASSIC, CLASSIC_VARIANTS, EXCHANGER, JET, EXCHANGER_VARIANTS, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, SURFACE_VARIANTS, UPDATES_PER_SECOND, classicEngine, engineEfficiency, exchangerCapacity,
   exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce, standaloneClutch, standaloneClutchOnset, TRANSMISSION,
+  MANUAL_PUMP, manualEase, manualHandle, manualPumpSwitch,
   GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON,
   FIREBOXES, STEAM, fireboxFor, pistonDrive, pistonValves, steamCycle, steamPistonFor,
   WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelShaftWeight,
@@ -1874,6 +1875,76 @@ function ClutchGraph() {
   );
 }
 
+/* ---------- manual pump handle ---------- */
+
+const MANUAL_COUNTS = steps(0, MANUAL_PUMP.duration, 1);
+
+function ManualPumpGraph() {
+  const uid = useUid();
+  const [from, setFrom] = useState(0);
+  const [held, setHeld] = useState(true);
+  const [count, setCount] = useState(30);
+  const to = held ? 1 : 0;
+  const rows = useMemo(() => MANUAL_COUNTS.map((t) => ({ t, h: manualHandle({ from, to, t }) })), [from, to]);
+  const h = manualHandle({ from, to, t: count });
+  const pumping = h > MANUAL_PUMP.threshold;
+  const change = manualPumpSwitch({ from, to });
+  const summary = `At count ${count}: handle factor ${fixed(h, 4)}, ${pumping ? 'pumping' : 'not pumping'}.`;
+  const status = useSettled(summary);
+  const desc = `Manual pump handle factor from ${fixed(from, 2)} toward ${to} over ${MANUAL_PUMP.duration} controller updates with quadratic easing. ${summary}`;
+  return (
+    <Frame
+      uid={uid}
+      status={status}
+      legend={[
+        { label: `Handle factor h, ${held ? 'interact held' : 'released'}`, className: 'graph-line-a' },
+        { label: `Pumping threshold ${MANUAL_PUMP.threshold}`, className: 'graph-line-b' },
+      ]}
+      controls={(
+        <>
+          <Check id={`${uid}-held`} label="Interact held (target 1)" checked={held} onChange={setHeld} hint="Released, the target is 0." />
+          <Range id={`${uid}-a`} label="Handle factor when the target changed" value={from} min={0} max={1} step={0.05} onChange={(x) => setFrom(+x.toFixed(2))} valueText={fixed(from, 2)} hint="A change of interaction restarts the curve from the current factor." />
+          <Range id={`${uid}-t`} label="Controller updates since the change" value={count} min={0} max={MANUAL_PUMP.duration} step={1} onChange={(x) => setCount(Math.round(x))} valueText={String(count)} />
+        </>
+      )}
+      chart={(width) => (
+        <Chart
+          uid={uid}
+          width={width}
+          title="Manual pump handle factor against controller updates"
+          desc={desc}
+          x={{ min: 0, max: MANUAL_PUMP.duration, ticks: steps(0, MANUAL_PUMP.duration, 10), format: (v) => String(v), label: 'Controller updates t since the target changed' }}
+          y={{ min: 0, max: 1, ticks: steps(0, 1, 0.25), format: (v) => fixed(v, 2) }}
+          series={[
+            { key: 'h', className: 'graph-line-a', points: rows.map((r) => [r.t, r.h]) },
+            { key: 'threshold', className: 'graph-line-b', points: [[0, MANUAL_PUMP.threshold], [MANUAL_PUMP.duration, MANUAL_PUMP.threshold]] },
+          ]}
+          selected={{ x: count, points: [{ key: 'h', y: h, className: 'graph-dot-a' }] }}
+          onSelect={(x) => setCount(snap(x, 0, MANUAL_PUMP.duration, 1))}
+        />
+      )}
+      readout={(
+        <Readout
+          title={`Count ${count}`}
+          rows={[
+            ['u = t ÷ 60', fixed(count / MANUAL_PUMP.duration, 4)],
+            ['E(u)', fixed(manualEase(count / MANUAL_PUMP.duration), 4)],
+            ['Handle factor h', fixed(h, 4)],
+            ['Pumping (h above 0.01)', pumping ? 'Yes' : 'No'],
+            ['Equal-pressure bound 60 × h', pumping ? `${fixed(MANUAL_PUMP.flowAtFull * h, 1)} L/s` : '0 L/s'],
+            [held ? 'First count that pumps' : 'First count that stops', change === null ? 'No change' : String(change)],
+          ]}
+        />
+      )}
+      table={{
+        caption: `Handle factor from ${fixed(from, 2)} toward ${to}`,
+        cols: ['Count t', 'E(t ÷ 60)', 'Handle factor h'],
+        rows: rows.filter((r) => r.t % 5 === 0).map((r) => [String(r.t), fixed(manualEase(r.t / MANUAL_PUMP.duration), 4), fixed(r.h, 4)]),
+      }}
+    />
+  );
+}
+
 /* ---------- gun ballistics ---------- */
 
 const FLIGHT_PLOTS = {
@@ -2826,7 +2897,7 @@ function ReactorGraph() {
 const GRAPHS = {
   engine: EngineGraph, radiator: RadiatorGraph, exchanger: ExchangerGraph, scoop: ScoopGraph, surface: SurfaceGraph, classic: ClassicGraph,
   jet: JetGraph, chamber: ChamberGraph, pid: PidGraph, gear: GearGraph, radar: RadarGraph, legacy: LegacyGraph, radio: RadioGraph, propeller: PropellerGraph,
-  clutch: ClutchGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph, winch: WinchGraph, keel: KeelGraph,
+  clutch: ClutchGraph, manual: ManualPumpGraph, ballistics: BallisticsGraph, heat: HeatGraph, booster: BoosterGraph, steam: SteamGraph, piston: PistonGraph, wheel: WheelGraph, winch: WinchGraph, keel: KeelGraph,
   reactor: ReactorGraph,
 };
 

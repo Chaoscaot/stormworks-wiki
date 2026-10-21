@@ -1,0 +1,536 @@
+investigation/winches.md-143-The old rope-creation callback `0x1403e3090` and the current cable construction helper `0x140519e30` call `0x1401a5f00`. That helper queues construction through `0x14019d630`. The common constructor creates a Bullet soft body through `0x140159370` and `0x1401462c0`. The installed vtable is `0x140ae3690`, whose RTTI name is `.?AVbtSoftBody@@`. This is a chain of nodes and distance links, rather than a hinge, slider or generic six-axis `btTypedConstraint` with a winch motor impulse cap.
+investigation/winches.md-144-
+investigation/winches.md-145-`0x140159370` interpolates the nodes and calls `0x140147790` for consecutive links. `0x140147600` gives each link the default material pointer. `0x1401462c0` initializes that material's three double coefficients to 1.0. The constructor additionally writes 5 at soft-body+0x404, approximately 0.01 at +0x368 and 1.0 at +0x3a0, +0x3a8 and +0x3b0. The relevant stores are `0x14019d71f`, `0x14019d72d`, `0x14019d741`, `0x14019d74b`, `0x14019d755`. The exact 0.01 double bit pattern is `0x3f847ae140000000`. These are retained raw solver/configuration settings. A physical spring constant in N/m is not established by these stores alone.
+investigation/winches.md-146-
+investigation/winches.md:147:The rest-length event vtable `0x140b610f8` has RTTI `.?AUevent_set_object_rope_rest_length@mm_physics_scene@@` and handler `0x1401a1f30`. The handler writes each of n links' rest length as `L/n` and its squared value. `0x1401489e0` contains the same link-length operation used by initial construction. No reel force or torque limit is supplied by these calls.
+investigation/winches.md-148-
+investigation/winches.md-149-### Additional current-cable impulse
+investigation/winches.md-150-
+investigation/winches.md-151-There is an explicit corrective impulse in `0x140524c80`, before its reel adjustment. When attachment-point separation D exceeds L, it takes each connected physics body's float at +8. Values below 0.0001 are replaced with 100000. Let the resulting values be K_A and K_B. It computes:
+investigation/winches.md-152-
+investigation/winches.md-153-```
+investigation/winches.md-154-J = min(K_A, K_B) * (D - L)
+investigation/winches.md-155-impulse_A = normalize(B - A) * J
+investigation/winches.md-156-impulse_B = -impulse_A
+investigation/winches.md-157-```
+investigation/winches.md-158-
+investigation/winches.md-159-It queues the two impulses through `0x1401a7470`. That helper's event vtable `0x140b82d30` has RTTI `.?AUevent_set_impulse@mm_physics_scene@@`. The complete branch is retained in `asm/140524c80.asm` and pseudocode lines around the `D > L` comparison. Interpreting the body+8 value as a mass is an inference here. The recovered fact is the member read and arithmetic. The branch has no explicit cap on J and no deletion/break call. This is one contribution to rope response, not a complete tension model or proof that the whole assembly has unlimited strength.
+investigation/winches.md-160-
+investigation/winches.md-161-### Still open, with ruled-out paths
+investigation/winches.md-162-
+investigation/winches.md-163-| Question | Status and bounded negative result |
+investigation/winches.md-164-|---|---|
+investigation/winches.md:165:| Force-equivalent stiffness | Open. Default material coefficients 1.0 and the common configuration stores are recovered. The inspected constructor, link creation and rest-length handlers do not convert these to N/m. Full soft-body solver calibration and timestep/iteration interpretation have not been recovered. |
+investigation/winches.md-166-| Maximum tension or impulse | Open. Type-20 `0x1403e3b30` performs length arithmetic, charge requests, geometric correction and a rest-length event, with no tensile-force comparison. Current `0x140524c80` has the uncapped local corrective-impulse branch above, but this does not rule out a cap elsewhere in the solver, contacts or global damage handling. The hinge/slider motor impulse caps in `mechanical-joints.md` cannot be transferred to this soft-body chain. |
+investigation/winches.md:167:| Tensile break condition and threshold | Open. Neither reel callback nor the shared construction/rest-length path compares a measured force or strain to a break threshold. The current system's +0xc4 deletion flag is handled by `0x1405288d0` and set by `0x14052c290`, which removes the rope and clears endpoint state. Those functions do not themselves test tensile force. `0x14051f1a0` and `0x1405201e0` remove cables for endpoint/object removal. This rules out treating those deletion calls as evidence of a numeric snap threshold. Global damage, other deletion-flag writers and all solver-internal failure paths have not been exhaustively traced. |
+investigation/winches.md-168-| Runtime effective travel | Open as a measurement. The rest-length rates and bounds are recovered. Loaded head displacement, slack, collisions, saved initial length and pulley routing can change physical travel. No measurement was performed. |
+investigation/winches.md-169-
+investigation/winches.md-170-This investigation does not claim that ropes cannot break. No 600 m, 500 m or other tooltip capacity is a recovered force/strain failure threshold.
+investigation/winches.md-171-
+investigation/winches.md-172-## Hose and pressure loss
+investigation/winches.md-173-
+investigation/winches.md-174-The prior fluids-network result answers the quoted hose pressure-loss gap. Old Hose uses exchange factor 1 at `0x1403e3b09`, bytes `e8 c2 9d f0 ff`. Current rope-hook hose paths use factor 1 or 0.5 according to the path. There is no length term or separate hose storage compartment in those inspected exchange calls. This means no additional length-dependent hose-loss factor was found in that bridge, not that the ordinary connected fluid network has zero losses. The previous fluid report retains the complete transport equation and its own limits. Reeling length does not enter the decoded bridge factor.
+investigation/winches.md-175-
+investigation/winches.md-176-## Model and worked examples
+investigation/winches.md-177-
+investigation/winches.md-178-`native/winches/tools/model.py` is a small executable scalar model. It omits Bullet motion, callback scheduling and float32 rounding. It covers one current winch plus an inactive anchor and the old reel's sequential draws, optional geometric floor and clamp. `model-examples.json` retains its output.
+investigation/winches.md-179-
+investigation/winches.md-180-* Old Medium, starting at 5 m, default Speed, Up for 60 updates, ample charge: 4.76 m and 0.6 charge units consumed.
+investigation/winches.md-181-* Old reel at 5 m with both controls on and ample charge: nominally 5 m after one update, consuming 0.02 units.
+investigation/winches.md-182-* The same old reel with only 0.015 units available: 4.998 m after one update, consuming all 0.015 units.
+investigation/winches.md-183-* Old reel at its maximum with Down held: remains at its maximum but still requests 0.01 units/update at full effectiveness.
+investigation/winches.md-184-* Current Medium, 5 m, Down: 5.008 m after one update. Current Huge under the same conditions: 5.12 m.
+investigation/winches.md-185-* Current Small, 9.999 m, Down: a 10.001 m candidate is rejected; it stays at 9.999 m. This is not a clamp to 10 m.
+investigation/winches.md-186-* Current Medium with both digital controls on, Relative Speed zero: nominally unchanged, movement flag false. Relative Speed 0.5 instead extends by 0.004 m/update, including the decoded path where the digital electrical gate is disabled.
+investigation/winches.md-187-
+investigation/winches.md-188-## Issue dispositions and replacement wording
+investigation/winches.md-189-
+investigation/winches.md-190-These dispositions describe research coverage, not changes or closure on GitHub. Force and break questions remain open where stated.
+investigation/winches.md-191-
+investigation/winches.md-192-| Issue | Disposition and proposed replacement wording |
+investigation/winches.md-193-|---|---|
+investigation/winches.md-194-| #101 | Partial: "Medium rope-node winch reels at 0.48 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 40 m to the shared cable limit. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-195-| #102 | Partial: "Huge rope-node winch reels at 7.2 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 600 m. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-196-| #103 | Partial: "Large rope-node winch reels at 1.8 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 150 m. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-197-| #104 | Partial: "Small rope-node winch reels at 0.12 m/s at Speed 1; Speed spans 0.1 to 10. Its capacity contributes 10 m. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-198-| #117 | Partial: "Legacy Medium Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 20 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-199-| #119 | Partial: "Legacy Small Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 10 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-200-| #121 | Partial: "Legacy Huge Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 500 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-201-| #123 | Partial: "Legacy Large Winch reels at 0.24 m/s at default Speed and full supply, with an inclusive 100 m rest-length cap. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-202-| #116 | Endpoint role decoded: "Physical and fluid end head of the 16 m legacy Hose. Its parent owns the reel controls, Speed and electrical draw; the head has no independent reel." |
+investigation/winches.md-203-| #118 | Endpoint role decoded: "Physical and fluid end head of the 20 m legacy Medium Winch. Its parent owns the reel controls, Speed and electrical draw; the head has no independent reel." |
+investigation/winches.md-204-| #120 | Endpoint role decoded: "Physical and fluid end head of the 10 m legacy Small Winch. Its parent owns the reel controls, Speed and electrical draw; the head has no independent reel." |
+investigation/winches.md-205-| #122 | Endpoint role decoded: "Physical and fluid end head of the 500 m legacy Huge Winch. Its parent owns the reel controls, Speed and electrical draw; the head has no independent reel." |
+investigation/winches.md-206-| #124 | Endpoint role decoded: "Physical and fluid end head of the 100 m legacy Large Winch. Its parent owns the reel controls, Speed and electrical draw; the head has no independent reel." |
+investigation/winches.md-207-| #115 | Partial: "Hose reels at 0.24 m/s at default Speed and full supply, with a 16 m inclusive rest-length cap. Its fluid bridge uses factor 1 without a length-dependent loss term. Maximum tension and snap threshold remain undecoded." |
+investigation/winches.md-208-| #160 | Partial: "Current rate is 0.012 times definition capacity times Speed m/s; legacy rate is 0.24 times Speed times draw fraction m/s. Current capacity is shared and candidates must lie strictly inside its bounds; old capacity is clamped. Old simultaneous controls draw twice and can retract under shortage; current digital increments cancel. Charge requests and the length-independent fluid bridge are decoded. Force ratings, snap thresholds and measured loaded travel remain open." |
+investigation/winches.md-209-
+investigation/winches.md-210-## Reproduction
+investigation/winches.md-211-
+investigation/winches.md-212-Run from `/home/maxsp/stormworks`. Only the report, `investigation/native/winches/` and the two `.gitignore` whitelist lines were written in the repository. Full scratch disassembly and Ghidra projects are under `/tmp`. Concurrent wiki edits were left alone.
+--
+investigation/fluids-network.md-9-- All four shipped fluid damping identifiers are absent from the entire executable in ASCII and UTF-16LE. No binding from those file settings to release code is established.
+investigation/fluids-network.md-10-- Fixed liquid and gas tanks use `V = 1.5625 * definition voxel count`, in native amount units. One volume unit is 10 L. They exchange through ports with an internal compartment, rather than enlarging the ordinary pipe network.
+investigation/fluids-network.md-11-- All 13 fluid slots use one pressure law. Species differ by gas or liquid classification, not by separate pressure coefficients. Pure gas gives `P = 60*A/V`. The liquid law changes at V=8 and near full occupancy.
+investigation/fluids-network.md-12-- The fixed gas-tank fill branch adds `0.99 * fill * V`, giving 59.4 atm at fill=1 from a cleared state before exchanges. The custom spawner has a different, room-limited fill branch; its shipped description says 60 atm. These statements must not be collapsed into one exact startup rule.
+investigation/fluids-network.md:13:- The manual pump uses bias 3, a smoothed interaction factor, one-way transfer and all species. Its ordinary-pipe equal-pressure envelope at factor 1 is 60 L/s.
+investigation/fluids-network.md-14-- The old coiled Hose, current rope-hook hoses, hose pulleys and fluid connector have explicit exchange paths. They bridge network states. Their inspected exchange calls contain no hose-length term or hose storage compartment.
+investigation/fluids-network.md-15-- Enclosed pipes are type 6 and follow the ordinary-pipe traversal. Both fluid filter versions are species masks on a two-port exchange, without added internal fluid volume.
+investigation/fluids-network.md-16-- Custom compartments use separate geometry-derived states. Their volume accumulation, component assignment and pressure calls are identified. The full geometry classification and aperture/flooding equations remain open.
+investigation/fluids-network.md-17-
+investigation/fluids-network.md-18-## Evidence and reproduction
+investigation/fluids-network.md-19-
+investigation/fluids-network.md-20-`native/fluids-network/asm/` contains objdump addresses and original instruction bytes. `pseudocode/` contains Ghidra 12.1.4 output. Decompiled signatures can omit SSE arguments, and several large routines have chained unwind chunks. Assembly and original PE bytes take precedence.
+investigation/fluids-network.md-21-
+investigation/fluids-network.md-22-`tools/resources.json` retains selected shipped definitions, original line numbers, complete text, voxel counts and SHA-256 hashes. `tools/anchors.json` retains constants, dispatch entries and RTTI/vtable bytes. `tools/string-search.json` retains whole-file search results. `tools/verification.txt` records byte checks and arithmetic checks. All evidence paths in `SHA256SUMS` are relative to the repository root.
+investigation/fluids-network.md-23-
+investigation/fluids-network.md-24-Run from the installation root:
+investigation/fluids-network.md-25-
+investigation/fluids-network.md-26-```bash
+investigation/fluids-network.md-27-python3 -I investigation/native/fluids-network/tools/collect.py . /tmp/fluids-network-reproduced
+investigation/fluids-network.md-28-python3 -I investigation/native/fluids-network/tools/verify.py .
+investigation/fluids-network.md-29-diff -ru investigation/native/fluids-network/asm /tmp/fluids-network-reproduced/asm
+investigation/fluids-network.md-30-diff -u investigation/native/fluids-network/tools/anchors.json /tmp/fluids-network-reproduced/tools/anchors.json
+investigation/fluids-network.md-31-diff -u investigation/native/fluids-network/tools/string-search.json /tmp/fluids-network-reproduced/tools/string-search.json
+investigation/fluids-network.md-32-```
+investigation/fluids-network.md-33-
+investigation/fluids-network.md-34-The collector rejects a different executable digest. It reads files and runs objdump; it never runs the target. For fresh pseudocode, use the retained `DecompileAt.java` with Ghidra `support/analyzeHeadless`, `-import stormworks64.exe -noanalysis`, and an output directory under `/tmp`. Each retained C filename gives its requested entry address. This pass used the matching existing temporary project `/tmp/fluid-transport-ghidra/fluid-transport` with `-process stormworks64.exe -noanalysis -readOnly`. No analysis database is required to reproduce the bytes.
+investigation/fluids-network.md-35-
+investigation/fluids-network.md-36-## 1. Realtime damping settings
+investigation/fluids-network.md-37-
+investigation/fluids-network.md-38-The shipped `rom/data/realtime_values/general_debug.txt` contains:
+investigation/fluids-network.md-39-
+investigation/fluids-network.md-40-```
+investigation/fluids-network.md-41-221  f32 fluid_flow_damping_gas 0.0005
+investigation/fluids-network.md-42-222  f32 fluid_flow_damping_liquid 0.0005
+investigation/fluids-network.md-43-223  f32 fluid_base_damping_gas 0.99
+investigation/fluids-network.md-44-224  f32 fluid_base_damping_liquid 0.9999
+investigation/fluids-network.md-45-```
+investigation/fluids-network.md-46-
+investigation/fluids-network.md-47-The collector searches every byte of the complete executable for each exact, case-sensitive identifier, separately encoded as ASCII and UTF-16LE. It does not require NUL termination or restrict the search to a particular PE section. All eight searches return zero matches. As a positive control, ASCII `pump_pressure` occurs at file offset `0xb5be98`, VA `0x140b5ce98`; its UTF-16LE spelling is absent.
+investigation/fluids-network.md-48-
+investigation/fluids-network.md-49-This establishes absence of the names, not absence of every possible compiled effect. There is no address at which either base-damping setting can be said to be read by name. A constant with the same numeric value is insufficient to recover a setting binding. In particular, `0x140bafeac`, bytes `a4 70 7d 3f`, is 0.99 and is used by tank initialization at `0x1404b76a2` and the known modular-pump shaft damping. Those uses do not establish `fluid_base_damping_gas`. Runtime configuration influence remains unestablished. The same search boundary was used for `electric_consumption_scale` in `electricity.md`.
+investigation/fluids-network.md-50-
+investigation/fluids-network.md-51-## 2. General pressure law and fluid indices
+investigation/fluids-network.md-52-
+investigation/fluids-network.md-53-The existing decoder's state layout applies to tanks, pipe networks and custom compartment fluid states. Relative to a fluid state, +0x08 is V, +0x0c+4*i is species amount, +0x40 is A and +0x44 is temperature. For a custom compartment, the fluid state begins at compartment+0x30.
+investigation/fluids-network.md-54-
+investigation/fluids-network.md-55-The phase classifier is `0x1402eb550`, retained in `pressure-species.asm`; `0x1402eb5e0` sums liquids and `0x1402eb660` sums gases. Names follow the previously recovered meter layout.
+investigation/fluids-network.md-56-
+investigation/fluids-network.md-57-| Index | Fluid | Phase |
+investigation/fluids-network.md-58-|---:|---|---|
+--
+investigation/fluids-network.md-149-```
+investigation/fluids-network.md-150-
+investigation/fluids-network.md-151-Evidence: constant 0.99 loaded at `0x1404b76a2`; q and ambient calculation `0x1404b79b9-0x1404b79e5`; gas-index dispatch `0x1404b79eb-0x1404b7a20`; amount add `0x1404b7a52`, bytes `f3 0f 11 84 8b a4 05 00 00`; ambient and total adds `0x1404b7a83-0x1404b7aad`; air conversion `0x1404b7ac4-0x1404b7b01`; clear `0x1404b7b12`.
+investigation/fluids-network.md-152-
+investigation/fluids-network.md:153:For a cleared gas tank at fill=1 this yields `A=0.99V`, hence P=59.4 before exchanges. For a liquid selection handled here it adds `0.99V` of selected liquid and `V/60` of ambient gas. That is not a pure-liquid full state; calculate its pressure from the mixed law. The 0.99 here is an initialization multiplier, not evidence of per-update fluid damping.
+investigation/fluids-network.md-154-
+investigation/fluids-network.md-155-Diesel and jet fuel skip this particular branch at `0x1404b7984` and `0x1404b799d`. Their complete startup path is still open. The report therefore does not claim this formula describes their complete initialization. Saved inventory, rebuilds and other initialization passes can also change the resulting state. The shipped "spawn full" description alone does not prove a universal numeric fill rule.
+investigation/fluids-network.md-156-
+investigation/fluids-network.md-157-## 4. Custom compartments and the fluid spawner
+investigation/fluids-network.md-158-
+investigation/fluids-network.md-159-The custom compartment is a separate 0x128-byte object. Constructor `0x14048ff90` clears its fluid fields and sets temperature 20. In `0x140486ca0`, `0x1404871d4` calls that constructor and registers the object in the compartment list. `0x140487425`, bytes `e8 a6 e8 e6 ff`, calls volume builder `0x1402f5cd0`. This builder accumulates:
+investigation/fluids-network.md-160-
+investigation/fluids-network.md-161-```
+investigation/fluids-network.md-162-V += cell_weight * 0.015625 * 100
+investigation/fluids-network.md-163-```
+investigation/fluids-network.md-164-
+investigation/fluids-network.md-165-`cell_weight` is constructed from occupancy transitions in that routine, in increments of 0.5. The accumulation is at `0x1402f61cb-0x1402f61e3`, with `0x1402f61e3` bytes `f3 44 0f 58 d8`. Final V store `0x1402f63f3`, bytes `f3 44 0f 11 5e 38`, writes compartment+0x38. This is the fluid state's V at +0x30+0x08. This rules out assigning the ordinary pipe's constant V=4 to custom compartments. The complete relation between arbitrary wall shapes and these occupancy transitions is still open.
+investigation/fluids-network.md-166-
+investigation/fluids-network.md-167-The builder resolves water components' interior position to a compartment and writes their enclosing pointer at component+0x4b0, visible near the end of `open-builder.asm` and in `pseudocode/0x140486ca0.c`. The body construction caller at `0x1404a8300`, bytes `e8 9b e9 fd ff`, invokes this builder with body+0x738, so its +0x848 list is body+0xf80. `0x140311f20` from the prior scoop decode returns `compartment+0x30` when the enclosing pointer is present. Ordinary fluid intakes/outlets then exchange with that state through `0x1402ec710`; they do not automatically union all pipes with the compartment.
+investigation/fluids-network.md-168-
+investigation/fluids-network.md-169-The current spawner is water type 7, which has no active fluid-update branch. During pending initialization, `0x1404b7745-0x1404b7839` uses its enclosing compartment C:
+investigation/fluids-network.md-170-
+investigation/fluids-network.md-171-```
+investigation/fluids-network.md-172-q = min(C.V - C.A, 0.99*fill*C.V)
+investigation/fluids-network.md-173-amount[selected] += q
+investigation/fluids-network.md-174-C.A += q
+investigation/fluids-network.md-175-```
+investigation/fluids-network.md-176-
+investigation/fluids-network.md-177-This branch skips selector 1, 2 and 13. Positive air slot 3 is split into nitrogen, oxygen and CO2 as above. Evidence includes `0x1404b77c6`, bytes `f3 0f 59 b0 90 05 00 00`, multiplying the fill setting, and `0x1404b77d6`, bytes `f3 0f 5d fe`, limiting by free room. `water_spawner.xml:75` explicitly documents gases spawned compressed at 60 atm. Inference: if prior compartment gas and added gas together reach A=V, the general gas law gives 60 atm. Exact pressure from any other initial inventory must be calculated from that inventory. The complete default ambient-gas initialization of custom compartments is not traced here, so the tooltip is retained as documentation, not treated as proof of the missing initial state.
+investigation/fluids-network.md-178-
+investigation/fluids-network.md-179-`0x14049cbc0` is a separate aperture/compartment flow pass. It reads body+0xf80 compartments, compares their pressures with exterior or neighboring states, and moves species. Retained `open-flow.asm` includes its pressure calls at `0x14049d23c`, `0x14049d33e` and `0x14049d40e`. This rules out modeling a hull opening as an ordinary V=4 pipe node. Exact aperture selection, area, submergence, gas venting and flooding-rate equations remain open. No hull-opening throughput bound is asserted.
+investigation/fluids-network.md-180-
+investigation/fluids-network.md-181-## 5. Hoses, winches, connectors and enclosed pipes
+investigation/fluids-network.md-182-
+investigation/fluids-network.md-183-### Old coiled Hose
+investigation/fluids-network.md-184-
+investigation/fluids-network.md-185-`water_hose.xml` is component type 20, with child `water_hose_b`, type 7. The definition documents a maximum length of 16 m at line 346. RTTI and vtable anchors identify `c_scene_vehicle_component_winch`, vtable `0x140b958e8`, slot +0x358 bytes `70 3a 3e 40 01 00 00 00`, update `0x1403e3a70`. Constructor installs it at `0x1403e2703`.
+investigation/fluids-network.md-186-
+investigation/fluids-network.md-187-When linked component+0x148 is nonzero, `0x1403e3b09`, bytes `e8 c2 9d f0 ff`, calls the two-port solver with ports `self+0x230` and `linked+0x230`, bias 0, factor 1, one-way false and mask -1. The branch does not allocate a hose compartment, add volume or read hose length. Thus the decoded hydraulic operation bridges the endpoint networks. The actual winch-length controller is outside this fluid decode.
+investigation/fluids-network.md-188-
+investigation/fluids-network.md-189-### Current hose anchors and winches
+investigation/fluids-network.md-190-
+investigation/fluids-network.md-191-`rope_hook_fluid.xml:2-3` identifies component type 48, subtype 1, and documents a single hose link. `rope_hook_winch*.xml:2` identifies the current winches as type 48, subtype 3. Hose pulleys are subtype 8, with two Fluid Node ports; their descriptions and ports are retained.
+investigation/fluids-network.md-192-
+investigation/fluids-network.md-193-RTTI `c_scene_vehicle_component_rope_hook`, vtable `0x140b600f0`, has a second component pass at slot +0x360, bytes `40 68 3b 40 01 00 00 00`, function `0x1403b6840`. Initializer `0x1403b4a50` binds first and second type-3 ports at self+0x930 and +0x968, within port structures self+0x918 and +0x950. Its normal update at +0x358 also maintains attachment state; the fluid transfer itself is in +0x360.
+investigation/fluids-network.md-194-
+investigation/fluids-network.md-195-The body component pass dispatches slot +0x360 at `0x1404996a7`, bytes `41 ff 92 60 03 00 00`, retained in `rope-hook-dispatch.asm`. The two side paths call `0x1402ed8d0`:
+investigation/fluids-network.md-196-
+investigation/fluids-network.md-197-- First side `0x1403b6c4a`, bytes `e8 81 6c f3 ff`, requires a connected network at self+0x938 and link-valid flag +0xaa8. It connects port self+0x918 to the linked object's first port, or its second port when the linked object is a hose pulley and points back from its second side.
+investigation/fluids-network.md-198-- Second side `0x1403b6ef1`, bytes `e8 da 69 f3 ff`, requires self+0x970 and flag +0xaa9. It uses self+0x950 and makes the same linked-side selection.
+--
+investigation/fluids-network.md-200-Both calls use bias 0, one-way false and all species. Factor is 1 when the current component subtype is 8, otherwise 0.5. The subtype test and factor load are at `0x1403b6be7-0x1403b6bf5` and `0x1403b6e90-0x1403b6e99`. No length is loaded in these exchange branches and no internal fluid state is supplied. The endpoint network's pressure law is unchanged.
+investigation/fluids-network.md-201-
+investigation/fluids-network.md-202-The extra network builder `0x1404a2130` tests subtype 8 and creates a V=4 fluid network when its first fluid port needs one. The store at `0x1404a226f` is `c7 40 08 00 00 80 40`. It registers the two eligible pulley ports in that state through `0x1402ec100` at `0x1404a22c6` and `0x1404a22f1`. This is an internal shared network for the pulley ports, not a volume proportional to deployed hose length.
+investigation/fluids-network.md-203-
+investigation/fluids-network.md:204:The link-valid flags' complete creation policy, invalid attachments, every current winch-to-equipment combination and handheld free-end valve operation remain open. `inventory_equipment_hose.xml:144` documents a 20 m carried hose and secondary-action valve, but this resource is not proof that the handheld free end uses either of the decoded calls. Do not silently equate handheld equipment, current rope-hook hoses and the old type-20 Hose.
+investigation/fluids-network.md-205-
+investigation/fluids-network.md-206-### Fluid connector
+investigation/fluids-network.md-207-
+investigation/fluids-network.md-208-`connector_water.xml` is type 17. Its line 109 documents fluid transfer between attached connectors. Vtable `0x140b50988`, RTTI `c_scene_vehicle_component_connector`, has update slot +0x358 bytes `30 41 3d 40 01 00 00 00`, `0x1403d4130`.
+investigation/fluids-network.md-209-
+investigation/fluids-network.md-210-At `0x1403d44d4`, bytes `e8 f7 93 f1 ff`, it bridges ports self+0x8d0 and attached+0x8d0 with bias 0, factor 0.5, one-way false and mask -1. Gates include attached pointer +0x950, a network at +0x8f0 and flag +0x970. It does not merge the two network objects or add connector storage volume in this path. The connector's complete attachment/release mechanics are outside the hydraulic conclusion.
+investigation/fluids-network.md-211-
+investigation/fluids-network.md-212-### Enclosed pipes
+investigation/fluids-network.md-213-
+investigation/fluids-network.md-214-All retained `trans_block_*.xml` definitions are type 6, like the open pipe definitions. Their fluid connection faces are type 3. The existing `0x1404a0f50` traversal tests component virtual type 6 and matching connection faces. It does not distinguish enclosed pipe meshes when adding traversed faces and does not add per-block volume. They therefore participate in the ordinary V=4 network result. The resource evidence rules out treating an enclosed pipe as a separate tank merely because its mesh is enclosed.
+investigation/fluids-network.md-215-
+investigation/fluids-network.md-216-## 6. Manual pump and pressure units
+investigation/fluids-network.md-217-
+investigation/fluids-network.md-218-`water_pump_manual.xml:2` supplies type 24, water type 22 and pressure 3. Line 81 says to hold either interaction action to pump. Water dispatch entry `0x1403f5158`, bytes `3f 34 3f 00`, selects `0x1403f343f`.
+investigation/fluids-network.md-219-
+investigation/fluids-network.md:220:The branch submits interaction target 0 or 1 from component+0x8e5 to controller +0x8e8, then updates the controller. It reads controller output at +0x8fc through `0x1408cddc0`; `0x1408cddd0` retains target, previous output and difference, and `0x1408cde20` advances the easing state. Constructor `0x1403ee9ce` stores a duration of 60 at controller+0x1c. The exact interrupted-interaction easing curve is retained as pseudocode, not reduced to an instantaneous Boolean.
+investigation/fluids-network.md-221-
+investigation/fluids-network.md:222:When controller output h>0.01, `0x1403f360e`, bytes `f3 0f 10 90 c8 0e 00 00`, loads definition pressure into xmm2. Xmm3 is h. It sets one-way true and mask -1, then jumps to the common call at `0x1403f25fb`, bytes `e8 d0 b2 ef ff`, with ports self+0x148 and +0x180. For h<=0.01 it calls with bias 0 and factor 0 instead. Damage detection clears the interaction target. The 0.015*h increment at `0x1403f3491` advances the handle/sound-cycle state +0x918; it is not a fluid amount or extra pump-pressure multiplier.
+investigation/fluids-network.md-223-
+investigation/fluids-network.md-224-For ordinary networks V=4, adequate inventory and room, no competition, and h=1, inference from the prior pump equation gives:
+investigation/fluids-network.md-225-
+investigation/fluids-network.md-226-```
+investigation/fluids-network.md-227-q_equal <= 3/30 = 0.1 amount/update = 60 L/s
+investigation/fluids-network.md-228-```
+investigation/fluids-network.md-229-
+investigation/fluids-network.md-230-This is an envelope, not a measured sustained rate. While h is between 0 and 1 the transfer bound includes h, and the h<=0.01 cutoff applies.
+investigation/fluids-network.md-231-
+investigation/fluids-network.md-232-No inspected pump definition, tooltip or editor control labels `pump_pressure` with a physical unit. The definition loader binds that name to definition+0xec8 at `0x140317c96-0x140317cb0`, retained in `name-binding.asm`. Pressure itself is displayed using `0x140b605f0`, literal ` / %.1fAtm`, and the tank ports document atmospheres. Inference: pump bias is compatible with that native pressure scalar because the solver adds it to a pressure difference. It is not a documented flow unit, SI pressure conversion or guaranteed pump-head rating. In particular, do not describe manual pressure 3 as a guaranteed 3 atm delivered head; the target-pressure equation also contains the bias and can yield a different equilibrium difference.
+investigation/fluids-network.md-233-
+investigation/fluids-network.md-234-## 7. Filters, mixtures and seawater
+investigation/fluids-network.md-235-
+investigation/fluids-network.md-236-The legacy `fluid_filter.xml` is water type 10. It enters `0x1403f2394`, shares the valve path, and submits its configured species bit mask from component+0x594. The common two-port call uses bias 0, active factor 1 and one-way false. The constructor defaults the mask to -1 at `0x1403eea09`. The UI in `0x1403f87f0` exposes individual species controls. No internal compartment is part of the filter exchange.
+investigation/fluids-network.md-237-
+investigation/fluids-network.md-238-`fluid_filter_v2.xml` is type 27 and dispatches to `0x1403f262e`. That branch builds a mask from two phase flags. If bit 3 of component+0x594 is set, it enables gas indices 3,4,10,11,12,7. If bit 0 is set, it enables liquid indices 0,6,5,1,2,8,9. The calls to the bit helper `0x14017b3f0` and the final solver call at `0x1403f27b7`, bytes `e8 14 b1 ef ff`, are retained in `filter-new.asm`. Bias is 0, factor 1 and one-way false. Bit3 here means the group flag expanded into all gas indices, not a filter restricted to air slot 3.
+investigation/fluids-network.md-239-
+investigation/fluids-network.md-240-These masks select moved species. They do not create separate per-species network pressures or remove excluded species from the pressure sum. The existing two-port solver transfers allowed species in proportion to their fraction of source total; a filtered mixture is not equivalent to renormalizing the source to allowed species only.
+investigation/fluids-network.md-241-
+investigation/fluids-network.md-242-Seawater index 6 is liquid for hydraulics, with the same pressure contribution as fresh water. The prior exterior decode already proved seawater at submerged intakes. A separate phase helper `0x1402eb350`, retained in `phase-change.asm`, converts fresh water plus seawater to steam above 100 C, removing each water type in proportion to its share. Below 100 C it condenses steam into fresh-water index 0. Its limits are `min((100-T)*0.001, 0.1*steam)` below 100, and `min((T-100)*0.001, fresh+sea)` above 100; temperature changes by `0.01*converted/A`. The total amount is unchanged by this helper. Calls at `0x14040ce51`, bytes `e8 fa e4 ed ff`, and `0x14040d5c7`, bytes `e8 84 dd ed ff`, establish selected callers, not a universal every-network phase update. Exact caller/component coverage remains open.
+investigation/fluids-network.md-243-
+investigation/fluids-network.md-244-The report does not decode slurry-filter processing, every steam-producing component, gas solubility, or every seawater-specific thermal/damage multiplier. Those are not settled by the common hydraulic phase classification.
+investigation/fluids-network.md-245-
+investigation/fluids-network.md-246-## Confidence and exact remaining boundaries
+investigation/fluids-network.md-247-
+investigation/fluids-network.md-248-High confidence applies to the hash, bounded identifier absence, tank volume arithmetic, tank port routing, the stated nonfuel fill branch, phase groups and pressure law, direct hose/connector exchange arguments, enclosed-pipe membership, manual-pump bias/factor, and filter masks. Arithmetic consequences are labeled as inferences. No result is a game measurement.
+investigation/fluids-network.md-249-
+investigation/fluids-network.md-250-The following remain open, with the ruled-out alternatives made explicit:
+investigation/fluids-network.md-251-
+investigation/fluids-network.md-252-1. Realtime damping influence through mechanisms without embedded names. Direct ASCII/UTF-16LE name lookup is ruled out by whole-file searches; hardcoded constants, generated identifiers and configuration-independent behavior are not ruled out. The tank-fill 0.99 is identified as initialization, not general fluid damping.
+investigation/fluids-network.md-253-2. Diesel/jet-fuel startup and save/rebuild inventory. The explicit fixed-tank/spawner branch skips indices 1/2; this rules out blindly applying its nonfuel startup formula to them. Their pressure and tank capacity are still covered by the common law.
+investigation/fluids-network.md-254-3. Exact custom-compartment geometry and open-boundary flooding. V is accumulated from weighted geometry, not set to 4. Components point to a separate state and the aperture pass uses its pressure. Occupancy weights' full geometric meaning, default ambient inventory, aperture area/submergence and final flow equations are not fully decoded.
+investigation/fluids-network.md:255:4. Complete current hose attachment policy and handheld free ends. The old Hose and current rope-hook exchange paths are distinct, and their decoded transfer calls contain no length factor or stored hose volume. That rules out attributing a length-resistance formula to these calls. It does not rule out different topology, validity or activation outside them. The carried 20 m hose valve is resource documentation only here.
+investigation/fluids-network.md-256-5. Complete multiphase/component coverage, slurry processing and all seawater-specific effects. Common pressure, species masks and one phase-change helper are recovered. Universal phase conversion in every compartment is not established by that helper's existence.
+investigation/fluids-network.md-257-6. A documented unit or physical pump-head calibration for `pump_pressure`. Pressure outputs say atmospheres, but no inspected pump-field UI/resource assigns a unit or guaranteed delivered head to that parameter.
+investigation/fluids-network.md-258-
+investigation/fluids-network.md-259-## Proposed wiki replacements
+investigation/fluids-network.md-260-
+investigation/fluids-network.md-261-Fluids limitation 0:
+investigation/fluids-network.md-262-
+investigation/fluids-network.md:263:> Fixed liquid and gas tanks, enclosed pipes, filters, the manual pump, and explicit hose/connector exchange paths are decoded for this build. Custom-compartment geometry and flooding, diesel/jet-fuel startup, handheld hose free ends, and complete steam/slurry/seawater component behavior remain partly open. The realtime damping names are absent from the executable; their runtime effect is unestablished. Pump bias uses the pressure solver's scalar, while pressure outputs are documented in atmospheres; no separate unit or delivered-head rating is documented for pump_pressure.
+investigation/fluids-network.md-264-
+investigation/fluids-network.md-265-Measurement questions:
+investigation/fluids-network.md-266-
+investigation/fluids-network.md-267-> The shipped file lists gas/liquid base damping 0.99/0.9999, but all four fluid damping identifiers are absent from the complete executable in ASCII and UTF-16LE. No setting binding is recovered. Runtime checks should compare two setting values on the same layout and initial inventory. Check flow against the recovered solver using the actual network graph: ordinary and enclosed pipe length adds no volume; hoses and connectors bridge networks with component-specific exchange factors. Check fixed gas-tank startup separately from custom spawners: the recovered fixed-tank fill branch gives 59.4 atm at full selected fill before exchanges, while the custom-spawner tooltip documents 60 atm.
+investigation/fluids-network.md-268-
+investigation/fluids-network.md-269-Fluid Tank family:
+investigation/fluids-network.md-270-
+investigation/fluids-network.md-271-> The small, medium and large tanks have decoded compartment volumes of 31.25, 187.5 and 703.125 L. Each tank exchanges with connected pipe networks through its own internal compartment. Pressure depends on gas and liquid amounts through the recovered window equation; it is not generally proportional to total fill for these larger tanks. The inspected nonfuel liquid startup branch adds 99% of selected fill plus V/60 of ambient gas. Diesel and jet-fuel startup remains untraced. Tank Content outputs 10 times the internal total amount, and Tank Pressure outputs atmospheres.
+investigation/fluids-network.md-272-
+investigation/fluids-network.md-273-Gas Tank family:
+investigation/fluids-network.md-274-
+investigation/fluids-network.md-275-> The small, medium, large and huge gas tanks have geometric volumes of 46.875, 109.375, 984.375 and 3515.625 L. Pure-gas pressure is 60 times stored amount divided by native compartment volume. The recovered fresh-state fill branch adds 0.99 times selected fill times volume, giving 59.4 atm at full selected fill before exchange. Gas species tooltips expand amounts by 60 before converting to litres; the Tank Content signal uses total amount times 10. These are different readouts. The custom spawner's documented 60 atm is a separate startup path.
+investigation/fluids-network.md-276-
+investigation/fluids-network.md-277-Old Hose family:
+investigation/fluids-network.md-278-
+investigation/fluids-network.md-279-> The coiled Hose connects its base and child-end fluid networks through a zero-bias, two-way exchange with factor 1. The decoded exchange has no added hose storage or hose-length factor. Its shipped description gives a maximum deployed length of 16 m. This is a separate implementation from current rope-hook hoses and carried hose equipment.
+investigation/fluids-network.md-280-
+investigation/fluids-network.md-281-Fluid Hose Anchor / current winch-hose family:
+investigation/fluids-network.md-282-
+investigation/fluids-network.md:283:> Current rope-hook hose links exchange between endpoint fluid networks with zero bias and both directions enabled. The inspected ordinary endpoint branch uses factor 0.5; a hose-pulley endpoint uses factor 1. The pulley can share a V=4, 40 L network across its two fluid ports. These calls do not add volume proportional to deployed hose length. Full attachment validity and handheld free-end valve behavior remain open.
+investigation/fluids-network.md-284-
+investigation/fluids-network.md-285-Manual pump addition to Moving fluid:
+investigation/fluids-network.md-286-
+investigation/fluids-network.md:287:> The manual pump supplies bias 3 through a smoothed interaction factor and permits forward transfer only. At factor 1 its ordinary-pipe equal-pressure flow envelope is 60 L/s; actual flow depends on inventory, backpressure and port allocation.
+investigation/fluids-network.md-288-
+investigation/fluids-network.md-289-Use `fluid-transport.md` for the full pressure/flow equations rather than replacing the remaining questions with a claim of universal rated flow. The proposed text is supplied for the concurrently working wiki agent. No wiki source or extractor was changed here.
+investigation/fluids-network.md-290-
+investigation/fluids-network.md-291-## Issue coverage and files
+investigation/fluids-network.md-292-
+investigation/fluids-network.md-293-This answers #5's named damping-search question, pump-unit documentation boundary, manual-pump path and much of its nonordinary-network scope. It supplies decoded capacity, pressure and selected initialization evidence for #29 fluid tank and #30 gas tank; explicit old-Hose transfer for #115; capacity, pump and damping evidence for #146; and current winch/anchor/pulley fluid exchange evidence for #160. It also contributes to fluid connector and filter articles, manual-pump coverage and the existing fluid transport work. The remaining boundaries above prevent claiming those broader issues closed.
+investigation/fluids-network.md-294-
+investigation/fluids-network.md-295-Files written are this report, `native/fluids-network/asm/`, `native/fluids-network/pseudocode/`, `native/fluids-network/tools/`, `native/fluids-network/SHA256SUMS`, and the two matching whitelist lines appended to the root `.gitignore`, without a blank line. No wiki/research source, existing investigation, commit, push or GitHub mutation was made.
+--
+investigation/tanks-ports.md-11-## 1. Fixed fluid tank startup, issue #29
+investigation/tanks-ports.md-12-
+investigation/tanks-ports.md-13-The constructor starts with zero species amounts and zero total amount. Selection at component+0x588 is diesel index 1, pending-fill at +0x58c is true, fill fraction at +0x590 is 1, and primary temperature at +0x5dc is 20 Celsius. This is the unfilled object state, not the final spawned contents. The gas initializer changes diesel selection 1 to air selection 3 for water type 20. The prior report already traces the non-fuel pending-fill operation `0x1404b7640`.
+investigation/tanks-ports.md-14-
+investigation/tanks-ports.md:15:The separate vehicle spawn/resource operation is `0x1405dafa0`. After calling vehicle builder `0x1404bc700`, it enters its resource-fill traversal only when request byte +0x45 is nonzero. The fixed-tank arm specifically requires water type 8 and selection 1 or 2. In the fixed-tank arm at `0x1405dc46e..0x1405dc690`:
+investigation/tanks-ports.md-16-
+investigation/tanks-ports.md-17-```
+investigation/tanks-ports.md-18-requested_fuel = 0.99f * fill_fraction * V
+investigation/tanks-ports.md-19-ambient_air = V / 60.0f
+investigation/tanks-ports.md-20-if inventory_branch:
+investigation/tanks-ports.md-21-    fuel_added = min(requested_fuel, inventory[selection])
+investigation/tanks-ports.md-22-    if fuel_added > 0:
+investigation/tanks-ports.md-23-        inventory[selection] -= fuel_added
+investigation/tanks-ports.md-24-else:
+investigation/tanks-ports.md-25-    fuel_added = requested_fuel
+investigation/tanks-ports.md-26-if fuel_added > 0:
+investigation/tanks-ports.md-27-    tank.amount[selection] += fuel_added
+investigation/tanks-ports.md-28-    tank.total += fuel_added
+investigation/tanks-ports.md-29-tank.amount[3] += ambient_air
+investigation/tanks-ports.md-30-tank.total += ambient_air
+investigation/tanks-ports.md-31-```
+investigation/tanks-ports.md-32-
+investigation/tanks-ports.md-33-The inventory record stores diesel at +0x150 and jet fuel at +0x154, addressed as `+0x14c + 4*selection`. The available-stock comparison also sets an insufficient-resource flag. The native constant at `0x140bafeac` is `a4 70 7d 3f`, binary32 0.9900000095367432; `0x140bb0760` is `00 00 70 42`, or 60.
+investigation/tanks-ports.md-34-
+investigation/tanks-ports.md-35-Consequently a cleared tank that reaches the non-inventory arm receives 99% of geometric liquid capacity at fill fraction 1, plus the ambient-air term. A tank that reaches the inventory arm can receive a partial fuel charge, or no diesel/jet fuel when stock is zero. It still receives the ambient-air term. This rules out both "diesel always starts empty because the pending-fill routine skips it" and "diesel always starts full regardless of stock". These are the amounts added by this operation; it does not clear old amounts itself. For the prior decoded small/medium/large geometric capacities, the requested liquid quantities are approximately 30.9375, 185.625 and 696.09375 litres at fill=1, before subsequent exchange.
+investigation/tanks-ports.md-36-
+investigation/tanks-ports.md:37:Still open: request byte +0x45 is a necessary gate, and the inventory arm depends on the surrounding request/global conditions. The precise mapping of all these flags to editor placement, career/creative settings, mission spawning and save loading was not completed. Do not apply this operation to every spawn or assume it runs when restoring a runtime save. The pending-fill byte is not tested or cleared by this fixed-fuel arm. Ambient-air conversion after this separate operation was not followed here.
+investigation/tanks-ports.md-38-
+investigation/tanks-ports.md-39-Instruction anchors:
+investigation/tanks-ports.md-40-
+investigation/tanks-ports.md-41-- `0x1403ee777`, bytes `c7 86 88 05 00 00 01 00 00 00`: default diesel selection.
+investigation/tanks-ports.md-42-- `0x1403ee781`, bytes `c6 86 8c 05 00 00 01`: fill pending defaults true.
+investigation/tanks-ports.md-43-- `0x1403ee788`, bytes `48 c7 86 90 05 00 00 00 00 80 3f`: fill fraction defaults one.
+investigation/tanks-ports.md-44-- `0x1403ee7a1`, bytes `48 c7 86 dc 05 00 00 00 00 a0 41`: initial temperature 20 Celsius.
+investigation/tanks-ports.md:45:- `0x1405dc46e`, bytes `83 b8 88 05 00 00 01`: diesel selection.
+investigation/tanks-ports.md:46:- `0x1405dc483`, bytes `83 b8 88 05 00 00 02`: jet fuel selection.
+investigation/tanks-ports.md:47:- `0x1405dc4b5`, bytes `f3 0f 59 b8 90 05 00 00`: multiply by fill fraction.
+investigation/tanks-ports.md:48:- `0x1405dc4bd`, bytes `f3 41 0f 59 fe`: multiply by 0.99.
+investigation/tanks-ports.md:49:- `0x1405dc5bf`, bytes `f3 0f 5d bc 8b 4c 01 00 00`: cap to available inventory.
+investigation/tanks-ports.md:50:- `0x1405dc5f1`, bytes `f3 0f 11 84 8b 4c 01 00 00`: subtract inventory.
+investigation/tanks-ports.md:51:- `0x1405dc62d`, bytes `f3 0f 11 84 8b a4 05 00 00`: add selected species.
+investigation/tanks-ports.md:52:- `0x1405dc687`, bytes `f3 44 0f 11 80 d8 05 00 00`: add ambient air to total.
+investigation/tanks-ports.md-53-
+investigation/tanks-ports.md-54-## 2. Saved compartments and rebuilding, issues #29 and #30
+investigation/tanks-ports.md-55-
+investigation/tanks-ports.md-56-Water component serializer `0x1403f6150`, virtual slot +0x260, applies to both fixed fluid tanks and gas tanks. It serializes configuration under context flag 1 and runtime fields under context flag 4, from context+0x10. Runtime state includes the pending-fill Boolean, tagged `spawner_pending`, default true. It then invokes the shared compartment serializer for:
+investigation/tanks-ports.md-57-
+investigation/tanks-ports.md-58-- `contained_volume`, component+0x598.
+investigation/tanks-ports.md-59-- `contained_volume_secondary`, component+0x5e4.
+investigation/tanks-ports.md-60-
+investigation/tanks-ports.md-61-`0x1408fce80` wraps the named child and calls `0x1402eb750`. Under context flag 4, that shared routine serializes:
+investigation/tanks-ports.md-62-
+investigation/tanks-ports.md-63-- `vol_total`: binary32 at state+0x40. For the primary tank this is component+0x5d8.
+investigation/tanks-ports.md-64-- `temp`: binary32 at state+0x44, primary component+0x5dc.
+investigation/tanks-ports.md-65-- `rad`: binary32 at state+0x48, primary component+0x5e0.
+investigation/tanks-ports.md-66-- `vol_0` through `vol_12`: thirteen binary32 species amounts at state+0x0c + 4*i, primary component+0x5a4 + 4*i. These are the same internal amount units used by the prior pressure and content calculations, not an extra save-time conversion to litres.
+investigation/tanks-ports.md-67-
+investigation/tanks-ports.md-68-The serializer's text branch uses these names. Its binary branch transfers four bytes per scalar and per species. Temperature validation maps nonfinite input to 0 and bounds finite values to [-273,100000]. Those numbers bound the temperature field, not pressure. Species amounts and `vol_total` have no analogous pressure/rupture threshold in this routine. The geometric volume at state+8 is not among these serialized fields.
+investigation/tanks-ports.md-69-
+investigation/tanks-ports.md-70-The initializer `0x1403ef450` recalculates state+8 from the tank definition for water types 8 and 20. It does not replace the thirteen amounts or temperature in those tank branches. The component-loading/build window contains virtual serializer calls at `0x1404b8502` and `0x1404b87d4`; the water vtable at `0x140b08f18` resolves slot +0x260 to `0x1403f6150`. Thus this is a native component-state restore path, not just a standalone unused serializer.
+investigation/tanks-ports.md-71-
+investigation/tanks-ports.md-72-There is also a distinct reset method `0x1403eebf0`, water virtual slot +0x3c8. It zeros primary and secondary species and totals and sets pending-fill true. It does not zero the temperature fields. A rebuild that preserves the component object or reloads runtime fields must therefore be distinguished from a reset that deliberately clears its inventory. The prior build caller `0x1404bc38a` invokes pending fill after network reconstruction. An already restored false pending-fill byte prevents that operation from refilling the gas tank. A restored true byte allows its existing pending-fill behavior. For diesel/jet fuel, the separate request-gated operation in section 1 still requires its own caller analysis.
+investigation/tanks-ports.md-73-
+investigation/tanks-ports.md-74-Still open: the exact ordering and flag selection for every saved-world, stored-vehicle, editor rebuild and explicit reset entry point. The serializer, constructor defaults, volume initializer, reset method and pending-fill test are recovered, but they do not prove which combination every workflow selects. In particular, no claim is made that all rebuilds preserve contents or that all rebuilds refill tanks. Ruled out: amounts/temperature being absent from native serialization; treating `fluid_fill` as saved live inventory; treating a geometry-volume recalculation as a species reset; treating the explicit reset as temperature restoration.
+investigation/tanks-ports.md-75-
+investigation/tanks-ports.md-76-Instruction anchors:
+investigation/tanks-ports.md-77-
+investigation/tanks-ports.md-78-- `0x1403f6988`, bytes `4c 8d 0d 39 ca 76 00`: contained_volume tag.
+investigation/tanks-ports.md-79-- `0x1403f699a`, bytes `e8 e1 64 50 00`: serialize primary compartment.
+investigation/tanks-ports.md-80-- `0x1403f69a9`, bytes `4c 8d 0d 10 70 77 00`: contained_volume_secondary tag.
+investigation/tanks-ports.md-81-- `0x1402eb7ca`, bytes `4c 8d 05 57 df 86 00`: vol_total tag.
+investigation/tanks-ports.md-82-- `0x1402eb837`, bytes `4c 8d 05 32 df 86 00`: temp tag.
+investigation/tanks-ports.md-83-- `0x1402eb8a4`, bytes `4c 8d 05 91 38 7f 00`: rad tag.
+investigation/tanks-ports.md-84-- `0x1402eb924`, bytes `f3 41 0f 11 46 44`: store validated temperature.
+investigation/tanks-ports.md-85-- `0x1402eb95b`, bytes `48 8d 15 ea dd 86 00`: vol_ prefix.
+investigation/tanks-ports.md-86-- `0x1402ebaf2`, bytes `41 83 fd 0d`: 13 species loop.
+investigation/tanks-ports.md-87-- `0x1403eec18`, bytes `4c 89 81 a4 05 00 00`: reset clears amounts.
+investigation/tanks-ports.md-88-- `0x1403eec73`, bytes `c6 81 8c 05 00 00 01`: reset re-arms pending fill.
+investigation/tanks-ports.md-89-- `0x1404b84ed`, bytes `4c 8b 91 60 02 00 00`: component serializer virtual slot +0x260.
+investigation/tanks-ports.md-90-- `0x1404b8502`, bytes `41 ff d2`: component serializer invocation.
+investigation/tanks-ports.md-91-- `0x1404bc38a`, bytes `e8 b1 b2 ff ff`: pending-fill call.
+investigation/tanks-ports.md-92-
+investigation/tanks-ports.md-93-## 3. Pressure safety, issue #30
+investigation/tanks-ports.md-94-
+investigation/tanks-ports.md-95-Still open. No maximum safe tank pressure, rupture threshold or pressure-to-damage equation was recovered. This investigation does not establish that pressure damage is impossible.
+investigation/tanks-ports.md-96-
+investigation/tanks-ports.md-97-The previously decoded compartment pressure calculation `0x1402eb460` and pressure conversion `0x1402eb500` and fixed-tank update arm `0x1403f3766..0x1403f39cc` were retained as baseline evidence. The gas formula has no maximum-pressure constant in that calculation, and the inspected tank update arm exchanges contents and updates content/pressure outputs without a pressure-triggered rupture branch. The newly traced compartment serializer and fixed-fuel fill arm also do not supply such a threshold. The inspected shipped tank definitions have no maximum-pressure or rupture field.
+--
+investigation/tanks-ports.md-101-The complete executable ASCII string/reference search for `pressure|rupture|burst|overpressure` is retained. It finds no ASCII identifier containing rupture, burst or overpressure, but it does find `max pressure` at `0x140b3ede0`, referenced at `0x1408798aa`, and `high_pressure` at `0x140b971d0`, referenced at `0x1405c0114` and `0x1406f9b0a`. Those generic references were not resolved to a tank failure mechanism and are not ruled out globally. Unlabelled comparisons, common vehicle damage code and geometry-compartment failure paths remain untraced. The scoped negative results above are not an executable-wide absence proof.
+investigation/tanks-ports.md-102-
+investigation/tanks-ports.md-103-## 4. Microprocessor ports and graph counts, issue #63
+investigation/tanks-ports.md-104-
+investigation/tanks-ports.md:105:The editor event dispatcher `0x1407c1b60`, case 0x71, creates an external node. At `0x1407c3eac` it selects the definition at editor+0x118, allocates 0x58 bytes, initializes the node, increments the 32-bit node-ID counter, creates its bridge with `0x14038f150`, grows the node list if capacity equals count, and appends it. There is no comparison against a maximum node count in this Add Input handler. The 0x20 value in list growth is a minimum allocation capacity, not a 32-port cap. This does not prove every other creation/import path has no guard.
+investigation/tanks-ports.md-106-
+investigation/tanks-ports.md-107-Definition serializer `0x14038db30` serializes width, length, ID counters, the external node list at definition+0x48, and the embedded group. The external-node list serializer is `0x140908830`:
+investigation/tanks-ports.md-108-
+investigation/tanks-ports.md-109-- XML read iterates `nodes/node` elements and grows the list dynamically. XML write traverses the list. No count cap was found in those paths.
+investigation/tanks-ports.md-110-- Binary write stores the low 16 bits of the list's 32-bit in-memory count, then traverses the actual count. Binary read consumes an unsigned 16-bit count. Therefore 65535 is the largest count representable by this binary field, not a demonstrated enforced editor maximum. A larger in-memory count is not safely round-trippable through that count field.
+investigation/tanks-ports.md-111-
+investigation/tanks-ports.md-112-The embedded group's serializer is `0x14038b940`. Its `components` and `components_bridge` collections go through `0x1409077b0`. That serializer uses a four-byte count, not the external list's two-byte count. There is no recovered small fixed graph-size constant in this path. A 32-bit count is a format width, not a promise that billions of components can be allocated, assigned valid IDs, edited or evaluated.
+investigation/tanks-ports.md-113-
+investigation/tanks-ports.md-114-Placement and upload are separate from creation. `0x14038fee0` requires 0 <= X < width, 0 <= Z < length and Y=0. At the same cell it rejects an equal type and also rejects the 0/1 type pair. Other unequal types are allowed to share the cell. The bridge builder `0x1403929f0` supports types 0,1,5,6,7, corresponding to Boolean, number, composite, video and audio. Inference: for these five functioning types the collision rule gives four compatible groups per cell, or an upper bound of 144 placed ports over 6 by 6 cells. This is a derived bound for supported types, not a recovered constant or a demonstrated accepted maximum across all imported definitions.
+investigation/tanks-ports.md-115-
+investigation/tanks-ports.md-116-The upload validator `0x1407c6040` checks dimensions <=6, nonempty embedded component and external-node lists, output presence, and placement of each external node through `0x14038fee0`. The inspected validation path has no separate numerical port-count ceiling. The existing editor controls impose the lower dimension bound of 1.
+investigation/tanks-ports.md-117-
+investigation/tanks-ports.md-118-Still open: an unconditional maximum across editor creation, XML import, binary serialization and graph execution; any additional limits in untraced graph creation, ID validation or allocation paths; whether the derived 144 supported-port arrangement is accepted end to end. Ruled out: 32 as a cap from dynamic-list growth; 36 as a total-port cap from cell count; 65535 as an enforced editor limit; applying the 16-bit external-port count to the embedded component list. No runtime experiment was performed.
+investigation/tanks-ports.md-119-
+investigation/tanks-ports.md-120-Instruction anchors:
+investigation/tanks-ports.md-121-
+investigation/tanks-ports.md-122-- `0x1407c3eb3`, bytes `b9 58 00 00 00`: allocate external node.
+investigation/tanks-ports.md-123-- `0x1407c3ec8`, bytes `e8 83 df b1 ff`: initialize external node.
+investigation/tanks-ports.md-124-- `0x1407c3eda`, bytes `ff 47 74`: increment node ID.
+investigation/tanks-ports.md-125-- `0x1407c3f60`, bytes `8b 4f 58`: load list count.
+investigation/tanks-ports.md-126-- `0x14038ff0c`, bytes `3b 41 44`: Z dimension bound.
+investigation/tanks-ports.md-127-- `0x14038ff11`, bytes `83 7a 24 00`: require Y zero.
+investigation/tanks-ports.md-128-- `0x140908d17`, bytes `0f b7 10`: read unsigned 16-bit node count.
+investigation/tanks-ports.md-129-- `0x140908d4f`, bytes `0f b7 57 10`: truncate list count to 16 bits.
+investigation/tanks-ports.md-130-- `0x140908d76`, bytes `66 89 10`: write 16-bit node count.
+investigation/tanks-ports.md-131-- `0x140907d7a`, bytes `44 8b 30`: read 32-bit component count.
+investigation/tanks-ports.md-132-- `0x140907d92`, bytes `44 89 30`: write 32-bit component count.
+investigation/tanks-ports.md-133-- `0x1407c65e1`, bytes `41 83 bc 24 58 01 00 00 06`: width upper bound six.
+investigation/tanks-ports.md-134-- `0x1407c65ec`, bytes `41 83 bc 24 5c 01 00 00 06`: length upper bound six.
+investigation/tanks-ports.md-135-- `0x1407c676f`, bytes `e8 6c 97 bc ff`: validate port placement.
+investigation/tanks-ports.md-136-
+investigation/tanks-ports.md-137-## Confidence and replacement wording
+investigation/tanks-ports.md-138-
+investigation/tanks-ports.md:139:High confidence in instruction bytes, field names and offsets, count widths, the Add Input handler, the inventory-limited fill calculation and type-sensitive collision test. Moderate confidence in the conditional 144-port bound. Workflow-wide persistence, settings-to-request mapping and any global absence claim remain open.
+investigation/tanks-ports.md-140-
+investigation/tanks-ports.md-141-#29: "Diesel and jet fuel have a separate request-gated spawn fill path. It requests 0.99 × fill fraction × geometric liquid capacity, capped to available stock on the inventory branch, and adds ambient air. Runtime compartments serialize vol_0..vol_12, vol_total, temp and rad under contained_volume and contained_volume_secondary, plus spawner_pending. Still open: complete flag/ordering trace for saved-world loading, stored-vehicle spawning and rebuild/reset workflows."
+investigation/tanks-ports.md-142-
+investigation/tanks-ports.md-143-#30: "Gas tanks use the same recovered runtime compartment serializer as fluid tanks. Geometric capacity is reconstructed separately; explicit reset clears amounts and re-arms fill. Still open: complete save/rebuild workflow ordering and a maximum safe pressure or pressure-triggered rupture/damage threshold. The 59.4 atm startup result is not a safety limit."
+investigation/tanks-ports.md-144-
+investigation/tanks-ports.md:145:#63: "The Add Input handler has no fixed count test. External-node binary serialization uses a 16-bit count; embedded component serialization uses a 32-bit count. XML lists grow dynamically. Placement allows some different signal types to share a cell, so 36 cells is not a total-port limit. Still open: an unconditional accepted port/graph maximum and end-to-end confirmation of the derived 144-port bound for the five supported types."
+investigation/tanks-ports.md-146-
+investigation/tanks-ports.md-147-## Reproduction
+investigation/tanks-ports.md-148-
+investigation/tanks-ports.md-149-Run from the repository root. All commands read the executable without running it.
+investigation/tanks-ports.md-150-
+investigation/tanks-ports.md-151-```
+investigation/tanks-ports.md-152-sha256sum stormworks64.exe
+investigation/tanks-ports.md-153-objdump -d -Mintel stormworks64.exe > /tmp/tanks-ports-all.asm
+investigation/tanks-ports.md-154-python investigation/native/tanks-ports/tools/evidence.py stormworks64.exe /tmp/tanks-ports-all.asm /tmp/tanks-ports-evidence.json
+investigation/tanks-ports.md-155-python investigation/native/tanks-ports/tools/search.py stormworks64.exe /tmp/tanks-ports-all.asm 'pressure|rupture|burst|overpressure' /tmp/tanks-ports-pressure.txt
+investigation/tanks-ports.md-156-python investigation/native/tanks-ports/tools/window.py stormworks64.exe 1403f6150 1403f69d5 /tmp/tanks-ports-tank-serializer.asm
+investigation/tanks-ports.md-157-sha256sum -c investigation/native/tanks-ports/SHA256SUMS
+investigation/tanks-ports.md-158-```
+investigation/tanks-ports.md-159-
+investigation/tanks-ports.md-160-`window.py` regenerates any native window from its header start and inspected endpoint. `owner.py` locates PE unwind entries; an entry may be a fragment, not a complete function. `rtti.py` resolves MSVC class vtables. `water-vtable.json` records the actual initializer, serializer and reset slot bytes independently of the discovery script's generic sample-slot output.
+investigation/tanks-ports.md-161-
+investigation/tanks-ports.md-162-Pseudocode was generated with Ghidra 12.1.4 and JDK 21, using the existing matching `/tmp/composite-ghidra/logic` project with `-process stormworks64.exe -noanalysis -readOnly`. Logs retain requested addresses. For an independent import, create a temporary project directory and run:
+investigation/tanks-ports.md-163-
+investigation/tanks-ports.md-164-```
+investigation/tanks-ports.md-165-JAVA_HOME=/home/maxsp/.local/opt/jdk-21.0.12.1+1 \
+investigation/tanks-ports.md-166- /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/support/analyzeHeadless \
+investigation/tanks-ports.md-167- /tmp/tanks-ports-ghidra tanksports -import "$PWD/stormworks64.exe" -noanalysis \
+investigation/tanks-ports.md-168- -scriptPath "$PWD/investigation/native/tanks-ports/tools" \
+investigation/tanks-ports.md-169- -postScript DecompileAt.java /tmp/tanks-ports-pseudocode \
+investigation/tanks-ports.md-170- 1403f6150 1402eb750 1403eebf0 1405dafa0 1407c1b60 140908830 1409077b0 14038fee0 1407c6040
+investigation/tanks-ports.md-171-```
+investigation/tanks-ports.md-172-
+investigation/tanks-ports.md-173-Create `/tmp/tanks-ports-pseudocode` first. Fresh decompiler types and names can differ. Requested fragment entries can produce unassigned-register warnings. Some windows include adjacent code or jump-table data. Only the cited decoded instructions and verified PE bytes support claims, not apparent instruction text in data. No analysis database is required to reproduce instruction evidence.
+investigation/tanks-ports.md-174-
+investigation/tanks-ports.md-175-## Retained files
+investigation/tanks-ports.md-176-
+investigation/tanks-ports.md-177-- `native/tanks-ports/tanks-ports-issue{29,30,63}.json`: issue bodies and comments, collected read-only with `gh issue view N --repo Chaoscaot/stormworks-wiki --json number,title,body,comments`.
+investigation/tanks-ports.md-178-- `instruction-evidence.json`: 41 instruction anchors, verified byte for byte against the target PE.
+investigation/tanks-ports.md-179-- `asm/`: startup/inventory fill, constructor/reset, component load/build, runtime serializers, editor creation, placement, upload, bridge-type and graph/count windows. `baseline-*` files retain prior pressure/update evidence without re-decoding those formulas.
+investigation/tanks-ports.md-180-- `pseudocode/`: Ghidra output. The principal complete entries are named in the reproduction command; additional files retain followed callees and inspected candidates.
+investigation/tanks-ports.md-181-- `resources.json`: original numbered lines for the three liquid tanks, small gas tank and microprocessor definition.
+investigation/tanks-ports.md-182-- `tools/`: PE mapper, window/search/owner/evidence/RTTI scripts, water-vtable bytes, full retained searches and Ghidra logs. Offset searches are candidate lists, not proof every match belongs to a tank.
+investigation/tanks-ports.md-183-- `SHA256SUMS`: target executable, sampled shipped definitions, this report and all retained evidence, with paths relative to the repository root. The manifest excludes itself and Python caches.
+investigation/tanks-ports.md-184-
+investigation/tanks-ports.md-185-Only this report, `native/tanks-ports/` and two matching whitelist lines in the root `.gitignore` were written. Nothing was committed, pushed or posted to GitHub.
+--
+investigation/composite.md-23-## Editor size
+investigation/composite.md-24-
+investigation/composite.md-25-`0x140638e00` constructs two dimension controls using `0x14024cb90`, with minimum 1.0, maximum 6.0 and step 1.0. Constants `0x140bafecc` contain `00 00 80 3f`, and `0x140bb0540` contain `00 00 c0 40`. Upload validator `0x1407c6040` rejects either dimension at object +0x158/+0x15c above 6 and emits the executable string at `0x140b06c60`, `Microcontroller must not be larger than 6x6 voxels`.
+investigation/composite.md-26-
+investigation/composite.md:27:Port validity routine `0x14038fee0` requires 0 <= x < width, y=0, and 0 <= z < height. It rejects a second port with the same position and kind +0x34. Kinds 0 and 1 also conflict with each other. Other different kinds are not rejected by this particular test. A total port-count limit cannot be derived from the 6x6 grid alone. The accepted kind set and all creation/serialization checks still need reconciliation.
+investigation/composite.md-28-
+investigation/composite.md-29-## Cable anchor storage and endpoint transport
+investigation/composite.md-30-
+investigation/composite.md-31-Resource evidence is retained with source line numbers. `rope_hook_composite.xml:2` specifies vehicle type 48 and `logic_gate_subtype="2"`. Lines 63..84 label composite send/receive, on/off send/receive, video send/receive and audio send/receive. `winch_pulley_cable.xml:2` identifies the electrical pulley subtype 9. Subtype 9 branches in the native routine are pulley routing, not a different composite channel count.
+investigation/composite.md-32-
+investigation/composite.md-33-Rope-hook constructor `0x1403b3ca0` installs the composite input at component +0x238 and constructs its output at +0x2d8. It also constructs video input/output at +0x3e8/+0x620 and audio input/output at +0x870/+0x8b8. Port binder `0x1403b4a50` binds their definition records using types 5, 6 and 7. Each payload begins at slot +0x18.
+investigation/composite.md-34-
+investigation/composite.md-35-For the ordinary-anchor branch in transport routine `0x1403b6840`, peer = component pointer +0xa98. If both component state values at +8 are below 5, the routine sends:
+investigation/composite.md-36-
+investigation/composite.md-37-| Signal | Local sending payload | Ordinary peer receiving payload | Operation |
+investigation/composite.md-38-| --- | --- | --- | --- |
+investigation/composite.md-39-| Composite | +0x250 | +0x2f0 | Mask plus eight 16-byte numeric copies at `0x1403b6b37..0x1403b6b93` |
+investigation/composite.md-40-| Video | +0x400 | +0x638 | `0x1402e9ab0`, called at `0x1403b6b0a` |
+investigation/composite.md-41-| Audio | +0x888 | +0x8d0 | `0x1402ea000`, called at `0x1403b6b24` |
+investigation/composite.md-42-
+investigation/composite.md:43:The subtype 9 branch routes the two sides through video +0xce0/+0xf00, audio +0x1120/+0x1150 and composite +0x1180/+0x1204. A later branch handles the second peer pointer +0xaa0. Its reverse payload forwarding is conditional on local subtype 9. The report does not treat +0xa98 and +0xaa0 as interchangeable reciprocal links on every anchor. Resolving their construction and the full pulley traversal is still necessary for a cable-chain timing model.
+investigation/composite.md-44-
+investigation/composite.md-45-The composite receiver stores a value copy. Audio assignment `0x1402ea000` reallocates the destination buffer when its count differs, allocates `count*4` bytes, copies each 32-bit sample word, then copies metadata. Its data structure starts with buffer pointer +0, uint32 count +8, copied 64-bit metadata at +0x10/+0x18/+0x20, and a copied 32-bit field at +0x28. Metadata meanings and sample encoding were not decoded here. The receiving anchor owns a separate sample allocation on this path. Source and receiver do not merely share the source sample pointer.
+investigation/composite.md-46-
+investigation/composite.md-47-Video assignment `0x1402e9ab0` copies fixed descriptor fields through +0x21d in an aggregate with extent 0x220. It performs no allocation, free, resource acquisition or reference-count increment. Opaque 64-bit fields are copied unchanged. This recovers assignment behavior, but does not identify the ultimate owner or lifetime of resources represented by those fields. A dynamic pixel-buffer deep copy in this helper is ruled out. An exclusive transmitter/receiver ownership rule is still open.
+investigation/composite.md-48-
+investigation/composite.md-49-## Microprocessor video and audio bridges
+investigation/composite.md-50-
+investigation/composite.md-51-`0x140394500` invokes input bridge slot +0x58, updates graph `0x14038d270`, then invokes output bridge slot +0x48. Composite payloads use `0x140371fa0` and `0x140371e10` as described above.
+investigation/composite.md-52-
+investigation/composite.md-53-Video input bridge `0x1403722c0` copies physical slot payload +0x18 into node cache +0x38. Ordinary graph video gathering uses `0x1403722a0`, from producer payload +0x20. Video output bridge `0x1403721b0` tail-calls descriptor assignment `0x1402e9ab0` from node +0x20 to physical output +0x18. Video is not inserted into the composite number array.
+investigation/composite.md-54-
+investigation/composite.md-55-Audio input bridge `0x140372510` deep-copies the physical input's audio buffer into node cache +0x38. Ordinary graph gathering uses `0x1403724f0`, from producer +0x20. Audio output bridge `0x140372430` tail-calls `0x1402ea000` from node +0x20 to physical output +0x18. Each destination maintains its own sample buffer. These boundary bridges do not mix, resample or convert audio into composite channels in the recovered routines.
+investigation/composite.md-56-
+investigation/composite.md-57-Physical video output flush `0x1402eaa10` invokes consumer slot +0x68, resolved to descriptor-copy routine `0x1402eacf0`. Physical audio output flush `0x1402eadb0` invokes consumer slot +0x70, resolved to deep-copy routine `0x1402eafa0`. This also recovers the cache-transfer equivalents for video and audio.
+investigation/composite.md-58-
+investigation/composite.md-59-## Endpoint order and latency limits
+investigation/composite.md-60-
+investigation/composite.md-61-The normal scene dispatcher first evaluates the selected components of all selected vehicles. In its later vehicle traversal it calls `0x1404baf80` at `0x140549a5b`, then flushes that vehicle's outputs at `0x140549ad2`. `0x1404baf80` calls `0x1404995b0` at `0x1404bb2b3`; that routine invokes each component's +0x360 method at `0x1404996a7`. Rope-hook +0x360 is `0x1403b6840`.
+investigation/composite.md-62-
+investigation/composite.md-63-Consequently cable copying takes place after the main component-evaluation pass, inside a traversal where each vehicle's component transport precedes that vehicle's output flush. It is not one global cable-copy pass followed by one global output-flush pass. A write into another vehicle's receiving output can land before or after that vehicle's output flush. Inference: cross-vehicle ordering can add a cache-publication boundary. A fixed tick count for all endpoint orders, cable chains and pulley arrangements is not established.
+investigation/composite.md-64-
+investigation/composite.md-65-The one-update inference for an ordinary physical composite wire does not automatically extend to an entire route through producer wire, cable anchors and consumer wire. Additional unresolved conditions include construction of +0xa98/+0xaa0, vehicle ordering, alternate +0x360 dispatch paths, state guards, sleeping vehicles and reduced-rate microprocessors. A wall-clock latency measurement was not performed.
+investigation/composite.md-66-
+investigation/composite.md-67-## Remaining questions and exact exclusions
+investigation/composite.md-68-
+investigation/composite.md:69:- Maximum total external ports remains open. The recovered controls bound each physical axis to 1..6, and placement validity bounds coordinates and rejects certain same-position kinds. The total accepted kind set and all creation/serialization caps were not exhaustively traced. The editor scan retained as `asm/editor-search-window.asm` contains allocation-capacity comparisons to 0x20, including `0x14063cc76`, in container shrinking code. Those are not evidence of a 32-port cap. Neither the 32-channel payload nor the 6x6 area supplies the missing total count. A 36-port total is also unproved because the validity routine can accept different kinds at the same position.
+investigation/composite.md-70-- Cross-vehicle and pulley-chain latency remains open as described above. Recursive evaluation in the cached getter, pointer aliasing for composite copies and a universally fixed one-tick delay are ruled out as explanations of the recovered path. This does not rule out a one-tick result for a particular tested wiring arrangement.
+investigation/composite.md-71-- Ultimate video resource ownership remains open. Fixed descriptor assignment and the absence of dynamic pixel allocation/copy or reference-count arithmetic in `0x1402e9ab0` are established. Producer allocation, opaque field interpretation, renderer consumption and destruction were not traced.
+investigation/composite.md-72-- Lua scheduling remains open. The input API guards and getters were traced only to establish channel access. Deriving onTick/onDraw cadence, inactive behavior or execution budgets from these getters, channel counts or XML type IDs is ruled out. Executable help at `0x140af1270` says onDraw may run for multiple monitors and input/output functions have no effect there; that description is not a complete scheduler trace.
+investigation/composite.md-73-- Composite network packet/save format remains open. The 0x84-byte layout is an in-memory value and copy contract. No network serializer was traced.
+investigation/composite.md-74-
+investigation/composite.md-75-## Confidence and issue disposition
+investigation/composite.md-76-
+investigation/composite.md-77-High confidence in the 32+32 layout, public integer channel bounds, copy offsets, independent audio sample buffers, typed bridge copies and dimension-control/upload bounds. Moderate confidence in the ordinary-wire update-boundary inference because it follows native phase order but lacks runtime confirmation. No fixed cross-vehicle tick count, total port cap or ultimate video owner is claimed.
+investigation/composite.md-78-
+investigation/composite.md-79-#140, partially resolved. Replacement wording: "Native composite transport uses 32 binary32 number channels and 32 Boolean bits, numbered 1..32. Producer-to-input-cache copies and type-48 cable-anchor composite/video/audio transport are recovered. Ordinary physical composite wires cross one component-update boundary in the normal dispatcher. Still open: complete cross-vehicle and pulley-chain latency, ultimate video resource ownership, total microcontroller port limit, Lua scheduling and network packet format."
+investigation/composite.md-80-
+investigation/composite.md-81-#63, partially resolved. Replacement wording: "Microprocessor composite bridges copy the complete 132-byte value, video bridges copy descriptors and audio bridges deep-copy sample buffers. Editor dimensions are 1..6 per axis, and upload rejects dimensions above 6. Still open: maximum total external ports and reconciliation of all creation/serialization limits."
+investigation/composite.md-82-
+investigation/composite.md-83-## Instruction evidence
+investigation/composite.md-84-
+investigation/composite.md-85-Representative instructions are listed below. `instruction-evidence.json` contains all 32 checked citations. The disassembly windows retain the surrounding branches and copy tails. Windows can include adjacent functions; their endpoints are not asserted as function boundaries. PE unwind entries can describe fragments, so they were not used alone to delimit whole functions.
+investigation/composite.md-86-
+investigation/composite.md-87-| Address | Bytes | Meaning |
+investigation/composite.md-88-| --- | --- | --- |
+investigation/composite.md-89-| `0x1402e8ebe` | `ff c9` | Lua numeric channel minus one |
+investigation/composite.md-90-| `0x1402e8ec0` | `83 f9 1f` | Lua numeric index maximum 31 |
+investigation/composite.md-91-| `0x1402e8ec5` | `f3 0f 10 44 8a 04` | binary32 number at payload+4+index*4 |
+investigation/composite.md-92-| `0x1402e8db9` | `d3 e2` | Boolean channel bit shift |
+investigation/composite.md-93-| `0x140371e19` | `8b 41 20` | composite output bridge mask load |
+investigation/composite.md-94-| `0x140371fac` | `89 41 38` | composite input bridge cache mask store |
+investigation/composite.md-95-| `0x1402ea68b` | `48 8d 53 18` | producer payload address |
+investigation/composite.md-96-| `0x1402ea692` | `ff 50 60` | invoke consumer composite copy |
+investigation/composite.md-97-| `0x1402ea872` | `89 41 18` | consumer payload mask store |
+investigation/composite.md-98-| `0x1405498d6` | `41 ff 92 58 03 00 00` | first pass component update |
+investigation/composite.md-99-| `0x140549a5b` | `e8 20 15 f7 ff` | later per-vehicle transport update |
+investigation/composite.md-100-| `0x140549ad2` | `ff 50 28` | later per-vehicle output flush |
+investigation/composite.md-101-| `0x1404996a7` | `41 ff 92 60 03 00 00` | component transport slot |
+investigation/composite.md-102-| `0x1403b6b0a` | `e8 a1 2f f3 ff` | copy video descriptor to ordinary peer |
+investigation/composite.md-103-| `0x1403b6b24` | `e8 d7 34 f3 ff` | copy audio to ordinary peer |
+investigation/composite.md-104-| `0x1403b6b37` | `8b 83 50 02 00 00` | ordinary anchor outgoing composite mask |
+investigation/composite.md-105-| `0x1403b6b93` | `0f 11 49 74` | final 16 numeric bytes to peer+0x74 |
+investigation/composite.md-106-| `0x1402ea043` | `48 c1 e1 02` | audio allocation length = count*4 |
+investigation/composite.md-107-| `0x1402ea047` | `e8 20 8d 6c 00` | allocate independent audio buffer |
+investigation/composite.md-108-| `0x1402ea06d` | `89 04 91` | copy audio sample word into destination buffer |
+investigation/composite.md-109-| `0x1403945b0` | `ff 50 58` | input bridge pass |
+investigation/composite.md-110-| `0x1403945c7` | `e8 a4 8c ff ff` | embedded graph update |
+investigation/composite.md-111-| `0x140394610` | `ff 50 48` | output bridge pass |
+investigation/composite.md-112-| `0x1403721c1` | `e9 ea 78 f7 ff` | video output bridge tail call to descriptor copy |
+investigation/composite.md-113-| `0x140372441` | `e9 ba 7b f7 ff` | audio output bridge tail call to deep copy |
+investigation/composite.md-114-| `0x1407c65e1` | `41 83 bc 24 58 01 00 00 06` | reject width above 6 |

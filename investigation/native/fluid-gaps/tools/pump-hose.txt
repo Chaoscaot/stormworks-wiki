@@ -1,0 +1,96 @@
+`water_hose.xml` is component type 20, with child `water_hose_b`, type 7. The definition documents a maximum length of 16 m at line 346. RTTI and vtable anchors identify `c_scene_vehicle_component_winch`, vtable `0x140b958e8`, slot +0x358 bytes `70 3a 3e 40 01 00 00 00`, update `0x1403e3a70`. Constructor installs it at `0x1403e2703`.
+
+When linked component+0x148 is nonzero, `0x1403e3b09`, bytes `e8 c2 9d f0 ff`, calls the two-port solver with ports `self+0x230` and `linked+0x230`, bias 0, factor 1, one-way false and mask -1. The branch does not allocate a hose compartment, add volume or read hose length. Thus the decoded hydraulic operation bridges the endpoint networks. The actual winch-length controller is outside this fluid decode.
+
+### Current hose anchors and winches
+
+`rope_hook_fluid.xml:2-3` identifies component type 48, subtype 1, and documents a single hose link. `rope_hook_winch*.xml:2` identifies the current winches as type 48, subtype 3. Hose pulleys are subtype 8, with two Fluid Node ports; their descriptions and ports are retained.
+
+RTTI `c_scene_vehicle_component_rope_hook`, vtable `0x140b600f0`, has a second component pass at slot +0x360, bytes `40 68 3b 40 01 00 00 00`, function `0x1403b6840`. Initializer `0x1403b4a50` binds first and second type-3 ports at self+0x930 and +0x968, within port structures self+0x918 and +0x950. Its normal update at +0x358 also maintains attachment state; the fluid transfer itself is in +0x360.
+
+The body component pass dispatches slot +0x360 at `0x1404996a7`, bytes `41 ff 92 60 03 00 00`, retained in `rope-hook-dispatch.asm`. The two side paths call `0x1402ed8d0`:
+
+- First side `0x1403b6c4a`, bytes `e8 81 6c f3 ff`, requires a connected network at self+0x938 and link-valid flag +0xaa8. It connects port self+0x918 to the linked object's first port, or its second port when the linked object is a hose pulley and points back from its second side.
+- Second side `0x1403b6ef1`, bytes `e8 da 69 f3 ff`, requires self+0x970 and flag +0xaa9. It uses self+0x950 and makes the same linked-side selection.
+
+Both calls use bias 0, one-way false and all species. Factor is 1 when the current component subtype is 8, otherwise 0.5. The subtype test and factor load are at `0x1403b6be7-0x1403b6bf5` and `0x1403b6e90-0x1403b6e99`. No length is loaded in these exchange branches and no internal fluid state is supplied. The endpoint network's pressure law is unchanged.
+
+The extra network builder `0x1404a2130` tests subtype 8 and creates a V=4 fluid network when its first fluid port needs one. The store at `0x1404a226f` is `c7 40 08 00 00 80 40`. It registers the two eligible pulley ports in that state through `0x1402ec100` at `0x1404a22c6` and `0x1404a22f1`. This is an internal shared network for the pulley ports, not a volume proportional to deployed hose length.
+
+The link-valid flags' complete creation policy, invalid attachments, every current winch-to-equipment combination and handheld free-end valve operation remain open. `inventory_equipment_hose.xml:144` documents a 20 m carried hose and secondary-action valve, but this resource is not proof that the handheld free end uses either of the decoded calls. Do not silently equate handheld equipment, current rope-hook hoses and the old type-20 Hose.
+
+### Fluid connector
+
+`connector_water.xml` is type 17. Its line 109 documents fluid transfer between attached connectors. Vtable `0x140b50988`, RTTI `c_scene_vehicle_component_connector`, has update slot +0x358 bytes `30 41 3d 40 01 00 00 00`, `0x1403d4130`.
+
+At `0x1403d44d4`, bytes `e8 f7 93 f1 ff`, it bridges ports self+0x8d0 and attached+0x8d0 with bias 0, factor 0.5, one-way false and mask -1. Gates include attached pointer +0x950, a network at +0x8f0 and flag +0x970. It does not merge the two network objects or add connector storage volume in this path. The connector's complete attachment/release mechanics are outside the hydraulic conclusion.
+
+### Enclosed pipes
+
+All retained `trans_block_*.xml` definitions are type 6, like the open pipe definitions. Their fluid connection faces are type 3. The existing `0x1404a0f50` traversal tests component virtual type 6 and matching connection faces. It does not distinguish enclosed pipe meshes when adding traversed faces and does not add per-block volume. They therefore participate in the ordinary V=4 network result. The resource evidence rules out treating an enclosed pipe as a separate tank merely because its mesh is enclosed.
+
+## 6. Manual pump and pressure units
+
+`water_pump_manual.xml:2` supplies type 24, water type 22 and pressure 3. Line 81 says to hold either interaction action to pump. Water dispatch entry `0x1403f5158`, bytes `3f 34 3f 00`, selects `0x1403f343f`.
+
+The branch submits interaction target 0 or 1 from component+0x8e5 to controller +0x8e8, then updates the controller. It reads controller output at +0x8fc through `0x1408cddc0`; `0x1408cddd0` retains target, previous output and difference, and `0x1408cde20` advances the easing state. Constructor `0x1403ee9ce` stores a duration of 60 at controller+0x1c. The exact interrupted-interaction easing curve is retained as pseudocode, not reduced to an instantaneous Boolean.
+
+When controller output h>0.01, `0x1403f360e`, bytes `f3 0f 10 90 c8 0e 00 00`, loads definition pressure into xmm2. Xmm3 is h. It sets one-way true and mask -1, then jumps to the common call at `0x1403f25fb`, bytes `e8 d0 b2 ef ff`, with ports self+0x148 and +0x180. For h<=0.01 it calls with bias 0 and factor 0 instead. Damage detection clears the interaction target. The 0.015*h increment at `0x1403f3491` advances the handle/sound-cycle state +0x918; it is not a fluid amount or extra pump-pressure multiplier.
+
+For ordinary networks V=4, adequate inventory and room, no competition, and h=1, inference from the prior pump equation gives:
+
+```
+q_equal <= 3/30 = 0.1 amount/update = 60 L/s
+```
+
+This is an envelope, not a measured sustained rate. While h is between 0 and 1 the transfer bound includes h, and the h<=0.01 cutoff applies.
+
+No inspected pump definition, tooltip or editor control labels `pump_pressure` with a physical unit. The definition loader binds that name to definition+0xec8 at `0x140317c96-0x140317cb0`, retained in `name-binding.asm`. Pressure itself is displayed using `0x140b605f0`, literal ` / %.1fAtm`, and the tank ports document atmospheres. Inference: pump bias is compatible with that native pressure scalar because the solver adds it to a pressure difference. It is not a documented flow unit, SI pressure conversion or guaranteed pump-head rating. In particular, do not describe manual pressure 3 as a guaranteed 3 atm delivered head; the target-pressure equation also contains the bias and can yield a different equilibrium difference.
+
+## 7. Filters, mixtures and seawater
+
+The legacy `fluid_filter.xml` is water type 10. It enters `0x1403f2394`, shares the valve path, and submits its configured species bit mask from component+0x594. The common two-port call uses bias 0, active factor 1 and one-way false. The constructor defaults the mask to -1 at `0x1403eea09`. The UI in `0x1403f87f0` exposes individual species controls. No internal compartment is part of the filter exchange.
+
+`fluid_filter_v2.xml` is type 27 and dispatches to `0x1403f262e`. That branch builds a mask from two phase flags. If bit 3 of component+0x594 is set, it enables gas indices 3,4,10,11,12,7. If bit 0 is set, it enables liquid indices 0,6,5,1,2,8,9. The calls to the bit helper `0x14017b3f0` and the final solver call at `0x1403f27b7`, bytes `e8 14 b1 ef ff`, are retained in `filter-new.asm`. Bias is 0, factor 1 and one-way false. Bit3 here means the group flag expanded into all gas indices, not a filter restricted to air slot 3.
+
+These masks select moved species. They do not create separate per-species network pressures or remove excluded species from the pressure sum. The existing two-port solver transfers allowed species in proportion to their fraction of source total; a filtered mixture is not equivalent to renormalizing the source to allowed species only.
+
+Seawater index 6 is liquid for hydraulics, with the same pressure contribution as fresh water. The prior exterior decode already proved seawater at submerged intakes. A separate phase helper `0x1402eb350`, retained in `phase-change.asm`, converts fresh water plus seawater to steam above 100 C, removing each water type in proportion to its share. Below 100 C it condenses steam into fresh-water index 0. Its limits are `min((100-T)*0.001, 0.1*steam)` below 100, and `min((T-100)*0.001, fresh+sea)` above 100; temperature changes by `0.01*converted/A`. The total amount is unchanged by this helper. Calls at `0x14040ce51`, bytes `e8 fa e4 ed ff`, and `0x14040d5c7`, bytes `e8 84 dd ed ff`, establish selected callers, not a universal every-network phase update. Exact caller/component coverage remains open.
+
+The report does not decode slurry-filter processing, every steam-producing component, gas solubility, or every seawater-specific thermal/damage multiplier. Those are not settled by the common hydraulic phase classification.
+
+## Confidence and exact remaining boundaries
+
+High confidence applies to the hash, bounded identifier absence, tank volume arithmetic, tank port routing, the stated nonfuel fill branch, phase groups and pressure law, direct hose/connector exchange arguments, enclosed-pipe membership, manual-pump bias/factor, and filter masks. Arithmetic consequences are labeled as inferences. No result is a game measurement.
+
+The following remain open, with the ruled-out alternatives made explicit:
+
+1. Realtime damping influence through mechanisms without embedded names. Direct ASCII/UTF-16LE name lookup is ruled out by whole-file searches; hardcoded constants, generated identifiers and configuration-independent behavior are not ruled out. The tank-fill 0.99 is identified as initialization, not general fluid damping.
+2. Diesel/jet-fuel startup and save/rebuild inventory. The explicit fixed-tank/spawner branch skips indices 1/2; this rules out blindly applying its nonfuel startup formula to them. Their pressure and tank capacity are still covered by the common law.
+3. Exact custom-compartment geometry and open-boundary flooding. V is accumulated from weighted geometry, not set to 4. Components point to a separate state and the aperture pass uses its pressure. Occupancy weights' full geometric meaning, default ambient inventory, aperture area/submergence and final flow equations are not fully decoded.
+4. Complete current hose attachment policy and handheld free ends. The old Hose and current rope-hook exchange paths are distinct, and their decoded transfer calls contain no length factor or stored hose volume. That rules out attributing a length-resistance formula to these calls. It does not rule out different topology, validity or activation outside them. The carried 20 m hose valve is resource documentation only here.
+5. Complete multiphase/component coverage, slurry processing and all seawater-specific effects. Common pressure, species masks and one phase-change helper are recovered. Universal phase conversion in every compartment is not established by that helper's existence.
+6. A documented unit or physical pump-head calibration for `pump_pressure`. Pressure outputs say atmospheres, but no inspected pump-field UI/resource assigns a unit or guaranteed delivered head to that parameter.
+
+## Proposed wiki replacements
+
+Fluids limitation 0:
+
+> Fixed liquid and gas tanks, enclosed pipes, filters, the manual pump, and explicit hose/connector exchange paths are decoded for this build. Custom-compartment geometry and flooding, diesel/jet-fuel startup, handheld hose free ends, and complete steam/slurry/seawater component behavior remain partly open. The realtime damping names are absent from the executable; their runtime effect is unestablished. Pump bias uses the pressure solver's scalar, while pressure outputs are documented in atmospheres; no separate unit or delivered-head rating is documented for pump_pressure.
+
+Measurement questions:
+
+> The shipped file lists gas/liquid base damping 0.99/0.9999, but all four fluid damping identifiers are absent from the complete executable in ASCII and UTF-16LE. No setting binding is recovered. Runtime checks should compare two setting values on the same layout and initial inventory. Check flow against the recovered solver using the actual network graph: ordinary and enclosed pipe length adds no volume; hoses and connectors bridge networks with component-specific exchange factors. Check fixed gas-tank startup separately from custom spawners: the recovered fixed-tank fill branch gives 59.4 atm at full selected fill before exchanges, while the custom-spawner tooltip documents 60 atm.
+
+Fluid Tank family:
+
+> The small, medium and large tanks have decoded compartment volumes of 31.25, 187.5 and 703.125 L. Each tank exchanges with connected pipe networks through its own internal compartment. Pressure depends on gas and liquid amounts through the recovered window equation; it is not generally proportional to total fill for these larger tanks. The inspected nonfuel liquid startup branch adds 99% of selected fill plus V/60 of ambient gas. Diesel and jet-fuel startup remains untraced. Tank Content outputs 10 times the internal total amount, and Tank Pressure outputs atmospheres.
+
+Gas Tank family:
+
+> The small, medium, large and huge gas tanks have geometric volumes of 46.875, 109.375, 984.375 and 3515.625 L. Pure-gas pressure is 60 times stored amount divided by native compartment volume. The recovered fresh-state fill branch adds 0.99 times selected fill times volume, giving 59.4 atm at full selected fill before exchange. Gas species tooltips expand amounts by 60 before converting to litres; the Tank Content signal uses total amount times 10. These are different readouts. The custom spawner's documented 60 atm is a separate startup path.
+
+Old Hose family:
+
+> The coiled Hose connects its base and child-end fluid networks through a zero-bias, two-way exchange with factor 1. The decoded exchange has no added hose storage or hose-length factor. Its shipped description gives a maximum deployed length of 16 m. This is a separate implementation from current rope-hook hoses and carried hose equipment.
+

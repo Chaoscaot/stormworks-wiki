@@ -924,6 +924,27 @@ export function standaloneClutchOnset(availability = 1) {
   return e > 0 && u <= 1 ? u : null;
 }
 
+// Manual pump handle factor (investigation/fluid-gaps.md): quadratic ease-in/ease-out over 60 controller updates from the factor
+// held when the target last changed. The count t restarts at 0 on each interaction change; at t = 0 the factor is kept, and from
+// t = 60, or with a difference of 0.001 or less, it is the target. The pump moves fluid only while h is above 0.01.
+export const MANUAL_PUMP = { duration: 60, snap: 0.001, threshold: 0.01, flowAtFull: 60 };
+export const manualEase = (u) => (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u));
+
+export function manualHandle({ from, to, t }) {
+  finite([from, to, t]);
+  if (Math.abs(to - from) <= MANUAL_PUMP.snap || t >= MANUAL_PUMP.duration) return to;
+  if (t <= 0) return from;
+  return from + (to - from) * manualEase(t / MANUAL_PUMP.duration);
+}
+
+// First count at which the factor crosses the pumping threshold in the direction of travel, or null when it never does.
+export function manualPumpSwitch({ from, to }) {
+  const pumping = (h) => h > MANUAL_PUMP.threshold;
+  if (pumping(from) === pumping(to)) return null;
+  for (let t = 0; t <= MANUAL_PUMP.duration; t += 1) if (pumping(manualHandle({ from, to, t })) === pumping(to)) return t;
+  return null;
+}
+
 // One pass for two shaft groups [speed, weight] joined by one bridge: q is the ratio leaving A (1/q leaves B), c the bridge fraction.
 export function shaftBridge(a, b, q, c = 1) {
   finite([...a, ...b, q, c]);
@@ -1492,6 +1513,7 @@ const FAMILY_GRAPHS = {
   'part-jet-engine-exhaust-rotating': ['jet'],
   'part-jet-engine-combustion-chamber': ['chamber'],
   'part-gate-pid-controller': ['pid'],
+  'part-water-pump-manual': ['manual'],
   ...Object.fromEntries(JOINT_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['gear']])),
   ...Object.fromEntries(RADAR_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['radar']])),
   ...Object.fromEntries(LEGACY_VARIANTS.flatMap((v) => v.families).map((id) => [id, ['legacy']])),

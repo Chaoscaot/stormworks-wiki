@@ -1,0 +1,24 @@
+## 4. Custom compartments and the fluid spawner
+
+The custom compartment is a separate 0x128-byte object. Constructor `0x14048ff90` clears its fluid fields and sets temperature 20. In `0x140486ca0`, `0x1404871d4` calls that constructor and registers the object in the compartment list. `0x140487425`, bytes `e8 a6 e8 e6 ff`, calls volume builder `0x1402f5cd0`. This builder accumulates:
+
+```
+V += cell_weight * 0.015625 * 100
+```
+
+`cell_weight` is constructed from occupancy transitions in that routine, in increments of 0.5. The accumulation is at `0x1402f61cb-0x1402f61e3`, with `0x1402f61e3` bytes `f3 44 0f 58 d8`. Final V store `0x1402f63f3`, bytes `f3 44 0f 11 5e 38`, writes compartment+0x38. This is the fluid state's V at +0x30+0x08. This rules out assigning the ordinary pipe's constant V=4 to custom compartments. The complete relation between arbitrary wall shapes and these occupancy transitions is still open.
+
+The builder resolves water components' interior position to a compartment and writes their enclosing pointer at component+0x4b0, visible near the end of `open-builder.asm` and in `pseudocode/0x140486ca0.c`. The body construction caller at `0x1404a8300`, bytes `e8 9b e9 fd ff`, invokes this builder with body+0x738, so its +0x848 list is body+0xf80. `0x140311f20` from the prior scoop decode returns `compartment+0x30` when the enclosing pointer is present. Ordinary fluid intakes/outlets then exchange with that state through `0x1402ec710`; they do not automatically union all pipes with the compartment.
+
+The current spawner is water type 7, which has no active fluid-update branch. During pending initialization, `0x1404b7745-0x1404b7839` uses its enclosing compartment C:
+
+```
+q = min(C.V - C.A, 0.99*fill*C.V)
+amount[selected] += q
+C.A += q
+```
+
+This branch skips selector 1, 2 and 13. Positive air slot 3 is split into nitrogen, oxygen and CO2 as above. Evidence includes `0x1404b77c6`, bytes `f3 0f 59 b0 90 05 00 00`, multiplying the fill setting, and `0x1404b77d6`, bytes `f3 0f 5d fe`, limiting by free room. `water_spawner.xml:75` explicitly documents gases spawned compressed at 60 atm. Inference: if prior compartment gas and added gas together reach A=V, the general gas law gives 60 atm. Exact pressure from any other initial inventory must be calculated from that inventory. The complete default ambient-gas initialization of custom compartments is not traced here, so the tooltip is retained as documentation, not treated as proof of the missing initial state.
+
+`0x14049cbc0` is a separate aperture/compartment flow pass. It reads body+0xf80 compartments, compares their pressures with exterior or neighboring states, and moves species. Retained `open-flow.asm` includes its pressure calls at `0x14049d23c`, `0x14049d33e` and `0x14049d40e`. This rules out modeling a hull opening as an ordinary V=4 pipe node. Exact aperture selection, area, submergence, gas venting and flooding-rate equations remain open. No hull-opening throughput bound is asserted.
+

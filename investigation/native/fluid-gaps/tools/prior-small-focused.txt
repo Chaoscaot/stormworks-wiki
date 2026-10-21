@@ -1,0 +1,58 @@
+126:## #89. Oil Rig Pumpjack B
+127-
+128-`oil_rig_pumpjack_b.xml:2` gives type 7, mass 500, flags 128, constraint type 1, constraint axis 1 and `oil_component_type=6`. Line 144 has an empty `<logic_nodes/>`, so B has no fluid or logic outlet. Its mesh is `component_piston_pump_dynamic.mesh`.
+129-
+130-`oil_rig_pumpjack.xml:2` explicitly names B as `child_name`. That parent defines 2.5 range of motion, a Fluid Out at line 493 and the pumpjack coupling at line 498. Its line 3 tooltip explains that mechanically lifting and repeatedly moving the piston pulls fluid through the pump. This is shipped descriptive evidence for B's role, even though B's own tooltip is empty. Calling B an electrically driven oil generator or assigning the parent's outlet to B is unsupported.
+131-
+132-Native factory `0x1404b8f30`, case 7, calls constructor `0x140356480`. Constructor instruction `0x1403564a6` selects the `c_scene_vehicle_component_multibody` vtable `0x140b02a08`. Its update slot +0x358 points to `0x140357a60`. This update gates all its fluid-exchange work on `(definition.flags & 0x80)==0`. B has that flag set, so its own update skips this work. Instructions `0x140357a84..0x140357a8a` retain the flag test and branch. B therefore has no independent oil production or fluid transfer in this normal update: zero per update and zero per second from that branch.
+133-
+134-Worked example: placing B by itself supplies no Fluid Out and its component update adds no oil. In an assembled pumpjack, B is the moving piston named by the parent; moving it can operate the parent's pump. No litres-per-stroke or litres-per-second figure is established for the assembled pump by this evidence. Parent pressure limits, mechanical force, stroke direction and oil-well supply remain a separate throughput question. The type-59 `c_scene_vehicle_component_oil_rig` routine was also inspected, but it is not B's type-7 component update and was not used to invent a B production rate.
+135-
+136-## #152. Base fuel inventory transfers
+137-
+138-The issue links to mechanics/resource-storage rather than a component family. Its source is `rom/data/missions/default_resource_storage/script.lua`, retained with line numbers in `tools/resources.txt`.
+139-
+140-Lines 40..47 increment a local callback counter once per `onTick` call, wrap at 60 and process a port when `port.id % 60 == tick`. The `game_ticks` argument is not used. A particular port is therefore eligible once every 60 callbacks, not once per callback and not necessarily once per wall-clock second. This source does not establish the engine's callback scheduling policy or how catch-up ticks affect it.
+141-
+142-On an eligible callback:
+143-
+144-- Diesel input adds the complete `tank_data.values[1]` to tile diesel inventory when total tank value is positive, then requests zero fresh water and zero nitrogen in the inlet. Jet input analogously adds `values[2]` to jet inventory. There is no constant per-callback litre cap. See lines 52..68.
+145-- Diesel output computes `delta=min(capacity-total_value, tile_diesel_stock)`. If delta>0, it subtracts delta from the tile, requests `old_total+delta` of the tank's existing `fluid_type`, then requests zero nitrogen. Jet output does the same with tile jet stock. The preceding capacity guard uses the target species entry, but delta uses total value. See lines 71..96.
+146-- The addon does not check setter return values or establish atomicity between tile and vehicle writes. Tile inventory changes are submitted later when `is_update` is true. Processing the input before the output permits the newly credited tile stock to feed an output in the same callback.
+147-
+148-Worked pure-fluid arithmetic example: an outlet of capacity 100 L and old total 40 L with 25 L tile stock requests a 65 L tank and leaves zero tile stock. If the native setter applies those requests exactly and the old dominant fluid matches the intended fuel, arithmetic stock is 65 L both before and after. That conservation statement is conditional. The addon itself does not prove its native preconditions.
+149-
+150-Mixed-fluid counterexample at the request level: a nominal diesel outlet dominated by jet fuel retains `tank_data.fluid_type` in the setter request. The code does not force fluid ID 1. It can debit diesel tile stock while requesting an increase of the old dominant species. An inlet credits only the selected fuel entry but requests clearing fresh water and nitrogen, not explicitly clearing that credited species. This rules out deriving unconditional species conservation merely from equal-looking scalar additions and subtractions. It does not prove the eventual game state without the native application semantics.
+151-
+152-The native bridge is partly traced. Registry entries at `0x14059a9f3..0x14059aa24` bind `setVehicleTank` to `0x1405b1cc0` and `getVehicleTank` to `0x1405b2140`. Their virtual calls use `c_script_operators` vtable `0x140b11a28`. Slot +0x3e0 selects named setter `0x140730ea0`; slot +0x2f8 selects named getter `0x140733a30`. The setter resolves the named component, then calls slot +0x3d8, `0x140730f50`.
+153-
+154-`0x140730f50` appends a 36-byte request to the queue at operators.service+0x1f0. It stores the vehicle ID, voxel position, requested value, fluid ID and request kind 2. It does not directly edit the tank's species array. The getter resolves a named component and invokes its +0x498 serializer. Water-component serializer `0x1403f9e40` is retained as a downstream example, including its volume conversion and jump-table boundary. It is not a proof of setter behavior.
+155-
+156-Still open, exactly: the consumer of request kind 2, its clamping/replacement/additive semantics, ordering of two requests against one tank, handling of zero nitrogen and mixed fluids, stale reads between callback and application, and failure behavior were not recovered. The addon and queue writer rule out an immediate synchronous tank assignment at the Lua bridge, a fixed litre/callback cap in the addon, and a callback-time guarantee derived from unused `game_ticks`. They do not rule out conservation in a particular pure-fluid runtime setup. No wall-clock callback cadence was measured or inferred from the unrelated component 60 Hz rate. A runtime test remains necessary unless that native consumer and callback scheduler are decoded.
+157-
+158-## Suggested issue dispositions
+159-
+160-- #28: Replace "Charge drain rate not recovered" with "A depleted eligible item requests 0.01 internal charge/update while rack charging, normally 0.6/s. Full or absent items skip it; gas-refilled suits use a separate branch. Item recharge times are listed in the decode."
+161-- #51: Replace the gap with "The cryo cooler requests 0.001 internal charge/update, normally 0.06/s. All selected liquids contribute q=0.1 per litre. Cooling requires supplied fraction>0.1 and uses 0.03*q_other/(qA+qB) degrees/update. SI electrical and thermal units remain unestablished."
+162-- #56: Replace the gap with "Per successful update, consume oxygen 0.000165 amount and hydrogen 0.00033 amount, produce water 0.03 amount and submit 1 internal charge. At 60 updates/s these are 5.94 and 11.88 expanded gas L/s, 18 liquid water L/s and 60 charge/s, subject to supply, water space and the native fluid guard."
+163-- #58: Replace the measurement request with "Native code uses a strict 120-degree full cone and divides horizontal/vertical direction projections by cos(0.5 radians). Both resource statements hold; outputs are dimensionless, not angles."
+164-- #89: Replace the definition-only warning with "The parent pumpjack names B as its moving piston child. B has no outlet and flag 0x80 skips its own fluid update. Independent oil output is zero; assembled pump throughput is not quantified here."
+165-- #152: Keep open with narrower wording: "Each port transfers available inlet fuel or outlet free capacity once every 60 onTick callbacks. Native setters enqueue requests. Wall-clock callback cadence, native request application and mixed-fluid conservation remain unverified."
+166-
+167-## Reproduction
+168-
+169-Run from the repository root. Only file reads, PE mapping, objdump and headless Ghidra are needed. The target executable is never launched.
+170-
+171-1. Verify `sha256sum stormworks64.exe` against the hash above.
+172-2. Run `python investigation/native/small-parts/tools/capture.py` with the label/address arguments in `tools/reproduce.sh`. Run `tools/resources.py` to refresh resource-line and resource-hash evidence. The capture tool follows chained PE unwind entries so the inventory and laser cold blocks are retained, rather than stopping at their short initial exception entries. Explicit start-stop ranges cover leaf helpers.
+173-3. Run `python investigation/native/small-parts/tools/items.py`, then `python investigation/native/small-parts/tools/facts.py`. These regenerate the item table, per-definition figures, worked-example numbers and raw byte/constant evidence. The initializer reader maps constructor arguments 7 and 8 to capacity and recharge time, verified against `0x140264610` stores at +0x48 and +0x4c.
+174-4. For pseudocode, import a copy of the executable into a fresh Ghidra 12.1.4 project under `/tmp` with `-noanalysis`, then run the retained `DecompileAt.java` on the addresses in `tools/reproduce.sh`. This investigation used JDK 21 and local Ghidra headless. It did not use an REA server. Inferred signatures can omit register arguments; raw assembly and constants settle the figures quoted here.
+175-5. `sha256sum -c investigation/native/small-parts/SHA256SUMS` verifies the retained evidence and report. The manifest paths are relative to the repository root.
+176-
+177-## Retained files
+178-
+179-- `native/small-parts/parts.json`: per-definition figures, conditions, worked examples and remaining questions.
+180-- `native/small-parts/asm/`: byte-bearing native instruction excerpts. `reused-capacity.asm` and `reused-electric-draw.asm` reuse earlier retained evidence rather than repeating those investigations.
+181-- `native/small-parts/pseudocode/`: focused Ghidra output. Missing jump tables and inferred arguments are visible in the files.
+182-- `native/small-parts/tools/`: issue snapshots, linked family snapshots, exact resource lines, item initializer arguments and table, raw numeric/instruction evidence, PE reader, capture/derivation scripts, Ghidra script and reproduction command.
+183-- `native/small-parts/SHA256SUMS`: report and retained-file hashes with repository-relative paths. The executable's own hash is recorded in the report and machine-readable evidence; the large executable is not copied into this directory.

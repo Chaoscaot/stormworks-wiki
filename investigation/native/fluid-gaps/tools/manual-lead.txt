@@ -1,0 +1,29 @@
+The constructor clears amounts, sets fill fraction component+0x590 to 1 and fill-pending +0x58c to 1 at `0x1403ee777-0x1403ee7d6`. It initially sets fluid selector +0x588 to 1. Gas initialization changes selector 1 to air slot 3 at `0x1403ef6dd`, bytes `c7 83 88 05 00 00 03 00 00 00`. The UI at `0x1403f87f0` offers gas indices 3,10,11,12 for gas tanks and a 0..100 fill setting scaled by 0.01. These controls do not expose a `pump_pressure` unit.
+
+Build caller `0x1404bc38a`, bytes `e8 b1 b2 ff ff`, calls initializer `0x1404b7640` after the ordinary and extra network builders. For type 8 or 20 with pending fill, and selections other than diesel 1 and jet fuel 2, the recovered fresh-state branch is:
+
+```
+q = 0.99 * fill * V
+ambient_air = V/60
+if selected index is gas:
+    ambient_air = 0
+    if tank water type != 20:
+        q /= 60
+amount[selected] += q
+A += q
+amount[3] += ambient_air
+A += ambient_air
+convert positive amount[3] to:
+    nitrogen += 0.7896*amount[3]
+    oxygen   += 0.21*amount[3]
+    CO2      += 0.0004*amount[3]
+    amount[3] = 0
+clear fill-pending
+```
+
+Evidence: constant 0.99 loaded at `0x1404b76a2`; q and ambient calculation `0x1404b79b9-0x1404b79e5`; gas-index dispatch `0x1404b79eb-0x1404b7a20`; amount add `0x1404b7a52`, bytes `f3 0f 11 84 8b a4 05 00 00`; ambient and total adds `0x1404b7a83-0x1404b7aad`; air conversion `0x1404b7ac4-0x1404b7b01`; clear `0x1404b7b12`.
+
+For a cleared gas tank at fill=1 this yields `A=0.99V`, hence P=59.4 before exchanges. For a liquid selection handled here it adds `0.99V` of selected liquid and `V/60` of ambient gas. That is not a pure-liquid full state; calculate its pressure from the mixed law. The 0.99 here is an initialization multiplier, not evidence of per-update fluid damping.
+
+Diesel and jet fuel skip this particular branch at `0x1404b7984` and `0x1404b799d`. Their complete startup path is still open. The report therefore does not claim this formula describes their complete initialization. Saved inventory, rebuilds and other initialization passes can also change the resulting state. The shipped "spawn full" description alone does not prove a universal numeric fill rule.
+

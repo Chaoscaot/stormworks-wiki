@@ -1,0 +1,58 @@
+investigation/native/small-parts/tools/facts.py:26:rows.append({'definition':'oil_rig_pumpjack_b','issue':89,'status':'mechanical_child_and_zero_independent_output_decoded','definition_type':7,'oil_component_type':6,'mass':500,'constraint_type':1,'constraint_axis':1,'logic_ports':0,'parent_definition':'oil_rig_pumpjack','parent_child_name':'oil_rig_pumpjack_b','own_fluid_outlet':False,'own_oil_amount_per_update':0,'own_oil_amount_per_second':0,'routine':'0x140357a60','fluid_update_skipped_by_flag':128,'example':'The parent definition names this piston as its child and carries Fluid Out; B has no Fluid Out.','open':['complete parent oil production law and B travel-to-pumped-volume relation']})
+investigation/native/small-parts/tools/issue-89.json:1:{"body":"<!-- stormworks-research-gap:family:part-oil-rig-pumpjack-b -->\nThis issue tracks explicit open questions in the [wiki](https://sw-wiki.maxsp.de/parts/part-oil-rig-pumpjack-b).\n\nThe quotations below preserve the scope of each source. A resource-only article can lack a formula that a separate native-code investigation has partly recovered. Reconcile those findings before treating every quoted item as wholly undecoded.\n\n## Recorded gaps\n\n**Definition-only extraction**\n\n> The definition supplies no descriptive tooltip. Read the labelled ports and source values below; their presence does not establish undocumented mechanics.\n\n- [wiki/data/families.json](https://github.com/Chaoscaot/stormworks-wiki/blob/main/wiki/data/families.json), `/families/316/body`\n\n## Completion criteria\n\n- Recover the relevant routine or run a reproducible measurement against the identified game build.\n- Record equations, units, bounds, assumptions and executable addresses or measurement inputs.\n- Update the wiki guidance and its extractor, retaining citations and any remaining uncertainty.\n- Add or update an interactive graph when the recovered formula supports one.\n- Re-run the relevant source checks and website checks.\n","number":89,"title":"Oil Rig Pumpjack B: decode remaining behavior and formulas","url":"https://github.com/Chaoscaot/stormworks-wiki/issues/89"}
+investigation/native/small-parts/tools/rtti.txt:7:component_oil_rig@@ 0x140cca758
+investigation/native/small-parts/tools/rtti.py:4:for word in ['component_water@@','component_inventory@@','component_multibody@@','component_oil_rig@@']:
+investigation/native/small-parts/tools/resources.txt:50:rom/data/definitions/oil_rig_pumpjack_b.xml:2: <definition name="Oil Rig Pumpjack B" category="14" type="7" mass="500" value="0" flags="128" mesh_data_name="meshes/component_piston_pump_dynamic.mesh" constraint_type="1" constraint_axis="1" oil_component_type="6">
+investigation/native/small-parts/tools/resources.txt:51:rom/data/definitions/oil_rig_pumpjack_b.xml:3: 	<tooltip_properties/>
+investigation/native/small-parts/tools/resources.txt:52:rom/data/definitions/oil_rig_pumpjack_b.xml:144: 	<logic_nodes/>
+investigation/native/small-parts/tools/resources.txt:53:rom/data/definitions/oil_rig_pumpjack_b.xml:145: 	<couplings/>
+investigation/native/small-parts/tools/resources.txt:54:rom/data/definitions/oil_rig_pumpjack_b.xml:195: 	<constraint_pos_parent/>
+investigation/native/small-parts/tools/resources.txt:55:rom/data/definitions/oil_rig_pumpjack_b.xml:196: 	<constraint_pos_child/>
+investigation/native/small-parts/tools/resources.txt:56:rom/data/definitions/oil_rig_pumpjack_b.xml:213: 	<dynamic_rotation_axes y="1"/>
+investigation/native/small-parts/tools/resources.txt:57:rom/data/definitions/oil_rig_pumpjack.xml:2: <definition name="Oil Rig Pumpjack" category="14" type="7" mass="200" value="1000" flags="2147500096" mesh_data_name="meshes/component_piston_pump.mesh" child_name="oil_rig_pumpjack_b" constraint_type="1" constraint_axis="1" constraint_range_of_motion="2.5" pump_pressure="10000">
+investigation/native/small-parts/tools/resources.txt:58:rom/data/definitions/oil_rig_pumpjack.xml:3: 	<tooltip_properties description="Pulling the piston of the pumpjack with enough force will lift the piston, pulling fluid through the pump. A mechanical force capable of repeatedly cycling the piston is required to pump fluid effectively." short_description="A pumpjack for extracting crude oil from a drilled oil well."/>
+investigation/native/small-parts/tools/resources.txt:59:rom/data/definitions/oil_rig_pumpjack.xml:492: 	<logic_nodes>
+investigation/native/small-parts/tools/resources.txt:60:rom/data/definitions/oil_rig_pumpjack.xml:493: 		<logic_node orientation="4" label="Fluid Out" mode="1" type="3">
+investigation/native/small-parts/tools/resources.txt:61:rom/data/definitions/oil_rig_pumpjack.xml:497: 	<couplings>
+investigation/native/small-parts/tools/resources.txt:62:rom/data/definitions/oil_rig_pumpjack.xml:498: 		<coupling orientation="3" coupling_type="oil_rig" coupling_name="pumpjack" coupling_gender="1">
+investigation/native/small-parts/tools/resources.txt:63:rom/data/definitions/oil_rig_pumpjack.xml:907: 	<constraint_pos_parent y="0.75"/>
+investigation/native/small-parts/tools/resources.txt:64:rom/data/definitions/oil_rig_pumpjack.xml:908: 	<constraint_pos_child y="0.25"/>
+investigation/native/small-parts/tools/resources.txt:65:rom/data/definitions/oil_rig_pumpjack.xml:925: 	<dynamic_rotation_axes y="1"/>
+investigation/native/small-parts/tools/resources.py:5:for name in ['inventory_small','inventory_medium','cryo_cooler','hydrogen_fuel_cell','laser_point_sensor','oil_rig_pumpjack_b','oil_rig_pumpjack']:
+investigation/native/small-parts/tools/resource-hashes.json:7:  "rom/data/definitions/oil_rig_pumpjack_b.xml": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
+investigation/native/small-parts/tools/resource-hashes.json:8:  "rom/data/definitions/oil_rig_pumpjack.xml": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+investigation/native/small-parts/tools/reproduce.sh:10:  pumpjack-binding:1403208f9 component-factory:1404b8f30 \
+investigation/native/small-parts/tools/ranges.txt:8:pumpjack-binding 0x14031d850 0x1403209ab
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:2:  "id": "part-oil-rig-pumpjack-b",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:3:  "title": "Oil Rig Pumpjack B",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:10:      "id": "oil_rig_pumpjack_b",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:11:      "sizeLabel": "Oil Rig Pumpjack B"
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:36:      "label": "Oil Rig Pumpjack B \u00b7 Definition mass",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:38:      "detail": "oil_rig_pumpjack_b: mass. Literal definition mass. No SI mass conversion is established here.",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:39:      "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L2-L2",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:42:        "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:49:      "label": "Oil Rig Pumpjack B \u00b7 Definition value",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:51:      "detail": "oil_rig_pumpjack_b: value. Literal component value. This is not an observed purchase price in every game mode.",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:52:      "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L2-L2",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:55:        "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:62:      "label": "Oil Rig Pumpjack B \u00b7 Listed voxels",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:64:      "detail": "oil_rig_pumpjack_b: physics.voxels.count. Count of source voxel entries. This is not a physical dimension, volume or heat-transfer area.",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:65:      "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L146-L187",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:68:        "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:75:      "label": "Oil Rig Pumpjack B \u00b7 voxel_min",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:79:      "detail": "oil_rig_pumpjack_b: Literal grid-bound tag attributes. Omitted axes remain omitted; this is not an inferred dimension.",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:80:      "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L188-L188",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:83:        "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:90:      "label": "Oil Rig Pumpjack B \u00b7 voxel_max",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:94:      "detail": "oil_rig_pumpjack_b: Literal grid-bound tag attributes. Omitted axes remain omitted; this is not an inferred dimension.",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:95:      "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L189-L189",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:98:        "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:105:      "label": "Oil Rig Pumpjack B \u00b7 bb_physics_min",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:107:      "detail": "oil_rig_pumpjack_b: Literal physical-bound tag attributes. Omitted axes remain omitted; this is not an inferred dimension.",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:108:      "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L192-L192",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:111:        "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:118:      "label": "Oil Rig Pumpjack B \u00b7 bb_physics_max",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:120:      "detail": "oil_rig_pumpjack_b: Literal physical-bound tag attributes. Omitted axes remain omitted; this is not an inferred dimension.",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:121:      "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack_b.xml:ca440be6efff:L193-L193",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:124:        "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
+investigation/native/small-parts/tools/family-part-oil-rig-pumpjack-b.json:133:      "path": "rom/data/definitions/oil_rig_pumpjack_b.xml",
