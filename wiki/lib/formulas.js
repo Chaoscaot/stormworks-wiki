@@ -1094,6 +1094,7 @@ export const STEAM = {
   fireAmbient: 0.001, coolantPerVoxel: 0.0008, fireWeight: 400, boiling: 100, evaporation: 0.001, condensationCap: 0.1, phaseFeedback: 0.01,
   exchange: 0.1, exchangeFloor: 0.001, boilerAmbient: 0.0001, turbineFactor: 0.0025, turbineGain: 1000, turbineDamaged: 0.6, turbineDamageLimit: 20,
   turbineRetention: 0.985, turbineWeight: 65, pistonDrive: 0.002, pistonDamaged: 0.6, pistonDamageLimit: 10, pistonWeightPerVoxel: 20, valvePhase: 0.5,
+  crankRetention: 0.99, crankSpeedCap: 10, crankPhaseDivisor: 60,
 };
 export const FIREBOXES = [
   { id: 'steam_coal_firebox', label: 'Firebox', voxels: 45 },
@@ -1176,6 +1177,39 @@ export function pistonDrive({ pa, pb, phase, damage = 0 }) {
   finite([pa, pb, phase, damage]);
   if (damage >= STEAM.pistonDamageLimit) return 0;
   return STEAM.pistonDrive * (pb - pa) * Math.sin(2 * Math.PI * phase) * (damage ? STEAM.pistonDamaged : 1);
+}
+
+// Drive with the built-in valves: the admitting chamber at the supply pressure, the venting one at the vent pressure.
+export function pistonValvedDrive({ supply, vent, phase, damage = 0 }) {
+  const low = Math.min(vent, supply);
+  return phase >= STEAM.valvePhase
+    ? pistonDrive({ pa: supply, pb: low, phase, damage })
+    : pistonDrive({ pa: low, pb: supply, phase, damage });
+}
+
+// Crank group step at the end of each update, investigation/drivetrain-gaps.md (0x1404cc078): speed = clamp(0.99 × (speed + drive), −10, 10),
+// the drive accumulator is cleared and the phase advances by speed ÷ 60 turns, wrapped with floor in both directions.
+export function pistonCrankStep({ speed, phase, drive }) {
+  finite([speed, phase, drive]);
+  const next = clamp(STEAM.crankRetention * (speed + drive), -STEAM.crankSpeedCap, STEAM.crankSpeedCap);
+  const x = phase + next / STEAM.crankPhaseDivisor;
+  return { speed: next, phase: x - Math.floor(x) };
+}
+
+// One piston alone on its crank, phase offset 0, no shaft connection, chamber pressures held at supply and vent.
+// Returns the speed after `seconds` and its mean over the last simulated second.
+export function pistonSpinUp({ supply, vent, phase = 0.25, damage = 0, seconds = 30 }) {
+  finite([supply, vent, phase, damage, seconds]);
+  if (seconds <= 0) throw new RangeError('Duration must be positive.');
+  const updates = Math.round(seconds * UPDATES_PER_SECOND);
+  const window = Math.min(updates, UPDATES_PER_SECOND);
+  let state = { speed: 0, phase };
+  let sum = 0;
+  for (let tick = 0; tick < updates; tick += 1) {
+    state = pistonCrankStep({ ...state, drive: pistonValvedDrive({ supply, vent, phase: state.phase, damage }) });
+    if (tick >= updates - window) sum += state.speed;
+  }
+  return { speed: state.speed, mean: sum / window };
 }
 
 // Reduced cycle of model.py: water held at `water` by feed, steam drained, a perfectly circulated shared coolant amount,

@@ -1112,7 +1112,7 @@
       "title": "Diesel engine connections and startup",
       "category": "Engines",
       "summary": "Engine definitions describe separate air, fuel, exhaust, coolant and electrical connections.",
-      "body": "The small engine accepts throttle from 0 to 1. Its starter description says electrical power increases engine RPS for startup. Coolant has separate cold return and hot output ports. The small and large definitions set engine_max_force to 20000 and 200000 respectively. A separate native decode of the classic engine update (investigation/classic-engines.md, shown on the Diesel Engine parts page) found that this field sets the shaft weight, scales diesel and intake demand and multiplies the starter charge request. It is an internal solver weight, not a torque in N m.",
+      "body": "The small engine accepts throttle from 0 to 1. Its starter description says electrical power increases engine RPS for startup. Coolant has separate cold return and hot output ports. The small and large definitions set engine_max_force to 20000 and 200000 respectively. A separate native decode of the classic engine update (investigation/classic-engines.md, shown on the Diesel Engine parts page) found that this field sets the shaft weight, scales diesel and intake demand and multiplies the starter charge request. It is an internal solver weight, not a torque in N m. A later decode (investigation/drivetrain-gaps.md) found that the limiter and the combustion gate compare signed speed, so a shaft turning backward gets no throttle cut and no combustion gain: the engine's own speed candidate is 0.99 × r and decays toward 0 unless the shaft keeps driving it. Heating uses |r| and still applies. The speed branch does not replace NaN or infinity, and a connected shaft replaces the local speed with its group's published speed.",
       "findings": [
         {
           "label": "Small Engine: engine_max_force",
@@ -1295,12 +1295,51 @@
           },
           "status": "observed",
           "evidenceType": "component-configuration"
+        },
+        {
+          "label": "Signed combustion speed gate",
+          "value": "r > 2",
+          "detail": "comiss of the signed local speed with 2; jbe at 0x14034d424 skips combustion at or below 2, reverse speed and NaN included. Bytes 41 0f 2f c6 at 0x14034d420. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034d420",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034d420"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Signed limiter comparison",
+          "value": "r > limit",
+          "detail": "jbe at 0x14034bb5d skips the throttle cut for a lower or unordered speed, so reverse speed never trips it. Bytes 0f 2f d1 at 0x14034bb5a. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034bb5a",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034bb5a"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Heating sign mask",
+          "value": "|r|",
+          "detail": "Loads the mask that clears the speed sign bit before the 0.0075 heating factor. Bytes f3 44 0f 10 2d 40 52 86 00 at 0x14034ccd7, literal ff ff ff 7f at 0x140bb1f20. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ccd7",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034ccd7"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The diesel use, speed step, heating, 115 °C overheat threshold and starter request equations come from that native decode. Thermal efficiency in physical units and a conversion of the shaft model to SI torque were not recovered."
+        "The diesel use, speed step, heating, 115 °C overheat threshold and starter request equations come from that native decode. Thermal efficiency in physical units and a conversion of the shaft model to SI torque were not recovered, and the complete non-finite fluid and network behaviour was not traced."
       ]
     },
     {
@@ -5185,8 +5224,34 @@
       "title": "Fireboxes, boilers and condensers",
       "category": "Engines",
       "summary": "A firebox burns at most 0.00002 × voxels coal per update and heats its coolant; boilers and condensers convert water and steam at a fixed temperature of 100, at min(0.001 × (T - 100), water) per update when boiling.",
-      "body": "The coal firebox consumes one coal to ignite and provides air, exhaust and coolant connections. The boiler tooltip recommends a firebox heat supply and controlling evaporation to maintain consistent output steam pressure. Its labelled Water In and Steam Out ports have no descriptions. The condenser converts steam back to water and should be continuously cooled; its coolant descriptions explicitly call for cold fluid. A native decode (investigation/steam.md, shown on the Steam parts pages) found that the firebox requests 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal per update, at most 0.054 and 0.21 per simulated second for the small and large firebox. It burns only while Air pressure is more than 1 above Exhaust pressure and oxygen covers the request at a 0.21 reference fraction, and each unit of coal burned adds 200 to the fire temperature. The fire loses 0.001 of its gap to the surroundings per update and exchanges heat with its coolant at k = 0.0008 × voxels, the fire weighted 400. Boilers and condensers convert in their phase chamber at a fixed temperature of 100, whatever the pressure: at or above 100, min(0.001 × (T - 100), water) per update becomes steam, 1:1 by stored amount; below 100, min(0.001 × (100 - T), 0.1 × steam) condenses. Phase and coolant chambers exchange heat at k = 0.1 × (1 - D), D = clamp(0.1 × damage, 0, 1), weighted by liquid amount, and lose 0.0001 of their gap to the surroundings per update. Boiler Water In admits fresh water one way in with bias -60, and Steam Out passes steam one way out with bias 2.5 × steam ÷ phase volume; the condenser's Steam In and Water Out are the reverse with no bias, and the coolant ports enforce no direction. The port solver's 0 to 60 target clamp is a flow rule, not a pressure limit, and the boiler, condenser and phase code contain no pressure limit or burst test.",
+      "body": "The coal firebox consumes one coal to ignite and provides air, exhaust and coolant connections. The boiler tooltip recommends a firebox heat supply and controlling evaporation to maintain consistent output steam pressure. Its labelled Water In and Steam Out ports have no descriptions. The condenser converts steam back to water and should be continuously cooled; its coolant descriptions explicitly call for cold fluid. A native decode (investigation/steam.md, shown on the Steam parts pages) found that the firebox requests 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal per update, at most 0.054 and 0.21 per simulated second for the small and large firebox. It burns only while Air pressure is more than 1 above Exhaust pressure and oxygen covers the request at a 0.21 reference fraction, and each unit of coal burned adds 200 to the fire temperature. The fire loses 0.001 of its gap to the surroundings per update and exchanges heat with its coolant at k = 0.0008 × voxels, the fire weighted 400. Boilers and condensers convert in their phase chamber at a fixed temperature of 100, whatever the pressure: at or above 100, min(0.001 × (T - 100), water) per update becomes steam, 1:1 by stored amount; below 100, min(0.001 × (100 - T), 0.1 × steam) condenses. Phase and coolant chambers exchange heat at k = 0.1 × (1 - D), D = clamp(0.1 × damage, 0, 1), weighted by liquid amount, and lose 0.0001 of their gap to the surroundings per update. Boiler Water In admits fresh water one way in with bias -60, and Steam Out passes steam one way out with bias 2.5 × steam ÷ phase volume; the condenser's Steam In and Water Out are the reverse with no bias, and the coolant ports enforce no direction. The port solver's 0 to 60 target clamp is a flow rule, not a pressure limit, and the boiler, condenser and phase code contain no pressure limit or burst test. A later decode (investigation/drivetrain-gaps.md) found that ignition writes 3600 to a state the combustion code only tests for nonzero, with no countdown in those paths, and that a hot damaged firebox can queue a component and body event through a shared helper when the vehicle_damage setting is on.",
       "findings": [
+        {
+          "label": "Firebox ignition state restore",
+          "value": "binary read into +0x754",
+          "detail": "The only other store to the ignition state found by a whole-disassembly search is this restore writer in the serializer's read mode; the steam update holds no decrement or zero store. Bytes 89 8e 54 07 00 00 at 0x1404134a7. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404134a7",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404134a7"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Damage event vehicle_damage gate",
+          "value": "settings+0x4a",
+          "detail": "The shared helper 0x140325680, tail-called by the firebox post-update at 0x140411ec2, queues a component and body pair only with the vehicle_damage setting on. Bytes 80 78 4a 00 at 0x1403256a6. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403256a6",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403256a6"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
         {
           "label": "Firebox: Temperature",
           "value": "Temperature of the coolant that is being heated.",
@@ -5513,7 +5578,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The burn, phase, heat-transfer and port figures come from that native decode, not from these definitions alone. Still not decoded: what counts down or clears the firebox ignition state, any global rupture or explosion path beyond a damage flag on hot fireboxes, and a joule or thermal-unit calibration of coal heat and boiling. Temperatures and amounts are internal game values."
+        "The burn, phase, heat-transfer and port figures come from that native decode, not from these definitions alone. Still not decoded: a gameplay writer that clears or decrements the firebox ignition state; the consumer of the event a hot damaged firebox queues, any global blast and any pressure-triggered boiler rupture; and a joule or thermal-unit calibration of coal heat and boiling. Temperatures and amounts are internal game values."
       ]
     },
     {
@@ -5521,7 +5586,7 @@
       "title": "Steam turbines and piston timing",
       "category": "Engines",
       "summary": "The turbine turns steam flow into a target RPS that keeps 0.985 per update; the piston switches its own ports at half turn and drives its crank by 0.002 × steam pressure difference × sin(2πz).",
-      "body": "The turbine tooltip says torque comes from the force generated by steam passing through it. Its Steam In, Steam Out and RPS ports are labels without descriptions. The piston tooltip says outer-coupling pressure extends the piston and inner-coupling pressure retracts it. Alternating pressure according to piston position allows the crankpin to rotate continuously. The piston also has labelled Piston Position and RPS signals and two described power connections. A native decode (investigation/steam.md, shown on the Steam parts pages) found that the turbine passes gas one way from Steam In to Steam Out through the pump solver with flow factor 0.0025, so exhaust pressure at or above inlet pressure stops it, and it consumes no steam. Each update its speed gains 1000 × the steam moved, is multiplied by 0.985 and is submitted as target RPS with shaft weight 65 on each RPS port; unloaded it settles at 0.985 ÷ 0.015 × 1000 × the steam moved per update. The piston's crank phase z runs 0 to 1 turns and is the Piston Position output. Each chamber has a Steam In and a Steam Out, and the update opens one of each pair by half turn, switching at z = 0.5, so no external valve timing is needed. Each update it adds 0.002 × (p_B - p_A) × sin(2πz) to its crank group, p being chamber pressure times steam fraction, and submits the group speed with shaft weight 20 × voxels per port. The render crank radii 0.075, 0.146 and 0.216 suggest strokes of 0.15, 0.292 and 0.432 world units (inference).",
+      "body": "The turbine tooltip says torque comes from the force generated by steam passing through it. Its Steam In, Steam Out and RPS ports are labels without descriptions. The piston tooltip says outer-coupling pressure extends the piston and inner-coupling pressure retracts it. Alternating pressure according to piston position allows the crankpin to rotate continuously. The piston also has labelled Piston Position and RPS signals and two described power connections. A native decode (investigation/steam.md, shown on the Steam parts pages) found that the turbine passes gas one way from Steam In to Steam Out through the pump solver with flow factor 0.0025, so exhaust pressure at or above inlet pressure stops it, and it consumes no steam. Each update its speed gains 1000 × the steam moved, is multiplied by 0.985 and is submitted as target RPS with shaft weight 65 on each RPS port; unloaded it settles at 0.985 ÷ 0.015 × 1000 × the steam moved per update. The piston's crank phase z runs 0 to 1 turns and is the Piston Position output. Each chamber has a Steam In and a Steam Out, and the update opens one of each pair by half turn, switching at z = 0.5, so no external valve timing is needed. Each update it adds 0.002 × (p_B - p_A) × sin(2πz) to its crank group, p being chamber pressure times steam fraction, and submits the group speed with shaft weight 20 × voxels per port. The render crank radii 0.075, 0.146 and 0.216 suggest strokes of 0.15, 0.292 and 0.432 world units (inference). A later decode (investigation/drivetrain-gaps.md) found the crank group integration: at the end of each update speed = clamp(0.99 × (speed + drive), −10, 10), the drive is cleared and the phase advances by speed ÷ 60 turns with floor wrapping, so the speed is in RPS and capped at 10. Before that, each connected RPS port replaces the group speed with its shaft group's published speed, which is how a shaft load slows the crank.",
       "findings": [
         {
           "label": "Steam Turbine: Steam In",
@@ -5718,12 +5783,51 @@
           },
           "status": "observed",
           "evidenceType": "component-interface-description"
+        },
+        {
+          "label": "Piston group speed retention",
+          "value": 0.99,
+          "detail": "The piston group loop in the manager update 0x1404cb790 adds the accumulated drive to the speed (0x1404cc0b5) and multiplies by this (0x1404cc0ba). Bytes f3 44 0f 10 05 2b 3e 6e 00 at 0x1404cc078, literal a4 70 7d 3f at 0x140bafeac. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc078",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc078"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Piston group speed bounds",
+          "value": "-10 to 10",
+          "detail": "maxss with −10 (loaded at 0x1404cc081) and minss with 10 (loaded at 0x1404cc017) clamp the speed before it is stored. Bytes f3 41 0f 5f f1 f3 41 0f 5d f7 at 0x1404cc0bf, literal 00 00 20 c1 at 0x140bb0f94, literal 00 00 20 41 at 0x140bb064c. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc0bf",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc0bf"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Piston phase step",
+          "value": "speed ÷ 60",
+          "detail": "Divides the speed by 60 (constant at 0x140bb0760), clears the drive accumulator (0x1404cc0d3), adds the old phase and subtracts floor (call at 0x1404cc0e2). Bytes f3 41 0f 5e f2 44 89 7b 08 at 0x1404cc0ce, literal 00 00 70 42 at 0x140bb0760. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc0ce",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc0ce"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
         }
       ],
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The turbine and piston figures come from that native decode, not from these definitions alone. Still not decoded: how a piston crank group integrates its accumulated drive into phase and loaded shaft speed, and any N m torque or conversion-efficiency calibration; turbine and piston outputs are shaft-solver speeds and weights, not torques. Repeated port labels are preserved; the piston's first and second Steam In and Steam Out are matched to its chambers by definition order (inference)."
+        "The turbine and piston figures come from that native decode, not from these definitions alone. Still not decoded: any N m torque or conversion-efficiency calibration; turbine and piston outputs are shaft-solver speeds and weights, not torques. Repeated port labels are preserved; the piston's first and second Steam In and Steam Out are matched to its chambers by definition order (inference)."
       ]
     },
     {
@@ -6078,8 +6182,60 @@
       "title": "Gear ratios and clutch engagement",
       "category": "Engines",
       "summary": "Gearboxes pull RPS B toward the selected ratio × RPS A, so for N:1 the A side is fast; the standalone clutch couples with strength input^6 and the modular clutch follows input^3 with a slew.",
-      "body": "The selected gearbox definitions expose power connections A and B, an electrical connection and a Gear Switch input. Their tooltips say the switch toggles between two property values. The torque_gearbox_2 tooltip states an operating torque difference up to 4000 without specifying a unit. The standard clutch takes engagement from 0 to 1 and says this controls transmitted power. The modular clutch attaches to a crankshaft to control torque made available to the connected system. A native decode (investigation/transmission.md, shown on the Transmission parts pages) found that every gearbox offers the same eight ratios: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1, as multipliers q = -1, 1, 5/6, 2/3, 5/9, 1/2, 2/5 and 1/3. The gearbox stores q on RPS A and 1 ÷ q on RPS B, and the shaft solver pulls RPS B toward q × RPS A, so for an N:1 option RPS A is the fast side and RPS B targets A ÷ N. The two sides stay separate shaft groups. Each update a group adds the other side's speed with path weight h = 0.95 × c, where c is 1 for an intact gearbox, adding sign(q) × v × I × h to its numerator and I × h ÷ |q| to its weight; paths with h at or below 0.001 add nothing. This is a weighted speed exchange with no slip threshold, and 0.95 is not a 95% power efficiency: two groups already at the ratio stay there. Gear Switch picks Ratio Off or Ratio On, and a new ratio replaces the old one in the same update while the gearbox has any electrical availability; without power it keeps the last ratio and stays coupled. The standalone clutch sets c = e × clamp(input, 0, 1)^6 directly each update, with e = min(1, availability ÷ 0.01), so input 0.5 gives 1/64 and an isolated clutch transfers nothing below about 0.319. The modular clutch is separate code: its engagement moves toward clamp(input, 0, 1)^3 by at most 0.1 per update. Nonzero damage sets a gearbox's or standalone clutch's coupling to 0. The gearbox force_emitter_max_force values (200, 1200 and 5000; 1000 and 9999999 for the legacy definitions) are copied at binding but not used as a solver weight, so they are not torque capacities.",
+      "body": "The selected gearbox definitions expose power connections A and B, an electrical connection and a Gear Switch input. Their tooltips say the switch toggles between two property values. The torque_gearbox_2 tooltip states an operating torque difference up to 4000 without specifying a unit. The standard clutch takes engagement from 0 to 1 and says this controls transmitted power. The modular clutch attaches to a crankshaft to control torque made available to the connected system. A native decode (investigation/transmission.md, shown on the Transmission parts pages) found that every gearbox offers the same eight ratios: 1:-1, 1:1, 6:5, 3:2, 9:5, 2:1, 5:2 and 3:1, as multipliers q = -1, 1, 5/6, 2/3, 5/9, 1/2, 2/5 and 1/3. The gearbox stores q on RPS A and 1 ÷ q on RPS B, and the shaft solver pulls RPS B toward q × RPS A, so for an N:1 option RPS A is the fast side and RPS B targets A ÷ N. The two sides stay separate shaft groups. Each update a group adds the other side's speed with path weight h = 0.95 × c, where c is 1 for an intact gearbox, adding sign(q) × v × I × h to its numerator and I × h ÷ |q| to its weight; paths with h at or below 0.001 add nothing. This is a weighted speed exchange with no slip threshold, and 0.95 is not a 95% power efficiency: two groups already at the ratio stay there. Gear Switch picks Ratio Off or Ratio On, and a new ratio replaces the old one in the same update while the gearbox has any electrical availability; without power it keeps the last ratio and stays coupled. The standalone clutch sets c = e × clamp(input, 0, 1)^6 directly each update, with e = min(1, availability ÷ 0.01), so input 0.5 gives 1/64 and an isolated clutch transfers nothing below about 0.319. The modular clutch is separate code: its engagement moves toward clamp(input, 0, 1)^3 by at most 0.1 per update. Nonzero damage sets a gearbox's or standalone clutch's coupling to 0. The gearbox force_emitter_max_force values (200, 1200 and 5000; 1000 and 9999999 for the legacy definitions) are copied at binding but not used as a solver weight, so they are not torque capacities. A later decode (investigation/drivetrain-gaps.md) found that gearbox and clutch damage goes through a shared setter capped at 50 and that a shared repair routine lowers damage by an amount its caller passes, never below 0. A shaft rebuild clears every registered connection's group pointer before the old groups are freed, then forms new groups in connection-discovery order and drops groups with fewer than two members.",
       "findings": [
+        {
+          "label": "Shared capped damage setter",
+          "value": "min(x, 50)",
+          "detail": "Slot +0x20 of the torque component vtable (0x140b66730) selects this shared setter, which keeps the smaller unsigned value and stores it as damage. Bytes b8 32 00 00 00 3b d0 0f 42 c2 89 41 08 at 0x140325ab0, literal b0 5a 32 40 01 00 00 00 at 0x140b66730. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325ab0"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Shared repair subtraction",
+          "value": "max(0, damage − amount)",
+          "detail": "Subtracts the caller's repair amount, replaces a negative result with 0 (0x1404a07ba) and calls the damage setter (0x1404a07c8). Bytes 2b 95 28 01 00 00 at 0x1404a07af. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a07af",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a07af"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Rebuild frees groups after the reset",
+          "value": "call 0x1408ca4b0",
+          "detail": "The rebuild entry 0x1404cad20 calls each component's reset (slot +0x3e0 at 0x1404cad8e), which clears its shaft nodes' group pointers, and only then frees the shaft groups. Bytes e8 e9 f6 3f 00 at 0x1404cadc2. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cadc2",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cadc2"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
+        {
+          "label": "Rebuild drops small groups",
+          "value": "count < 2",
+          "detail": "A new group with fewer than 2 members is not kept; its members' group pointers are cleared before cleanup (0x1404a1d35). Bytes 83 f8 02 at 0x1404a1d09. Report: investigation/drivetrain-gaps.md.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a1d09",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a1d09"
+          },
+          "status": "observed",
+          "evidenceType": "native-static"
+        },
         {
           "label": "Gearbox: RPS A",
           "value": "Power connection A.",
@@ -6294,7 +6450,7 @@
       "limitations": [
         "Block definitions document configuration and interfaces. Generic serialized fields can exist on unrelated block types; only relevant fields are selected here.",
         "These are supplied resources. No game process was executed, and native code loading, overrides and effective runtime values remain unverified.",
-        "The ratio, coupling and clutch laws come from that native decode, not from these definitions alone. Not recovered: SI torque and physical power losses, a finite slip torque or friction law, where and in what unit torque_gearbox_2's 4000 limit is enforced, and the events that damage a gearbox or clutch, including any torque-triggered breakage."
+        "The ratio, coupling and clutch laws come from that native decode, not from these definitions alone. Not recovered: SI torque and physical power losses, a finite slip torque or friction law, the path and internal unit that would enforce torque_gearbox_2's 4000 limit, and the complete damage triggers, repair cadence and any torque-triggered breakage. Which connector changes schedule a shaft rebuild, and the update ordering that would rule out stale membership, were not traced."
       ]
     },
     {
@@ -16075,7 +16231,7 @@
     "schemaVersion": 1,
     "articleCount": 27,
     "constantCount": 483,
-    "findingCount": 559,
+    "findingCount": 571,
     "sourceCount": 84,
     "categories": [
       "Control",

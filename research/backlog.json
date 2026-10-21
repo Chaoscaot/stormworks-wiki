@@ -38,7 +38,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/4/limitations/2",
-        "text": "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
+        "text": "Non-finite speeds are decoded only for the speed branch: it does not sanitize NaN or infinity. The complete non-finite fluid and network behaviour was not traced. Thermal efficiency in physical units is unknown.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -145,19 +145,19 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/10/limitations/2",
-        "text": "Losses and shaft speed or torque for power and fluid passed through a joint were not traced.",
+        "text": "Ordinary joint fluid passage uses the shared bidirectional, all-species two-port solver with zero bias and factor 1, and delivered flow depends on network pressure and allocation history. Mechanical shaft speed, torque and any joint-specific losses across a joint were not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/10/limitations/3",
-        "text": "The world direction of σ for each placement was not recovered; the local sign flip is decoded.",
+        "text": "The local sign flip of σ is decoded, but its world-axis direction for each placement and reflected orientation was not traced; that needs the joint-frame and body-order transforms.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/10/limitations/4",
-        "text": "The plain and power pivots' tooltip stop at 0.25 turns was not located in code: the setup sets angle limits from the range field only for powered position joints.",
+        "text": "The plain and power pivot definitions skip the hinge setup's explicit angle-limit branch, so their tooltip quarter-turn stop does not come from that setter. Their assembled travel and any other stop mechanism remain unverified.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -176,13 +176,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/11/limitations/3",
-        "text": "The placement and alignment validator for modular parts was not traced. Which attachment positions and orientations the editor accepts is unknown beyond the coupling names the crank and manifold walks follow.",
+        "text": "Modular registration and connection grouping are decoded, but the editor's complete placement and alignment validator was not traced. Which attachment positions and orientations the editor accepts is open beyond the coupling names the crank and manifold walks follow.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/11/limitations/4",
-        "text": "Writers of component damage (offset 8) other than the cylinder overheat branch, the capped setter and binary restore were not traced, so collision damage and repair rates are unknown.",
+        "text": "Beyond overheat, restore and the capped setter, shared spatial damage and repair routines call component damage setters, and repair subtracts a caller-supplied amount and clamps at 0. Collision attribution, damage thresholds, tool cadence and complete repair rates were not traced.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -220,8 +220,8 @@
     "locations": [
       {
         "file": "wiki/data/behavior.json",
-        "pointer": "/categories/15/sections/8/body",
-        "text": "Not decoded: what counts down or clears the firebox ignition state after ignition; how a piston crank group turns its accumulated drive into phase and shaft speed; any global rupture or explosion path, beyond a damage flag on hot fireboxes, since no pressure limit or burst test appears in the boiler, condenser or phase code; the unit steam_component_capacity once had; and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.",
+        "pointer": "/categories/15/sections/9/body",
+        "text": "Ignition writes 3600 to a state that the recovered firebox combustion paths test as a nonzero enable. No countdown was found in those paths, and the complete gameplay writer that clears or decrements it was not traced. Hot damaged fireboxes can queue a component and body event when vehicle damage is on. The event consumer, any global blast and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -240,19 +240,19 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/17/limitations/1",
-        "text": "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
+        "text": "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but its enforcing path and internal unit were not established. The recovered gearbox update, ratio helper and shaft solver hold no 4000 and compare the copied force_emitter_max_force with nothing.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/17/limitations/2",
-        "text": "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
+        "text": "Damage disables the gearbox or clutch bridge. Both use the shared capped damage setter, and the shared repair routine can subtract damage to 0. The complete damage triggers, repair cadence and any torque-triggered breakage were not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/17/limitations/3",
-        "text": "Which connector changes rebuild the shaft groups, when old group membership is dropped, how the rebuilt group and member order is chosen and whether an update can run on stale membership were not traced. The traversal under Several bridges and loops follows that order, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
+        "text": "The rebuild clears registered shaft-node group pointers before freeing the old groups, then forms new groups and appends members in connection-discovery order. Which connector changes schedule a rebuild, and the update ordering that would rule out a pass on stale membership, were not traced, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -348,7 +348,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/10/limitations/2",
-        "text": "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
+        "text": "Non-finite speeds are decoded only for the speed branch: it does not sanitize NaN or infinity. The complete non-finite fluid and network behaviour was not traced. Thermal efficiency in physical units is unknown.",
         "scope": "Practical behavior guidance"
       },
       {
@@ -837,7 +837,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/4/limitations/2",
-        "text": "The diesel use, speed step, heating, 115 °C overheat threshold and starter request equations come from that native decode. Thermal efficiency in physical units and a conversion of the shaft model to SI torque were not recovered.",
+        "text": "The diesel use, speed step, heating, 115 °C overheat threshold and starter request equations come from that native decode. Thermal efficiency in physical units and a conversion of the shaft model to SI torque were not recovered, and the complete non-finite fluid and network behaviour was not traced.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1009,7 +1009,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/17/limitations/2",
-        "text": "The burn, phase, heat-transfer and port figures come from that native decode, not from these definitions alone. Still not decoded: what counts down or clears the firebox ignition state, any global rupture or explosion path beyond a damage flag on hot fireboxes, and a joule or thermal-unit calibration of coal heat and boiling. Temperatures and amounts are internal game values.",
+        "text": "The burn, phase, heat-transfer and port figures come from that native decode, not from these definitions alone. Still not decoded: a gameplay writer that clears or decrements the firebox ignition state; the consumer of the event a hot damaged firebox queues, any global blast and any pressure-triggered boiler rupture; and a joule or thermal-unit calibration of coal heat and boiling. Temperatures and amounts are internal game values.",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1022,7 +1022,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/18/limitations/2",
-        "text": "The turbine and piston figures come from that native decode, not from these definitions alone. Still not decoded: how a piston crank group integrates its accumulated drive into phase and loaded shaft speed, and any N m torque or conversion-efficiency calibration; turbine and piston outputs are shaft-solver speeds and weights, not torques. Repeated port labels are preserved; the piston's first and second Steam In and Steam Out are matched to its chambers by definition order (inference).",
+        "text": "The turbine and piston figures come from that native decode, not from these definitions alone. Still not decoded: any N m torque or conversion-efficiency calibration; turbine and piston outputs are shaft-solver speeds and weights, not torques. Repeated port labels are preserved; the piston's first and second Steam In and Steam Out are matched to its chambers by definition order (inference).",
         "scope": "Shipped-resource mechanics article"
       }
     ]
@@ -1035,7 +1035,7 @@
       {
         "file": "wiki/data/mechanics.json",
         "pointer": "/articles/20/limitations/2",
-        "text": "The ratio, coupling and clutch laws come from that native decode, not from these definitions alone. Not recovered: SI torque and physical power losses, a finite slip torque or friction law, where and in what unit torque_gearbox_2's 4000 limit is enforced, and the events that damage a gearbox or clutch, including any torque-triggered breakage.",
+        "text": "The ratio, coupling and clutch laws come from that native decode, not from these definitions alone. Not recovered: SI torque and physical power losses, a finite slip torque or friction law, the path and internal unit that would enforce torque_gearbox_2's 4000 limit, and the complete damage triggers, repair cadence and any torque-triggered breakage. Which connector changes schedule a shaft rebuild, and the update ordering that would rule out stale membership, were not traced.",
         "scope": "Shipped-resource mechanics article"
       }
     ]

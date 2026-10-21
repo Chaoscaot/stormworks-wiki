@@ -1,0 +1,29 @@
+investigation/native/drivetrain-gaps/asm/14032af10.asm:36:   14032af83:	4c 89 52 28          	mov    QWORD PTR [rdx+0x28],r10
+investigation/native/drivetrain-gaps/asm/14032af10.asm:37:   14032af87:	44 89 52 30          	mov    DWORD PTR [rdx+0x30],r10d
+investigation/native/drivetrain-gaps/asm/14032af10.asm:38:   14032af8b:	44 3b 89 f8 00 00 00 	cmp    r9d,DWORD PTR [rcx+0xf8]
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:223:   1404a07a2:	8b 74 24 68          	mov    esi,DWORD PTR [rsp+0x68]
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:224:   1404a07a6:	ff c6                	inc    esi
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:225:   1404a07a8:	89 74 24 68          	mov    DWORD PTR [rsp+0x68],esi
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:226:   1404a07ac:	8b 57 08             	mov    edx,DWORD PTR [rdi+0x8]
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:227:   1404a07af:	2b 95 28 01 00 00    	sub    edx,DWORD PTR [rbp+0x128]
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:228:   1404a07b5:	bb 00 00 00 00       	mov    ebx,0x0
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:229:   1404a07ba:	0f 48 d3             	cmovs  edx,ebx
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:230:   1404a07bd:	8b da                	mov    ebx,edx
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:231:   1404a07bf:	2b 5f 08             	sub    ebx,DWORD PTR [rdi+0x8]
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:232:   1404a07c2:	48 8b 07             	mov    rax,QWORD PTR [rdi]
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:233:   1404a07c5:	48 8b cf             	mov    rcx,rdi
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:234:   1404a07c8:	ff 50 20             	call   QWORD PTR [rax+0x20]
+investigation/native/drivetrain-gaps/asm/1404a04a0.asm:235:   1404a07cb:	48 8b 8d 38 01 00 00 	mov    rcx,QWORD PTR [rbp+0x138]
+investigation/native/drivetrain-gaps/asm/shaft-group-build.asm:494:   1404a1662:	48 89 44 24 50       	mov    QWORD PTR [rsp+0x50],rax
+investigation/native/drivetrain-gaps/asm/shaft-group-build.asm:495:   1404a1667:	48 89 45 60          	mov    QWORD PTR [rbp+0x60],rax
+investigation/native/drivetrain-gaps/asm/shaft-group-build.asm:496:   1404a166b:	33 c0                	xor    eax,eax
+investigation/native/drivetrain-gaps/asm/shaft-group-build.asm:497:   1404a166d:	89 07                	mov    DWORD PTR [rdi],eax
+investigation/native/drivetrain-gaps/asm/shaft-group-build.asm:498:   1404a166f:	c7 47 04 00 00 80 3f 	mov    DWORD PTR [rdi+0x4],0x3f800000
+investigation/native/drivetrain-gaps/asm/shaft-group-build.asm:499:   1404a1676:	c7 47 08 00 00 80 3f 	mov    DWORD PTR [rdi+0x8],0x3f800000
+investigation/native/drivetrain-gaps/asm/shaft-group-build.asm:500:   1404a167d:	48 89 47 10          	mov    QWORD PTR [rdi+0x10],rax
+investigation/native/drivetrain-gaps/asm/joint-setup-complete.asm:532:   140357870:	48 8b 8a b8 02 00 00 	mov    rcx,QWORD PTR [rdx+0x2b8]
+investigation/native/drivetrain-gaps/asm/joint-setup-complete.asm:533:   140357877:	48 f7 c1 00 01 00 00 	test   rcx,0x100
+investigation/native/drivetrain-gaps/asm/joint-setup-complete.asm:534:   14035787e:	76 43                	jbe    0x1403578c3
+investigation/native/drivetrain-gaps/asm/joint-setup-complete.asm:535:   140357880:	48 f7 c1 00 02 00 00 	test   rcx,0x200
+investigation/native/drivetrain-gaps/asm/joint-setup-complete.asm:536:   140357887:	77 3a                	ja     0x1403578c3
+investigation/native/drivetrain-gaps/asm/joint-setup-complete.asm:537:   140357889:	f3 0f 10 92 8c 03 00 	movss  xmm2,DWORD PTR [rdx+0x38c]

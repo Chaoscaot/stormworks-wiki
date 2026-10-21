@@ -2791,9 +2791,12 @@ def modular_engines(B, E):
     weights = [wts[b] for b in ME_PARTS if b not in ME_NO_I] + list(flyf.values())
     open_category = [
         "SI torque, power and energy were not recovered: the inertia weights, RPS impulses, heat in amount × °C and electrical charge have no established conversion to N m, watts or joules.",
-        "The placement and alignment validator for modular parts was not traced. Which attachment positions and orientations the editor accepts is unknown beyond the coupling names the crank and manifold walks follow.",
-        "Writers of component damage (offset 8) other than the cylinder overheat branch, the capped setter and binary restore were not traced, so collision damage and repair rates are unknown.",
+        "Modular registration and connection grouping are decoded, but the editor's complete placement and alignment validator was not traced. Which attachment positions and orientations the editor accepts is open beyond the coupling names the crank and manifold walks follow.",
+        "Beyond overheat, restore and the capped setter, shared spatial damage and repair routines call component damage setters, and repair subtracts a caller-supplied amount and clamps at 0. "
+        "Collision attribution, damage thresholds, tool cadence and complete repair rates were not traced.",
     ]
+    D = drivetrain_gaps_native(E)
+    dg_damage = [D[k] for k in ("spatial", "repair", "repair_gate")]
     B.category("Modular engines",
                "Crank parts share one RPS state with inertia I = 1 + Σ engine_max_force. Each undamaged cylinder above 2 RPS adds 80000 × burned fuel × efficiency ÷ I RPS per update, "
                "fuel stops above 60 RPS, the mixture peaks at AFR 13.6 + 0.4t, and the crank keeps 1 - 0.01 × (1 - F ÷ I) of its speed each update.",
@@ -2818,11 +2821,12 @@ def modular_engines(B, E):
                         "Burned fuel heats the shared manifold group by 6000 × burned fuel ÷ C, where C = 1 + 40 × the group's cylinder voxels; manifold extensions add nothing to C. Engine and coolant temperatures are in °C. "
                         "Each group update the coolant moves k of the gap toward the engine and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. "
                         "Clean water gives k = 0.04, fully scaled water 0.00032. Sea water above 100 °C builds scaling. "
-                        "Above 115 °C, with the engine_overheating and vehicle_damage settings both on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field."),
+                        "Above 115 °C, with the engine_overheating and vehicle_damage settings both on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field. "
+                        "Shared spatial damage and repair routines also call the damage setter; repair lowers damage by an amount its caller passes, never below 0."),
                 section("Pressure and units",
                         "Manifold and pipe pressures are in atmospheres, on the same law as the Tank Pressure output. The intake factor clamp(1 + 0.01 × mean air-manifold pressure, 1, 2) is 1.01 at 1 atm and reaches 2 at 100 atm. "
                         "Crank and accessory speeds are RPS and temperatures °C. Inertia weights, heat in amount × °C and electrical charge are internal units.")],
-               core + [hot, heat, starter, damage_period] + texts + weights + cyl_vox + timed + crank + impulse + thermal + damage + throttles + pressure + exhaust + belt,
+               core + [hot, heat, starter, damage_period] + texts + weights + cyl_vox + timed + crank + impulse + thermal + damage + dg_damage + throttles + pressure + exhaust + belt,
                ["All engine formulas are reconstructed from static decompilation of build f9206d85…; they were not checked in a running game.", TICK] + open_category)
     B.family("modular-engine-cylinder",
              "Each undamaged cylinder above 2 RPS adds 80000 × burned fuel × efficiency ÷ I RPS per update. Best efficiency at air:fuel ratio 13.6 + 0.4t, 13.68 at 20 °C; no fuel above 60 RPS.",
@@ -3185,8 +3189,13 @@ def transmission(B, E):
     switching = section("Switching and power",
                         "Gear Switch off applies Ratio Off and on applies Ratio On. When the selected q differs from the stored one by more than 0.001, both stored ratios are replaced in the same update, with no interpolation or delay, and the gearbox requests 0.001 electricity. "
                         "This only happens while max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0, or with infinite electricity. Without power the gearbox keeps its last ratio and stays coupled: the bridge fraction is set to 1 every update before the power test.")
+    D = drivetrain_gaps_native(E)
+    dg_damage = [D[k] for k in ("dmg_shared", "repair", "repair_gate", "spatial")]
+    dg_rebuild = [D[k] for k in ("reset_slot", "reset_clear", "reset_free", "group_init", "append", "drop")]
     damage = section("Damage",
-                     "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50.")
+                     "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. "
+                     "Gearboxes and clutches use the shared damage setter, which stores at most 50. The shared repair routine lowers damage by an amount its caller passes, never below 0, "
+                     "and at 0 the next update couples the two sides again.")
     meter_sec = section("Torque meter readings",
                         "A torque meter's RPS output copies the group speed. Its Torque output is the group's effective solver weight I + D, not newton-metres, so meters on both sides of a gearbox or clutch do not measure the torque it transmits.")
     clutch_sec = section("Standalone clutch",
@@ -3195,7 +3204,7 @@ def transmission(B, E):
     sizes = section("Size variants",
                     "The 1x1, 3x3 and 5x5 gearboxes share the eight ratios, the bridge and the power gate. Their force_emitter_max_force values %s, %s and %s are copied to the RPS A connection at binding. The gearbox does not submit them as a solver weight and the decoded update and shaft solve compare that copy with nothing, so in those paths size does not change the coupling." % (
                         fv["modular_engine_gearbox_1x1"], fv["modular_engine_gearbox_3x3"], fv["modular_engine_gearbox_5x5"]))
-    common = sel + vals + names + [field, power, inv] + ports + T["bind"] + T["solve"] + T["switch"] + T["damage"] + meters
+    common = sel + vals + names + [field, power, inv] + ports + T["bind"] + T["solve"] + T["switch"] + T["damage"] + dg_damage + meters
     lo = leftovers_native(E)
     networks = section("Several bridges and loops",
                        "Each update every group first mixes its own parts. Then every group in turn acts as a source s and sends its speed through the bridges once. A queue starts with its bridge partners in member order. "
@@ -3206,15 +3215,19 @@ def transmission(B, E):
                        "Later sources can add shares again, so the outcome depends on the group order, and a contradicting loop acts as a brake rather than settling on one speed.",
                        "A bridge with both ports on one group is checked against ratio 1. A 1:1 link adds nothing. Inference from the comparison: any other option, such as 2:1, brakes the group, and an otherwise isolated group then publishes v ÷ 2, 5 RPS from 10. "
                        "After all sources each group publishes once; there is no iteration toward a converged speed. The source order is the order of the group container, not component IDs.")
+    rebuild = section("Shaft group rebuild",
+                      "A rebuild first resets every component, which clears each registered shaft connection's group pointer, submitted weight and speed and published speed. Only then are the old groups freed. "
+                      "The builder then starts a new group at speed 0 and weight 1 for each connection not yet in a group and appends members in the order component enumeration and connection traversal reach them; nothing sorts them by position or speed. "
+                      "A group with fewer than 2 members is dropped. That discovery order is the member and queue order the bridge traversal above follows.")
     B.category("Transmission",
                "Gearboxes pull RPS B toward the selected ratio × RPS A, so for an N:1 option RPS A is the fast side. Ratio changes apply at once while the gearbox has power, and a bridge mixes the two shaft groups' speeds by solver weight with no slip threshold.",
-               [orientation, coupling, networks, switching, damage, meter_sec, clutch_sec],
-               common + types + list(forces.values()) + T["clutch"] + [f["force"]] + [lo[k] for k in ("sh_visit", "sh_quot", "sh_lo", "sh_hi", "sh_zero", "sh_brake", "sh_self")],
+               [orientation, coupling, networks, rebuild, switching, damage, meter_sec, clutch_sec],
+               common + types + list(forces.values()) + T["clutch"] + [f["force"]] + [lo[k] for k in ("sh_visit", "sh_quot", "sh_lo", "sh_hi", "sh_zero", "sh_brake", "sh_self")] + dg_rebuild,
                ["SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
-                "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
-                "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
-                "Which connector changes rebuild the shaft groups, when old group membership is dropped, how the rebuilt group and member order is chosen and whether an update can run on stale membership were not traced. "
-                "The traversal under Several bridges and loops follows that order, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
+                "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but its enforcing path and internal unit were not established. The recovered gearbox update, ratio helper and shaft solver hold no 4000 and compare the copied force_emitter_max_force with nothing.",
+                "Damage disables the gearbox or clutch bridge. Both use the shared capped damage setter, and the shared repair routine can subtract damage to 0. The complete damage triggers, repair cadence and any torque-triggered breakage were not traced.",
+                "The rebuild clears registered shaft-node group pointers before freeing the old groups, then forms new groups and appends members in connection-discovery order. "
+                "Which connector changes schedule a rebuild, and the update ordering that would rule out a pass on stale membership, were not traced, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
                 "Static analysis only.", TICK])
     shared = "Shaft speed is RPS and the bridge weights are solver units. Open items shared by all transmission parts, including SI torque, losses and breakage, are listed under Transmission on the parts index."
     B.family("gearbox",
@@ -3244,7 +3257,7 @@ def transmission(B, E):
                            (nums["onset"],) + nums["half"]),
                        "Any nonzero damage sets c to 0. The modular engine clutch is a different component with a cubed target and a 0.1 per update slew."),
               meter_sec],
-             T["clutch"] + T["solve"] + T["damage"] + [f["link_a"], f["link_b"], c_force, E.attr("torque_clutch", "torque_component_type", "Value 0 selects the clutch branch."),
+             T["clutch"] + T["solve"] + T["damage"] + dg_damage + [f["link_a"], f["link_b"], c_force, E.attr("torque_clutch", "torque_component_type", "Value 0 selects the clutch branch."),
                                                       E.tooltip("torque_clutch"), E.port("torque_clutch", "Clutch Pressure")] + meters,
              [shared, TICK])
 
@@ -3550,9 +3563,13 @@ def _joint_rule(E, row):
     raise ValueError("No joint rule for %s (%s)" % (row["id"], k))
 
 
+PIVOT_STOPS = ("multibody_pivot_a", "multibody_pivot_torque_a")
+
+
 def mechanical(B, E):
     rows = joint_table(E)
     f = joint_motor(E)
+    D = drivetrain_gaps_native(E)
     rep = " Report: %s." % MJ_REPORT
     opts = [E.string(F_MULTI_UI, a, s, "Joint gear ratio option %s" % s, "Offered by the Gear Ratio selector for multibody components with definition flag 0x100.")
             for a, s in ((0x140B632D8, "1:1"), (0x140B632F0, "1:2"), (0x140B632EC, "1:4"), (0x140B632FC, "1:8"), (0x140B632F4, "1:16"), (0x140B63314, "1:32"))]
@@ -3601,6 +3618,8 @@ def mechanical(B, E):
         if blk.get("description"):
             out.append(E.tooltip(bid))
         out += [E.port(bid, p) for p in _joint_ports(E, bid)]
+        if "Fluid" in _joint_ports(E, bid):
+            out += [D["j_fluid"], D["j_factor"]]
         return out
 
     def connections(bid):
@@ -3609,7 +3628,8 @@ def mechanical(B, E):
         if "RPS" in ports:
             text.append("The RPS port passes mechanical power across the joint.")
         if "Fluid" in ports:
-            text.append("The Fluid port carries fluid across the joint; the motor does not read its pressure.")
+            text.append("The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. "
+                        "Delivered flow still follows the pressures on both sides. The motor does not read that pressure.")
         if "Current Rotation" in ports:
             text.append("Current Rotation reports σ × angle ÷ 2π in turns" + (", counted across full turns." if rows[bid]["kind"] == "rotary_velocity" else "."))
         if "Piston Rod Position" in ports:
@@ -3640,12 +3660,14 @@ def mechanical(B, E):
                         "Suspensions are force-limited sliders without Gear Ratio or electricity. Plain and power pivots are unpowered hinges. Turret rings also extend a sealed volume through the ring.")],
                ui + ratio + common + [f[x] for x in ("rp_target", "rp_gain", "rp_cap", "rp_cap_r", "rp_cap_p", "rp_power", "rp_limits", "hinge_store",
                                                      "rv_clamp", "rv_omega", "rv_cap", "rv_power", "lp_scale", "lp_gain", "lp_cap", "lin_power",
-                                                     "lp_limits", "slider_store", "s_offset", "s_force", "s_speed", "passive")],
+                                                     "lp_limits", "slider_store", "s_offset", "s_force", "s_speed", "passive")]
+               + [D["hinge_gate"], D["j_fluid"], D["j_factor"]] + D["pivots"],
                ["Hinge impulse and slider force are internal game units; their conversion to SI torque or force was not recovered.",
                 "An equivalent spring rate and damping for the suspensions was not recovered; the update is a speed motor with a position-dependent force cap.",
-                "Losses and shaft speed or torque for power and fluid passed through a joint were not traced.",
-                "The world direction of σ for each placement was not recovered; the local sign flip is decoded.",
-                "The plain and power pivots' tooltip stop at 0.25 turns was not located in code: the setup sets angle limits from the range field only for powered position joints.",
+                "Ordinary joint fluid passage uses the shared bidirectional, all-species two-port solver with zero bias and factor 1, and delivered flow depends on network pressure and allocation history. "
+                "Mechanical shaft speed, torque and any joint-specific losses across a joint were not traced.",
+                "The local sign flip of σ is decoded, but its world-axis direction for each placement and reflected orientation was not traced; that needs the joint-frame and body-order transforms.",
+                "The plain and power pivot definitions skip the hinge setup's explicit angle-limit branch, so their tooltip quarter-turn stop does not come from that setter. Their assembled travel and any other stop mechanism remain unverified.",
                 TICK, "Static analysis only; no game process was run."])
 
     # Families: every joint definition, driven by joints.json and checked against the definitions above.
@@ -3687,6 +3709,12 @@ def mechanical(B, E):
         sections = [section("How it moves", how)]
         if cap:
             sections.append(section("Gear Ratio and Max Power" if k in powered else "Max Power", cap))
+        if bid in PIVOT_STOPS:
+            sections.append(section("Stops",
+                                    "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, "
+                                    "so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The tooltip stop therefore does not come from that setter; "
+                                    "the assembled travel is listed as open under Mechanical joints."))
+            findings = findings + [D["hinge_gate"]] + [x for x in D["pivots"] if x["source"]["path"].endswith("/%s.xml" % bid)]
         if row["id"].startswith("multibody_turret"):
             tail = (tail + " " if tail else "") + "The gap inside the ring forms a door seal, so a sealed compartment can continue through it."
         if tail:
@@ -5078,20 +5106,27 @@ def engines(B, E):
                       "It adds the supplied fraction of the deficit to its speed, so full supply lifts it to 5 RPS in one update before shaft mixing. A loaded shaft pulls it back, and above 5 RPS the starter asks for nothing.")
     open_limits = ["The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
                    "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The weather part of that sample depends on texture values at the engine's position; %s lists what of it remains open." % WX_ARTICLE,
-                   "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.", TICK]
+                   "Non-finite speeds are decoded only for the speed branch: it does not sanitize NaN or infinity. The complete non-finite fluid and network behaviour was not traced. Thermal efficiency in physical units is unknown.", TICK]
+    D = drivetrain_gaps_native(E)
+    dg_reverse = [D[k] for k in ("c_limiter", "c_gate", "c_abs", "c_cand", "c_reverse")]
+    reverse = section("Reverse rotation and invalid speeds",
+                      "The limiter and the combustion gate compare signed speed. A shaft turning backward never trips the throttle cut and never gets combustion gain, so the engine's own candidate is 0.99 × r: at −10 RPS it submits −9.9 and decays toward 0 unless the shaft keeps driving it. "
+                      "Heating uses |r|, so backward rotation heats the engine as much as forward rotation. The fuel curve g(r) uses signed speed, so the forward fuel figures above do not carry over to reverse speeds.",
+                      "The speed branch does not replace NaN or infinity. NaN and −infinity skip combustion and stay as they are after the 0.99 factor; +infinity stays +infinity, or becomes NaN at zero effective throttle below damage 20. "
+                      "A connected shaft then replaces the local speed with its group's published speed.")
     B.category("Engines",
                "Classic diesel engines share one recovered update. Above 2 RPS an undamaged engine with effective throttle u at local speed r submits 0.99 × (r + 0.1 × u × (r + 1)) RPS to its shaft. "
                "engine_max_force (20000, 60000, 200000) scales shaft weight and diesel use in the ratio 1 : 3 : 10. Heating before cooling is 0.0075 × |r| °C per update for every size.",
-               [controls, variants, curves, shaft, cooling, starter,
+               [controls, variants, curves, shaft, reverse, cooling, starter,
                 section("Legacy turbine",
                         "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0. "
                         "It is marked Deprecated and left out of the component catalog; see its own article.")],
-               forces + mags + [turbine, t_mag, t_weight] + ports + every + [na["dp_avail"]],
+               forces + mags + [turbine, t_mag, t_weight] + ports + every + dg_reverse + [na["dp_avail"]],
                open_limits)
     B.family("diesel-engine",
              "Small, medium and large diesel engines share one update: shaft weight 10, 30 and 100 and diesel use in the ratio 1 : 3 : 10 at the same RPS and throttle, with %s L/s at 10 RPS and full throttle." % C["fuel_and"][10],
-             [controls, variants, curves, shaft, cooling, starter],
-             forces + mags + ports + [turbine] + every,
+             [controls, variants, curves, shaft, reverse, cooling, starter],
+             forces + mags + ports + [turbine] + every + dg_reverse,
              open_limits)
     B.family("part-turbine",
              "A deprecated classic engine left out of the component catalog: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
@@ -6612,6 +6647,10 @@ STEAM_PARTS = ("steam_boiler", "steam_coal_duct", "steam_coal_duct_l", "steam_co
 def steam(B, E):
     S = steam_native(E)
     f, fig, parts = S["f"], S["fig"], S["parts"]
+    D = drivetrain_gaps_native(E)
+    ignition = [D["ign_restore"]]
+    events = [D["fire_event"], D["event_gate"]]
+    crank = [D[k] for k in ("pi_keep", "pi_lo", "pi_hi", "pi_div", "pi_clear", "pi_floor", "floor_neg", "pi_port", "fb_guard", "pi_steady")]
     R = update_rate(E)["findings"]
     sh = electricity_native(E)["f"]
     shaft = [sh[k] for k in ("shaft_one", "shaft_mul", "shaft_div")]
@@ -6639,7 +6678,8 @@ def steam(B, E):
 
     coal_body = ("Ducts and hoppers add one item slot per voxel to the inventory they share with every connected firebox: 27, 125 and 225 for the small, medium and large sizes. Each firebox adds 10 more. "
                  "Slots count whole items, and the firebox takes whole coal from them. The ducts' steam_component_capacity values 42.1875, 195.3125 and 351.5625 are 1.5625 times their voxel counts; the traced capacity code does not read them.")
-    burn_body = ("Ignition takes one coal and sets the ignition state to 3600; the fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. "
+    burn_body = ("Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. "
+                 "The fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. "
                  "Each update it requests b = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal, T being the fire temperature: at most 0.054 coal per simulated second for the small firebox and 0.21 for the large. "
                  "Air limits the burn. A fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of the Air chamber moves to the Exhaust chamber, r = b × 200 ÷ 60, and the burn is cut to the share that oxygen covers at a 0.21 reference fraction. "
                  "So it needs Air pressure more than 1 above Exhaust pressure. Burnt oxygen becomes carbon dioxide in the exhaust. Each unit of coal actually burned adds 200 to the fire temperature.")
@@ -6652,9 +6692,9 @@ def steam(B, E):
     exchange_body = ("Each update the phase and coolant chambers exchange heat with k = 0.1 × (1 - D), D = clamp(0.1 × damage, 0, 1), each side moving by k times the other side's share of the liquid amount. "
                      "The condenser counts its whole phase chamber, steam included. Both chambers then lose 0.0001 of their gap to the surroundings per update. "
                      "The phase chamber holds 0.1 × voxels, 17.5 in the boiler and 7.5 in the condenser, and the coolant chamber 1 per voxel, 175 and 75.")
-    open_body = ("Not decoded: what counts down or clears the firebox ignition state after ignition; how a piston crank group turns its accumulated drive into phase and shaft speed; "
-                 "any global rupture or explosion path, beyond a damage flag on hot fireboxes, since no pressure limit or burst test appears in the boiler, condenser or phase code; "
-                 "the unit steam_component_capacity once had; and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.")
+    open_body = ("Ignition writes 3600 to a state that the recovered firebox combustion paths test as a nonzero enable. No countdown was found in those paths, and the complete gameplay writer that clears or decrements it was not traced. "
+                 "Hot damaged fireboxes can queue a component and body event when vehicle damage is on. The event consumer, any global blast and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. "
+                 "Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive.")
     turbine_body = ("The turbine passes gas from Steam In to Steam Out one way, through the pump solver with flow factor 0.0025 and no bias, so it needs inlet pressure above exhaust pressure and consumes no steam. "
                     "Each update it adds 1000 × the steam moved to its speed, 600 × when damaged and nothing at damage 20 or more, multiplies by 0.985 and submits the result as target RPS on both RPS ports with weight 65. "
                     "The shaft group's speed then replaces the stored speed. Unloaded, a steady steam step q settles at 0.985 ÷ 0.015 × 1000 × q (inference). "
@@ -6662,7 +6702,11 @@ def steam(B, E):
     piston_body = ("Each piston has two chambers of 0.0015 × voxels. Its crank phase z, wrapped to 0 to 1, opens one port per chamber: from z = 0.5 the first Steam In and the second Steam Out, below 0.5 the first Steam Out and the second Steam In "
                    "(port order taken from the definition, inference). Each update it adds a = 0.002 × (p_B - p_A) × sin(2πz) to its crank group, p being chamber pressure times its steam fraction. "
                    "With steam on both Steam In ports and both Steam Out ports vented, the open chamber matches the sign of the sine on each half turn, so the drive keeps one direction (inference). "
-                   "Both RPS ports submit the group speed with weight 20 × voxels: 120, 1620 and 5700.")
+                   "Both RPS ports submit the group speed with weight 20 × voxels: 120, 1620 and 5700, and a connected port copies its shaft group's published speed back into the crank group.")
+    crank_body = ("At the end of each update every crank group adds the summed drive a to its speed, multiplies by 0.99, clamps the result to −10 … 10 and clears a. "
+                  "Its phase then advances by speed ÷ 60 turns and wraps with floor, so a crank turning backward wraps too, and the speed is in RPS, capped at 10. "
+                  "There is no division by an inertia sum: shaft load acts only through the port exchange, which replaces the group speed with the shaft group's published speed before this step. "
+                  "Unloaded, a constant drive a settles at 99 × a and reaches the cap from a = 0.10101.")
     B.category("Steam",
                "A firebox burns at most 0.00002 × voxels coal per update and heats its coolant; the boiler boils water at a fixed temperature of 100 at min(0.001 × (T - 100), water) per update; "
                "the turbine turns steam flow into a target RPS that keeps 0.985 per update, and the piston drives its crank by 0.002 × steam pressure difference × sin(2πz).",
@@ -6676,8 +6720,9 @@ def steam(B, E):
                 section("Boiler and condenser heat transfer", exchange_body),
                 section("Turbines", turbine_body),
                 section("Pistons", piston_body),
+                section("Crank groups", crank_body),
                 section("Open questions", open_body)],
-               coal + caps + [ratio] + burn + fire_heat + fires + phase + boiler + condenser + chambers + turbine + piston + R
+               coal + caps + [ratio] + burn + fire_heat + fires + phase + boiler + condenser + chambers + turbine + piston + crank + ignition + events + R
                + [T(b) for b in ("steam_coal_firebox", "steam_boiler", "steam_condenser", "steam_piston", "steam_turbine")],
                [static, TICK])
 
@@ -6696,14 +6741,17 @@ def steam(B, E):
              [shared, static])
     B.family("steam-firebox",
              "Burns at most 0.00002 × voxels coal per update, 0.054 or 0.21 per simulated second, adding 200 to the fire temperature per unit of coal burned and heating its coolant at k = 0.0008 × voxels.",
-             [section("Ignition and coal", "Ignition takes one coal and sets the ignition state to 3600; the fire also keeps burning while it is hotter than 150. "
+             [section("Ignition and coal", "Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. "
+                                           "The fire also keeps burning while it is hotter than 150. "
                                            "Burning draws on a fractional reserve, refilled one coal at a time from the shared inventory, to which a firebox adds 10 slots."),
               section("Burn rate", "Each update it requests 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal: 0.0009 per update for the small firebox and 0.0035 for the large while far below 600. "
                                    "The request falls to 0 as the fire approaches 600. Air pressure must be more than 1 above Exhaust pressure and the air must carry oxygen near the 0.21 reference; otherwise the burn is cut. "
                                    "Each unit of coal actually burned adds 200 to the fire temperature, and burnt oxygen leaves as carbon dioxide."),
               section("Heat and coolant", loss_body),
-              section("Outputs", "Temperature reads the fire temperature, not the coolant temperature its description names, sampled before the update's burn. Coal Level is the inventory's whole item count.")],
-             burn + fire_heat + fires + coal[:2] + [parts[b]["voxel_finding"] for b in ("steam_coal_firebox", "steam_coal_firebox_l")] + [T("steam_coal_firebox"), P("steam_coal_firebox", "Ignition"), P("steam_coal_firebox", "Temperature"),
+              section("Outputs", "Temperature reads the fire temperature, not the coolant temperature its description names, sampled before the update's burn. Coal Level is the inventory's whole item count."),
+              section("Damage", "Damage raises the ambient loss toward 0.01. A hot damaged firebox sets a pending flag, and after the update a shared helper queues a component damage event when the vehicle_damage setting is on. "
+                                "What that event does downstream is listed under Steam on the parts index.")],
+             burn + fire_heat + fires + coal[:2] + ignition + events + [parts[b]["voxel_finding"] for b in ("steam_coal_firebox", "steam_coal_firebox_l")] + [T("steam_coal_firebox"), P("steam_coal_firebox", "Ignition"), P("steam_coal_firebox", "Temperature"),
                                                      P("steam_coal_firebox", "Coolant In"), P("steam_coal_firebox", "Air"), P("steam_coal_firebox", "Exhaust")] + R,
              [shared, static, TICK])
     B.family("part-steam-boiler",
@@ -6740,8 +6788,9 @@ def steam(B, E):
                                "The open chamber matches the sign of the sine on each half turn, so the drive keeps one direction (inference). At damage 10 or more the update joins the two Steam In ports to each other and the two Steam Out ports to each other, bypassing the chambers, and the piston adds nothing."),
               section("Sizes", "Chambers hold 0.0015 × voxels, 0.009, 0.1215 and 0.4275, and both RPS ports submit the group speed with weight 120, 1620 and 5700. "
                                "Crank radii 0.075, 0.146 and 0.216 give geometric strokes of 0.15, 0.292 and 0.432 world units, about metres (inference from the render code)."),
+              section("Crank", crank_body),
               section("Outputs", "Piston Position is z in turns, 0 to 1, not rod extension. RPS is the crank group's speed.")],
-             piston + [parts[b]["voxel_finding"] for b in ("steam_piston", "steam_piston_3x3", "steam_piston_5x5")] + [T("steam_piston"), P("steam_piston", "Piston Position"), P("steam_piston", "Steam In"), P("steam_piston", "Steam Out"), P("steam_piston", "RPS")] + R,
+             piston + crank + [parts[b]["voxel_finding"] for b in ("steam_piston", "steam_piston_3x3", "steam_piston_5x5")] + [T("steam_piston"), P("steam_piston", "Piston Position"), P("steam_piston", "Steam In"), P("steam_piston", "Steam Out"), P("steam_piston", "RPS")] + R,
              [shared, static, TICK])
 
 
@@ -11574,6 +11623,157 @@ def fluid_gaps_native(E):
     t["b_mask"] = code(F_TANK_SAVE, "tank-serializer.asm", 0x1403F65AD, "f6451004", "Tank runtime serialization mask", "mask bit 4",
                        "The water serializer tests the runtime bit before it serializes spawner_pending and the contained volumes, so restoring runtime state restores the species, totals and fill-pending flag together.")
     E.fluid_gaps = t
+    return t
+
+
+# Drivetrain gaps: gearbox damage and repair, shaft group rebuild, pivot stops, joint fluid, steam piston integration,
+# firebox events, classic engine reverse speed; files under investigation/native/drivetrain-gaps/.
+DG_REPORT = "investigation/drivetrain-gaps.md"
+_DG = "drivetrain-gaps/"
+F_REPAIR = 0x1404A04A0        # shared spatial repair: subtracts a caller amount and calls the damage setter
+F_SPATIAL_DAMAGE = 0x14049F2B0  # shared spatial damage: adds a clamped increment through the damage setter
+F_NET_RESET = 0x1404CAD20     # network rebuild entry: per-component reset (slot +0x3e0), then frees the shaft groups
+F_NODE_RESET = 0x14032AF10    # base component reset (slot +0x3e0): clears registered shaft-node group pointers
+F_GROUP_APPEND = 0x1402EE5E0  # shaft group member append: duplicate rejection, circular array
+F_PISTON_INT = 0x1404CC078    # chained unwind chunk of the manager update 0x1404cb790: steam piston group integration
+F_FLOOR = 0x1409D57D8         # CRT floorf (leaf)
+F_STEAM_SAVE = 0x14041316A    # chained unwind chunk of the steam component serializer: ignition state restore
+F_FIRE_POST = 0x140411EA0     # steam post-update (leaf): clears the firebox pending damage flag, tail-calls the event helper
+F_DAMAGE_EVENT = 0x140325680  # shared component damage event helper: vehicle_damage gate, queues a component/body pair
+DG_SLOTS = ((TORQUE_VTABLE + 0x3E0, F_NODE_RESET),)
+DG_PSEUDO = {
+    F_REPAIR: "1404a04a0.c", F_SPATIAL_DAMAGE: "14049f2b0.c", F_NET_RESET: "1404cad20.c", F_NODE_RESET: "14032af10.c", F_NET_BUILD: "1404a0f50.c",
+    F_PISTON_INT: "1404cb790.c", F_GROUP_COOL: "1404cb790.c", F_STEAM_SAVE: "14041316a.c", F_FIRE_POST: "140411ea0.c", F_SHAFT_SUBMIT: "1402ee720.c",
+    F_JOINT_SETUP: "140356fa0.c", F_ENGINE_CLASSIC: "14034ba00.c",
+}
+
+
+def _dg_cite(E, func, address, hexbytes, listing, key=None):
+    """Cite drivetrain-gaps listing lines of the cited bytes, refusing to replace another listing's citation."""
+    k = (func, address if key is None else key)
+    old = WHERE.pop(k, None)
+    _wheel_cite(E, func, address, hexbytes, key=key, listing=_DG + listing)
+    if DG_PSEUDO.get(func):
+        WHERE[k] += "; ../" + _DG + "pseudocode/" + DG_PSEUDO[func]
+    if old is not None and old != WHERE[k]:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+
+
+def drivetrain_gaps_native(E):
+    """Gearbox and clutch damage and repair, shaft group rebuild, pivot stops, joint fluid passage, steam piston integration,
+    firebox damage events and classic engine reverse speed, verified once and shared."""
+    if hasattr(E, "drivetrain_gaps"):
+        return E.drivetrain_gaps
+    n = E.native
+    if not (E.root / DG_REPORT).is_file():
+        raise ValueError("Report missing: " + DG_REPORT)
+    for slot, target in DG_SLOTS:
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Torque component vtable slot %#x does not point to %#x" % (slot, target))
+    # The second ignition write and the heating mask are re-read here; the findings below cite neighbouring bytes.
+    if n.raw(0x14040E6F9, 11).hex() != "41c78654070000100e0000":
+        raise ValueError("Second firebox ignition write changed")
+    if n.raw(0x140BB1F20, 4).hex() != "ffffff7f" or 0x14034CCD7 + 9 + struct.unpack("<i", n.raw(0x14034CCDC, 4))[0] != 0x140BB1F20:
+        raise ValueError("Classic heating sign mask changed")
+    rep = " Report: %s." % DG_REPORT
+
+    def code(func, listing, address, hexbytes, label, value, detail):
+        _dg_cite(E, func, address, hexbytes, "asm/" + listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, listing, address, hexbytes, target, label, detail):
+        _dg_cite(E, func, address, hexbytes, "asm/" + listing)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    t = {}
+    # Gearbox and clutch damage, repair and the shared spatial damage routine.
+    t["dmg_shared"] = code(F_TORQUE_DAMAGE, "damage-capped-setter.asm", 0x140325AB0, "b832000000", "Shared capped damage setter", "damage = min(x, 50)",
+                           "Slot +0x20 of the torque component vtable selects this shared base setter (0x140b66730, re-read by the extractor). "
+                           "It loads 50, keeps the smaller unsigned value (cmp at 0x140325ab5, cmovb at 0x140325ab7) and stores it as damage (0x140325aba). Gearboxes and clutches have no private breakage equation here.")
+    t["repair"] = code(F_REPAIR, "1404a04a0.asm", 0x1404A07AF, "2b9528010000", "Shared repair subtraction", "max(0, damage − amount)",
+                       "The shared repair routine loads a selected component's damage (0x1404a07ac), subtracts the repair amount its caller passes, replaces a negative result with 0 (0x1404a07b5, cmovs at 0x1404a07ba) "
+                       "and calls the component's damage setter through slot +0x20 (0x1404a07c8). The amount comes from the caller, so the routine itself fixes no repair rate.")
+    t["repair_gate"] = code(F_REPAIR, "1404a04a0.asm", 0x1404A06F0, "394708", "Repair eligibility", "damage > component+0xc",
+                            "Compares damage with the component's field +0xc (loaded at 0x1404a06ed) and skips components at or below it (jbe at 0x1404a06f3).")
+    t["spatial"] = code(F_SPATIAL_DAMAGE, "spatial-damage-setter.asm", 0x14049FD51, "418d141e", "Shared spatial damage step", "setter(damage + max(0, increment))",
+                        "A shared spatial damage routine clamps a negative increment to 0 (0x14049fd46, cmovs at 0x14049fd4b), adds it to the old damage and calls the component's damage setter through slot +0x20 (0x14049fd58). "
+                        "So the capped setter is reached from this shared calculation as well as from a part's own thermal branch; the routine's callers are not classified as collision or explosion here.")
+    # Shaft group rebuild.
+    t["reset_slot"] = code(F_NET_RESET, "reset-before-free.asm", 0x1404CAD8E, "ff90e0030000", "Rebuild: per-component reset", "slot +0x3e0",
+                           "The rebuild entry 0x1404cad20 visits every body and component and calls slot +0x3e0. For gearboxes that slot (0x140b66af0, re-read by the extractor) is the base reset 0x14032af10.")
+    t["reset_clear"] = code(F_NODE_RESET, "14032af10.asm", 0x14032AF7F, "4c895220", "Rebuild: shaft node group pointer cleared", "node+0x20 = 0",
+                            "The base reset walks the component's registered shaft nodes and stores zero to each group pointer, to the submitted weight and speed together (0x14032af83) and to the published speed (0x14032af87).")
+    t["reset_free"] = code(F_NET_RESET, "reset-before-free.asm", 0x1404CADC2, "e8e9f63f00", "Rebuild: old shaft groups freed", "call 0x1408ca4b0 after the reset loop",
+                           "Only after the component loop does the routine select the shaft-group container (0x1404cadbb) and release its groups and member containers, so every registered node's old group pointer is already cleared when its group is freed.")
+    t["group_init"] = code(F_NET_BUILD, "shaft-group-initialize.asm", 0x1404A166F, "c7470400 00803f".replace(" ", ""), "Rebuild: new shaft group", "speed 0, both weights 1",
+                           "The builder 0x1404a0f50 then runs for each body, walks the component and definition connection arrays and creates a group for each unassigned seed with speed 0 (0x1404a166d) and both weight fields 1 (this store and 0x1404a1676).")
+    t["append"] = code(F_GROUP_APPEND, "1402ee5e0.asm", 0x1402EE668, "488934d0", "Rebuild: member append", "discovery order",
+                       "The append helper rejects a member already present, places the new one at the end of the group's circular array (remainder at 0x1402ee661, count at 0x1402ee65a) and sets its group pointer (0x1402ee66c). "
+                       "Members keep the order in which component enumeration and connection traversal reach them; nothing sorts them by position or speed.")
+    t["drop"] = code(F_NET_BUILD, "singleton-drop.asm", 0x1404A1D09, "83f802", "Rebuild: groups below two members dropped", "member count < 2",
+                     "A new group with fewer than 2 members is not kept (jae at 0x1404a1d0c keeps the others); its members' group pointers are cleared (0x1404a1d35) before cleanup.")
+    # Pivot stops and joint fluid passage.
+    t["hinge_gate"] = code(F_JOINT_SETUP, "joint-setup-complete.asm", 0x140357877, "48f7c100010000", "Hinge angle-limit gate", "flag 0x100 set and 0x200 clear",
+                           "The setup installs the range-based hinge limits only when definition flag 0x100 is set (skip at 0x14035787e) and 0x200 is clear (test at 0x140357880, skip at 0x140357887); the setter call is at 0x1403578be. "
+                           "In that branch a range R becomes ±π R rad (R × 0.5 at 0x140357891, × 2π at 0x1403578a4), so 0.5 gives ±0.25 turns. Definitions without flag 0x100 get no limit from this setter.")
+    t["j_fluid"] = code(F_MB_UPDATE, "joint-fluid-pass.asm", 0x140357C7F, "e84c5cf9ff", "Joint fluid passage", "two-port solver, bias 0, both directions, all species",
+                        "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). "
+                        "Flag 0x4000 selects a different branch that exchanges with a component compartment.")
+    t["j_factor"] = op(F_MB_UPDATE, "joint-fluid-pass.asm", 0x140357C0E, "f30f101db6828500", 0x140BAFECC, "Joint fluid flow factor",
+                       "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation.")
+    t["pivots"] = [E.attr(b, a, m) for b in ("multibody_pivot_a", "multibody_pivot_torque_a") for a, m in
+                   (("flags", "Flags 64 lack 0x100, so the hinge setup skips its range-based angle limit."),
+                    ("constraint_range_of_motion", "Range 0.5, which the admitted limit branch would turn into ±0.25 turns."))]
+    # Firebox ignition state and damage event.
+    t["ign_restore"] = code(F_STEAM_SAVE, "ignition-serialize.asm", 0x1404134A7, "898e54070000", "Firebox ignition state restore", "binary read into +0x754",
+                            "A whole-disassembly displacement search finds this restore writer in the serializer's read mode, the two 3600 writes in the steam update (0x14040e08a and 0x14040e6f9, both re-read by the extractor) and compares. "
+                            "The steam update holds no decrement, subtraction or zero store to +0x754, and its combustion paths test the state only for zero or nonzero, so there it acts as an on state rather than a countdown.")
+    t["fire_event"] = code(F_FIRE_POST, "140411ea0.asm", 0x140411EC2, "e9b937f1ff", "Firebox damage event hand-off", "tail call 0x140325680",
+                           "The steam post-update clears the firebox's pending damage flag (+0x7b0 at 0x140411eb6) and tail-calls the shared event helper.")
+    t["event_gate"] = code(F_DAMAGE_EVENT, "140325680.asm", 0x1403256A6, "80784a00", "Damage event vehicle_damage gate", "settings+0x4a",
+                           "The shared helper appends a component and body pair to its caller's event container only when the vehicle_damage setting is on and a caller flag is set (0x1403256ac). It reads no pressure and no blast size.")
+    # Steam piston group integration and shaft feedback.
+    pg = "piston-group-integrate.asm"
+    t["pi_keep"] = op(F_PISTON_INT, pg, 0x1404CC078, "f3440f10052b3e6e00", 0x140BAFEAC, "Piston group speed retention",
+                      "A loop over the steam piston groups at the end of the manager update 0x1404cb790 holds this in xmm8. Per group it loads the speed (group+4, 0x1404cc0b0), adds the accumulated drive (group+8, 0x1404cc0b5) and multiplies by this (0x1404cc0ba).")
+    t["pi_lo"] = op(F_PISTON_INT, pg, 0x1404CC081, "f3440f100d0a4f6e00", 0x140BB0F94, "Piston group speed lower bound",
+                    "maxss at 0x1404cc0bf bounds the new speed from below.")
+    t["pi_hi"] = op(F_GROUP_COOL, "crank-and-piston-update.asm", 0x1404CC017, "f3440f103d2c466e00", 0x140BB064C, "Piston group speed upper bound",
+                    "Held in xmm15; minss at 0x1404cc0c4 bounds the new speed from above and the result is stored at 0x1404cc0c9: speed = clamp(0.99 × (speed + drive), −10, 10).")
+    t["pi_div"] = op(F_PISTON_INT, pg, 0x1404CC08A, "f3440f1015cd466e00", 0x140BB0760, "Piston group phase step divisor",
+                     "divss at 0x1404cc0ce divides the stored speed by this before the old phase is added (0x1404cc0d7), so the phase advances by speed ÷ 60 turns per update and the speed reads as turns per simulated second.")
+    t["pi_clear"] = code(F_PISTON_INT, pg, 0x1404CC0D3, "44897b08", "Piston drive accumulator cleared", "group+8 = 0",
+                         "Stores the zero register (xor at 0x1404cb7b0) to the accumulated drive right after the speed update, so each update's drive acts once. There is no division by an inertia sum in this loop.")
+    t["pi_floor"] = code(F_PISTON_INT, pg, 0x1404CC0E2, "e8f1965000", "Piston phase wrap", "x − floor(x), x = phase + speed ÷ 60",
+                         "Calls the floor helper 0x1409d57d8 and subtracts its result (0x1404cc0e7) before storing the phase (0x1404cc0f1).")
+    t["floor_neg"] = op(F_FLOOR, "phase-floor-helper.asm", 0x1409D5816, "f30f10050ab41d00", 0x140BB0C28, "Floor of a small negative value",
+                        "In the helper's below-one branch a nonzero negative input returns this (sign test at 0x1409d5811) and a positive one returns 0 (0x1409d5820). The helper is floor, so a crank turning backward wraps from 0 to just under 1.")
+    t["pi_port"] = code(F_STEAM, "piston-shaft-submit.asm", 0x14040DD6C, "4c8d4b04", "Piston port feedback destination", "group speed (group+4)",
+                        "In the piston component update each RPS port submission passes the group speed field as the feedback destination (call 0x1402ee720 at 0x14040dd73; the second port repeats it later in the block). "
+                        "A connected port therefore overwrites the group speed with its shaft group's published speed before the second port submits and before the final integration.")
+    t["fb_guard"] = code(F_SHAFT_SUBMIT, "shaft-feedback-helper.asm", 0x1402EE720, "4883792000", "Shaft feedback null-group guard", "no group: no stores",
+                         "With no group at node+0x20 the helper jumps past the weight, speed and feedback stores (je at 0x1402ee725), so a disconnected port neither submits nor writes back.")
+    a_cap = 10 / 0.99 - 10
+    t["pi_steady"] = E.derived("Piston group speed under a constant drive", "99 × drive, at the 10 cap from drive %s" % _g(a_cap, 5),
+                               "With no shaft connection and a constant accumulated drive a per update, speed = 0.99 × (speed + a) settles at 0.99 ÷ 0.01 × a = 99 × a. "
+                               "It reaches the clamp of 10 once 0.99 × (10 + a) ≥ 10, that is a ≥ 10 ÷ 0.99 − 10 = %s. A reverse drive mirrors this down to −10. A connected shaft group changes the speed through the port feedback first." % _g(a_cap, 5) + rep,
+                               [t["pi_keep"], t["pi_lo"], t["pi_hi"], t["pi_clear"], t["pi_port"]])
+    # Classic engine signed speed.
+    t["c_limiter"] = code(F_ENGINE_CLASSIC, "classic-signed-limiter-curve.asm", 0x14034BB5A, "0f2fd1", "Signed limiter comparison", "r > limit",
+                          "comiss compares the signed local speed with the positive limiter, and jbe (0x14034bb5d) skips the throttle cut for a lower or unordered value. Reverse speed never trips the cut, however fast it turns.")
+    t["c_gate"] = code(F_ENGINE_CLASSIC, "classic-speed.asm", 0x14034D420, "410f2fc6", "Signed combustion speed gate", "r > 2",
+                       "Compares the signed local speed with 2 (xmm14); jbe at 0x14034d424 skips combustion at or below 2, so any reverse speed, and NaN, which compares unordered, gets no combustion gain.")
+    t["c_abs"] = code(F_ENGINE_CLASSIC, "classic-heating.asm", 0x14034CCD7, "f3440f102d40528600", "Heating sign mask", "|r|",
+                      "Loads the mask at 0x140bb1f20 (bytes ffffff7f, re-read by the extractor) that clears the speed's sign bit before the 0.0075 heating factor (0x14034cce7), so backward rotation heats the engine like forward rotation.")
+    t["c_cand"] = code(F_ENGINE_CLASSIC, "classic-speed.asm", 0x14034D464, "f30f11b7e4030000", "Classic speed candidate store", "0.99 × r, no finite-value check",
+                       "Stores the candidate after the 0.99 factor with no NaN or infinity replacement in between. Under masked floating-point exceptions NaN and −infinity skip combustion and stay as they are; "
+                       "+infinity passes the gate and stays +infinity, or becomes NaN at zero effective throttle below damage 20, where the gain term multiplies 0 by infinity. "
+                       "A connected port then replaces the local speed with its shaft group's published speed (0x14034d486).")
+    t["c_reverse"] = E.derived("Classic engine at −10 RPS", "candidate −9.9 RPS",
+                               "At r = −10 the combustion gate fails, so the candidate is 0.99 × −10 = −9.9 whatever the throttle, and heating still adds 0.0075 × 10 = 0.075 °C before cooling. "
+                               "Without shaft feedback the local speed decays toward 0 by the factor 0.99 per update; a connected shaft can keep driving it backward." + rep,
+                               [t["c_gate"], t["c_cand"], t["c_abs"]])
+    E.drivetrain_gaps = t
     return t
 
 

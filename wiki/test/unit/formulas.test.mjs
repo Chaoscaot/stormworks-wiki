@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { NUCLEAR, REACTOR_FAMILIES, reactorCritical, reactorLayout, reactorRun, reactorSteady, KEEL, KEELS, keelFor, keelLateral, keelMemory, keelScale, keelUpright, WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, MANUAL_PUMP, manualEase, manualHandle, manualPumpSwitch, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
+import { NUCLEAR, REACTOR_FAMILIES, reactorCritical, reactorLayout, reactorRun, reactorSteady, KEEL, KEELS, keelFor, keelLateral, keelMemory, keelScale, keelUpright, WINCH, WINCH_GROUPS, WINCHES, legacyReelStep, reelTime, ropeReelStep, winchFor, winchRate, WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelRadius, wheelShaftWeight, FIREBOXES, STEAM, STEAM_PISTONS, fireboxBurn, fireboxFor, pistonCrankStep, pistonDrive, pistonSpinUp, pistonValvedDrive, pistonValves, steamCycle, steamExchange, steamPhase, steamPistonFor, turbineFlowCap, turbineStep, GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON, TRANSMISSION, shaftBridge, standaloneClutch, standaloneClutchOnset, MANUAL_PUMP, manualEase, manualHandle, manualPumpSwitch, PROPULSION, PROPELLER_VARIANTS, propellerAltitude, propellerCapped, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyCandidate, legacyDetection, legacyPlane, legacyVariantFor, RADIO, RADIO_ANTENNAS, radioAntennaFor, radioSignal, RADAR, RADAR_VARIANTS, radarCandidate, radarDetection, radarRange, radarVariantFor, MODULAR, MODULAR_FLYWHEELS, MODULAR_SIZES, modularClutchStep, modularEngineResponse, modularEngineStep, modularInertia, GEAR_RATIOS, JOINT, JOINT_VARIANTS, jointMotor, jointVariantFor, PID, pidResponse, pidState, pidUpdate, CLASSIC, CLASSIC_VARIANTS, JET, jetAltitudeFactor, jetChamber, jetCompressor, jetExhaust, jetTurbine, EXCHANGER, EXCHANGER_VARIANTS, classicEngine, exchangerAmbientController, exchangerCapacity, exchangerThroughFlow, exchangerVolume, classicPressure, classicStarterRequest, classicSupply, classicThermal, engineEfficiency, radiatorRate, exchangerTemperatures, gapLeftAfter, graphKindsForFamily, scoopInflow, surfaceForce, surfacePressure, SURFACE, SURFACE_VARIANTS, SCOOP_COUNTER_PER_AMOUNT, SCOOP_TOOLTIP_SCALE, UPDATES_PER_SECOND } from '../../lib/formulas.js';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
 test('engine speed factor and temperature-dependent optimal mixtures match recovered landmarks', () => {
@@ -1221,6 +1221,10 @@ test('steam constants and part sizes remain tied to the verified native findings
   same('Piston damaged drive', STEAM.pistonDamaged);
   same('Piston shaft weight per voxel', STEAM.pistonWeightPerVoxel);
   same('Piston valve switch phase', STEAM.valvePhase);
+  same('Piston group speed retention', STEAM.crankRetention);
+  same('Piston group speed upper bound', STEAM.crankSpeedCap);
+  same('Piston group speed lower bound', -STEAM.crankSpeedCap);
+  same('Piston group phase step divisor', STEAM.crankPhaseDivisor);
   const voxels = (name) => Number(all.find((f) => f.label === `${name} · listed voxels`).value);
   const blocks = new Map(JSON.parse(readFileSync(new URL('../../data/blocks.json', import.meta.url), 'utf8')).blocks.map((b) => [b.id, b]));
   for (const b of [...FIREBOXES, ...STEAM_PISTONS]) assert.equal(voxels(blocks.get(b.id).name), b.voxels, b.id);
@@ -1229,6 +1233,26 @@ test('steam constants and part sizes remain tied to the verified native findings
   for (const id of ['steam-firebox', 'part-steam-boiler', 'part-steam-turbine']) assert.deepEqual(graphKindsForFamily(id), ['steam']);
   assert.deepEqual(graphKindsForFamily('steam-piston'), ['piston']);
   assert.deepEqual(graphKindsForFamily('coal-duct'), []);
+});
+
+test('steam crank group integrates, clamps and wraps as investigation/drivetrain-gaps.md decodes', () => {
+  const close = (a, b) => assert.ok(Math.abs(a - b) <= 1e-12, `${a} != ${b}`);
+  const up = pistonCrankStep({ speed: 9.99, phase: 0.9, drive: 1 });
+  assert.equal(up.speed, 10);
+  close(up.phase, 0.9 + 10 / 60 - 1);
+  const back = pistonCrankStep({ speed: -6, phase: 0.05, drive: 0 });
+  close(back.speed, -5.94);
+  close(back.phase, 0.05 - 5.94 / 60 + 1);
+  assert.equal(pistonCrankStep({ speed: -50, phase: 0.5, drive: -50 }).speed, -10);
+  let state = { speed: 0, phase: 0.3 };
+  for (let i = 0; i < 5000; i += 1) state = pistonCrankStep({ ...state, drive: 0.05 });
+  close(state.speed, 99 * 0.05);
+  assert.equal(pistonValvedDrive({ supply: 10, vent: 1, phase: 0.25 }), pistonDrive({ pa: 1, pb: 10, phase: 0.25 }));
+  assert.equal(pistonSpinUp({ supply: 10, vent: 1, phase: 0 }).speed, 0);
+  assert.equal(pistonSpinUp({ supply: 10, vent: 1, damage: 10 }).speed, 0);
+  const spin = pistonSpinUp({ supply: 60, vent: 0 });
+  assert.ok(spin.mean > 0 && spin.mean <= STEAM.crankSpeedCap);
+  assert.ok(pistonSpinUp({ supply: 30, vent: 0 }).mean < spin.mean);
 });
 
 test('steam model passes the checks of investigation/native/steam/tools/verify.py', () => {

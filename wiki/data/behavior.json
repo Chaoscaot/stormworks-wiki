@@ -1194,6 +1194,10 @@
           "body": "The engine writes W and r_submit to its shaft group and takes back the group speed. A simple group mixes (R + Σ W_i × r_i) ÷ (1 + Σ W_i), where R is the group's previous speed. Several engines on one shaft therefore pull it toward their submitted speeds in proportion to W. The RPS output shows the local speed entering the update, before this update's starter and combustion steps."
         },
         {
+          "title": "Reverse rotation and invalid speeds",
+          "body": "The limiter and the combustion gate compare signed speed. A shaft turning backward never trips the throttle cut and never gets combustion gain, so the engine's own candidate is 0.99 × r: at −10 RPS it submits −9.9 and decays toward 0 unless the shaft keeps driving it. Heating uses |r|, so backward rotation heats the engine as much as forward rotation. The fuel curve g(r) uses signed speed, so the forward fuel figures above do not carry over to reverse speeds.\n\nThe speed branch does not replace NaN or infinity. NaN and −infinity skip combustion and stay as they are after the 0.99 factor; +infinity stays +infinity, or becomes NaN at zero effective throttle below damage 20. A connected shaft then replaces the local speed with its group's published speed."
+        },
+        {
           "title": "Cooling and overheating",
           "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. Outside a compartment that sample is the weather temperature: dry sea-level air from −15 °C to 30 °C depending on region, season and time of day, 6.5 °C colder per 1000 m of height, lower in rain, and water below the surface; the Weather temperature, lighting and hazards mechanics article gives the equations. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with the engine_overheating and vehicle_damage settings both on, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Turning off either setting stops overheat damage; the temperature still rises. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
         },
@@ -1209,7 +1213,7 @@
       "limitations": [
         "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
         "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The weather part of that sample depends on texture values at the engine's position; the Weather temperature, lighting and hazards mechanics article lists what of it remains open.",
-        "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
+        "Non-finite speeds are decoded only for the speed branch: it does not sanitize NaN or infinity. The complete non-finite fluid and network behaviour was not traced. Thermal efficiency in physical units is unknown.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -1390,6 +1394,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034bb5a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034bb75"
         },
         {
@@ -1485,6 +1494,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034ccd7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034cce7"
         },
         {
@@ -1555,6 +1569,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034d420"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034d429"
         },
         {
@@ -1571,6 +1590,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034d45c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034d464"
         },
         {
           "path": "stormworks64.exe",
@@ -3170,13 +3194,25 @@
       "limitations": [
         "Hinge impulse and slider force are internal game units; their conversion to SI torque or force was not recovered.",
         "An equivalent spring rate and damping for the suspensions was not recovered; the update is a speed motor with a position-dependent force cap.",
-        "Losses and shaft speed or torque for power and fluid passed through a joint were not traced.",
-        "The world direction of σ for each placement was not recovered; the local sign flip is decoded.",
-        "The plain and power pivots' tooltip stop at 0.25 turns was not located in code: the setup sets angle limits from the range field only for powered position joints.",
+        "Ordinary joint fluid passage uses the shared bidirectional, all-species two-port solver with zero bias and factor 1, and delivered flow depends on network pressure and allocation history. Mechanical shaft speed, torque and any joint-specific losses across a joint were not traced.",
+        "The local sign flip of σ is decoded, but its world-axis direction for each placement and reflected orientation was not traced; that needs the joint-frame and body-order transforms.",
+        "The plain and power pivot definitions skip the hinge setup's explicit angle-limit branch, so their tooltip quarter-turn stop does not come from that setter. Their assembled travel and any other stop mechanism remain unverified.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.",
         "Static analysis only; no game process was run."
       ],
       "sources": [
+        {
+          "path": "rom/data/definitions/multibody_pivot_a.xml",
+          "sha256": "d4ead7a31d6935d82cb496fbf256d488c944be6c9e13a8d692d6563e05459d55",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/multibody_pivot_torque_a.xml",
+          "sha256": "a43e893a80695599f753f90cf3d515dea7a6b4f62cecbe21d2e99d701b7fcd16",
+          "lineStart": 2,
+          "lineEnd": 2
+        },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
@@ -3230,7 +3266,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357877"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14035789c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -3481,7 +3532,7 @@
         },
         {
           "title": "Heat, coolant and damage",
-          "body": "Burned fuel heats the shared manifold group by 6000 × burned fuel ÷ C, where C = 1 + 40 × the group's cylinder voxels; manifold extensions add nothing to C. Engine and coolant temperatures are in °C. Each group update the coolant moves k of the gap toward the engine and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. Clean water gives k = 0.04, fully scaled water 0.00032. Sea water above 100 °C builds scaling. Above 115 °C, with the engine_overheating and vehicle_damage settings both on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field."
+          "body": "Burned fuel heats the shared manifold group by 6000 × burned fuel ÷ C, where C = 1 + 40 × the group's cylinder voxels; manifold extensions add nothing to C. Engine and coolant temperatures are in °C. Each group update the coolant moves k of the gap toward the engine and the engine loses W × k × gap ÷ C, with W the fresh plus sea water amount and k = 0.04 × (liquid amount ÷ total amount) × (1 - 0.8 × scaling)³. Clean water gives k = 0.04, fully scaled water 0.00032. Sea water above 100 °C builds scaling. Above 115 °C, with the engine_overheating and vehicle_damage settings both on, a cylinder takes 1 damage at once and 1 more every 300 updates, 5 simulated seconds, up to 50. Damage is the component's saved damage field. Shared spatial damage and repair routines also call the damage setter; repair lowers damage by an amount its caller passes, never below 0."
         },
         {
           "title": "Pressure and units",
@@ -3492,8 +3543,8 @@
         "All engine formulas are reconstructed from static decompilation of build f9206d85…; they were not checked in a running game.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion.",
         "SI torque, power and energy were not recovered: the inertia weights, RPS impulses, heat in amount × °C and electrical charge have no established conversion to N m, watts or joules.",
-        "The placement and alignment validator for modular parts was not traced. Which attachment positions and orientations the editor accepts is unknown beyond the coupling names the crank and manifold walks follow.",
-        "Writers of component damage (offset 8) other than the cylinder overheat branch, the capped setter and binary restore were not traced, so collision damage and repair rates are unknown."
+        "Modular registration and connection grouping are decoded, but the editor's complete placement and alignment validator was not traced. Which attachment positions and orientations the editor accepts is open beyond the coupling names the crank and manifold walks follow.",
+        "Beyond overheat, restore and the capped setter, shared spatial damage and repair routines call component damage setters, and repair subtracts a caller-supplied amount and clamps at 0. Collision attribution, damage thresholds, tool cadence and complete repair rates were not traced."
       ],
       "sources": [
         {
@@ -3774,6 +3825,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14044abf7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049fd51"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a06f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a07af"
         },
         {
           "path": "stormworks64.exe",
@@ -5465,7 +5531,7 @@
         },
         {
           "title": "Fireboxes",
-          "body": "Ignition takes one coal and sets the ignition state to 3600; the fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. Each update it requests b = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal, T being the fire temperature: at most 0.054 coal per simulated second for the small firebox and 0.21 for the large. Air limits the burn. A fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of the Air chamber moves to the Exhaust chamber, r = b × 200 ÷ 60, and the burn is cut to the share that oxygen covers at a 0.21 reference fraction. So it needs Air pressure more than 1 above Exhaust pressure. Burnt oxygen becomes carbon dioxide in the exhaust. Each unit of coal actually burned adds 200 to the fire temperature."
+          "body": "Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. The fire also keeps burning while it is hotter than 150. When the fractional reserve is empty the firebox takes another coal and adds 1 to it. Each update it requests b = 0.00002 × voxels × clamp((600 - T) ÷ 400, 0, 1) coal, T being the fire temperature: at most 0.054 coal per simulated second for the small firebox and 0.21 for the large. Air limits the burn. A fraction u = clamp(r ÷ air amount, 0, 1) × clamp(P_air - 1 - P_exhaust, 0, 1) of the Air chamber moves to the Exhaust chamber, r = b × 200 ÷ 60, and the burn is cut to the share that oxygen covers at a 0.21 reference fraction. So it needs Air pressure more than 1 above Exhaust pressure. Burnt oxygen becomes carbon dioxide in the exhaust. Each unit of coal actually burned adds 200 to the fire temperature."
         },
         {
           "title": "Firebox heat and coolant",
@@ -5485,11 +5551,15 @@
         },
         {
           "title": "Pistons",
-          "body": "Each piston has two chambers of 0.0015 × voxels. Its crank phase z, wrapped to 0 to 1, opens one port per chamber: from z = 0.5 the first Steam In and the second Steam Out, below 0.5 the first Steam Out and the second Steam In (port order taken from the definition, inference). Each update it adds a = 0.002 × (p_B - p_A) × sin(2πz) to its crank group, p being chamber pressure times its steam fraction. With steam on both Steam In ports and both Steam Out ports vented, the open chamber matches the sign of the sine on each half turn, so the drive keeps one direction (inference). Both RPS ports submit the group speed with weight 20 × voxels: 120, 1620 and 5700."
+          "body": "Each piston has two chambers of 0.0015 × voxels. Its crank phase z, wrapped to 0 to 1, opens one port per chamber: from z = 0.5 the first Steam In and the second Steam Out, below 0.5 the first Steam Out and the second Steam In (port order taken from the definition, inference). Each update it adds a = 0.002 × (p_B - p_A) × sin(2πz) to its crank group, p being chamber pressure times its steam fraction. With steam on both Steam In ports and both Steam Out ports vented, the open chamber matches the sign of the sine on each half turn, so the drive keeps one direction (inference). Both RPS ports submit the group speed with weight 20 × voxels: 120, 1620 and 5700, and a connected port copies its shaft group's published speed back into the crank group."
+        },
+        {
+          "title": "Crank groups",
+          "body": "At the end of each update every crank group adds the summed drive a to its speed, multiplies by 0.99, clamps the result to −10 … 10 and clears a. Its phase then advances by speed ÷ 60 turns and wraps with floor, so a crank turning backward wraps too, and the speed is in RPS, capped at 10. There is no division by an inertia sum: shaft load acts only through the port exchange, which replaces the group speed with the shaft group's published speed before this step. Unloaded, a constant drive a settles at 99 × a and reaches the cap from a = 0.10101."
         },
         {
           "title": "Open questions",
-          "body": "Not decoded: what counts down or clears the firebox ignition state after ignition; how a piston crank group turns its accumulated drive into phase and shaft speed; any global rupture or explosion path, beyond a damage flag on hot fireboxes, since no pressure limit or burst test appears in the boiler, condenser or phase code; the unit steam_component_capacity once had; and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive."
+          "body": "Ignition writes 3600 to a state that the recovered firebox combustion paths test as a nonzero enable. No countdown was found in those paths, and the complete gameplay writer that clears or decrements it was not traced. Hot damaged fireboxes can queue a component and body event when vehicle damage is on. The event consumer, any global blast and any pressure-triggered boiler rupture were not traced; no pressure limit or burst test appears in the boiler, condenser or phase code. Also not decoded: the unit steam_component_capacity once had, and any joule, N m or efficiency calibration of coal heat, turbine speed and piston drive."
         }
       ],
       "limitations": [
@@ -5573,6 +5643,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ee720"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402ee727"
         },
         {
@@ -5584,6 +5659,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403181df"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403256a6"
         },
         {
           "path": "stormworks64.exe",
@@ -5723,6 +5803,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14040dd6c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14040ded1"
         },
         {
@@ -5828,6 +5913,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140411ec2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404134a7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b49e0"
         },
         {
@@ -5849,6 +5944,36 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca1c3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc017"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc078"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc081"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc08a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc0d3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc0e2"
         },
         {
           "path": "stormworks64.exe",
@@ -5879,6 +6004,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409d5816"
         },
         {
           "path": "stormworks64.exe",
@@ -5980,12 +6110,16 @@
           "body": "Each update every group first mixes its own parts. Then every group in turn acts as a source s and sends its speed through the bridges once. A queue starts with its bridge partners in member order. Each entry carries the path weight h, multiplied by 0.95 × bridge fraction per link, and the cumulative ratio r; entries with h at or below 0.001 stop. The first time a group is reached it gets sign(r) × v_s × I_s × h on its numerator and I_s × h ÷ |r| on its weight, and its own bridges join the queue.\n\nA group reached again by another path compares the recorded ratio with the new one. If recorded ÷ new lies within 0.9 to 1.1 the path is skipped, so a consistent loop passes each source's speed once, along the first path in queue order. Otherwise the ratios contradict. Every group this source has reached loses all bridge shares gathered so far, including those from earlier sources, gains I_s of weight with no speed, and the source stops. Later sources can add shares again, so the outcome depends on the group order, and a contradicting loop acts as a brake rather than settling on one speed.\n\nA bridge with both ports on one group is checked against ratio 1. A 1:1 link adds nothing. Inference from the comparison: any other option, such as 2:1, brakes the group, and an otherwise isolated group then publishes v ÷ 2, 5 RPS from 10. After all sources each group publishes once; there is no iteration toward a converged speed. The source order is the order of the group container, not component IDs."
         },
         {
+          "title": "Shaft group rebuild",
+          "body": "A rebuild first resets every component, which clears each registered shaft connection's group pointer, submitted weight and speed and published speed. Only then are the old groups freed. The builder then starts a new group at speed 0 and weight 1 for each connection not yet in a group and appends members in the order component enumeration and connection traversal reach them; nothing sorts them by position or speed. A group with fewer than 2 members is dropped. That discovery order is the member and queue order the bridge traversal above follows."
+        },
+        {
           "title": "Switching and power",
           "body": "Gear Switch off applies Ratio Off and on applies Ratio On. When the selected q differs from the stored one by more than 0.001, both stored ratios are replaced in the same update, with no interpolation or delay, and the gearbox requests 0.001 electricity. This only happens while max(0, (300 - EMP count) ÷ 300) × charge fraction is above 0, or with infinite electricity. Without power the gearbox keeps its last ratio and stays coupled: the bridge fraction is set to 1 every update before the power test."
         },
         {
           "title": "Damage",
-          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50."
+          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. Gearboxes and clutches use the shared damage setter, which stores at most 50. The shared repair routine lowers damage by an amount its caller passes, never below 0, and at 0 the next update couples the two sides again."
         },
         {
           "title": "Torque meter readings",
@@ -5998,9 +6132,9 @@
       ],
       "limitations": [
         "SI torque, inertia and physical power losses are unknown: the bridge is a weighted speed exchange in solver units, and no conversion to newton-metres or watts was recovered. No finite slip torque or friction law was recovered.",
-        "Where torque_gearbox_2's tooltip limit of 4000 torque difference is enforced, and in what unit, was not located. The gearbox update, ratio helper and traced shaft solve hold no 4000 and compare the copied force_emitter_max_force with nothing; a computed or indirect check elsewhere, or obsolete tooltip text, remains possible.",
-        "Damage disconnects the bridge, but the events that set or clear a gearbox's or clutch's damage, including any torque-triggered breakage, were not traced.",
-        "Which connector changes rebuild the shaft groups, when old group membership is dropped, how the rebuilt group and member order is chosen and whether an update can run on stale membership were not traced. The traversal under Several bridges and loops follows that order, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
+        "torque_gearbox_2's tooltip claims a torque-difference limit of 4000, but its enforcing path and internal unit were not established. The recovered gearbox update, ratio helper and shaft solver hold no 4000 and compare the copied force_emitter_max_force with nothing.",
+        "Damage disables the gearbox or clutch bridge. Both use the shared capped damage setter, and the shared repair routine can subtract damage to 0. The complete damage triggers, repair cadence and any torque-triggered breakage were not traced.",
+        "The rebuild clears registered shaft-node group pointers before freeing the old groups, then forms new groups and appends members in connection-discovery order. Which connector changes schedule a rebuild, and the update ordering that would rule out a pass on stale membership, were not traced, so the braking outcome of a contradicting loop after a rebuild is not predicted.",
         "Static analysis only.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
@@ -6060,12 +6194,27 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ee668"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140317cc7"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325ab0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140325aba"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14032af7f"
         },
         {
           "path": "stormworks64.exe",
@@ -6215,6 +6364,31 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049fd51"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a06f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a07af"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a166f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a1d09"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404c9c1d"
         },
         {
@@ -6271,6 +6445,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404caa44"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cad8e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cadc2"
         },
         {
           "path": "stormworks64.exe",
@@ -14281,6 +14465,10 @@
           "body": "The engine writes W and r_submit to its shaft group and takes back the group speed. A simple group mixes (R + Σ W_i × r_i) ÷ (1 + Σ W_i), where R is the group's previous speed. Several engines on one shaft therefore pull it toward their submitted speeds in proportion to W. The RPS output shows the local speed entering the update, before this update's starter and combustion steps."
         },
         {
+          "title": "Reverse rotation and invalid speeds",
+          "body": "The limiter and the combustion gate compare signed speed. A shaft turning backward never trips the throttle cut and never gets combustion gain, so the engine's own candidate is 0.99 × r: at −10 RPS it submits −9.9 and decays toward 0 unless the shaft keeps driving it. Heating uses |r|, so backward rotation heats the engine as much as forward rotation. The fuel curve g(r) uses signed speed, so the forward fuel figures above do not carry over to reverse speeds.\n\nThe speed branch does not replace NaN or infinity. NaN and −infinity skip combustion and stay as they are after the 0.99 factor; +infinity stays +infinity, or becomes NaN at zero effective throttle below damage 20. A connected shaft then replaces the local speed with its group's published speed."
+        },
+        {
           "title": "Cooling and overheating",
           "body": "Each engine holds 100 L of fresh water coolant at start. Each update the coolant ports exchange fluid, then engine and coolant move toward each other: with liquid coolant they meet halfway (factor 0.5), with gas or empty coolant not at all. The engine then moves 0.001 of the way toward the surrounding temperature, which it samples every 16 updates with the heat exchangers' routine and ramps over 16 updates. Outside a compartment that sample is the weather temperature: dry sea-level air from −15 °C to 30 °C depending on region, season and time of day, 6.5 °C colder per 1000 m of height, lower in rain, and water below the surface; the Weather temperature, lighting and hazards mechanics article gives the equations. The hot output gets a pump bias of 0.1 × |r|, at most 2; the cold return has none. Example: everything at 20 °C, 10 RPS, liquid coolant: the engine ends the update at 20.0374625 °C instead of 20.074925 °C without coolant.\n\nAbove 115 °C, with the engine_overheating and vehicle_damage settings both on, the engine takes 1 damage at once and 1 more every 300 updates (5 simulated seconds), up to 50. Turning off either setting stops overheat damage; the temperature still rises. Damage 1 to 19 cuts the combustion gain from 0.1 to 0.06; from 20 combustion adds no speed while fuel and heat continue."
         },
@@ -15439,6 +15627,66 @@
           }
         },
         {
+          "label": "Signed limiter comparison",
+          "value": "r > limit",
+          "detail": "comiss compares the signed local speed with the positive limiter, and jbe (0x14034bb5d) skips the throttle cut for a lower or unordered value. Reverse speed never trips the cut, however fast it turns. Report: investigation/drivetrain-gaps.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 0f2fd1 at 0x14034bb5a. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/classic-signed-limiter-curve.asm:L12; ../drivetrain-gaps/pseudocode/14034ba00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034bb5a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034bb5a"
+          }
+        },
+        {
+          "label": "Signed combustion speed gate",
+          "value": "r > 2",
+          "detail": "Compares the signed local speed with 2 (xmm14); jbe at 0x14034d424 skips combustion at or below 2, so any reverse speed, and NaN, which compares unordered, gets no combustion gain. Report: investigation/drivetrain-gaps.md. Function 0x14034ba00-0x14034d8ad; instruction bytes 410f2fc6 at 0x14034d420. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/classic-speed.asm:L40; ../drivetrain-gaps/pseudocode/14034ba00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034d420",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034d420"
+          }
+        },
+        {
+          "label": "Heating sign mask",
+          "value": "|r|",
+          "detail": "Loads the mask at 0x140bb1f20 (bytes ffffff7f, re-read by the extractor) that clears the speed's sign bit before the 0.0075 heating factor (0x14034cce7), so backward rotation heats the engine like forward rotation. Report: investigation/drivetrain-gaps.md. Function 0x14034ba00-0x14034d8ad; instruction bytes f3440f102d40528600 at 0x14034ccd7. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/classic-heating.asm:L6-L7; ../drivetrain-gaps/pseudocode/14034ba00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034ccd7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034ccd7"
+          }
+        },
+        {
+          "label": "Classic speed candidate store",
+          "value": "0.99 × r, no finite-value check",
+          "detail": "Stores the candidate after the 0.99 factor with no NaN or infinity replacement in between. Under masked floating-point exceptions NaN and −infinity skip combustion and stay as they are; +infinity passes the gate and stays +infinity, or becomes NaN at zero effective throttle below damage 20, where the gain term multiplies 0 by infinity. A connected port then replaces the local speed with its shaft group's published speed (0x14034d486). Report: investigation/drivetrain-gaps.md. Function 0x14034ba00-0x14034d8ad; instruction bytes f30f11b7e4030000 at 0x14034d464. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/classic-speed.asm:L60-L61; ../drivetrain-gaps/pseudocode/14034ba00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034d464",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034d464"
+          }
+        },
+        {
+          "label": "Classic engine at −10 RPS",
+          "value": "candidate −9.9 RPS",
+          "detail": "At r = −10 the combustion gate fails, so the candidate is 0.99 × −10 = −9.9 whatever the throttle, and heating still adds 0.0075 × 10 = 0.075 °C before cooling. Without shaft feedback the local speed decays toward 0 by the factor 0.99 per update; a connected shaft can keep driving it backward. Report: investigation/drivetrain-gaps.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034d420, native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034d464, native:stormworks64.exe:f9206d85c82f:0x14034ba00@0x14034ccd7.",
+          "evidenceId": "derived:c1e9926082f3",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14034d420"
+          }
+        },
+        {
           "label": "Small Engine · tooltip",
           "value": "An on/off signal controls engine startup and throttle signal controls energy output.",
           "detail": "engine: developer-authored description; intended behaviour, not a measurement.",
@@ -15826,7 +16074,7 @@
       "limitations": [
         "The classic update 0x14034ba00 was decoded by static analysis of one build; the game was not run. A conversion of the shaft weight and speed steps to SI torque in N m, watts or joules was not recovered.",
         "Engine temperature depends on RPS history, coolant flow and the surrounding-temperature sample, so no single temperature per throttle setting exists. The weather part of that sample depends on texture values at the engine's position; the Weather temperature, lighting and hazards mechanics article lists what of it remains open.",
-        "Behaviour with the shaft spinning backward or at non-finite speeds was not established. Thermal efficiency in physical units is unknown.",
+        "Non-finite speeds are decoded only for the speed branch: it does not sanitize NaN or infinity. The complete non-finite fluid and network behaviour was not traced. Thermal efficiency in physical units is unknown.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -16133,6 +16381,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034bb5a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034bb75"
         },
         {
@@ -16228,6 +16481,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034ccd7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034cce7"
         },
         {
@@ -16298,6 +16556,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034d420"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034d429"
         },
         {
@@ -16314,6 +16577,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14034d45c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14034d464"
         },
         {
           "path": "stormworks64.exe",
@@ -25639,7 +25907,7 @@
         },
         {
           "title": "Damage",
-          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50."
+          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. Gearboxes and clutches use the shared damage setter, which stores at most 50. The shared repair routine lowers damage by an amount its caller passes, never below 0, and at 0 the next update couples the two sides again."
         },
         {
           "title": "Size variants",
@@ -26242,6 +26510,54 @@
           }
         },
         {
+          "label": "Shared capped damage setter",
+          "value": "damage = min(x, 50)",
+          "detail": "Slot +0x20 of the torque component vtable selects this shared base setter (0x140b66730, re-read by the extractor). It loads 50, keeps the smaller unsigned value (cmp at 0x140325ab5, cmovb at 0x140325ab7) and stores it as damage (0x140325aba). Gearboxes and clutches have no private breakage equation here. Report: investigation/drivetrain-gaps.md. Function 0x140325ab0-0x140325ad0; instruction bytes b832000000 at 0x140325ab0. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/damage-capped-setter.asm:L1. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0@0x140325ab0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325ab0"
+          }
+        },
+        {
+          "label": "Shared repair subtraction",
+          "value": "max(0, damage − amount)",
+          "detail": "The shared repair routine loads a selected component's damage (0x1404a07ac), subtracts the repair amount its caller passes, replaces a negative result with 0 (0x1404a07b5, cmovs at 0x1404a07ba) and calls the component's damage setter through slot +0x20 (0x1404a07c8). The amount comes from the caller, so the routine itself fixes no repair rate. Report: investigation/drivetrain-gaps.md. Function 0x1404a04a0-0x1404a0c46; instruction bytes 2b9528010000 at 0x1404a07af. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/1404a04a0.asm:L227; ../drivetrain-gaps/pseudocode/1404a04a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a04a0@0x1404a07af",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a07af"
+          }
+        },
+        {
+          "label": "Repair eligibility",
+          "value": "damage > component+0xc",
+          "detail": "Compares damage with the component's field +0xc (loaded at 0x1404a06ed) and skips components at or below it (jbe at 0x1404a06f3). Report: investigation/drivetrain-gaps.md. Function 0x1404a04a0-0x1404a0c46; instruction bytes 394708 at 0x1404a06f0. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/1404a04a0.asm:L174; ../drivetrain-gaps/pseudocode/1404a04a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a04a0@0x1404a06f0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a06f0"
+          }
+        },
+        {
+          "label": "Shared spatial damage step",
+          "value": "setter(damage + max(0, increment))",
+          "detail": "A shared spatial damage routine clamps a negative increment to 0 (0x14049fd46, cmovs at 0x14049fd4b), adds it to the old damage and calls the component's damage setter through slot +0x20 (0x14049fd58). So the capped setter is reached from this shared calculation as well as from a part's own thermal branch; the routine's callers are not classified as collision or explosion here. Report: investigation/drivetrain-gaps.md. Function 0x14049f2b0-0x1404a0499; instruction bytes 418d141e at 0x14049fd51. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/spatial-damage-setter.asm:L15; ../drivetrain-gaps/pseudocode/14049f2b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049f2b0@0x14049fd51",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049fd51"
+          }
+        },
+        {
           "label": "Torque meter RPS output",
           "value": "group speed, factor 1",
           "detail": "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987a0010000 at 0x1403fb1ec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -26651,6 +26967,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325ab0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140325aba"
         },
         {
@@ -26747,6 +27068,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403fb2be"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049fd51"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a06f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a07af"
         },
         {
           "path": "stormworks64.exe",
@@ -34113,7 +34449,7 @@
         },
         {
           "title": "Damage",
-          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. The damage setter stores at most 50."
+          "body": "Any nonzero damage sets both bridge fractions to 0 every update, so a damaged gearbox or clutch disconnects its two sides. Gearboxes and clutches use the shared damage setter, which stores at most 50. The shared repair routine lowers damage by an amount its caller passes, never below 0, and at 0 the next update couples the two sides again."
         },
         {
           "title": "Legacy definitions",
@@ -34716,6 +35052,54 @@
           }
         },
         {
+          "label": "Shared capped damage setter",
+          "value": "damage = min(x, 50)",
+          "detail": "Slot +0x20 of the torque component vtable selects this shared base setter (0x140b66730, re-read by the extractor). It loads 50, keeps the smaller unsigned value (cmp at 0x140325ab5, cmovb at 0x140325ab7) and stores it as damage (0x140325aba). Gearboxes and clutches have no private breakage equation here. Report: investigation/drivetrain-gaps.md. Function 0x140325ab0-0x140325ad0; instruction bytes b832000000 at 0x140325ab0. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/damage-capped-setter.asm:L1. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0@0x140325ab0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325ab0"
+          }
+        },
+        {
+          "label": "Shared repair subtraction",
+          "value": "max(0, damage − amount)",
+          "detail": "The shared repair routine loads a selected component's damage (0x1404a07ac), subtracts the repair amount its caller passes, replaces a negative result with 0 (0x1404a07b5, cmovs at 0x1404a07ba) and calls the component's damage setter through slot +0x20 (0x1404a07c8). The amount comes from the caller, so the routine itself fixes no repair rate. Report: investigation/drivetrain-gaps.md. Function 0x1404a04a0-0x1404a0c46; instruction bytes 2b9528010000 at 0x1404a07af. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/1404a04a0.asm:L227; ../drivetrain-gaps/pseudocode/1404a04a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a04a0@0x1404a07af",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a07af"
+          }
+        },
+        {
+          "label": "Repair eligibility",
+          "value": "damage > component+0xc",
+          "detail": "Compares damage with the component's field +0xc (loaded at 0x1404a06ed) and skips components at or below it (jbe at 0x1404a06f3). Report: investigation/drivetrain-gaps.md. Function 0x1404a04a0-0x1404a0c46; instruction bytes 394708 at 0x1404a06f0. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/1404a04a0.asm:L174; ../drivetrain-gaps/pseudocode/1404a04a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a04a0@0x1404a06f0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a06f0"
+          }
+        },
+        {
+          "label": "Shared spatial damage step",
+          "value": "setter(damage + max(0, increment))",
+          "detail": "A shared spatial damage routine clamps a negative increment to 0 (0x14049fd46, cmovs at 0x14049fd4b), adds it to the old damage and calls the component's damage setter through slot +0x20 (0x14049fd58). So the capped setter is reached from this shared calculation as well as from a part's own thermal branch; the routine's callers are not classified as collision or explosion here. Report: investigation/drivetrain-gaps.md. Function 0x14049f2b0-0x1404a0499; instruction bytes 418d141e at 0x14049fd51. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/spatial-damage-setter.asm:L15; ../drivetrain-gaps/pseudocode/14049f2b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049f2b0@0x14049fd51",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049fd51"
+          }
+        },
+        {
           "label": "Torque meter RPS output",
           "value": "group speed, factor 1",
           "detail": "torque_component_type 2 (torque meter) reads the shaft group speed (group+0, 0x1403fb1ea) and copies it unchanged to its first number output, which torque_meter.xml describes as rotations per second. Report: investigation/electricity.md. Function 0x1403fae40-0x1403fb569; instruction bytes 8987a0010000 at 0x1403fb1ec. Interpretation rests on retained output investigation/native/behavior/../electricity/asm/torque-update.asm:L186-L192; ../electricity/pseudocode/0x1403fae40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -35011,6 +35395,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325ab0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140325aba"
         },
         {
@@ -35107,6 +35496,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403fb2be"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049fd51"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a06f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a07af"
         },
         {
           "path": "stormworks64.exe",
@@ -70303,7 +70707,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint; the motor does not read its pressure."
+          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure."
         }
       ],
       "findings": [
@@ -70731,6 +71135,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -71074,6 +71502,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403566a9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -73106,7 +73544,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint; the motor does not read its pressure."
+          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure."
         }
       ],
       "findings": [
@@ -73482,6 +73920,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -73805,6 +74267,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140357cfd"
         },
         {
@@ -73973,7 +74445,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The Fluid port carries fluid across the joint; the motor does not read its pressure. Piston Rod Position reports σ × x in metres."
+          "body": "The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure. Piston Rod Position reports σ × x in metres."
         }
       ],
       "findings": [
@@ -74374,6 +74846,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -74714,6 +75210,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140357cfd"
         },
         {
@@ -74886,7 +75392,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The Fluid port carries fluid across the joint; the motor does not read its pressure."
+          "body": "The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure."
         }
       ],
       "findings": [
@@ -75248,6 +75754,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -75566,6 +76096,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403574c1"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -85004,6 +85544,10 @@
         {
           "title": "How it moves",
           "body": "The motor update leaves this hinge's motor off. It would hold at zero speed with cap 20 × P only while an on/off input is set, and the definition declares no on/off input."
+        },
+        {
+          "title": "Stops",
+          "body": "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The tooltip stop therefore does not come from that setter; the assembled travel is listed as open under Mechanical joints."
         }
       ],
       "findings": [
@@ -85123,6 +85667,18 @@
           }
         },
         {
+          "label": "Hinge angle-limit gate",
+          "value": "flag 0x100 set and 0x200 clear",
+          "detail": "The setup installs the range-based hinge limits only when definition flag 0x100 is set (skip at 0x14035787e) and 0x200 is clear (test at 0x140357880, skip at 0x140357887); the setter call is at 0x1403578be. In that branch a range R becomes ±π R rad (R × 0.5 at 0x140357891, × 2π at 0x1403578a4), so 0.5 gives ±0.25 turns. Definitions without flag 0x100 get no limit from this setter. Report: investigation/drivetrain-gaps.md. Function 0x140357281-0x140357921; instruction bytes 48f7c100010000 at 0x140357877. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-setup-complete.asm:L533; ../drivetrain-gaps/pseudocode/140356fa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357281@0x140357877",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357877"
+          }
+        },
+        {
           "label": "Pivot · tooltip",
           "value": "The pivot can rotate to 0.25 turns in both directions.",
           "detail": "multibody_pivot_a: developer-authored description; intended behaviour, not a measurement.",
@@ -85149,6 +85705,11 @@
           "sha256": "d4ead7a31d6935d82cb496fbf256d488c944be6c9e13a8d692d6563e05459d55",
           "lineStart": 83,
           "lineEnd": 83
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357877"
         },
         {
           "path": "stormworks64.exe",
@@ -85340,6 +85901,10 @@
           "body": "The motor update leaves this hinge's motor off. It would hold at zero speed with cap 20 × P only while an on/off input is set, and the definition declares no on/off input."
         },
         {
+          "title": "Stops",
+          "body": "The tooltip describes a stop at 0.25 turns each way. The definition has range 0.5 but flags 64, without the powered bit 0x100, so the hinge setup skips the branch that would turn that range into limits of ±0.25 turns. The tooltip stop therefore does not come from that setter; the assembled travel is listed as open under Mechanical joints."
+        },
+        {
           "title": "Setup and interactions",
           "body": "The RPS port passes mechanical power across the joint."
         }
@@ -85448,6 +86013,18 @@
           }
         },
         {
+          "label": "Hinge angle-limit gate",
+          "value": "flag 0x100 set and 0x200 clear",
+          "detail": "The setup installs the range-based hinge limits only when definition flag 0x100 is set (skip at 0x14035787e) and 0x200 is clear (test at 0x140357880, skip at 0x140357887); the setter call is at 0x1403578be. In that branch a range R becomes ±π R rad (R × 0.5 at 0x140357891, × 2π at 0x1403578a4), so 0.5 gives ±0.25 turns. Definitions without flag 0x100 get no limit from this setter. Report: investigation/drivetrain-gaps.md. Function 0x140357281-0x140357921; instruction bytes 48f7c100010000 at 0x140357877. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-setup-complete.asm:L533; ../drivetrain-gaps/pseudocode/140356fa0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357281@0x140357877",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357877"
+          }
+        },
+        {
           "label": "Pivot (Power) · tooltip",
           "value": "The pivot can rotate to 0.25 turns in both directions.",
           "detail": "multibody_pivot_torque_a: developer-authored description; intended behaviour, not a measurement.",
@@ -85493,6 +86070,11 @@
           "sha256": "a43e893a80695599f753f90cf3d515dea7a6b4f62cecbe21d2e99d701b7fcd16",
           "lineStart": 87,
           "lineEnd": 87
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357877"
         },
         {
           "path": "stormworks64.exe",
@@ -85699,7 +86281,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint; the motor does not read its pressure. Current Rotation reports σ × angle ÷ 2π in turns."
+          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure. Current Rotation reports σ × angle ÷ 2π in turns."
         }
       ],
       "findings": [
@@ -86137,6 +86719,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -86483,6 +87089,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140357cfd"
         },
         {
@@ -86665,7 +87281,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint; the motor does not read its pressure."
+          "body": "The RPS port passes mechanical power across the joint. The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure."
         }
       ],
       "findings": [
@@ -87064,6 +87680,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -87388,6 +88028,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14035789c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -88513,7 +89163,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The Fluid port carries fluid across the joint; the motor does not read its pressure. Current Rotation reports σ × angle ÷ 2π in turns."
+          "body": "The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure. Current Rotation reports σ × angle ÷ 2π in turns."
         }
       ],
       "findings": [
@@ -88938,6 +89588,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -89274,6 +89948,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14035789c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -90350,7 +91034,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The Fluid port carries fluid across the joint; the motor does not read its pressure."
+          "body": "The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure."
         }
       ],
       "findings": [
@@ -90736,6 +91420,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -91054,6 +91762,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14035789c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -97611,7 +98329,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The Fluid port carries fluid across the joint; the motor does not read its pressure. Current Rotation reports σ × angle ÷ 2π in turns, counted across full turns."
+          "body": "The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure. Current Rotation reports σ × angle ÷ 2π in turns, counted across full turns."
         }
       ],
       "findings": [
@@ -97987,6 +98705,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -98318,6 +99060,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403566a9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -99386,7 +100138,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "The Fluid port carries fluid across the joint; the motor does not read its pressure."
+          "body": "The Fluid port carries fluid across the joint through the shared two-port solver, both ways, all species, with no bias and flow factor 1, so the joint itself adds no restriction. Delivered flow still follows the pressures on both sides. The motor does not read that pressure."
         }
       ],
       "findings": [
@@ -99723,6 +100475,30 @@
           }
         },
         {
+          "label": "Joint fluid passage",
+          "value": "two-port solver, bias 0, both directions, all species",
+          "detail": "For an ordinary connected joint the multibody update calls the shared two-port solver 0x1402ed8d0 with zero bias (0x140357c40), the all-species mask −1 (0x140357c38) and the one-way flag clear (0x140357c7a). Flag 0x4000 selects a different branch that exchanges with a component compartment. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes e84c5cf9ff at 0x140357c7f. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L125. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c7f",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c7f"
+          }
+        },
+        {
+          "label": "Joint fluid flow factor",
+          "value": "1",
+          "detail": "Passed to the two-port solver as its flow factor, so an ordinary joint adds no fractional flow cut. Delivered flow still follows both networks' pressures and earlier allocation. Report: investigation/drivetrain-gaps.md. Function 0x140357a60-0x140357c9c; instruction bytes f30f101db6828500 at 0x140357c0e address binary32 1 (bytes 0000803f) at 0x140bafecc. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/joint-fluid-pass.asm:L101-L102. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357a60@0x140357c0e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140357c0e"
+          }
+        },
+        {
           "label": "Joint gear ratio option 1:1",
           "value": "1:1",
           "detail": "Offered by the Gear Ratio selector for multibody components with definition flag 0x100. Function 0x140358b30-0x1403590b8; it references the string '1:1' at 0x140b632d8. Interpretation rests on retained output investigation/native/behavior/pseudocode/0x140358b30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -100036,6 +100812,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403566a9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140357c7f"
         },
         {
           "path": "stormworks64.exe",
@@ -133758,6 +134544,54 @@
           }
         },
         {
+          "label": "Shared capped damage setter",
+          "value": "damage = min(x, 50)",
+          "detail": "Slot +0x20 of the torque component vtable selects this shared base setter (0x140b66730, re-read by the extractor). It loads 50, keeps the smaller unsigned value (cmp at 0x140325ab5, cmovb at 0x140325ab7) and stores it as damage (0x140325aba). Gearboxes and clutches have no private breakage equation here. Report: investigation/drivetrain-gaps.md. Function 0x140325ab0-0x140325ad0; instruction bytes b832000000 at 0x140325ab0. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/damage-capped-setter.asm:L1. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325ab0@0x140325ab0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140325ab0"
+          }
+        },
+        {
+          "label": "Shared repair subtraction",
+          "value": "max(0, damage − amount)",
+          "detail": "The shared repair routine loads a selected component's damage (0x1404a07ac), subtracts the repair amount its caller passes, replaces a negative result with 0 (0x1404a07b5, cmovs at 0x1404a07ba) and calls the component's damage setter through slot +0x20 (0x1404a07c8). The amount comes from the caller, so the routine itself fixes no repair rate. Report: investigation/drivetrain-gaps.md. Function 0x1404a04a0-0x1404a0c46; instruction bytes 2b9528010000 at 0x1404a07af. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/1404a04a0.asm:L227; ../drivetrain-gaps/pseudocode/1404a04a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a04a0@0x1404a07af",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a07af"
+          }
+        },
+        {
+          "label": "Repair eligibility",
+          "value": "damage > component+0xc",
+          "detail": "Compares damage with the component's field +0xc (loaded at 0x1404a06ed) and skips components at or below it (jbe at 0x1404a06f3). Report: investigation/drivetrain-gaps.md. Function 0x1404a04a0-0x1404a0c46; instruction bytes 394708 at 0x1404a06f0. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/1404a04a0.asm:L174; ../drivetrain-gaps/pseudocode/1404a04a0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404a04a0@0x1404a06f0",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404a06f0"
+          }
+        },
+        {
+          "label": "Shared spatial damage step",
+          "value": "setter(damage + max(0, increment))",
+          "detail": "A shared spatial damage routine clamps a negative increment to 0 (0x14049fd46, cmovs at 0x14049fd4b), adds it to the old damage and calls the component's damage setter through slot +0x20 (0x14049fd58). So the capped setter is reached from this shared calculation as well as from a part's own thermal branch; the routine's callers are not classified as collision or explosion here. Report: investigation/drivetrain-gaps.md. Function 0x14049f2b0-0x1404a0499; instruction bytes 418d141e at 0x14049fd51. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/spatial-damage-setter.asm:L15; ../drivetrain-gaps/pseudocode/14049f2b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14049f2b0@0x14049fd51",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14049fd51"
+          }
+        },
+        {
           "label": "Port A bridge link",
           "value": "A node+0x38 → B node",
           "detail": "When both definition ports exist the binder points port A's node at port B's node; 0x1403fadf0 writes the reverse link. The two ports stay separate shaft groups joined by a bridge. Port A is the first type-2 (mechanical) logic node of the definition and port B the second; in all five gearbox definitions those are labelled RPS A and RPS B. Report: investigation/transmission.md. Function 0x1403facc0-0x1403fae34; instruction bytes 48894a38 at 0x1403fadec. Interpretation rests on retained output investigation/native/behavior/../transmission/asm/torque-bind.asm:L79-L80; ../transmission/pseudocode/0x1403facc0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
@@ -133980,6 +134814,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140325ab0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140325aba"
         },
         {
@@ -134066,6 +134905,21 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403fb536"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14049fd51"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a06f0"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404a07af"
         },
         {
           "path": "stormworks64.exe",
@@ -146971,7 +147825,7 @@
       "sections": [
         {
           "title": "Ignition and coal",
-          "body": "Ignition takes one coal and sets the ignition state to 3600; the fire also keeps burning while it is hotter than 150. Burning draws on a fractional reserve, refilled one coal at a time from the shared inventory, to which a firebox adds 10 slots."
+          "body": "Ignition takes one coal and sets the ignition state to 3600. The combustion code only tests whether that state is nonzero and never counts it down, so 3600 is not a burn time there. The fire also keeps burning while it is hotter than 150. Burning draws on a fractional reserve, refilled one coal at a time from the shared inventory, to which a firebox adds 10 slots."
         },
         {
           "title": "Burn rate",
@@ -146984,6 +147838,10 @@
         {
           "title": "Outputs",
           "body": "Temperature reads the fire temperature, not the coolant temperature its description names, sampled before the update's burn. Coal Level is the inventory's whole item count."
+        },
+        {
+          "title": "Damage",
+          "body": "Damage raises the ambient loss toward 0.01. A hot damaged firebox sets a pending flag, and after the update a shared helper queues a component damage event when the vehicle_damage setting is on. What that event does downstream is listed under Steam on the parts index."
         }
       ],
       "findings": [
@@ -147285,6 +148143,42 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1404b49f6"
+          }
+        },
+        {
+          "label": "Firebox ignition state restore",
+          "value": "binary read into +0x754",
+          "detail": "A whole-disassembly displacement search finds this restore writer in the serializer's read mode, the two 3600 writes in the steam update (0x14040e08a and 0x14040e6f9, both re-read by the extractor) and compares. The steam update holds no decrement, subtraction or zero store to +0x754, and its combustion paths test the state only for zero or nonzero, so there it acts as an on state rather than a countdown. Report: investigation/drivetrain-gaps.md. Function 0x14041316a-0x1404135f3; instruction bytes 898e54070000 at 0x1404134a7. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/ignition-serialize.asm:L29; ../drivetrain-gaps/pseudocode/14041316a.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14041316a@0x1404134a7",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404134a7"
+          }
+        },
+        {
+          "label": "Firebox damage event hand-off",
+          "value": "tail call 0x140325680",
+          "detail": "The steam post-update clears the firebox's pending damage flag (+0x7b0 at 0x140411eb6) and tail-calls the shared event helper. Report: investigation/drivetrain-gaps.md. Function 0x140411ea0-0x140411ed0; instruction bytes e9b937f1ff at 0x140411ec2. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/140411ea0.asm:L15; ../drivetrain-gaps/pseudocode/140411ea0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140411ea0@0x140411ec2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140411ec2"
+          }
+        },
+        {
+          "label": "Damage event vehicle_damage gate",
+          "value": "settings+0x4a",
+          "detail": "The shared helper appends a component and body pair to its caller's event container only when the vehicle_damage setting is on and a caller flag is set (0x1403256ac). It reads no pressure and no blast size. Report: investigation/drivetrain-gaps.md. Function 0x140325680-0x140325710; instruction bytes 80784a00 at 0x1403256a6. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/140325680.asm:L18. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140325680@0x1403256a6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403256a6"
           }
         },
         {
@@ -147673,6 +148567,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403256a6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14040ded1"
         },
         {
@@ -147778,6 +148677,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140411ec2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404134a7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404b49e0"
         },
         {
@@ -147832,6 +148741,10 @@
         {
           "title": "Sizes",
           "body": "Chambers hold 0.0015 × voxels, 0.009, 0.1215 and 0.4275, and both RPS ports submit the group speed with weight 120, 1620 and 5700. Crank radii 0.075, 0.146 and 0.216 give geometric strokes of 0.15, 0.292 and 0.432 world units, about metres (inference from the render code)."
+        },
+        {
+          "title": "Crank",
+          "body": "At the end of each update every crank group adds the summed drive a to its speed, multiplies by 0.99, clamps the result to −10 … 10 and clears a. Its phase then advances by speed ÷ 60 turns and wraps with floor, so a crank turning backward wraps too, and the speed is in RPS, capped at 10. There is no division by an inertia sum: shaft load acts only through the port exchange, which replaces the group speed with the shaft group's published speed before this step. Unloaded, a constant drive a settles at 99 × a and reaches the cap from a = 0.10101."
         },
         {
           "title": "Outputs",
@@ -148077,6 +148990,126 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1404ca1c3"
+          }
+        },
+        {
+          "label": "Piston group speed retention",
+          "value": "0.99",
+          "detail": "A loop over the steam piston groups at the end of the manager update 0x1404cb790 holds this in xmm8. Per group it loads the speed (group+4, 0x1404cc0b0), adds the accumulated drive (group+8, 0x1404cc0b5) and multiplies by this (0x1404cc0ba). Report: investigation/drivetrain-gaps.md. Function 0x1404cc078-0x1404cc131; instruction bytes f3440f10052b3e6e00 at 0x1404cc078 address binary32 0.99 (bytes a4707d3f) at 0x140bafeac. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/piston-group-integrate.asm:L18-L19; ../drivetrain-gaps/pseudocode/1404cb790.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc078",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc078"
+          }
+        },
+        {
+          "label": "Piston group speed lower bound",
+          "value": "-10",
+          "detail": "maxss at 0x1404cc0bf bounds the new speed from below. Report: investigation/drivetrain-gaps.md. Function 0x1404cc078-0x1404cc131; instruction bytes f3440f100d0a4f6e00 at 0x1404cc081 address binary32 -10 (bytes 000020c1) at 0x140bb0f94. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/piston-group-integrate.asm:L20-L21; ../drivetrain-gaps/pseudocode/1404cb790.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc081",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc081"
+          }
+        },
+        {
+          "label": "Piston group speed upper bound",
+          "value": "10",
+          "detail": "Held in xmm15; minss at 0x1404cc0c4 bounds the new speed from above and the result is stored at 0x1404cc0c9: speed = clamp(0.99 × (speed + drive), −10, 10). Report: investigation/drivetrain-gaps.md. Function 0x1404cbce6-0x1404cc033; instruction bytes f3440f103d2c466e00 at 0x1404cc017 address binary32 10 (bytes 00002041) at 0x140bb064c. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/crank-and-piston-update.asm:L539-L540; ../drivetrain-gaps/pseudocode/1404cb790.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cbce6@0x1404cc017",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc017"
+          }
+        },
+        {
+          "label": "Piston group phase step divisor",
+          "value": "60",
+          "detail": "divss at 0x1404cc0ce divides the stored speed by this before the old phase is added (0x1404cc0d7), so the phase advances by speed ÷ 60 turns per update and the speed reads as turns per simulated second. Report: investigation/drivetrain-gaps.md. Function 0x1404cc078-0x1404cc131; instruction bytes f3440f1015cd466e00 at 0x1404cc08a address binary32 60 (bytes 00007042) at 0x140bb0760. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/piston-group-integrate.asm:L22-L23; ../drivetrain-gaps/pseudocode/1404cb790.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc08a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc08a"
+          }
+        },
+        {
+          "label": "Piston drive accumulator cleared",
+          "value": "group+8 = 0",
+          "detail": "Stores the zero register (xor at 0x1404cb7b0) to the accumulated drive right after the speed update, so each update's drive acts once. There is no division by an inertia sum in this loop. Report: investigation/drivetrain-gaps.md. Function 0x1404cc078-0x1404cc131; instruction bytes 44897b08 at 0x1404cc0d3. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/piston-group-integrate.asm:L37; ../drivetrain-gaps/pseudocode/1404cb790.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc0d3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc0d3"
+          }
+        },
+        {
+          "label": "Piston phase wrap",
+          "value": "x − floor(x), x = phase + speed ÷ 60",
+          "detail": "Calls the floor helper 0x1409d57d8 and subtracts its result (0x1404cc0e7) before storing the phase (0x1404cc0f1). Report: investigation/drivetrain-gaps.md. Function 0x1404cc078-0x1404cc131; instruction bytes e8f1965000 at 0x1404cc0e2. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/piston-group-integrate.asm:L41; ../drivetrain-gaps/pseudocode/1404cb790.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc0e2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc0e2"
+          }
+        },
+        {
+          "label": "Floor of a small negative value",
+          "value": "-1",
+          "detail": "In the helper's below-one branch a nonzero negative input returns this (sign test at 0x1409d5811) and a positive one returns 0 (0x1409d5820). The helper is floor, so a crank turning backward wraps from 0 to just under 1. Report: investigation/drivetrain-gaps.md. Function 0x1409d57d8-0x1409d5860; instruction bytes f30f10050ab41d00 at 0x1409d5816 address binary32 -1 (bytes 000080bf) at 0x140bb0c28. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/phase-floor-helper.asm:L20-L21. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409d57d8@0x1409d5816",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409d5816"
+          }
+        },
+        {
+          "label": "Piston port feedback destination",
+          "value": "group speed (group+4)",
+          "detail": "In the piston component update each RPS port submission passes the group speed field as the feedback destination (call 0x1402ee720 at 0x14040dd73; the second port repeats it later in the block). A connected port therefore overwrites the group speed with its shaft group's published speed before the second port submits and before the final integration. Report: investigation/drivetrain-gaps.md. Function 0x14040cbd0-0x140411e14; instruction bytes 4c8d4b04 at 0x14040dd6c. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/piston-shaft-submit.asm:L25. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14040cbd0@0x14040dd6c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14040dd6c"
+          }
+        },
+        {
+          "label": "Shaft feedback null-group guard",
+          "value": "no group: no stores",
+          "detail": "With no group at node+0x20 the helper jumps past the weight, speed and feedback stores (je at 0x1402ee725), so a disconnected port neither submits nor writes back. Report: investigation/drivetrain-gaps.md. Function 0x1402ee720-0x1402ee740; instruction bytes 4883792000 at 0x1402ee720. Interpretation rests on retained output investigation/native/behavior/../drivetrain-gaps/asm/shaft-feedback-helper.asm:L1; ../drivetrain-gaps/pseudocode/1402ee720.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1402ee720@0x1402ee720",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1402ee720"
+          }
+        },
+        {
+          "label": "Piston group speed under a constant drive",
+          "value": "99 × drive, at the 10 cap from drive 0.10101",
+          "detail": "With no shaft connection and a constant accumulated drive a per update, speed = 0.99 × (speed + a) settles at 0.99 ÷ 0.01 × a = 99 × a. It reaches the clamp of 10 once 0.99 × (10 + a) ≥ 10, that is a ≥ 10 ÷ 0.99 − 10 = 0.10101. A reverse drive mirrors this down to −10. A connected shaft group changes the speed through the port feedback first. Report: investigation/drivetrain-gaps.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc078, native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc081, native:stormworks64.exe:f9206d85c82f:0x1404cbce6@0x1404cc017, native:stormworks64.exe:f9206d85c82f:0x1404cc078@0x1404cc0d3, native:stormworks64.exe:f9206d85c82f:0x14040cbd0@0x14040dd6c.",
+          "evidenceId": "derived:74a951cf4cac",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404cc078"
           }
         },
         {
@@ -148554,6 +149587,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1402ee720"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1402ee727"
         },
         {
@@ -148614,6 +149652,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14040dd6c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca113"
         },
         {
@@ -148625,6 +149668,36 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1404ca1c3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc017"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc078"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc081"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc08a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc0d3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404cc0e2"
         },
         {
           "path": "stormworks64.exe",
@@ -148655,6 +149728,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409d5816"
         },
         {
           "path": "stormworks64.exe",
@@ -162579,12 +163657,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8894,
+    "findingCount": 8946,
     "findingsByStatus": {
-      "derived": 743,
-      "observed": 8151
+      "derived": 745,
+      "observed": 8201
     },
-    "nativeFindingCount": 6496,
+    "nativeFindingCount": 6548,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -162635,9 +163713,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 429,
-      "native": 1513,
-      "resource": 2663
+      "derived": 431,
+      "native": 1542,
+      "resource": 2667
     }
   }
 }

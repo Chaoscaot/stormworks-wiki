@@ -1,0 +1,20 @@
+## Speed, stall, limiter and force field
+
+The throttle gate at `0x14034bb38..0x14034bb75` compares signed r against the limiter. Any nonzero damage changes the limiter used for this comparison to 1.25 times its configured value. If r exceeds it, throttle becomes zero. Otherwise throttle is clamped to 0..1. Negative input never requests reverse engine drive, despite the old turbine tooltip saying -1..1.
+
+EMP can additionally suppress throttle. At `0x14034bca6` the update reads EMP E from `+0x3c0`. For E nonzero it zeros throttle when E > 300 or `E % (E//20 + 1) > 4`. It does not apply this test to engine damage `+8`.
+
+After the supply calculation, outputs and starter, speed update `0x14034d415..0x14034d464` is:
+
+```
+r0 = local speed after any starter assistance
+k = 0.1 if damage == 0 else 0.06
+if r0 > 2 and damage < 20:
+    r_submit = 0.99*(r0 + k*u*(r0+1))
+else:
+    r_submit = 0.99*r0
+```
+
+Decisive bytes are `0x14034d420`, `41 0f 2f c6`, compare with 2; `0x14034d429`, `83 f8 14`, compare damage with 20; `0x14034d442`, `f3 0f 59 35 26 26 86 00`, multiply by 0.06; `0x14034d44c`, `f3 0f 59 35 7c 26 86 00`, multiply by 0.1; and `0x14034d45c`, `f3 0f 59 35 48 2a 86 00`, multiply by 0.99.
+
+There is no automatic idle throttle in this routine. At zero throttle it loses 1% of local speed each update, absent shaft input or starter. Below or at 2 RPS combustion adds no speed, even though the fluid section can still consume fuel and move air. Damage 20 or greater prevents combustion speed gain but does not by itself bypass fuel calculation or heating. The limiter is a fuel/throttle cut, not a hard speed clamp. At the default limit an engine can overshoot 20 RPS. External shaft drive can spin it faster. The modular engine's hard-coded 60 RPS fuel cut does not occur here; the classic editor allows a limiter up to 100 RPS.

@@ -1,0 +1,67 @@
+A difference `abs(old_q-new_q) > 0.001` triggers a direct ratio replacement at `0x1403fb283..0x1403fb2af` and an electrical draw request of 0.001 through `0x1402eeca0` at `0x1403fb2be`, bytes `e8 dd 39 ef ff`. There is no ratio interpolation or gear-change timer in this branch. Sound-effect work follows the replacement.
+
+An intact gearbox sets both bridge fractions to 1 before the power gate. `0x1403faea9`, `c7 87 38 02 00 00 00 00 80 3f`, writes A's fraction; `0x1403faebf`, `c7 42 40 00 00 80 3f`, writes B's. Loss of electrical availability therefore freezes the last ratio in this code; it does not disconnect an otherwise intact gearbox. The draw helper's result is not used to undo the ratio change.
+
+## Coupling, losses and slip
+
+The retained `shaft-collect.asm` and `shaft-publish.asm` reproduce the prior electricity model. For each shaft group g, cached local submissions produce:
+
+```
+I_g = 1 + sum(F_i)
+v_g = (previous_RPS_g + sum(F_i * submitted_RPS_i)) / I_g
+```
+
+The initial weight of 1 is explicit at `0x1404ca113`, `c7 42 04 00 00 80 3f`. At `0x1404ca171`, `f3 0f 59 42 2c`, the solver multiplies member speed by its submitted weight. It divides by total local weight at `0x1404ca1c3`, `f3 44 0f 5e 59 04`.
+
+For a traversed path from source s to destination g, cumulative signed ratio r and fraction h accumulate as follows:
+
+```
+h_next = h * node_fraction * 0.95
+r_next = r * node_ratio
+N_g += sign(r) * v_s * I_s * h
+D_g += I_s * h / abs(r)
+V_g = (I_g*v_g + N_g) / (I_g+D_g)
+```
+
+The constant 0.95 is float32 `33 33 73 3f` at `0x140bafe68`. For continued traversal, `0x1404ca657`, `f3 0f 59 46 40`, multiplies by node fraction; `0x1404ca65c`, `f3 41 0f 59 c0`, applies the edge factor; `0x1404ca669`, `f3 0f 59 46 44`, multiplies the ratio. Accumulator stores are `0x1404ca592`, `f3 41 0f 11 40 28`, and `0x1404ca5ad`, `f3 41 0f 11 48 2c`. The ratio denominator is explicit at `0x1404ca5a3`, `f3 0f 5e c8`.
+
+Paths contribute only while h > 0.001. Revisits whose relative ratios fall outside approximately [0.9,1.1] take the conflict branch at `0x1404caa02`; it removes affected remote speed contributions and adds weight, acting as a brake. This is a network consistency response, not a recovered broken-gear state. The small model covers two distinct groups joined by one bridge, excluding contradictory loops and graph rebuilds.
+
+For that two-group case, h = 0.95*c and q is A's outgoing multiplier:
+
+```
+A_next = (I_A*v_A + sign(q)*I_B*v_B*h) / (I_A + I_B*h*abs(q))
+B_next = (I_B*v_B + sign(q)*I_A*v_A*h) / (I_B + I_A*h/abs(q))
+```
+
+The binder reads that parameter at `0x1403fadd7`, `8b 83 48 08 00 00`, and writes it to A node+0x48 at `0x1403faddd`, `89 42 48`. This destination differs from submitted solver weight at node+0x28. The gearbox branch does not submit that parameter as F. Neither the traced collection nor publication routine compares node+0x48 against a speed or weight difference. These parameter values are therefore not established torque capacities.
+
+The enforcing 4000 comparison remains open. The retained search found float32 4000 at `0x140bb0894`, bytes `00 00 7a 45`, and float64 4000 at `0x140bb0508`, bytes `00 00 00 00 00 40 af 40`. Direct RIP references found by linear GNU disassembly do not land in the gearbox update, ratio helper or traced shaft collect/publish functions. `tools/4000-search.json` retains all those references, immediate-float-pattern hits and candidate non-stack float accesses at offset +0x48.
+
+What is ruled out: a literal 4000 comparison in the recovered gearbox branch, a ratio-table threshold, treating the five resource force parameters as the 4000 comparison, and a direct node+0x48 limit in the recovered shaft collect/publish functions. What is not ruled out: a computed or indirect limit, an integer-based comparison elsewhere, an unidentified caller, or obsolete tooltip text. No quantity or units for an enforcing comparison were recovered. There is no basis here to replace 4000 with 4000 Nm or to claim this build universally lacks such a limit.
+
+## Standalone clutch
+
+The standalone resource `torque_clutch.xml:2` supplies `force_emitter_max_force=2000`. Its type-2 ports are the first two mechanical nodes and use the same reciprocal bridge, with ratio 1. The input is its first numeric input, component+0x160.
+
+The branch at `0x1403fb467` clamps the input to [0,1]. `0x1403fb48f`, bytes `f3 0f 10 0d f9 4e 7b 00`, loads float32 3 from `0x140bb0390`, bytes `00 00 40 40`. `0x1403fb497`, `e8 74 e7 5b 00`, calls `0x1409b9c10`. Inference: this is the runtime power function, identified from its exponent-zero/one handling, integer-exponent sign handling and logarithm/exponential algorithm. It has no recovered original symbol. Its full instructions and pseudocode are retained.
+
+The code then squares that return value at `0x1403fb519`, `f3 0f 59 ff`, and multiplies it by the availability coefficient at `0x1403fb51d`, `f3 41 0f 59 f8`. Let u be the clamped input and a the same EMP-adjusted published charge fraction used above, or 1 under infinite electricity:
+
+```
+e = min(1, a/0.01)
+c = e * u**6
+```
+
+`0x1403fb522`, `f3 0f 11 bf 38 02 00 00`, stores c to A's fraction. `0x1403fb536`, `f3 0f 11 78 40`, stores c to B's fraction. There is no 0.1 slew in this branch. It reads previous c only to request electrical draw `0.001*abs(previous_c-e*u**3)` at `0x1403fb4ee..0x1403fb514`; the current update writes the newly computed c directly.
+
+Derived examples at full availability: input 0 gives c=0; 0.5 gives c=1/64; 1 gives c=1. With an isolated edge, traversal requires `0.95*u**6 > 0.001`, giving an onset near u=0.318943. This cutoff is a consequence of the solver's path pruning, not an additional clutch-input clamp. At lower availability the onset shifts, and at e <= 0.001/0.95 even full input contributes no accepted path. Float32 rounding affects values at the boundary.
+
+The modular clutches are different components, type 52. Their already decoded target is u**3 with a maximum state change of 0.1 per update. Their resource force values are 200, 2000 and 20000 for 1x1, 3x3 and 5x5. Those facts remain attributed to modular-engines.md; the current report does not redo that update routine.
+
+## Failure behavior and confidence
+
+Nonzero component damage disables either standalone clutch or gearbox bridge. `0x1403fae6d`, `83 79 08 00`, tests the unsigned damage field. `0x1403fae75`, `89 81 38 02 00 00`, clears A's fraction, and `0x1403fae8b`, `89 41 40`, clears the linked B fraction. The base serializer names +8 `damage`: `0x140328728`, `4d 8d 4d 08`, forms the field address and `0x14032872c`, `4c 8d 05 a1 7e 83 00`, selects the name. This class's vtable+0x20 points to base setter `0x140325ab0`, which clamps the unsigned damage argument to 50 and stores it at `0x140325aba`, `89 41 08`.
+
+High confidence covers port order, reciprocal ratios, all menu options, immediate switching, power gating, bridge fraction setters, the shared weighted solver and damage disconnection. The sixth-power clutch law includes the explicitly labelled power-helper identification. The arithmetic model verifies the transcription, not execution of the game.
+

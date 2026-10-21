@@ -8,7 +8,7 @@ import {
   exchangerTemperatures, exchangerThroughFlow, exchangerVolume, gapLeftAfter, GEAR_RATIOS, JOINT_VARIANTS, jetChamber, jetExhaust, jointMotor, jointVariantFor, modularEngineResponse, pidResponse, PROPELLER_VARIANTS, propellerForce, propellerVariantFor, LEGACY_RADAR, LEGACY_VARIANTS, legacyDetection, legacyVariantFor, RADAR, RADAR_VARIANTS, radarDetection, radarVariantFor, RADIO_ANTENNAS, radioAntennaFor, radioSignal, radiatorRate, scoopInflow, surfaceForce, standaloneClutch, standaloneClutchOnset, TRANSMISSION,
   MANUAL_PUMP, manualEase, manualHandle, manualPumpSwitch,
   GUN_CLASSES, gunClassFor, gunCycle, gunHeat, projectileFlight, flightAt, SOLID_ROCKETS, solidRocket, solidRocketFor, WEAPON,
-  FIREBOXES, STEAM, fireboxFor, pistonDrive, pistonValves, steamCycle, steamPistonFor,
+  FIREBOXES, STEAM, fireboxFor, pistonDrive, pistonSpinUp, pistonValvedDrive, pistonValves, steamCycle, steamPistonFor,
   WHEEL, WHEEL_GROUPS, WHEELS, treadSpeed, wheelFor, wheelShaftWeight,
   WINCH, WINCH_GROUPS, WINCHES, reelTime, winchFor, winchRate,
   KEEL, KEELS, keelFor, keelLateral, keelScale, keelUpright,
@@ -2333,6 +2333,7 @@ function SteamGraph({ variant }) {
 
 const PISTON_PHASES = steps(0, 1, 0.005);
 const PISTON_DAMAGE = { 0: 'Undamaged', 5: 'Damage 1 to 9', 10: 'Damage 10 or more' };
+const PISTON_SPIN_SECONDS = 30;
 const openPorts = (v) => [v.firstIn && 'first Steam In', v.firstOut && 'first Steam Out', v.secondIn && 'second Steam In', v.secondOut && 'second Steam Out'].filter(Boolean).join(' and ');
 
 function PistonGraph({ variant }) {
@@ -2344,9 +2345,8 @@ function PistonGraph({ variant }) {
   const [phase, setPhase] = useState(0.25);
   const low = Math.min(vent, supply);
   // Built-in valves: the admitting chamber is at the supply, the other at the vent pressure.
-  const valved = (z) => (z >= STEAM.valvePhase
-    ? pistonDrive({ pa: supply, pb: low, phase: z, damage })
-    : pistonDrive({ pa: low, pb: supply, phase: z, damage }));
+  const valved = (z) => pistonValvedDrive({ supply, vent: low, phase: z, damage });
+  const spin = useMemo(() => pistonSpinUp({ supply, vent: low, damage, seconds: PISTON_SPIN_SECONDS }), [supply, low, damage]);
   const fixedB = (z) => pistonDrive({ pa: low, pb: supply, phase: z, damage });
   const a = valved(phase);
   const v = pistonValves(phase);
@@ -2402,6 +2402,7 @@ function PistonGraph({ variant }) {
             ['Drive per update', fixed(a, 5), a > 0 ? 'graph-ok' : 'graph-no'],
             ['Mean over a turn', fixed(mean, 5)],
             ['Shaft weight per port', `${STEAM.pistonWeightPerVoxel * piston.voxels} (${piston.label.toLowerCase()} piston)`],
+            ['Unloaded crank speed', `${fixed(spin.mean, 3)} RPS after ${PISTON_SPIN_SECONDS} s, one piston, no shaft, cap ${STEAM.crankSpeedCap}`],
           ]}
         />
       )}
