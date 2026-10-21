@@ -1,0 +1,56 @@
+## 2. #169 Fluid Hose Anchor, #175 Fluid Hose Pulley and #176 Fluid Hose Pulley (Corner)
+
+**Verdict: partly.** The exchange flags' meaning and the carried-end construction are now distinguished. The complete attachment-validity policy is not recovered.
+
+The bytes previously called link-validity flags are not a complete validity test. The completed component-to-component link constructor, `0x140521500`, sets the initiating endpoint's exchange flag and clears the receiving endpoint's corresponding flag while retaining the link. This assigns the exchange to one endpoint and prevents treating the other endpoint's cleared flag as proof of an invalid attachment.
+
+For hooks with multiple attachment positions, the coupling name `Rope 2` selects the second side. The normal hydraulic pass chooses the linked pulley side by its reciprocal pointer. That pass remains the two-port network exchange already recovered in the earlier report.
+
+The carried-end path is different. Interaction handler `0x140776910` maps the held Hose equipment to a hose link and calls `0x1405209d0` when starting a loose, character-held connection. That constructor records a component endpoint and a character reference, clears the selected component exchange flag, and stores the link on the character. It does not install a second rope-hook component endpoint for the ordinary two-hook exchange. Consequently, holding the free end is not evidence that the `0x1403b6840` two-hook exchange is operating against a hidden second hook. Any discharge or intake at that free end must be traced through character/equipment behavior separately.
+
+Exact evidence:
+
+- Initiating first-side flag: `0x140521c53`, `c6 86 a8 0a 00 00 01`. Receiving first-side flag: `0x140521ebd`, `c6 87 a8 0a 00 00 00`. The second-side equivalents are `0x140521b72`, `c6 86 a9 0a 00 00 01`, and `0x140521ddc`, `c6 87 a9 0a 00 00 00`. See [link-owner-first.asm](native/fluid-gaps/asm/link-owner-first.asm), [link-owner-second.asm](native/fluid-gaps/asm/link-owner-second.asm), and [140521500.c](native/fluid-gaps/pseudocode/140521500.c).
+- The side-name data at `0x140b87094` is `52 6f 70 65 20 32 00`, the string `Rope 2`. This is a coupling-position discriminator, not a fluid-species or hose-compatibility test.
+- The held-end constructor clears the first-side flag at `0x140520ea4`, `c6 87 a8 0a 00 00 00`, and stores the link on the character at `0x140520f79`, `49 89 b7 98 40 00 00`. See [held-link-construction.asm](native/fluid-gaps/asm/held-link-construction.asm) and [1405209d0.c](native/fluid-gaps/pseudocode/1405209d0.c).
+- Completed first-side exchange calls the network solver at `0x1403b6c4a`, `e8 81 6c f3 ff`. The preceding endpoint selection is `0x1403b6c11`, `48 39 9a a0 0a 00 00`, then `0x1403b6c1a`, `48 81 c2 50 09 00 00`, for the reciprocal second port, or `0x1403b6c23`, `48 81 c2 18 09 00 00`, for the first port. See [hose-side1.asm](native/fluid-gaps/asm/hose-side1.asm).
+
+What stays open: exhaustive compatibility rules across interaction UI, scripting, loaded cables and edited attachments; all rejection cases; and the character-held free end's actual fluid operation. The inspected constructors contain existence, endpoint-position and distance gates, and the interaction path checks occupied attachment positions. These do not prove that every upstream entry point enforces the same policy. None of these gaps is inherently measurement-only.
+
+Wiki-ready replacement for #169: "Completed links exchange fluid once through the endpoint assigned to perform the exchange; a character-held loose hose uses a separate link path, whose fluid operation and complete attachment restrictions remain untraced."
+
+Wiki-ready replacement for #175: "The hose pulley selects its linked hydraulic side through reciprocal attachment pointers, while one endpoint performs each exchange; complete attachment restrictions and loose-end fluid behavior remain untraced."
+
+Wiki-ready replacement for #176: "The corner hose pulley uses the same endpoint exchange scheme as the straight pulley; complete attachment restrictions and character-held loose-end fluid behavior remain untraced."
+
+## 4. #174 Fluid Spawner
+
+**Verdict: partly.** Diesel and jet-fuel fill are decoded. Arbitrary-wall volume, default ambient contents and hull flooding are still incomplete.
+
+The second fuel arm at the supplied lead is real. It requires a spawner water component, an assigned enclosing compartment, and diesel or jet-fuel selection. Within the request-gated fill pass described in section 5, it computes
+
+```
+q = min(C.volume - C.total, C.volume * selected_fill * float32(0.99))
+if inventory_branch:
+    q = min(q, available_stock[selected_fuel])
+    if q > 0:
+        available_stock[selected_fuel] -= q
+if q > 0:
+    C.amount[selected_fuel] += q
+    C.total += q
+```
+
+It adds to the selected species; it does not replace all existing compartment contents. The compartment-space limit includes the existing total, so the exact amount depends on prior initialization, other spawners, and restored contents. This fuel arm does not perform the fixed tank's separate ambient-air addition after the fuel store.
+
+Exact evidence in [spawner-fuel-fill.asm](native/fluid-gaps/asm/spawner-fuel-fill.asm):
+
+- `0x1405dc1ee`, `83 b9 cc 0e 00 00 07`, selects water type 7. `0x1405dc221`, `83 b8 88 05 00 00 01`, and `0x1405dc236`, `83 b8 88 05 00 00 02`, select fuel indices 1 and 2.
+- `0x1405dc24f`, `48 8b 88 b0 04 00 00`, resolves the enclosing compartment. `0x1405dc271`, `f3 0f 5c 79 70`, forms remaining space. `0x1405dc282`, `f3 0f 59 b0 90 05 00 00`, multiplies by selected fill; `0x1405dc28a`, `f3 41 0f 59 f6`, multiplies by the retained 0.99 constant. That constant is `0x140bafeac`, bytes `a4 70 7d 3f`, binary32 `0.9900000095367432`. `0x1405dc28f`, `f3 0f 5d fe`, applies the remaining-space minimum.
+- `0x1405dc3bd`, `f3 0f 11 84 8b 4c 01 00 00`, stores the reduced stock. `0x1405dc3fe`, `f3 0f 11 44 8b 3c`, stores the increased compartment species. `0x1405dc41c`, `f3 0f 11 79 70`, stores the increased total. Full surrounding control flow is retained in [1405dafa0.c](native/fluid-gaps/pseudocode/1405dafa0.c).
+
+For geometry, this investigation retains the earlier scan-line builder, not a new wall-shape decoder. It integrates half-cell occupancy transitions in `0x1402f5cd0` and stores the result at `0x1402f63f3`, bytes `f3 44 0f 11 5e 38`. See [1402f5cd0.c](native/fluid-gaps/pseudocode/1402f5cd0.c) and [geometry-volume-store.asm](native/fluid-gaps/asm/geometry-volume-store.asm). Calling each bounding-box voxel usable fluid volume would bypass the untraced wall-occupancy classification. Likewise, observing a zeroed constructor does not establish the final fresh-room ambient gas after all build passes.
+
+What stays open: a wall-shape-to-occupancy mapping sufficient to compute arbitrary custom-room volumes from definitions; complete fresh-room ambient gas initialization; and a full aperture, external-water and hull-flooding equation. The relevant retained body builder and fluid-update traces are `0x140486ca0`, `0x1404a80c0` and `0x14049cbc0`. These remain static-analysis gaps. A running-game measurement is needed to validate the resulting model on a specific hull, not because the executable lacks the implementation.
+
+Wiki-ready replacement: "Diesel and jet-fuel spawning adds the requested fuel subject to remaining compartment space and any applicable stock limit; arbitrary wall-derived capacity, default ambient gas and hull flooding are not yet fully decoded."
+

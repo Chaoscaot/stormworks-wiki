@@ -5090,6 +5090,7 @@ def engines(B, E):
     t_ports = [E.port("turbine", label) for label in ("RPS", "Starter", "Throttle", "Electric")]
     t_tip = E.tooltip("turbine")
     na = new_issues_native(E)
+    oi = open_issues_native(E)
     t_dep = [na[k] for k in ("dp_flags", "dp_bind", "dp_name", "dp_str", "dp_cat", "dp_res", "dp_veh", "dp_avail")]
     t_weight = E.derived("Legacy turbine shaft weight", "50", "100000 × 1 ÷ 2000 at Max Power 100 %. Diesel demand at the same scale would be 5 times the small diesel's, but the shipped turbine has no fuel port." + " Report: %s." % CE_REPORT,
                          [turbine, f["w_div"]])
@@ -5141,7 +5142,7 @@ def engines(B, E):
                [controls, variants, curves, shaft, reverse, cooling, starter,
                 section("Legacy turbine",
                         "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0. "
-                        "It is marked Deprecated and left out of the component catalog; see its own article.")],
+                        "It is marked Deprecated and left out of the component catalog, but a saved one still loads as this engine; see its own article.")],
                forces + mags + [turbine, t_mag, t_weight] + ports + every + dg_reverse + [na["dp_avail"]],
                open_limits)
     B.family("diesel-engine",
@@ -5150,7 +5151,7 @@ def engines(B, E):
              forces + mags + ports + [turbine] + every + dg_reverse,
              open_limits)
     B.family("part-turbine",
-             "A deprecated classic engine left out of the component catalog: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
+             "A deprecated classic engine left out of the component catalog that still loads from saved vehicles: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
              [section("How the update works",
                       "turbine.xml has component type 5, so the game builds it with the same constructor and update as the diesel engines, not the jet update. engine_max_force 100000 gives shaft weight W = 50 at Max Power 100 %. "
                       "Throttle is clamped to 0 to 1, although the tooltip describes -1 to 1, and the RPS Limiter, 0.99 retention, heating and overheat rules match the diesels."),
@@ -5163,11 +5164,17 @@ def engines(B, E):
               section("Availability",
                       "turbine.xml carries definition flags 537133056, which include the Deprecated bit. The game appends \" (Deprecated)\" to the name of every part with that bit, "
                       "and leaves such parts out of the component catalog rebuild, the research and catalog state and the component list for existing vehicles. "
-                      "None of these tests checks career or creative mode, so the Turbine Engine cannot be picked from the normal component catalog in any mode.")],
+                      "None of these tests checks career or creative mode, so the Turbine Engine cannot be picked from the normal component catalog in any mode."),
+              section("Loading saved vehicles",
+                      "The vehicle reader looks each saved component's definition name up among the loaded definitions and passes the match's component type to the component factory. "
+                      "turbine.xml has type 5, so the factory calls the classic engine constructor, and the reader then binds the definition, restores the saved state and initializes the part. "
+                      "Neither the reader nor the factory tests the Deprecated bit, and nothing on this route replaces the part with a modular jet or migrates it. "
+                      "A saved vehicle that contains a Turbine Engine therefore loads it as the original classic engine: the catalog skip keeps it out of the parts list but does not reject it on load. "
+                      "The construction factory calls the same constructor, so internal construction paths can still build one; this does not give scripts a way to place an arbitrary part.")],
              [turbine, t_mag, t_weight, t_tip] + t_ports + C["identity"] + C["speed"] + [f["inf_fuel"], f["f_force"], f["gate"], f["heat"], f["heat_s"], f["s_target"], f["starter"], f["coolant"]]
-             + t_dep + [na["cc_intake"], na["cc_fuel"]],
-             ["Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, whether loading an older vehicle or a special spawning path can still place one, "
-              "and whether an indirect world, editor or script writer fills its private compartments, was not traced.", TICK])
+             + t_dep + [na["cc_intake"], na["cc_fuel"]] + [oi[k] for k in ("tl_type", "tl_call", "tl_ctor", "tl_def", "tl_load", "tl_route")],
+             ["Static analysis of one build; the game was not run. Whether a writer reached indirectly through a world, script, editor, copy or load path fills the private fuel or intake compartments was not traced: "
+              "the search covered direct stores at their offsets and the generic environment update, which touches only the coolant. Vehicle files from formats older than the current reader were not traced either.", TICK])
 
 
 # propulsion pass; files under investigation/native/propulsion/, report investigation/propulsion.md.
@@ -8931,8 +8938,13 @@ def more_families(B, E):
            [("Operating conditions", "Hold Deploy on; it closes when the signal stops or it stalls. Size is set with the select tool.")],
            [T("parachute"), P("parachute", "Deploy")], [])
     simple("part-oil-rig-well-head", "Anchors only within about 1 m of terrain and ±30 degrees of upright; unanchoring resets drilling progress.",
-           [("Setup and interactions", "Drive the rod from a rotary table, force it down and keep drilling slurry flowing through a swivel; extract saturated slurry from the well head.")],
-           [T("oil_rig_well_head"), P("oil_rig_well_head", "Anchor")], [])
+           [("Setup and interactions", "Drive the rod from a rotary table, force it down and keep drilling slurry flowing through a swivel; extract saturated slurry from the well head."),
+            ("Crude supply",
+             "The well head samples a point at its drilling depth below the head and picks an oil deposit whose sphere strictly contains that point and that still holds crude; of those it takes the one with the most remaining crude, and on a tie the first one found. "
+             "Its buffer refills by q = min(free buffer room × 0.05, deposit remaining) per update, and the deposit loses what it gives. An oil component coupled to it mechanically draws that buffer into an Oil Rig Pumpjack's piston.")],
+           [T("oil_rig_well_head"), P("oil_rig_well_head", "Anchor")]
+           + [open_issues_native(E)[k] for k in ("d_query", "d_radius", "d_inside", "d_left", "d_best", "d_tie", "s_head", "sched")]
+           + [fluid_gaps_native(E)[k] for k in ("d_rate", "d_min", "d_store", "w_min")], [])
 
     # Electricity helpers.
     N = electricity_native(E)
@@ -10432,26 +10444,36 @@ def small_parts(B, E):
     fg = fluid_gaps_native(E)
     pump = [fg[k] for k in ("pj_range", "pj_half", "pj_scale", "pj_h", "pj_store", "pj_bias", "pj_dir", "pj_call")]
     well = [fg[k] for k in ("w_room", "w_min", "w_add", "w_debit", "d_rate", "d_min", "d_store")]
+    oi = open_issues_native(E)
+    stroke = [oi[k] for k in ("pj_arm", "pj_prev", "pj_read", "pj_x", "pj_flags")]
+    deposit = [oi[k] for k in ("d_query", "d_radius", "d_inside", "d_left", "d_best", "d_tie")]
     B.family("part-oil-rig-pumpjack",
-             "Pumps crude from a finite well buffer out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B: the piston sets a chamber of volume 10 × its travel fraction, and a pump_pressure bias of 10000 pushes the excess out.",
+             "Pumps crude from a finite well buffer out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B: the piston follows its sliding constraint and sets a chamber of volume 10 × its travel fraction, and a pump_pressure bias of 10000 pushes the excess out.",
              [section("Piston",
-                      "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port."),
+                      "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port. "
+                      "The piston slides on a physical constraint. Each update the pumpjack's joint update, selected by definition flag bit 0x4000, keeps the previous piston position and copies the constraint's measured position into the displacement x that the pump chamber reads. "
+                      "No function turns shaft speed into stroke. The connected mechanism, its crank geometry, the constraint forces and the load decide x, so a drive's RPS alone does not fix the stroke."),
               section("Pump chamber",
                       "Each update the pumpjack reads the piston's displacement x, its travel range r and the sign s of its mirrored axis, and forms the travel fraction u = clamp((s × x + r ÷ 2) ÷ r, 0, 1). "
                       "It sets the chamber's volume to V = 10 × u, 100 L at full travel. With A the amount already in the chamber, the exchange factor is h = clamp(A − V, 0, 1): fluid leaves only while the chamber holds more than its volume, as when the piston compresses a filled chamber. "
-                      "This step changes the chamber's size and adds no crude."),
+                      "This step changes the chamber's size and adds no crude. Over a stroke the volume sweeps 10 × (largest u − smallest u), 10 units for full travel; that is a change in chamber size, not oil delivered."),
               section("Outflow",
                       "The pumpjack calls the port solver between Fluid Out and the chamber with bias pump_pressure, 10000, factor h and all species, allowing only flow from the chamber to the port. "
                       "The solver's signed difference is d = P_port − P_chamber − 10000, so the bias pushes crude out against outlet pressure. It is a pressure bias in the transfer, not a rupture pressure or an outlet ceiling. "
-                      "The delivered amount still depends on the solver, the pressures on both sides and h."),
+                      "Oil delivered over a cycle is the sum of these chamber-to-port transfers. Well supply limits what enters the chamber; outlet pressure, the fluids already present, the amounts at both ends, network storage and the solver's rate limits decide what leaves."),
               section("Well supply",
-                      "A separate branch tops the piston up from the well buffer: q = min(10 × u − A, buffer crude). A positive q moves that crude from the buffer into the piston, so the pumpjack draws a finite supply rather than creating oil. "
-                      "The buffer refills from an oil deposit by q = min(free buffer room × 0.05, deposit remaining), and the deposit loses what it gives. "
-                      "The deposit used is the non-empty one with the most remaining crude whose region contains the sampling point.")],
-             pj + pump + well + [A("oil_rig_pumpjack", "child_name", "Names the piston."), A("oil_rig_pumpjack", "pump_pressure", "Bias the pump branch passes to the port solver: d = P_port − P_chamber − pump_pressure, outflow only."),
-                                 A("oil_rig_pumpjack_b", "flags", "Value 128 sets bit 0x80."), P("oil_rig_pumpjack", "Fluid Out"), T("oil_rig_pumpjack")],
-             [SP_PLAIN, "The chamber scale and the supply equations are decoded, but delivered volume per stroke or per second depends on piston motion and the connected fluid system. "
-              "The piston's motion under a mechanical drive, which deposits a well may draw from, the scheduling of the pump and supply branches and the outflow over a real cycle were not traced, so no amount per stroke or per simulated second is given."])
+                      "The crude comes from an Oil Rig Well Head. The well head samples a point at its drilling depth below the head and picks a deposit: the point must lie strictly inside the deposit's sphere, with squared distance below radius squared, and the deposit must still hold crude. "
+                      "Of those it takes the one with the most remaining crude, and on a tie the first one found. Exhausted candidates are dropped from the search. "
+                      "The well head's buffer refills by q = min(free buffer room × 0.05, deposit remaining), and the deposit loses what it gives. "
+                      "A separate supply arm, in an oil component mechanically coupled to the well head, tops the piston up from that buffer: q = min(10 × u − A, buffer crude). A positive q moves that crude from the buffer into the piston, so the pumpjack draws a finite supply rather than creating oil."),
+              section("Update order",
+                      "The chamber and outflow pass, the well head's refill and the supply arm belong to separate components. The game updates each component once per update in the order of the vehicle's component list. "
+                      "The refill and the supply therefore run once per update, not once per stroke, and the list order decides whether a step sees another component's state from before or after that component's step.")],
+             pj + stroke + pump + well + deposit + [oi["s_head"], oi["sched"]]
+             + [A("oil_rig_pumpjack", "child_name", "Names the piston."), A("oil_rig_pumpjack", "pump_pressure", "Bias the pump branch passes to the port solver: d = P_port − P_chamber − pump_pressure, outflow only."),
+                A("oil_rig_pumpjack_b", "flags", "Value 128 sets bit 0x80."), P("oil_rig_pumpjack", "Fluid Out"), T("oil_rig_pumpjack")],
+             [SP_PLAIN, "The physical constraint solver that moves the piston and the component-list order on every loading and construction path were not traced. "
+              "Oil delivered per stroke or per simulated second depends on the mechanism, the fluid network and the starting state, so no single amount is given."])
 
 NU_REPORT = "investigation/nuclear.md"
 NU_DATA = "investigation/native/nuclear/nuclear.json"
@@ -11566,7 +11588,7 @@ def new_issues_native(E):
     t["dp_flags"] = E.attr("turbine", "flags", "537133056 is 0x20040000, so it carries the Deprecated bit 0x20000000; the 0x40000 bit is not interpreted here." + rep)
     t["dp_avail"] = E.derived("Turbine Engine availability", "Deprecated; left out of the normal component catalog in every mode",
                               "turbine.xml has the Deprecated bit, so the game shows it as \"Turbine Engine (Deprecated)\" and the catalog rebuild, the research and catalog state and the existing-vehicle component list all skip it, with no career or creative test. "
-                              "Loading an older vehicle that contains one and special spawning paths are separate routes." + rep,
+                              "Loading a saved vehicle is a separate route: the vehicle reader and the component factory do not test the bit, so a saved Turbine Engine still loads." + rep,
                               [t["dp_flags"], t["dp_name"], t["dp_cat"], t["dp_res"], t["dp_veh"]])
     t["cc_intake"] = code(F_CE_CTOR, 0x14034AB45, "4889b798040000", "Classic engine constructor clears intake state", "0",
                           "The classic engine constructor stores zero to the private intake container at component+0x498; the fuel container is cleared at 0x14034abae.")
@@ -12461,6 +12483,105 @@ def followups_native(E):
     t["ab_mix"] = code(F_MIX, "jet-diffusion-final.asm", 0x1402ED5CE, "f30f114214", "Mixing store to the buffer", "J + 0.5 × m × (N ÷ S_N − J ÷ S_P)",
                        "Stores the buffer's new jet fuel (again at 0x1402ed5f3); the network side is stored at 0x1402ed5e1 and 0x1402ed5fe. The combined jet fuel is conserved apart from rounding, so this moves fuel and burns none.")
     E.followups = t
+    return t
+
+
+# Open-issue pass: pumpjack piston source, deposit selection and scheduling, and the legacy turbine load route;
+# files under investigation/native/open-issues/.
+OI_REPORT = "investigation/open-issues.md"
+_OI = "open-issues/"
+OIL_UPDATE_SLOT = 0x140B836F8   # slot +0x358 of c_scene_vehicle_component_oil_rig: the oil update 0x14044fd00
+OI_PSEUDO = {F_JOINT: "0x140357ca0.c", F_WELL: "14044fd00.c", F_COMP_LOAD: "0x1404b81f0.c", F_FACTORY_B: "0x1404b8f30.c"}
+
+
+def _oi_cite(E, func, address, hexbytes, listing):
+    """Cite open-issues listing lines of the cited bytes, refusing to replace another listing's citation."""
+    k = (func, address)
+    old = WHERE.pop(k, None)
+    _wheel_cite(E, func, address, hexbytes, listing=_OI + "asm/" + listing)
+    WHERE[k] += "; ../" + _OI + "pseudocode/" + OI_PSEUDO[func]
+    if old is not None and old != WHERE[k]:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+
+
+def open_issues_native(E):
+    """Pumpjack piston position, well deposit selection, oil update scheduling and the turbine load route, verified once and shared."""
+    if hasattr(E, "open_issues"):
+        return E.open_issues
+    n = E.native
+    if not (E.root / OI_REPORT).is_file():
+        raise ValueError("Report missing: " + OI_REPORT)
+    for slot, target in ((OIL_UPDATE_SLOT, F_WELL), (0x140B02D60, F_MB_UPDATE)):
+        if struct.unpack("<Q", n.raw(slot, 8))[0] != target:
+            raise ValueError("Vtable entry %#x does not point to %#x" % (slot, target))
+    if _rtti(n, OIL_UPDATE_SLOT - 0x358) != "c_scene_vehicle_component_oil_rig":
+        raise ValueError("Oil update slot is not in the oil-rig vtable")
+    # The XML reader and both factories neither test the Deprecated bit nor read the flags field.
+    for func in (F_COMP_LOAD, F_FACTORY_B, F_FACTORY):
+        body = n.body(func)[1]
+        if bytes.fromhex("00000020") in body or bytes.fromhex("b8020000") in body:
+            raise ValueError("%#x now addresses the definition flags" % func)
+    rep = " Report: %s." % OI_REPORT
+
+    def code(func, listing, address, hexbytes, label, value, detail):
+        _oi_cite(E, func, address, hexbytes, listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    t = {}
+    # Pumpjack: the joint update copies the sliding constraint's position into the chamber's x.
+    pu = "piston-update.asm"
+    t["pj_arm"] = code(F_JOINT, pu, 0x14035829A, "48a900400000", "Pumpjack arm of the joint update", "definition flag bit 0x4000",
+                       "The multibody joint update tests the definition flags, read from definition+0x2b8 at 0x140357ebc, for bit 0x4000 and runs the pumpjack arm when it is set.")
+    t["pj_prev"] = code(F_JOINT, pu, 0x1403582B3, "898394040000", "Pumpjack previous piston position", "component+0x494",
+                        "The arm first copies the current piston position at component+0x490 (read at 0x1403582a2) to component+0x494.")
+    t["pj_read"] = code(F_JOINT, pu, 0x1403582B9, "8b8720010000", "Sliding constraint position", "constraint+0x120",
+                        "Reads the measured position of the pumpjack's physical sliding constraint.")
+    t["pj_x"] = code(F_JOINT, pu, 0x1403582BF, "898390040000", "Piston position for the pump chamber", "component+0x490",
+                     "Stores that position as the piston position x, which the pump branch of the multibody update reads at 0x140357b02. "
+                     "The arm takes x from the constraint as it is; it computes no stroke from a shaft speed.")
+    t["pj_flags"] = E.attr("oil_rig_pumpjack", "flags", "2147500096 is 0x80004040, so it carries bit 0x4000, which selects the pumpjack arm of the joint update." + rep)
+    # Well head: deposit query and selection.
+    wu = "well-update.asm"
+    t["d_query"] = code(F_WELL, wu, 0x1404503B2, "e829324900", "Deposit spatial query", "call 0x1408e35e0",
+                        "The well head's oil update queries a spatial index for deposit candidates near its sampling point, a point at the well's drilling depth below the head.")
+    t["d_radius"] = code(F_WELL, wu, 0x140450408, "f30f104918", "Deposit radius", "deposit+0x18",
+                         "Loads the candidate's radius; the update squares it (0x140450421) and forms the squared distance from the sampling point to the deposit centre in binary64.")
+    t["d_inside"] = code(F_WELL, wu, 0x14045042C, "762d", "Deposit containment test", "distance² < radius²",
+                         "Skips a candidate unless radius² is strictly greater than the squared distance, so a point on the sphere's surface does not count.")
+    t["d_left"] = code(F_WELL, wu, 0x140450433, "410f2fc0", "Deposit remaining test", "remaining > 0",
+                       "Compares the candidate's remaining crude (deposit+0x20) with 0. A candidate with none left is removed from the spatial index (call at 0x14045044c) and not chosen.")
+    t["d_best"] = code(F_WELL, wu, 0x14045043E, "0f2f4720", "Richest deposit comparison", "remaining > best remaining",
+                       "The first qualifying candidate is taken; a later one replaces it only when it holds more crude.")
+    t["d_tie"] = code(F_WELL, wu, 0x140450442, "7617", "Deposit tie rule", "equal or smaller: keep the first",
+                      "Jumps past the replacement when the candidate holds the same or less, so on a tie the first qualifying deposit stays. The choice is stored at component+0x3c0 (0x140450485) and the refill uses it.")
+    t["s_head"] = code(F_WELL, wu, 0x1404510C2, "83b8cc2c000005", "Supply arm needs a coupled well head", "oil_component_type 5",
+                       "The supply arm follows its mechanical coupling and runs only when the component on the other end has oil_component_type 5, the well head. "
+                       "It is an arm of the oil update selected by the component's own oil type, separate from the well head's refill arm.")
+    # Scheduling: separate components, one call each through slot +0x358.
+    each = update_rate(E)["findings"][3]
+    t["sched"] = E.derived("Pumpjack, well head and supply scheduling", "once per component per update, in component-list order",
+                           "The pumpjack's chamber and outflow pass is slot +0x358 of the multibody vtable (0x140b02d60 holds 0x140357a60); the well head's refill and the supply arm are slot +0x358 of the oil-rig vtable (0x140b836f8 holds 0x14044fd00). "
+                           "The extractor re-reads both pointers. The dispatcher calls that slot once per component, walking the vehicle's component list, so the refill and the supply run once per component pass, not once per stroke, "
+                           "and list order decides which state each step sees." + rep,
+                           [each, t["pj_x"], t["s_head"]])
+    # Legacy turbine: the XML component reader and factory.
+    cl = "component-load.asm"
+    t["tl_type"] = code(F_COMP_LOAD, cl, 0x1404B84AB, "8b97ac020000", "Saved component type", "definition+0x2ac",
+                        "The XML component reader looks the saved definition name up among the loaded definitions and reads the matching definition's component type.")
+    t["tl_call"] = code(F_COMP_LOAD, cl, 0x1404B84B8, "e8730a0000", "Reader calls the component factory", "call 0x1404b8f30",
+                        "Passes that type to the component factory 0x1404b8f30.")
+    t["tl_ctor"] = code(F_FACTORY_B, "component-factory.asm", 0x1404B90F6, "e8d516e9ff", "Factory classic engine case", "call 0x14034a7d0",
+                        "The factory's case for type 5, the type in turbine.xml, calls the classic engine constructor, the same one the diesel engines use.")
+    t["tl_def"] = code(F_COMP_LOAD, cl, 0x1404B84DD, "4c8b5108", "Definition assignment", "slot +0x8",
+                       "The reader then loads slot +0x8 of the new component, which binds the matched definition.")
+    t["tl_load"] = code(F_COMP_LOAD, cl, 0x1404B8502, "41ffd2", "Saved state restore", "slot +0x260",
+                        "Calls the component's deserializer, loaded from slot +0x260 at 0x1404b84ed, before the initializer and registration.")
+    t["tl_route"] = E.derived("Saved Turbine Engine load route", "loads as the classic engine; no Deprecated test, no modular-jet substitute",
+                              "The extractor scans the XML reader 0x1404b81f0 and the factories 0x1404b8f30 and 0x14045dd20 and finds neither the Deprecated bit 0x20000000 nor the flags offset +0x2b8. "
+                              "A saved component whose name matches turbine is therefore built by the classic engine constructor and restored like any other part; the catalog's Deprecated skip does not apply to loading. "
+                              "No turbine-specific migration and no modular-jet replacement appears on this route. The construction factory 0x14045dd20 calls the same constructor (0x14045ded8)." + rep,
+                              [t["tl_type"], t["tl_call"], t["tl_ctor"], t["tl_def"], t["tl_load"]])
+    E.open_issues = t
     return t
 
 

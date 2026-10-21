@@ -1,0 +1,31 @@
+## #172 Turbine Engine, legacy part
+
+**Verdict: partly.** Deprecated status and normal catalog exclusion are established. Current construction and serialization provide stronger bounds on compartment state. Version-specific migration of older saves and a complete inventory of indirect world writers remain open.
+
+The shipped definition is still the classic engine type, using the same factory/update family as the diesels. It is not a modular jet turbine. Its exact resource flags are `537133056`, or `0x20040000`. These are source data, not instruction immediates: see the second line of `tools/turbine.xml`, whose literal flag digits have ASCII bytes `35 33 37 31 33 33 30 35 36`. The executable reads definition flags into its flags member and explicitly uses the `0x20000000` bit to append the literal ` (Deprecated)` to a definition's display name. This report does not invent a meaning for the remaining `0x40000` bit.
+
+| Meaning | Address and exact bytes |
+|---|---|
+| Definition flags destination | `0x140316b26`: `4c 8d 8e b8 02 00 00` (lea    r9,[rsi+0x2b8]) |
+| Definition flags key | `0x140316b32`: `4c 8d 05 0f 12 83 00` (lea    r8,[rip+0x83120f]) |
+| Deprecated display-name test | `0x14031cd63`: `48 f7 c1 00 00 00 20` (test   rcx,0x20000000) |
+| Catalog rebuild deprecated exclusion | `0x140775856`: `48 a9 00 00 00 20` (test   rax,0x20000000) |
+| Research/catalog state deprecated exclusion | `0x14077b4a8`: `48 a9 00 00 00 20` (test   rax,0x20000000) |
+| Existing-vehicle component-list deprecated exclusion | `0x1407d159a`: `48 a9 00 00 00 20` (test   rax,0x20000000) |
+| Constructor clears private intake state | `0x14034ab45`: `48 89 b7 98 04 00 00` (mov    QWORD PTR [rdi+0x498],rsi) |
+| Constructor clears private fuel species state | `0x14034abae`: `48 89 b7 f4 04 00 00` (mov    QWORD PTR [rdi+0x4f4],rsi) |
+| Initializer fills coolant species | `0x14034b67a`: `c7 87 58 04 00 00 00 00 20 41` (mov    DWORD PTR [rdi+0x458],0x41200000) |
+| Initializer sets coolant total | `0x14034b670`: `c7 87 8c 04 00 00 00 00 20 41` (mov    DWORD PTR [rdi+0x48c],0x41200000) |
+
+The catalog rebuild omits deprecated definitions before inserting them into its category lists. Related research/catalog state and existing-vehicle list paths also exclude them. These particular exclusions do not depend on a career-versus-creative switch. Consequently, the turbine's presence in the shipped resource directory does not mean that a player can select it from the normal current catalog. This does not prove a ban on loading a previously saved vehicle containing one, editor/debug tools, or custom spawning paths. A separate development UI contains a “filter deprecated” selector; its mere presence is not evidence that the normal player catalog has a bypass. The relevant predicate pseudocode is retained in `0x1407757d0.c`, `0x14077b430.c`, `0x1407d14f0.c`, and `tools/menu-deprecation-predicates.txt`.
+
+For current construction, `0x14034a7d0` clears the classic engine's private intake/fuel/exhaust containers. `0x14034b440` then binds ports through the shipped definition and sets capacities. The turbine definition has no corresponding fluid ports. Importantly, “every compartment remains empty” would be too broad: the common initializer explicitly puts coolant into its coolant container. The constructor/initializer pseudocode is retained, rather than treating constructor zeros as the final initialized state. The initializer stores float coolant contents using immediate bytes `00 00 20 41` at the instructions in the table above.
+
+The current engine serializer `0x14034e570` serializes port state and other engine values, but does not directly serialize the private intake/fuel containers. The base dynamic-component serializer is retained at `0x14032b010`. This supports a fresh transient-container state on the examined current construction/serialization path. It does not prove the treatment of every historical save version.
+
+**What stays open:** no complete version-aware route from an old turbine save through definition lookup, compatibility conversion and component creation was reconstructed. No specific historical save format/version was supplied. Whole-binary searches for the turbine string are insufficient to rule out a generic migration. Likewise, the ordinary update's lack of a usable fluid port does not prove that every generic world mutation, copy, editor or script path is unable to populate a private compartment. The indirect-writer audit is incomplete. These are remaining static-analysis questions, not effects that can only be measured by running the game.
+
+**Wiki-ready replacement for migration/state writers:** “The current constructor clears the turbine's private fuel and intake containers, and the shipped definition provides no fluid ports to fill them. The common initializer does fill coolant. Current serialization does not directly save the private fuel and intake containers, but historical save migration and all indirect world writers remain unverified.”
+
+**Wiki-ready replacement for availability:** “The Turbine Engine is marked Deprecated in its shipped definition and is excluded from the normal current component catalog. This catalog exclusion is not conditional on career or creative mode; loading older vehicles and special spawning paths are separate questions.”
+

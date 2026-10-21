@@ -1257,7 +1257,7 @@
         },
         {
           "title": "Legacy turbine",
-          "body": "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0. It is marked Deprecated and left out of the component catalog; see its own article."
+          "body": "The Turbine Engine part (turbine.xml) runs this same update with engine_max_force 100000, shaft weight 50. It ships with no fuel, air, coolant or exhaust port and electric_magnitude 0, so its supply gate and starter stay at 0. It is marked Deprecated and left out of the component catalog, but a saved one still loads as this engine; see its own article."
         }
       ],
       "limitations": [
@@ -106123,23 +106123,27 @@
     },
     {
       "id": "part-oil-rig-pumpjack",
-      "summary": "Pumps crude from a finite well buffer out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B: the piston sets a chamber of volume 10 × its travel fraction, and a pump_pressure bias of 10000 pushes the excess out.",
+      "summary": "Pumps crude from a finite well buffer out of Fluid Out when a mechanical force cycles its piston, Oil Rig Pumpjack B: the piston follows its sliding constraint and sets a chamber of volume 10 × its travel fraction, and a pump_pressure bias of 10000 pushes the excess out.",
       "sections": [
         {
           "title": "Piston",
-          "body": "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port."
+          "body": "The pumpjack names Oil Rig Pumpjack B as its child_name. The piston's own update does nothing (definition flag 0x80), so all pumping runs through this part and its Fluid Out port. The piston slides on a physical constraint. Each update the pumpjack's joint update, selected by definition flag bit 0x4000, keeps the previous piston position and copies the constraint's measured position into the displacement x that the pump chamber reads. No function turns shaft speed into stroke. The connected mechanism, its crank geometry, the constraint forces and the load decide x, so a drive's RPS alone does not fix the stroke."
         },
         {
           "title": "Pump chamber",
-          "body": "Each update the pumpjack reads the piston's displacement x, its travel range r and the sign s of its mirrored axis, and forms the travel fraction u = clamp((s × x + r ÷ 2) ÷ r, 0, 1). It sets the chamber's volume to V = 10 × u, 100 L at full travel. With A the amount already in the chamber, the exchange factor is h = clamp(A − V, 0, 1): fluid leaves only while the chamber holds more than its volume, as when the piston compresses a filled chamber. This step changes the chamber's size and adds no crude."
+          "body": "Each update the pumpjack reads the piston's displacement x, its travel range r and the sign s of its mirrored axis, and forms the travel fraction u = clamp((s × x + r ÷ 2) ÷ r, 0, 1). It sets the chamber's volume to V = 10 × u, 100 L at full travel. With A the amount already in the chamber, the exchange factor is h = clamp(A − V, 0, 1): fluid leaves only while the chamber holds more than its volume, as when the piston compresses a filled chamber. This step changes the chamber's size and adds no crude. Over a stroke the volume sweeps 10 × (largest u − smallest u), 10 units for full travel; that is a change in chamber size, not oil delivered."
         },
         {
           "title": "Outflow",
-          "body": "The pumpjack calls the port solver between Fluid Out and the chamber with bias pump_pressure, 10000, factor h and all species, allowing only flow from the chamber to the port. The solver's signed difference is d = P_port − P_chamber − 10000, so the bias pushes crude out against outlet pressure. It is a pressure bias in the transfer, not a rupture pressure or an outlet ceiling. The delivered amount still depends on the solver, the pressures on both sides and h."
+          "body": "The pumpjack calls the port solver between Fluid Out and the chamber with bias pump_pressure, 10000, factor h and all species, allowing only flow from the chamber to the port. The solver's signed difference is d = P_port − P_chamber − 10000, so the bias pushes crude out against outlet pressure. It is a pressure bias in the transfer, not a rupture pressure or an outlet ceiling. Oil delivered over a cycle is the sum of these chamber-to-port transfers. Well supply limits what enters the chamber; outlet pressure, the fluids already present, the amounts at both ends, network storage and the solver's rate limits decide what leaves."
         },
         {
           "title": "Well supply",
-          "body": "A separate branch tops the piston up from the well buffer: q = min(10 × u − A, buffer crude). A positive q moves that crude from the buffer into the piston, so the pumpjack draws a finite supply rather than creating oil. The buffer refills from an oil deposit by q = min(free buffer room × 0.05, deposit remaining), and the deposit loses what it gives. The deposit used is the non-empty one with the most remaining crude whose region contains the sampling point."
+          "body": "The crude comes from an Oil Rig Well Head. The well head samples a point at its drilling depth below the head and picks a deposit: the point must lie strictly inside the deposit's sphere, with squared distance below radius squared, and the deposit must still hold crude. Of those it takes the one with the most remaining crude, and on a tie the first one found. Exhausted candidates are dropped from the search. The well head's buffer refills by q = min(free buffer room × 0.05, deposit remaining), and the deposit loses what it gives. A separate supply arm, in an oil component mechanically coupled to the well head, tops the piston up from that buffer: q = min(10 × u − A, buffer crude). A positive q moves that crude from the buffer into the piston, so the pumpjack draws a finite supply rather than creating oil."
+        },
+        {
+          "title": "Update order",
+          "body": "The chamber and outflow pass, the well head's refill and the supply arm belong to separate components. The game updates each component once per update in the order of the vehicle's component list. The refill and the supply therefore run once per update, not once per stroke, and the list order decides whether a step sees another component's state from before or after that component's step."
         }
       ],
       "findings": [
@@ -106190,6 +106194,67 @@
             "sha256": "ca440be6efffa8dd23c8db7c420784ae43561a02184d0a924b68bd80854f299c",
             "lineStart": 144,
             "lineEnd": 144
+          }
+        },
+        {
+          "label": "Pumpjack arm of the joint update",
+          "value": "definition flag bit 0x4000",
+          "detail": "The multibody joint update tests the definition flags, read from definition+0x2b8 at 0x140357ebc, for bit 0x4000 and runs the pumpjack arm when it is set. Report: investigation/open-issues.md. Function 0x140357d75-0x1403587fe; instruction bytes 48a900400000 at 0x14035829a. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/piston-update.asm:L327; ../open-issues/pseudocode/0x140357ca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357d75@0x14035829a",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14035829a"
+          }
+        },
+        {
+          "label": "Pumpjack previous piston position",
+          "value": "component+0x494",
+          "detail": "The arm first copies the current piston position at component+0x490 (read at 0x1403582a2) to component+0x494. Report: investigation/open-issues.md. Function 0x140357d75-0x1403587fe; instruction bytes 898394040000 at 0x1403582b3. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/piston-update.asm:L332; ../open-issues/pseudocode/0x140357ca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357d75@0x1403582b3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403582b3"
+          }
+        },
+        {
+          "label": "Sliding constraint position",
+          "value": "constraint+0x120",
+          "detail": "Reads the measured position of the pumpjack's physical sliding constraint. Report: investigation/open-issues.md. Function 0x140357d75-0x1403587fe; instruction bytes 8b8720010000 at 0x1403582b9. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/piston-update.asm:L333; ../open-issues/pseudocode/0x140357ca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357d75@0x1403582b9",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403582b9"
+          }
+        },
+        {
+          "label": "Piston position for the pump chamber",
+          "value": "component+0x490",
+          "detail": "Stores that position as the piston position x, which the pump branch of the multibody update reads at 0x140357b02. The arm takes x from the constraint as it is; it computes no stroke from a shaft speed. Report: investigation/open-issues.md. Function 0x140357d75-0x1403587fe; instruction bytes 898390040000 at 0x1403582bf. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/piston-update.asm:L334; ../open-issues/pseudocode/0x140357ca0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140357d75@0x1403582bf",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403582bf"
+          }
+        },
+        {
+          "label": "Oil Rig Pumpjack · flags",
+          "value": "2147500096",
+          "detail": "oil_rig_pumpjack: definition attribute flags. 2147500096 is 0x80004040, so it carries bit 0x4000, which selects the pumpjack arm of the joint update. Report: investigation/open-issues.md.",
+          "evidenceId": "resource:rom/data/definitions/oil_rig_pumpjack.xml:1e07070f92f9:L2-L2",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/oil_rig_pumpjack.xml",
+            "sha256": "1e07070f92f9a1c7277201e4004f6a54e0664b41b3e95435e2791e5d32af06a4",
+            "lineStart": 2,
+            "lineEnd": 2
           }
         },
         {
@@ -106373,6 +106438,102 @@
           }
         },
         {
+          "label": "Deposit spatial query",
+          "value": "call 0x1408e35e0",
+          "detail": "The well head's oil update queries a spatial index for deposit candidates near its sampling point, a point at the well's drilling depth below the head. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes e829324900 at 0x1404503b2. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L348; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x1404503b2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404503b2"
+          }
+        },
+        {
+          "label": "Deposit radius",
+          "value": "deposit+0x18",
+          "detail": "Loads the candidate's radius; the update squares it (0x140450421) and forms the squared distance from the sampling point to the deposit centre in binary64. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f104918 at 0x140450408. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L369; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450408",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450408"
+          }
+        },
+        {
+          "label": "Deposit containment test",
+          "value": "distance² < radius²",
+          "detail": "Skips a candidate unless radius² is strictly greater than the squared distance, so a point on the sphere's surface does not count. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 762d at 0x14045042c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L378; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045042c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045042c"
+          }
+        },
+        {
+          "label": "Deposit remaining test",
+          "value": "remaining > 0",
+          "detail": "Compares the candidate's remaining crude (deposit+0x20) with 0. A candidate with none left is removed from the spatial index (call at 0x14045044c) and not chosen. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 410f2fc0 at 0x140450433. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L380; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450433",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450433"
+          }
+        },
+        {
+          "label": "Richest deposit comparison",
+          "value": "remaining > best remaining",
+          "detail": "The first qualifying candidate is taken; a later one replaces it only when it holds more crude. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 0f2f4720 at 0x14045043e. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L384; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045043e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045043e"
+          }
+        },
+        {
+          "label": "Deposit tie rule",
+          "value": "equal or smaller: keep the first",
+          "detail": "Jumps past the replacement when the candidate holds the same or less, so on a tie the first qualifying deposit stays. The choice is stored at component+0x3c0 (0x140450485) and the refill uses it. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 7617 at 0x140450442. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L385; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450442",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450442"
+          }
+        },
+        {
+          "label": "Supply arm needs a coupled well head",
+          "value": "oil_component_type 5",
+          "detail": "The supply arm follows its mechanical coupling and runs only when the component on the other end has oil_component_type 5, the well head. It is an arm of the oil update selected by the component's own oil type, separate from the well head's refill arm. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 83b8cc2c000005 at 0x1404510c2. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L1033; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x1404510c2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404510c2"
+          }
+        },
+        {
+          "label": "Pumpjack, well head and supply scheduling",
+          "value": "once per component per update, in component-list order",
+          "detail": "The pumpjack's chamber and outflow pass is slot +0x358 of the multibody vtable (0x140b02d60 holds 0x140357a60); the well head's refill and the supply arm are slot +0x358 of the oil-rig vtable (0x140b836f8 holds 0x14044fd00). The extractor re-reads both pointers. The dispatcher calls that slot once per component, walking the vehicle's component list, so the refill and the supply run once per component pass, not once per stroke, and list order decides which state each step sees. Report: investigation/open-issues.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x140357d75@0x1403582bf, native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x1404510c2.",
+          "evidenceId": "derived:9952124d58b9",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
           "label": "Oil Rig Pumpjack · child_name",
           "value": "oil_rig_pumpjack_b",
           "detail": "oil_rig_pumpjack: definition attribute child_name. Names the piston.",
@@ -106440,7 +106601,7 @@
       ],
       "limitations": [
         "Static analysis of one build; no game process was run.",
-        "The chamber scale and the supply equations are decoded, but delivered volume per stroke or per second depends on piston motion and the connected fluid system. The piston's motion under a mechanical drive, which deposits a well may draw from, the scheduling of the pump and supply branches and the outflow over a real cycle were not traced, so no amount per stroke or per simulated second is given."
+        "The physical constraint solver that moves the piston and the component-list order on every loading and construction path were not traced. Oil delivered per stroke or per simulated second depends on the mechanism, the fluid network and the starting state, so no single amount is given."
       ],
       "sources": [
         {
@@ -106526,6 +106687,56 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14035829a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403582b3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403582b9"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403582bf"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404503b2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450408"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045042c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450433"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045043e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450442"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140450495"
         },
         {
@@ -106537,6 +106748,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045054c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404510c2"
         },
         {
           "path": "stormworks64.exe",
@@ -106562,6 +106778,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045df0e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
         }
       ]
     },
@@ -106752,6 +106973,10 @@
         {
           "title": "Setup and interactions",
           "body": "Drive the rod from a rotary table, force it down and keep drilling slurry flowing through a swivel; extract saturated slurry from the well head."
+        },
+        {
+          "title": "Crude supply",
+          "body": "The well head samples a point at its drilling depth below the head and picks an oil deposit whose sphere strictly contains that point and that still holds crude; of those it takes the one with the most remaining crude, and on a tie the first one found. Its buffer refills by q = min(free buffer room × 0.05, deposit remaining) per update, and the deposit loses what it gives. An oil component coupled to it mechanically draws that buffer into an Oil Rig Pumpjack's piston."
         }
       ],
       "findings": [
@@ -106780,6 +107005,150 @@
             "lineStart": 4578,
             "lineEnd": 4578
           }
+        },
+        {
+          "label": "Deposit spatial query",
+          "value": "call 0x1408e35e0",
+          "detail": "The well head's oil update queries a spatial index for deposit candidates near its sampling point, a point at the well's drilling depth below the head. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes e829324900 at 0x1404503b2. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L348; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x1404503b2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404503b2"
+          }
+        },
+        {
+          "label": "Deposit radius",
+          "value": "deposit+0x18",
+          "detail": "Loads the candidate's radius; the update squares it (0x140450421) and forms the squared distance from the sampling point to the deposit centre in binary64. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f104918 at 0x140450408. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L369; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450408",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450408"
+          }
+        },
+        {
+          "label": "Deposit containment test",
+          "value": "distance² < radius²",
+          "detail": "Skips a candidate unless radius² is strictly greater than the squared distance, so a point on the sphere's surface does not count. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 762d at 0x14045042c. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L378; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045042c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045042c"
+          }
+        },
+        {
+          "label": "Deposit remaining test",
+          "value": "remaining > 0",
+          "detail": "Compares the candidate's remaining crude (deposit+0x20) with 0. A candidate with none left is removed from the spatial index (call at 0x14045044c) and not chosen. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 410f2fc0 at 0x140450433. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L380; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450433",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450433"
+          }
+        },
+        {
+          "label": "Richest deposit comparison",
+          "value": "remaining > best remaining",
+          "detail": "The first qualifying candidate is taken; a later one replaces it only when it holds more crude. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 0f2f4720 at 0x14045043e. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L384; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045043e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045043e"
+          }
+        },
+        {
+          "label": "Deposit tie rule",
+          "value": "equal or smaller: keep the first",
+          "detail": "Jumps past the replacement when the candidate holds the same or less, so on a tie the first qualifying deposit stays. The choice is stored at component+0x3c0 (0x140450485) and the refill uses it. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 7617 at 0x140450442. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L385; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450442",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450442"
+          }
+        },
+        {
+          "label": "Supply arm needs a coupled well head",
+          "value": "oil_component_type 5",
+          "detail": "The supply arm follows its mechanical coupling and runs only when the component on the other end has oil_component_type 5, the well head. It is an arm of the oil update selected by the component's own oil type, separate from the well head's refill arm. Report: investigation/open-issues.md. Function 0x14044fd00-0x140452d87; instruction bytes 83b8cc2c000005 at 0x1404510c2. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/well-update.asm:L1033; ../open-issues/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x1404510c2",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404510c2"
+          }
+        },
+        {
+          "label": "Pumpjack, well head and supply scheduling",
+          "value": "once per component per update, in component-list order",
+          "detail": "The pumpjack's chamber and outflow pass is slot +0x358 of the multibody vtable (0x140b02d60 holds 0x140357a60); the well head's refill and the supply arm are slot +0x358 of the oil-rig vtable (0x140b836f8 holds 0x14044fd00). The extractor re-reads both pointers. The dispatcher calls that slot once per component, walking the vehicle's component list, so the refill and the supply run once per component pass, not once per stroke, and list order decides which state each step sees. Report: investigation/open-issues.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x140549240@0x1405498d6, native:stormworks64.exe:f9206d85c82f:0x140357d75@0x1403582bf, native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x1404510c2.",
+          "evidenceId": "derived:9952124d58b9",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1405498d6"
+          }
+        },
+        {
+          "label": "Well buffer refill fraction",
+          "value": "0.05",
+          "detail": "Another branch refills the buffer from an oil deposit: free = max(buffer capacity − buffer total, 0), times this. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f3440f592da2f57500 at 0x140450495 address binary32 0.05 (bytes cdcc4c3d) at 0x140bafa40. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-replenish.asm:L73; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x140450495",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140450495"
+          }
+        },
+        {
+          "label": "Well buffer refill limit",
+          "value": "q = min(free × 0.05, deposit remaining)",
+          "detail": "Limits the refill by the deposit's remaining crude. The deposit used is the non-empty entry with the most remaining crude whose region contains the sampling point. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f3440f5d6f20 at 0x14045049e. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-replenish.asm:L74; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045049e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045049e"
+          }
+        },
+        {
+          "label": "Deposit debit",
+          "value": "deposit remaining − q",
+          "detail": "Stores the reduced deposit after adding q to the buffer's crude and recomputing its total, so deposits run out. Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f114720 at 0x14045054c. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-replenish.asm:L97; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045054c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045054c"
+          }
+        },
+        {
+          "label": "Well supply limit",
+          "value": "q = min(10 × u − A, buffer crude)",
+          "detail": "Limits the top-up by the crude in the well buffer (+0x43c). Report: investigation/fluid-gaps.md. Function 0x14044fd00-0x140452d87; instruction bytes f30f5d933c040000 at 0x14045165b. Interpretation rests on retained output investigation/native/behavior/../fluid-gaps/asm/well-piston-supply.asm:L38; ../fluid-gaps/pseudocode/14044fd00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x14044fd00@0x14045165b",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x14045165b"
+          }
         }
       ],
       "limitations": [],
@@ -106795,6 +107164,66 @@
           "sha256": "73b7092d8f76015f02d8b0d062ff930ebb4779c102a0767ba61680c3187efaea",
           "lineStart": 4578,
           "lineEnd": 4578
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404503b2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450408"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045042c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450433"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045043e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450442"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140450495"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045049e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045054c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404510c2"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x14045165b"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1405498d6"
         }
       ]
     },
@@ -138699,7 +139128,7 @@
     },
     {
       "id": "part-turbine",
-      "summary": "A deprecated classic engine left out of the component catalog: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
+      "summary": "A deprecated classic engine left out of the component catalog that still loads from saved vehicles: the same update as the diesel engines with shaft weight 50, but no fuel, air, coolant or exhaust port and a starter factor of 0.",
       "sections": [
         {
           "title": "How the update works",
@@ -138716,6 +139145,10 @@
         {
           "title": "Availability",
           "body": "turbine.xml carries definition flags 537133056, which include the Deprecated bit. The game appends \" (Deprecated)\" to the name of every part with that bit, and leaves such parts out of the component catalog rebuild, the research and catalog state and the component list for existing vehicles. None of these tests checks career or creative mode, so the Turbine Engine cannot be picked from the normal component catalog in any mode."
+        },
+        {
+          "title": "Loading saved vehicles",
+          "body": "The vehicle reader looks each saved component's definition name up among the loaded definitions and passes the match's component type to the component factory. turbine.xml has type 5, so the factory calls the classic engine constructor, and the reader then binds the definition, restores the saved state and initializes the part. Neither the reader nor the factory tests the Deprecated bit, and nothing on this route replaces the part with a modular jet or migrates it. A saved vehicle that contains a Turbine Engine therefore loads it as the original classic engine: the catalog skip keeps it out of the parts list but does not reject it on load. The construction factory calls the same constructor, so internal construction paths can still build one; this does not give scripts a way to place an arbitrary part."
         }
       ],
       "findings": [
@@ -139404,7 +139837,7 @@
         {
           "label": "Turbine Engine availability",
           "value": "Deprecated; left out of the normal component catalog in every mode",
-          "detail": "turbine.xml has the Deprecated bit, so the game shows it as \"Turbine Engine (Deprecated)\" and the catalog rebuild, the research and catalog state and the existing-vehicle component list all skip it, with no career or creative test. Loading an older vehicle that contains one and special spawning paths are separate routes. Report: investigation/new-issues-a.md. Inputs: resource:rom/data/definitions/turbine.xml:05da7e8efbf9:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14031cc90@0x14031cd63, native:stormworks64.exe:f9206d85c82f:0x1407757d0@0x140775856, native:stormworks64.exe:f9206d85c82f:0x14077b430@0x14077b4a8, native:stormworks64.exe:f9206d85c82f:0x1407d1528@0x1407d159a.",
+          "detail": "turbine.xml has the Deprecated bit, so the game shows it as \"Turbine Engine (Deprecated)\" and the catalog rebuild, the research and catalog state and the existing-vehicle component list all skip it, with no career or creative test. Loading a saved vehicle is a separate route: the vehicle reader and the component factory do not test the bit, so a saved Turbine Engine still loads. Report: investigation/new-issues-a.md. Inputs: resource:rom/data/definitions/turbine.xml:05da7e8efbf9:L2-L2, native:stormworks64.exe:f9206d85c82f:0x14031cc90@0x14031cd63, native:stormworks64.exe:f9206d85c82f:0x1407757d0@0x140775856, native:stormworks64.exe:f9206d85c82f:0x14077b430@0x14077b4a8, native:stormworks64.exe:f9206d85c82f:0x1407d1528@0x1407d159a.",
           "evidenceId": "derived:964d81060ef2",
           "status": "derived",
           "source": {
@@ -139436,6 +139869,78 @@
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x14034abae"
+          }
+        },
+        {
+          "label": "Saved component type",
+          "value": "definition+0x2ac",
+          "detail": "The XML component reader looks the saved definition name up among the loaded definitions and reads the matching definition's component type. Report: investigation/open-issues.md. Function 0x1404b81f0-0x1404b8818; instruction bytes 8b97ac020000 at 0x1404b84ab. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/component-load.asm:L210; ../open-issues/pseudocode/0x1404b81f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84ab",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b84ab"
+          }
+        },
+        {
+          "label": "Reader calls the component factory",
+          "value": "call 0x1404b8f30",
+          "detail": "Passes that type to the component factory 0x1404b8f30. Report: investigation/open-issues.md. Function 0x1404b81f0-0x1404b8818; instruction bytes e8730a0000 at 0x1404b84b8. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/component-load.asm:L213; ../open-issues/pseudocode/0x1404b81f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84b8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b84b8"
+          }
+        },
+        {
+          "label": "Factory classic engine case",
+          "value": "call 0x14034a7d0",
+          "detail": "The factory's case for type 5, the type in turbine.xml, calls the classic engine constructor, the same one the diesel engines use. Report: investigation/open-issues.md. Function 0x1404b8f30-0x1404b9bdc; instruction bytes e8d516e9ff at 0x1404b90f6. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/component-factory.asm:L122; ../open-issues/pseudocode/0x1404b8f30.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b8f30@0x1404b90f6",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b90f6"
+          }
+        },
+        {
+          "label": "Definition assignment",
+          "value": "slot +0x8",
+          "detail": "The reader then loads slot +0x8 of the new component, which binds the matched definition. Report: investigation/open-issues.md. Function 0x1404b81f0-0x1404b8818; instruction bytes 4c8b5108 at 0x1404b84dd. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/component-load.asm:L222; ../open-issues/pseudocode/0x1404b81f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84dd",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b84dd"
+          }
+        },
+        {
+          "label": "Saved state restore",
+          "value": "slot +0x260",
+          "detail": "Calls the component's deserializer, loaded from slot +0x260 at 0x1404b84ed, before the initializer and registration. Report: investigation/open-issues.md. Function 0x1404b81f0-0x1404b8818; instruction bytes 41ffd2 at 0x1404b8502. Interpretation rests on retained output investigation/native/behavior/../open-issues/asm/component-load.asm:L232; ../open-issues/pseudocode/0x1404b81f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b8502",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b8502"
+          }
+        },
+        {
+          "label": "Saved Turbine Engine load route",
+          "value": "loads as the classic engine; no Deprecated test, no modular-jet substitute",
+          "detail": "The extractor scans the XML reader 0x1404b81f0 and the factories 0x1404b8f30 and 0x14045dd20 and finds neither the Deprecated bit 0x20000000 nor the flags offset +0x2b8. A saved component whose name matches turbine is therefore built by the classic engine constructor and restored like any other part; the catalog's Deprecated skip does not apply to loading. No turbine-specific migration and no modular-jet replacement appears on this route. The construction factory 0x14045dd20 calls the same constructor (0x14045ded8). Report: investigation/open-issues.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84ab, native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84b8, native:stormworks64.exe:f9206d85c82f:0x1404b8f30@0x1404b90f6, native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b84dd, native:stormworks64.exe:f9206d85c82f:0x1404b81f0@0x1404b8502.",
+          "evidenceId": "derived:ffbf1af6f0b9",
+          "status": "derived",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404b84ab"
           }
         },
         {
@@ -139512,7 +140017,7 @@
         }
       ],
       "limitations": [
-        "Static analysis of one build; the game was not run. How old saves migrate a legacy turbine, whether loading an older vehicle or a special spawning path can still place one, and whether an indirect world, editor or script writer fills its private compartments, was not traced.",
+        "Static analysis of one build; the game was not run. Whether a writer reached indirectly through a world, script, editor, copy or load path fills the private fuel or intake compartments was not traced: the search covered direct stores at their offsets and the generic environment update, which touches only the coolant. Vehicle files from formats older than the current reader were not traced either.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -139732,6 +140237,31 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14045ded8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b84ab"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b84b8"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b84dd"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b8502"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404b90f6"
         },
         {
           "path": "stormworks64.exe",
@@ -167291,12 +167821,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 9140,
+    "findingCount": 9171,
     "findingsByStatus": {
-      "derived": 749,
-      "observed": 8391
+      "derived": 752,
+      "observed": 8419
     },
-    "nativeFindingCount": 6720,
+    "nativeFindingCount": 6750,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -167347,9 +167877,9 @@
       }
     ],
     "evidenceUse": {
-      "derived": 435,
-      "native": 1639,
-      "resource": 2721
+      "derived": 437,
+      "native": 1655,
+      "resource": 2722
     }
   }
 }
