@@ -1,0 +1,11 @@
+
+Ruled out as a safety rating: the 59.4-atmosphere cleared gas startup result, the 0.99 initialization multiplier, and the serializer's 100000 temperature bound. These are initialization or temperature values. They cannot be substituted for a tank pressure limit.
+
+The complete executable ASCII string/reference search for `pressure|rupture|burst|overpressure` is retained. It finds no ASCII identifier containing rupture, burst or overpressure, but it does find `max pressure` at `0x140b3ede0`, referenced at `0x1408798aa`, and `high_pressure` at `0x140b971d0`, referenced at `0x1405c0114` and `0x1406f9b0a`. Those generic references were not resolved to a tank failure mechanism and are not ruled out globally. Unlabelled comparisons, common vehicle damage code and geometry-compartment failure paths remain untraced. The scoped negative results above are not an executable-wide absence proof.
+
+## 4. Microprocessor ports and graph counts, issue #63
+
+The editor event dispatcher `0x1407c1b60`, case 0x71, creates an external node. At `0x1407c3eac` it selects the definition at editor+0x118, allocates 0x58 bytes, initializes the node, increments the 32-bit node-ID counter, creates its bridge with `0x14038f150`, grows the node list if capacity equals count, and appends it. There is no comparison against a maximum node count in this Add Input handler. The 0x20 value in list growth is a minimum allocation capacity, not a 32-port cap. This does not prove every other creation/import path has no guard.
+
+Definition serializer `0x14038db30` serializes width, length, ID counters, the external node list at definition+0x48, and the embedded group. The external-node list serializer is `0x140908830`:
+

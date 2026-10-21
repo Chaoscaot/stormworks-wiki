@@ -1,0 +1,23 @@
+
+- XML read iterates `nodes/node` elements and grows the list dynamically. XML write traverses the list. No count cap was found in those paths.
+- Binary write stores the low 16 bits of the list's 32-bit in-memory count, then traverses the actual count. Binary read consumes an unsigned 16-bit count. Therefore 65535 is the largest count representable by this binary field, not a demonstrated enforced editor maximum. A larger in-memory count is not safely round-trippable through that count field.
+
+The embedded group's serializer is `0x14038b940`. Its `components` and `components_bridge` collections go through `0x1409077b0`. That serializer uses a four-byte count, not the external list's two-byte count. There is no recovered small fixed graph-size constant in this path. A 32-bit count is a format width, not a promise that billions of components can be allocated, assigned valid IDs, edited or evaluated.
+
+Placement and upload are separate from creation. `0x14038fee0` requires 0 <= X < width, 0 <= Z < length and Y=0. At the same cell it rejects an equal type and also rejects the 0/1 type pair. Other unequal types are allowed to share the cell. The bridge builder `0x1403929f0` supports types 0,1,5,6,7, corresponding to Boolean, number, composite, video and audio. Inference: for these five functioning types the collision rule gives four compatible groups per cell, or an upper bound of 144 placed ports over 6 by 6 cells. This is a derived bound for supported types, not a recovered constant or a demonstrated accepted maximum across all imported definitions.
+
+The upload validator `0x1407c6040` checks dimensions <=6, nonempty embedded component and external-node lists, output presence, and placement of each external node through `0x14038fee0`. The inspected validation path has no separate numerical port-count ceiling. The existing editor controls impose the lower dimension bound of 1.
+
+Still open: an unconditional maximum across editor creation, XML import, binary serialization and graph execution; any additional limits in untraced graph creation, ID validation or allocation paths; whether the derived 144 supported-port arrangement is accepted end to end. Ruled out: 32 as a cap from dynamic-list growth; 36 as a total-port cap from cell count; 65535 as an enforced editor limit; applying the 16-bit external-port count to the embedded component list. No runtime experiment was performed.
+
+Instruction anchors:
+
+- `0x1407c3eb3`, bytes `b9 58 00 00 00`: allocate external node.
+- `0x1407c3ec8`, bytes `e8 83 df b1 ff`: initialize external node.
+- `0x1407c3eda`, bytes `ff 47 74`: increment node ID.
+- `0x1407c3f60`, bytes `8b 4f 58`: load list count.
+- `0x14038ff0c`, bytes `3b 41 44`: Z dimension bound.
+- `0x14038ff11`, bytes `83 7a 24 00`: require Y zero.
+- `0x140908d17`, bytes `0f b7 10`: read unsigned 16-bit node count.
+- `0x140908d4f`, bytes `0f b7 57 10`: truncate list count to 16 bits.
+- `0x140908d76`, bytes `66 89 10`: write 16-bit node count.

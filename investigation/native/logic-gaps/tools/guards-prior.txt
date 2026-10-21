@@ -1,0 +1,12 @@
+## JK rule and edge behavior
+
+Physical type 35 enters `0x1403c63c4`. Saved inputs are `+0x691/+0x692`; current inputs are `+0x180/+0x1a0`. At `0x1403c63f2`, bytes `3a c2 75 09 44 3a c1 0f 84 f3 30 00 00`, equal inputs bypass the update. At `0x1403c6407`, bytes `41 38 b6 b4 06 00 00 0f 94 c0`, the both-on branch complements Q. The microprocessor JK at `0x14037af70` applies the same changed-input guard and table. Its complete instruction bytes are retained separately.
+
+For initial Q=0: inputs `00,11,11,11,01,11` produce Q `0,1,1,1,0,1`, subject to the graph's input sampling phase. Simultaneous changes count as one update. This is a change-of-either-input guard, not a clocked rising-edge JK and not sustained both-on oscillation. The physical SR latch similarly checks changed inputs and gives reset priority when both are on.
+
+## Exact PID recurrence
+
+For each enabled evaluator call n, using binary32 arithmetic:
+
+```
+e[n] = setpoint[n] - process_variable[n]

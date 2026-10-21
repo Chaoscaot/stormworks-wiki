@@ -1,0 +1,105 @@
+   1401e5492:	44 89 5c 24 20       	mov    DWORD PTR [rsp+0x20],r11d
+   1401e5497:	c7 41 20 ff ff ff ff 	mov    DWORD PTR [rcx+0x20],0xffffffff
+   1401e55c4:	41 8b 46 20          	mov    eax,DWORD PTR [r14+0x20]
+   1401e55ca:	83 f8 20             	cmp    eax,0x20
+   1401e55d3:	41 89 46 20          	mov    DWORD PTR [r14+0x20],eax
+   1401e55ff:	41 8b 56 20          	mov    edx,DWORD PTR [r14+0x20]
+   1401e561b:	45 89 4e 20          	mov    DWORD PTR [r14+0x20],r9d
+   1401e5689:	45 89 46 20          	mov    DWORD PTR [r14+0x20],r8d
+   1401e56f3:	41 89 46 20          	mov    DWORD PTR [r14+0x20],eax
+   1401e5754:	41 83 f8 20          	cmp    r8d,0x20
+   1401e575e:	45 89 46 20          	mov    DWORD PTR [r14+0x20],r8d
+   1401e5798:	f3 0f 5c c8          	subss  xmm1,xmm0
+   1401e579c:	f3 0f 59 ca          	mulss  xmm1,xmm2
+   1401e57a0:	f3 0f 58 c8          	addss  xmm1,xmm0
+   1401e57c5:	45 89 4e 20          	mov    DWORD PTR [r14+0x20],r9d
+   1401e5833:	41 89 46 20          	mov    DWORD PTR [r14+0x20],eax
+   1401e5897:	41 83 f9 20          	cmp    r9d,0x20
+   1401e58a1:	45 89 4e 20          	mov    DWORD PTR [r14+0x20],r9d
+   1401e58d2:	f3 0f 59 de          	mulss  xmm3,xmm6
+   1401e58e6:	0f 2f c8             	comiss xmm1,xmm0
+   1401e58f4:	f3 0f 5e de          	divss  xmm3,xmm6
+   1401e5908:	0f 2f ca             	comiss xmm1,xmm2
+   1401e5917:	e8 18 02 7f 00       	call   0x1409d5b34
+   1401e592b:	0f 2f cb             	comiss xmm1,xmm3
+   1401e5930:	0f 2f d6             	comiss xmm2,xmm6
+   1401e593f:	0f 2f c8             	comiss xmm1,xmm0
+   1401e5944:	0f 2f ce             	comiss xmm1,xmm6
+   1401e5953:	e8 b8 42 7d 00       	call   0x1409b9c10
+   1401e5967:	f3 0f 5c de          	subss  xmm3,xmm6
+   1401e59b1:	0f 2f c8             	comiss xmm1,xmm0
+   1401e59bd:	f3 0f 5e c6          	divss  xmm0,xmm6
+   1401e59c1:	f3 0f 59 c3          	mulss  xmm0,xmm3
+   1401e59c5:	f3 0f 58 05 ef a2 9c 	addss  xmm0,DWORD PTR [rip+0x9ca2ef]        # 0x140bafcbc
+   1401e59cd:	e8 06 fe 7e 00       	call   0x1409d57d8
+   1401e59d2:	f3 0f 59 c6          	mulss  xmm0,xmm6
+   1401e59e5:	f3 0f 59 db          	mulss  xmm3,xmm3
+   1401e59e9:	f3 0f 59 f6          	mulss  xmm6,xmm6
+   1401e59ed:	f3 0f 58 de          	addss  xmm3,xmm6
+   1401e59f4:	0f 2e c3             	ucomiss xmm0,xmm3
+   1401e5a26:	f3 0f 59 db          	mulss  xmm3,xmm3
+   1401e5a2a:	f3 0f 59 f6          	mulss  xmm6,xmm6
+   1401e5a2e:	f3 0f 58 de          	addss  xmm3,xmm6
+   1401e5a48:	41 89 46 20          	mov    DWORD PTR [r14+0x20],eax
+   1401e5ab9:	83 fa 20             	cmp    edx,0x20
+   1401e5ac2:	41 89 56 20          	mov    DWORD PTR [r14+0x20],edx
+   1401e5b1c:	0f 2f d0             	comiss xmm2,xmm0
+   1401e5b35:	0f 2f d0             	comiss xmm2,xmm0
+   1401e5b5b:	e8 78 fc 7e 00       	call   0x1409d57d8
+   1401e5b7d:	41 0f 2f c8          	comiss xmm1,xmm8
+   1401e5b8e:	41 0f 2f c8          	comiss xmm1,xmm8
+   1401e5b97:	0f 2e c1             	ucomiss xmm0,xmm1
+   1401e5bd7:	41 83 7e 20 00       	cmp    DWORD PTR [r14+0x20],0x0
+   1401e5c57:	c7 44 24 20 00 00 08 	mov    DWORD PTR [rsp+0x20],0x80000
+   1401e5c66:	41 8d 57 20          	lea    edx,[r15+0x20]
+   1401e5c89:	c7 44 24 20 00 00 18 	mov    DWORD PTR [rsp+0x20],0x180000
+   1401e5d20:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e5d94:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e5dc6:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e5de4:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e5e5e:	c7 44 24 20 00 00 40 	mov    DWORD PTR [rsp+0x20],0x400000
+   1401e5ef5:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e5f69:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e5f9b:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6013:	c7 44 24 20 20 00 00 	mov    DWORD PTR [rsp+0x20],0x20
+   1401e60aa:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e611d:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e614e:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e61c6:	c7 44 24 20 04 00 00 	mov    DWORD PTR [rsp+0x20],0x4
+   1401e61d5:	41 8d 57 20          	lea    edx,[r15+0x20]
+   1401e61f8:	c7 44 24 20 0c 00 00 	mov    DWORD PTR [rsp+0x20],0xc
+   1401e628f:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6302:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6333:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6350:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e63ca:	c7 44 24 20 00 04 00 	mov    DWORD PTR [rsp+0x20],0x400
+   1401e6461:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e64d5:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6507:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e657f:	c7 44 24 20 80 00 00 	mov    DWORD PTR [rsp+0x20],0x80
+   1401e658e:	41 8d 57 20          	lea    edx,[r15+0x20]
+   1401e65b1:	c7 44 24 20 80 01 00 	mov    DWORD PTR [rsp+0x20],0x180
+   1401e6648:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e66bc:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e66ee:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e670c:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6786:	c7 44 24 20 00 80 00 	mov    DWORD PTR [rsp+0x20],0x8000
+   1401e681d:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6891:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e68c3:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e693b:	c7 44 24 20 00 10 00 	mov    DWORD PTR [rsp+0x20],0x1000
+   1401e694a:	41 8d 57 20          	lea    edx,[r15+0x20]
+   1401e696d:	c7 44 24 20 00 30 00 	mov    DWORD PTR [rsp+0x20],0x3000
+   1401e6a04:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6a78:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6aaa:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6ac8:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6b42:	c7 44 24 20 00 00 02 	mov    DWORD PTR [rsp+0x20],0x20000
+   1401e6bd9:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6c4d:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6c7f:	89 74 24 20          	mov    DWORD PTR [rsp+0x20],esi
+   1401e6d10:	c7 44 24 20 01 00 00 	mov    DWORD PTR [rsp+0x20],0x1
+   1401e6da6:	c7 44 24 20 03 00 00 	mov    DWORD PTR [rsp+0x20],0x3
+   1401e6e19:	89 5c 24 20          	mov    DWORD PTR [rsp+0x20],ebx
+   1401e6e4a:	89 5c 24 20          	mov    DWORD PTR [rsp+0x20],ebx
+   1401e6fd0:	41 0f 28 7b e0       	movaps xmm7,XMMWORD PTR [r11-0x20]

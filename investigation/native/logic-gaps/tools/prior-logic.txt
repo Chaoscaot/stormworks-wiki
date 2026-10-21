@@ -1,0 +1,106 @@
+| Power Meter (`gate_torque_multimeter.xml`) | 25 | No calculation in this evaluator. Still open: transmission-network measurement formula; ruled out a local numeric measurement formula here. | `0x1403c94f2`; `48 8b 8d 00 05 00 00` |
+| Train Junction Controller (`gate_train_junction.xml`) | 46 | Spawns/updates a junction helper via 0x140290d10 and stored object +0x840. Still open: train-junction routing and priority; ruled out a plain Boolean gate in this case. | `0x1403c6c4e`; `41 38 b6 31 08 00 00` |
+| Up/Down (`gate_up_down.xml`) | 4 | Step h=(upper-lower)*sensitivity/60. S=clamp(S+h*(A-B+x),lower,upper); output C(S). | `0x1403c4f3a`; `f3 41 0f 10 9e b8 07` |
+| Microprocessor (`microprocessor.xml`) | vehicle 37 | Embedded microprocessor graph; dynamic bridges and ports. See microprocessor section. | `0x140394500`; `48 89 5c 24 08 48 89` |
+
+The trigonometry inverse branches divide by the binary32 2*pi constant `0x140bb0550` at `0x1403c6a42`, bytes `f3 0f 5e 05 06 9b 7e 00`. The forward branches multiply input by that constant. Thus both directions expose turns rather than radians, conditional on the inferred sin/cos/tan helper identification. Asin/acos branches compare abs(x) against 1 before calling the helper; the failure path publishes 0. Mode ordering is inferred as sin/cos/tan/asin/acos/atan from the six helper call sites and matching forward/inverse domains; full CRT helper internals remain open.
+
+The physical exponent guard is `0x1401e3c00`, retained in `asm/power-guard.asm`. For finite x and exponent k, let epsilon=float32(1.1920928955078125e-7), at `0x140baf85c`. It returns a suppression flag when `(x<epsilon and k<1) or (abs(x)<epsilon and k<epsilon)`. The caller emits 0 when flagged, otherwise calls `0x1409b9c10` with x/k in xmm0/xmm1 and publishes via `0x1403c9d10`. This guard includes 0^0 and near-zero inputs; a plain unqualified pow(x,k) rule would miss it. The helper's power identity follows the shipped exponent tooltip and argument flow; its complete library implementation is not independently reconstructed.
+
+## JK rule and edge behavior
+
+Physical type 35 enters `0x1403c63c4`. Saved inputs are `+0x691/+0x692`; current inputs are `+0x180/+0x1a0`. At `0x1403c63f2`, bytes `3a c2 75 09 44 3a c1 0f 84 f3 30 00 00`, equal inputs bypass the update. At `0x1403c6407`, bytes `41 38 b6 b4 06 00 00 0f 94 c0`, the both-on branch complements Q. The microprocessor JK at `0x14037af70` applies the same changed-input guard and table. Its complete instruction bytes are retained separately.
+
+For initial Q=0: inputs `00,11,11,11,01,11` produce Q `0,1,1,1,0,1`, subject to the graph's input sampling phase. Simultaneous changes count as one update. This is a change-of-either-input guard, not a clocked rising-edge JK and not sustained both-on oscillation. The physical SR latch similarly checks changed inputs and gives reset priority when both are on.
+
+## Exact PID recurrence
+
+For each enabled evaluator call n, using binary32 arithmetic:
+
+```
+e[n] = setpoint[n] - process_variable[n]
+S_raw = S[n-1] + e[n]
+S[n] = S_raw                                      # microprocessor PID
+S[n] = clamp(S_raw, -L, L) if B > 0 else S_raw     # physical PID
+L = B / max(float32(1e-8), Ki)
+d[n] = e[n] - e[n-1] if previous_enabled else 0
+y_raw = (Ki*S[n] + Kp*e[n]) + Kd*d[n]
+y[n] = finite(y_raw) ? y_raw : 0                  # physical PID
+# microprocessor basic and advanced PID publish y_raw directly
+```
+
+The arithmetic order shown matches the separate SSE multiply/add instructions. There is no multiplication or division by dt in these PID cases. At the established normal update cadence, S accumulates 60 errors per nominal simulated second and d is the error difference across one tick. A seconds-based continuous tuning convention would therefore use `Ki_tick=Ki_seconds/60` and `Kd_tick=60*Kd_seconds`; this conversion is an inference about matching conventions, not an extra engine operation.
+
+Inactive resets S, previous error, derivative-valid flag, and output to zero. On the first enabled tick after that reset, the current error is integrated but the derivative is zero. Subsequent setpoint changes contribute directly to the derivative. It is derivative on error, not derivative on measurement. There is no smoothing/filter state in either recovered PID evaluator.
+
+The physical property names are `pid_controller_ki`, `pid_controller_kp`, `pid_controller_kd`, and `pid_controller_max_error`. The property serializer at `0x1403cdbb8/0x1403cdbd6/0x1403cdbf4/0x1403cdc12` associates those names with property objects `+0x728/+0x740/+0x758/+0x778`. Their numeric values are at `+0x738/+0x750/+0x768/+0x788`. The constructor `0x1403c25a0` initializes Ki/Kp/Kd to 1 and B to 0; these are raw object defaults, not a claim about every subsequently loaded vehicle's settings.
+
+B bounds the stored error sum through B/Ki when Ki is positive. It does not bound P or D or the total output. For Ki <= 1e-8 the actual denominator is 1e-8, not abs(Ki). There is no output-feedback anti-windup, conditional integration based on output clipping, or ordinary finite-output saturation. If B <= 0, the physical accumulator is unbounded by this code. NaN/overflowing state is not repaired by the output checker. The model preserves this distinction.
+
+| Physical PID operation | Address | Instruction bytes |
+|---|---|---|
+| Error = setpoint - process | `0x1403c5f74` | `f3 0f 5c f0` |
+| Add error to integral | `0x1403c5f7b` | `f3 41 0f 58 8e 70 07 00 00` |
+| Positive-bound test | `0x1403c5f99` | `0f 2f da 76 30` |
+| Denominator max with Ki | `0x1403c5fa6` | `f3 41 0f 5f 86 38 07 00 00` |
+| Divide B by denominator | `0x1403c5faf` | `f3 0f 5e d8` |
+| Clamp integral | `0x1403c5fbd` | `f3 0f 5f c8 f3 0f 5d cb` |
+| First-enabled derivative guard | `0x1403c5fce` | `41 38 b6 92 06 00 00 74 0c` |
+| Difference current - previous error | `0x1403c5fda` | `f3 41 0f 5c 96 74 07 00 00` |
+| I multiplication | `0x1403c5fec` | `f3 0f 59 c1` |
+| P multiplication | `0x1403c5ff3` | `f3 41 0f 59 8e 50 07 00 00` |
+| D multiplication | `0x1403c6000` | `f3 41 0f 59 96 68 07 00 00` |
+| Output sanitation call | `0x1403c600d` | `e8 2e dc e1 ff` |
+
+`0x1401e3c40` maps infinities and NaNs to 0, passing finite values through. At `0x1401e3c51`, `66 83 f8 01 74 17`, it checks the floating-point classifier for infinity; at `0x1401e3c57`, `0f 2e f6 0f 9a c0`, it checks NaN. The classifier `0x1409c9458` examines exponent/mantissa bits. This is not a [-1,1] clamp.
+
+Basic microprocessor PID `0x14037a210` has inputs `+0x88` minus `+0xc8`, active `+0x108`, S `+0x180`, previous error `+0x184`, valid `+0x188`, Kp/Ki/Kd `+0x148/+0x160/+0x178`, output `+0x130`. Advanced PID `0x140381360` uses the same recurrence with gain inputs `+0x108/+0x148/+0x188`, active `+0x1c8`, output `+0x1f0`, S `+0x1f8`, previous error `+0x1fc`, valid `+0x200`. Neither function contains a clamp, finite checker, dt scaling, or derivative filter. Their full disassembly is retained, covering their complete PE exception-directory function ranges.
+
+The executable [Python model](native/logic/tools/pid_model.py) emulates binary32 operation order, reset, first-enabled suppression, physical bounding, and non-finite output handling. It models evaluator calls rather than inter-block propagation. [Worked examples](native/logic/pid-examples.txt) include:
+
+- Kp=2, Ki=.5, Kd=3, errors 1,1,2: outputs 2.5,3,9.
+- Physical B=1, Kp=2, Ki=.5, Kd=0, repeated error 2: outputs 5,5,5 with S clamped to 2. Output is not limited to 1.
+- The microprocessor recurrence with the same gains/errors: outputs 5,6,7.
+- Ki=1 and constant error 1 for 60 calls: output 60, not 1.
+
+## Timing in ticks
+
+The constant at `0x140bb0760` is `00 00 70 42`, float 60. Timed physical blocks multiply configured seconds by it, then truncate. The four named microprocessor timers instead accumulate a binary32 step: mode 0 uses `0x140baf98c`, bytes `89 88 88 3c` = 0.01666666753590107; other modes use `0x140bafecc`, bytes `00 00 80 3f` = 1. Thus mode 0 is seconds-scaled and the other path is ticks-scaled. Accumulated float comparisons must be reproduced rather than assuming that every N-second threshold is crossed at exactly 60*N calls.
+
+Physical capacitor type 36: let Ncharge=trunc32(60*charge_seconds), Ndischarge=trunc32(60*discharge_seconds), c/d be integer counters, q the stored Boolean. On any input change, clear both counters. If q=0 and A=1, test c==Ncharge, set q=1 if equal, then increment c. If q=1 and A=0, test d==Ndischarge, clear q if equal, then increment d. If q=1 and A=1, clear d. Output q. The threshold is tested before increment, including on the input-change call. For Ncharge=60, rising A at call 0 produces Q=1 at call 60, which is the 61st evaluator call including the edge. Zero charge delay turns on in that edge call. The microprocessor capacitor `0x14037b490` follows the same state recurrence. This Boolean charge/discharge state is not an electrical battery model.
+
+Evidence: physical conversion at `0x1403c6458`, `f3 0f 59 05 00 a3 7e 00`, then `0x1403c6460`, `f3 48 0f 2c d0`. Counter comparison precedes increment at `0x1403c64ca` and `0x1403c64d8`; the entire charge/discharge branch is retained.
+
+Physical delay type 12: on input change, remember A and set counter c=0 without changing Q. On stable-input calls, if c<N, increment c; if the new c equals N, Q=A. Here N=trunc32(60*delay_seconds). Consequently a newly changed input needs N subsequent stable calls. Native edge case: N=0 does not take the update path, so this code leaves Q unchanged. That result follows from the explicit c<N guard, not the tooltip. Zero/negative UI setting constraints have not been traced. Evidence: entry `0x1403c521b` and its retained body through `0x1403c5283`.
+
+Physical blinker type 11: Non=trunc32(60*field_6e0), Noff=trunc32(60*field_6dc). On input change, save A and clear c. Otherwise increment c and reset c=0 if c>=Non+Noff. Q=A AND c<Non. For positive integer durations and normal enabled simulation this gives Non on calls and Noff off calls per cycle. Both physical timer fields are serialized in the same gate object; the state assignment shows which is the on duration. Evidence: `0x1403c518e` through `0x1403c521a`.
+
+Microprocessor blinker `0x14037bd60` differs: begin each call with Q=0; if A=0, c=0 and return. Let Non=trunc32(60*field_bc), Noff=trunc32(60*field_c0). If c<Non, set Q=1 and increment c. Otherwise, if c>=Non+Noff reset c=0, then increment c while leaving Q=0. The wrap call therefore stays off. Example Non=Noff=2 from c=0: Q is `1,1,0,0,0,1,0,0,0,1,...`. The later cycles have one on call and three off calls. Do not substitute the physical blinker recurrence for this one.
+
+## Microprocessor component rules
+
+The following are named by MSVC RTTI, not invented physical definition types. All entries below are component vtable `+0x50`. Complete function bodies with bytes are retained in `asm/<address>.asm`. Timer h is the binary32 per-call step described above; A is the timer enable input. The timer predicates below are literal native state transitions, including reset ordering.
+
+| Component | Rule per graph evaluation | Function; first bytes |
+|---|---|---|
+| capacitor | Pre-increment integer threshold recurrence in timing section. | `0x14037b490`; `f3 0f 10 81 b8 00 00` |
+| not | NOT A. | `0x140372840`; `80 b9 88 00 00 00 00` |
+| rtf | On A=0: Q=0, elapsed retained. On A=1: elapsed+=h,Q=(elapsed<duration), clamping elapsed to duration at threshold. At end, reset input clears elapsed without recomputing Q in that call. | `0x1403882f0`; `80 b9 90 00 00 00 00` |
+| ton | On A=0: elapsed=0,Q=0. On A=1: elapsed+=h; if elapsed>=duration, set elapsed=duration,Q=1; otherwise retain Q. | `0x140387090`; `80 b9 90 00 00 00 00` |
+| nand | NOT(A AND B). | `0x140373110`; `80 b9 88 00 00 00 00` |
+| threshold | Inclusive test against sorted configured bounds. | `0x140374eb0`; `f3 0f 10 89 c8 00 00` |
+| function_8_inputs | Evaluate parsed expression on changed numeric inputs, if parsed flag is set. | `0x14037f8e0`; `48 83 ec 58 80 b9 90` |
+| blinker | Distinct wrap-call recurrence in timing section. | `0x14037bd60`; `80 b9 88 00 00 00 00` |
+| rto | On A=0: Q=0, elapsed retained. On A=1: elapsed+=h,Q=(elapsed>=duration), clamping elapsed to duration at threshold. At end, reset input clears elapsed without recomputing Q in that call. | `0x140387dd0`; `80 b9 90 00 00 00 00` |
+| nor | NOT(A OR B). | `0x140373300`; `80 b9 88 00 00 00 00` |
+| advanced_pid | Same PID recurrence with gain inputs; no integral bound or output clipping. | `0x140381360`; `80 b9 c8 01 00 00 00` |
+| or | A OR B. | `0x140372d40`; `80 b9 88 00 00 00 00` |
+| function | Evaluate cached parsed expression on changed x/y/z; see text below. | `0x140374440`; `40 53 48 81 ec 90 00` |
+| and | A AND B. | `0x140372b10`; `80 b9 88 00 00 00 00` |
+| tof | On A=0: elapsed=0,Q=0. On A=1: elapsed+=h,Q=1; if elapsed>=duration, set elapsed=duration,Q=0. This recovered routine is a timed-on window, not a generic IEC off-delay assumption. | `0x140387730`; `80 b9 90 00 00 00 00` |
+| sr_latch | Changed-input guard; reset dominates set; both off hold. Q and NOT Q outputs. | `0x14037ac70`; `44 0f b6 81 88 00 00` |
+| up_down | Initialize output to configured reset value once. Reset dominates; otherwise Up adds step, else Down subtracts step. Simultaneous Up/Down chooses Up. Mode 1 clamps to sorted configured bounds; other modes leave it unbounded. | `0x1403800b0`; `80 b9 40 01 00 00 00` |
+| pulse | Q=0 initially each call. On input change: mode 0 pulses for falling edge; mode 1 pulses for rising edge; mode 2 pulses for either edge. Other modes emit no pulse. Save current input. | `0x140386740`; `0f b6 81 c0 00 00 00` |
+| clamp | Clamp x to sorted configured lower/upper bounds. | `0x140374960`; `f3 0f 10 99 c8 00 00` |
+| memory | Reset input overrides set input; reset copies configured reset value to output and memory. Otherwise set input copies numeric input to output and memory; otherwise hold. | `0x140375520`; `80 b9 c8 00 00 00 00` |
+| pid_controller | Unbounded, unsanitized PID recurrence above. Configured gains. | `0x14037a210`; `80 b9 08 01 00 00 00` |

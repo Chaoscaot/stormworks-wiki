@@ -114,25 +114,13 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/9/limitations/1",
-        "text": "Sign, rounding and domain edge cases of the library helpers behind Modulo, Exponent and Trigonometry were not decoded.",
+        "text": "Power Add and Power Meter select a case that computes nothing in the logic update. Their transmission-network formulas were not recovered, and whether the two definitions are obsolete in this build was not traced.",
         "scope": "Practical behavior guidance"
       },
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/categories/9/limitations/2",
-        "text": "The function block's expression language (operator set, parser, rounding and constant expressions) was not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/9/limitations/3",
-        "text": "Power Add and Power Meter do nothing in the logic update; their transmission-network formulas were not decoded.",
-        "scope": "Practical behavior guidance"
-      },
-      {
-        "file": "wiki/data/behavior.json",
-        "pointer": "/categories/9/limitations/4",
-        "text": "Train Junction Controller routing, junction selection and the priority of conflicting requests were not traced.",
+        "text": "A Train Junction Controller's writes replace the junction's route bit, so the last write wins, but the order in which controllers on different vehicles update was not traced: a stable priority between controllers has not been established. Which bit value means the left or right branch for each track orientation was not established either.",
         "scope": "Practical behavior guidance"
       }
     ]
@@ -642,7 +630,7 @@
       {
         "file": "wiki/data/behavior.json",
         "pointer": "/families/139/limitations/0",
-        "text": "No unconditional maximum port or graph size was recovered across editor creation, XML import, binary saves and graph execution. ID validation and allocation in other creation paths were not traced, and whether the 144 ports the placement rule allows for the five bridged kinds are accepted end to end is not confirmed.",
+        "text": "Copy and paste, the link serializers of individual component types and duplicate-ID repair after import were not traced, so no single maximum for ports, components, links or IDs is established across every path.",
         "scope": "Practical behavior guidance"
       }
     ]

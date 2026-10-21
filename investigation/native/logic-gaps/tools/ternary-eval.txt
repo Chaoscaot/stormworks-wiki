@@ -1,0 +1,66 @@
+    default:
+      fVar21 = 0.0;
+    }
+    *(uint *)(param_1 + 4) = uVar1 - 3;
+    lVar12 = (ulonglong)uVar16 * 0x20;
+    fVar24 = param_5;
+    switch(*(undefined4 *)(lVar12 + lVar17)) {
+    case 0:
+      fVar24 = param_4;
+      break;
+    case 1:
+      break;
+    case 2:
+      fVar24 = param_6;
+      break;
+    case 3:
+      fVar24 = param_7;
+      break;
+    case 4:
+      fVar24 = param_8;
+      break;
+    case 5:
+      fVar24 = param_9;
+      break;
+    case 6:
+      fVar24 = param_10;
+      break;
+    case 7:
+      fVar24 = param_11;
+      break;
+    case 8:
+      fVar24 = *(float *)(lVar12 + 0x18 + lVar17);
+      break;
+    case 9:
+      fVar24 = fVar25;
+      break;
+    case 10:
+      fVar24 = fVar23;
+      break;
+    default:
+      fVar24 = 0.0;
+    }
+    if ((int)uVar16 < 0x20) {
+      *(uint *)(param_1 + 4) = uVar16;
+      *(undefined4 *)(lVar12 + lVar17) = 8;
+      *(undefined4 *)(lVar12 + 0x18 + lVar17) = 0;
+      if (*piVar15 == 0x26) {
+        *(float *)(lVar12 + 0x18 + lVar17) = (fVar21 - fVar24) * fVar22 + fVar24;
+      }
+      else {
+        if (*piVar15 != 0x27) {
+          lStack_e0 = 0;
+          uStack_d8 = 0x15;
+          FUN_14017cbb0(&lStack_e0,0x16,uVar16,uVar18,uVar26);
+          uVar4 = uStack_d8;
+          lVar19 = lStack_e0;
+          iVar7 = (int)uStack_d8;
+          uVar14 = uStack_d8 & 0xffffffff;
+          FUN_14099d3b0(lStack_e0,&UNK_140b87e00,uVar14 + 1);
+          lStack_100 = 0;
+          uStack_f8 = 0;
+          FUN_14017b670(&lStack_100);
+          uStack_f8 = CONCAT44(uStack_f8._4_4_,piVar15[4] + iVar7);
+          FUN_14017cbb0(&lStack_100,piVar15[4] + iVar7 + 1);
+          lVar12 = lStack_100;
+          FUN_14099d3b0(lStack_100,lVar19,uVar4 & 0xffffffff);

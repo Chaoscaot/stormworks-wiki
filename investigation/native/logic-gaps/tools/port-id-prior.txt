@@ -1,0 +1,12 @@
+143:#30: "Gas tanks use the same recovered runtime compartment serializer as fluid tanks. Geometric capacity is reconstructed separately; explicit reset clears amounts and re-arms fill. Still open: complete save/rebuild workflow ordering and a maximum safe pressure or pressure-triggered rupture/damage threshold. The 59.4 atm startup result is not a safety limit."
+154:python investigation/native/tanks-ports/tools/evidence.py stormworks64.exe /tmp/tanks-ports-all.asm /tmp/tanks-ports-evidence.json
+162:Pseudocode was generated with Ghidra 12.1.4 and JDK 21, using the existing matching `/tmp/composite-ghidra/logic` project with `-process stormworks64.exe -noanalysis -readOnly`. Logs retain requested addresses. For an independent import, create a temporary project directory and run:
+166: /home/maxsp/.local/opt/ghidra_12.1.4_PUBLIC/support/analyzeHeadless \
+167: /tmp/tanks-ports-ghidra tanksports -import "$PWD/stormworks64.exe" -noanalysis \
+173:Create `/tmp/tanks-ports-pseudocode` first. Fresh decompiler types and names can differ. Requested fragment entries can produce unassigned-register warnings. Some windows include adjacent code or jump-table data. Only the cited decoded instructions and verified PE bytes support claims, not apparent instruction text in data. No analysis database is required to reproduce instruction evidence.
+178:- `instruction-evidence.json`: 41 instruction anchors, verified byte for byte against the target PE.
+179:- `asm/`: startup/inventory fill, constructor/reset, component load/build, runtime serializers, editor creation, placement, upload, bridge-type and graph/count windows. `baseline-*` files retain prior pressure/update evidence without re-decoding those formulas.
+180:- `pseudocode/`: Ghidra output. The principal complete entries are named in the reproduction command; additional files retain followed callees and inspected candidates.
+181:- `resources.json`: original numbered lines for the three liquid tanks, small gas tank and microprocessor definition.
+182:- `tools/`: PE mapper, window/search/owner/evidence/RTTI scripts, water-vtable bytes, full retained searches and Ghidra logs. Offset searches are candidate lists, not proof every match belongs to a tank.
+183:- `SHA256SUMS`: target executable, sampled shipped definitions, this report and all retained evidence, with paths relative to the repository root. The manifest excludes itself and Python caches.

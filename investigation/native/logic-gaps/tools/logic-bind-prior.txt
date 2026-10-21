@@ -1,0 +1,12 @@
+9:All 38 shipped definitions with category 5 are indexed below, including Power Add, Power Meter, and Train Junction Controller, whose complete behavior is not decoded here. NAND, NOR, delta, pulse, and the four named timer blocks are microprocessor components rather than additional category-5 XML definitions. Their evaluator functions are identified separately.
+15:`c_scene_vehicle_component_logic_gate` RTTI resolves to vtable `0x140b6a1c0`. Its slot `+0x358`, at `0x140b6a518`, contains `20 4d 3c 40 01 00 00 00`, resolving to `0x1403c4d20`. The component dispatcher invokes that slot at `0x1405498d6`, bytes `41 ff 92 58 03 00 00`. The gate reads definition `+0xe70` at `0x1403c4e88`, bytes `48 63 81 70 0e 00 00`. Dispatch uses 63 little-endian RVAs at `0x1403c9554`; at `0x1403c4e9f`, bytes `8b 84 82 54 95 3c 00 48 03 c2 ff e0`, it loads an RVA, adds image base, and jumps. Type 0 follows the default AND branch. Types 24 and 25 skip calculation here.
+19:The microprocessor vehicle vtable is `0x140b84dc8`. Slot `+0x358` at `0x140b85120` contains `00 45 39 40 01 00 00 00`, pointing to `0x140394500`. It runs input bridge methods, calls graph update `0x14038d270` with `this+0x1c0`, then runs output bridge methods. The graph gathers all ordinary component input values before running the component evaluators through vtable slot `+0x50`. Its later loop recurses into nested graph objects. The basic PID vtable is `0x140b62d48`; `+0x50` contains `10 a2 37 40 01 00 00 00`, pointing to `0x14037a210`. Slots `+0x60` and `+0x68` on that component are serialization methods, not its tick.
+31:| And (`gate_bool_and.xml`) | 0 | Q=A AND B. | `0x1403c9493`; `41 0f b6 86 80 01 00` |
+32:| Blinker (`gate_bool_blink.xml`) | 11 | Physical blinker recurrence below. | `0x1403c518e`; `f3 41 0f 10 86 e0 06` |
+33:| Capacitor (`gate_bool_capacitor.xml`) | 36 | Boolean capacitor recurrence below. | `0x1403c644f`; `f3 41 0f 10 86 dc 06` |
+34:| Constant On Signal (`gate_bool_constant.xml`) | 17 | Q=1. | `0x1403c5355`; `41 c6 86 a8 03 00 00` |
+35:| Delay (`gate_bool_delay.xml`) | 12 | Stable-input delay recurrence below. | `0x1403c521b`; `f3 41 0f 10 86 dc 06` |
+36:| Not (`gate_bool_not.xml`) | 3 | Q=NOT A. | `0x1403c4f1a`; `41 0f b6 86 80 01 00` |
+37:| Or (`gate_bool_or.xml`) | 1 | Q=A OR B. | `0x1403c4eab`; `41 0f b6 86 80 01 00` |
+38:| Xor (`gate_bool_xor.xml`) | 2 | Q=(A != B). | `0x1403c4eeb`; `41 0f b6 8e 80 01 00` |
+39:| Abs (`gate_float_abs.xml`) | 38 | C(abs(x)). | `0x1403c657c`; `f3 41 0f 10 86 c0 01` |

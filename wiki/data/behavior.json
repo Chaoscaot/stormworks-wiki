@@ -2946,7 +2946,7 @@
         },
         {
           "title": "Edge cases worth knowing",
-          "body": "Divide outputs 0 and turns Error on when |B| ≤ 1e-6; Modulo outputs 0 for the same divisor. Threshold is on when lower ≤ x ≤ upper. Greater Than is off when A equals B. Trigonometry works in turns, and asin or acos of |x| > 1 gives 0. The SR latch favours Reset. The JK flip-flop and SR latch act only on an update where an input changed, so holding both JK inputs on toggles once, not every update. Clear on the memory register restores the configured value."
+          "body": "Divide outputs 0 and turns Error on when |B| ≤ 1e-6; Modulo outputs 0 for the same divisor. Threshold is on when lower ≤ x ≤ upper. Greater Than is off when A equals B. Modulo truncates the quotient, so its remainder has the sign of A. Exponent outputs 0 for a negative base with an exponent below 1 and for 0 to a negative power. Trigonometry works in turns, and asin or acos of |x| > 1 gives 0; function blocks work in radians. The SR latch favours Reset. The JK flip-flop and SR latch act only on an update where an input changed, so holding both JK inputs on toggles once, not every update. Clear on the memory register restores the configured value."
         },
         {
           "title": "Timers count updates",
@@ -2967,10 +2967,8 @@
       ],
       "limitations": [
         "Timing between vehicles and through cables is listed with the open questions of the Composite data over electrical cables mechanics article.",
-        "Sign, rounding and domain edge cases of the library helpers behind Modulo, Exponent and Trigonometry were not decoded.",
-        "The function block's expression language (operator set, parser, rounding and constant expressions) was not decoded.",
-        "Power Add and Power Meter do nothing in the logic update; their transmission-network formulas were not decoded.",
-        "Train Junction Controller routing, junction selection and the priority of conflicting requests were not traced.",
+        "Power Add and Power Meter select a case that computes nothing in the logic update. Their transmission-network formulas were not recovered, and whether the two definitions are obsolete in this build was not traced.",
+        "A Train Junction Controller's writes replace the junction's route bit, so the last write wins, but the order in which controllers on different vehicles update was not traced: a stable priority between controllers has not been established. Which bit value means the left or right branch for each track orientation was not established either.",
         "For active, normally simulated vehicles, these formulas run once per nominal 1/60-second simulation update. Multiply per-update amounts by 60 for amounts per simulated second. A constant relaxation fraction k leaves (1-k)^60 of a gap after one simulated second. Physics solver substeps and render frames are separate; pauses, sleeping, unloaded vehicles and real-time slowdown are outside this conversion."
       ],
       "sources": [
@@ -2995,7 +2993,17 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e3c08"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1401e3c51"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e54e3"
         },
         {
           "path": "stormworks64.exe",
@@ -3126,6 +3134,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407439c6"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409d5caa"
         }
       ]
     },
@@ -24207,8 +24220,12 @@
           "body": "The output updates on an update where x, y or z changed, and only if the expression parsed. Unchanged inputs keep the last result. Function (1 input) and Function (3 inputs) share this case."
         },
         {
+          "title": "Expression language",
+          "body": "Expressions are evaluated in binary32. The variables are x, y, z, w, a, b, c and d, in input order; a block with fewer inputs supplies 0 for the rest. The constants are pi (π) and pi2 (2π, not π squared). Names are lowercase. A number is decimal digits with at most one decimal point, so 1e3 and 0x10 are not numbers. There are no comparison, Boolean or conditional operators.\n\nTable: Operators, tightest first\n| Operators | Meaning | Grouping |\n| --- | --- | --- |\n| unary + and - | sign | binds tighter than ^, so -x^2 is (-x)^2 |\n| ^ | power | right to left: 2^3^2 is 2^9 |\n| * / % | multiply, divide, remainder | left to right |\n| + - | add, subtract | left to right |\n\nTable: Functions\n| Function | Result |\n| --- | --- |\n| sin, cos, tan | of an angle in radians |\n| asin, acos, atan | angle in radians; asin and acos outside -1 … 1 give 0 |\n| atan2(y, x) | angle of the point (x, y) in radians |\n| sqrt(x) | square root; 0 for negative x |\n| abs(x), sgn(x) | magnitude; sign as -1 below 0 and 1 otherwise, so sgn(0) is 1 |\n| floor(x), ceil(x) | round down, round up |\n| round(x, step) | step × floor(x ÷ step + 0.5); 0 when abs(step) < 1.1920929e-7 |\n| min(a, b), max(a, b) | smaller, larger |\n| len(x, y), len2(x, y) | sqrt(x·x + y·y), x·x + y·y |\n| lerp(a, b, t) | (b − a) × t + a; t is not clamped |\n| clamp(x, lo, hi) | min(hi, max(lo, x)); the bounds are not swapped |\n\nDivision and % give 0 when |divisor| < 1.1920929e-7, a smaller threshold than the Divide block's 0.000001. ^ uses the Exponent block's guard, so a negative base with an exponent below 1 gives 0. Intermediate results are not cleaned; only the block output turns NaN and infinity into 0.\n\nSetup parses the expression and evaluates it once with every variable 0. A syntax error, a wrong argument count, or more than 32 values on the operand stack at once marks the expression invalid, and the block keeps its last output. Constant expressions such as pi2 are valid without any variable. Microprocessor function nodes use the same language and likewise skip evaluation while their inputs are unchanged or the expression is invalid."
+        },
+        {
           "title": "Setup and interactions",
-          "body": "Treat the operator set and rounding as the editor documents them; the Logic category lists what of the expression language remains open."
+          "body": "Expression trigonometry works in radians, unlike the Trigonometry block, which works in turns. Write pi2 for a full turn: sin(x * pi2) takes x in turns."
         }
       ],
       "findings": [
@@ -24272,6 +24289,150 @@
             "sha256": "9579fbf3968c8a04ed2d6141c61907bf80230a317e164f6e473556c47ebf096f",
             "lineStart": 2,
             "lineEnd": 2
+          }
+        },
+        {
+          "label": "Expression function names",
+          "value": "sin cos tan asin acos atan atan2 sqrt floor ceil round min max abs sgn len len2 lerp clamp",
+          "detail": "The token decoder compares identifier tokens with these strings, each loaded by lea in this routine: cos at 0x140adf0fc, sin at 0x140adf154, tan at 0x140adf160, asin at 0x140adf0e4, acos at 0x140adf0dc, atan2 at 0x140b87e9c, atan at 0x140adf0ec, floor at 0x140adf114, ceil at 0x140adf0f4, round at 0x140b8804c, min at 0x140adf130, max at 0x140adf12c, abs at 0x140adf0d8, sgn at 0x140b88090, pi2 at 0x140b88034, sqrt at 0x140adf158, len at 0x140adff4c, len2 at 0x140b87f0c, lerp at 0x140b880c4, clamp at 0x140b88108. pi2 names the constant 2π; pi is matched separately. Unary: sin, cos, tan, asin, acos, atan, ceil, floor, abs, sgn, sqrt. Two arguments: atan2, min, max, round, len, len2. Three arguments: lerp, clamp. Names are lowercase; variables are x, y, z, w, a, b, c, d in input order, and a block with fewer inputs supplies 0 for the rest. Report: investigation/logic-gaps.md. Function 0x1401e79f0-0x1401e8134; instruction bytes 4c8d0dd5748f00 at 0x1401e7c20. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/token-decoder.asm:L189; ../logic-gaps/pseudocode/1401e79f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e79f0@0x1401e7c20",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e7c20"
+          }
+        },
+        {
+          "label": "Expression number literal",
+          "value": "decimal digits, at most one point",
+          "detail": "The decoder counts '.' characters and rejects a second one, then converts the text with the C runtime (call 0x1409b4c3c at 0x1401e7a9e) and rounds the double to binary32 (cvtsd2ss at 0x1401e7aa6). The lexer has no exponent or hexadecimal state, so 1e3 and 0x10 are not number literals. A sign is a separate operator. Report: investigation/logic-gaps.md. Function 0x1401e79f0-0x1401e8134; instruction bytes 80392e at 0x1401e7a70. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/token-decoder.asm:L40; ../logic-gaps/pseudocode/1401e79f0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e79f0@0x1401e7a70",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e7a70"
+          }
+        },
+        {
+          "label": "Expression operator precedence",
+          "value": "unary ± > ^ > * / % > + −",
+          "detail": "The parser assigns precedence ranks (5 here, 4 at 0x1401e4170, 2 at 0x1401e41b7) and pops stacked operators of higher rank (jb at 0x1401e44ef). For * / % + − it also pops equal rank (jbe at 0x1401e469f), so they group left to right; for ^ it keeps equal rank, so power groups right to left. Unary signs bind tighter than power: -x^2 is (-x)^2, and 2^3^2 is 2^9. Parentheses override the ranks and commas separate function arguments. There are no comparison, Boolean, assignment or conditional operators. Report: investigation/logic-gaps.md. Function 0x1401e40c0-0x1401e535f; instruction bytes 41b905000000 at 0x1401e4168. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/expression-parser.asm:L49; ../logic-gaps/pseudocode/1401e40c0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e40c0@0x1401e4168",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e4168"
+          }
+        },
+        {
+          "label": "Expression small-divisor threshold",
+          "value": "1.1920929e-07",
+          "detail": "The evaluator holds e = 2^-23 in xmm1. Division compares |divisor| with it (0x1401e58e6) and skips the divss (0x1401e58f4) when |divisor| < e, so the result stays 0. % applies the same test (0x1401e5908) before calling fmodf (0x1401e5917), and ^ applies the Exponent block's guard before calling powf (0x1401e5953). This threshold differs from the 0.000001 of the Divide and Modulo blocks. Report: investigation/logic-gaps.md. Function 0x1401e5420-0x1401e7270; instruction bytes f30f100d4ba39c00 at 0x1401e5509 address binary32 1.1920929e-07 (bytes 00000034) at 0x140baf85c. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/expression-evaluator.asm:L58-L59; ../logic-gaps/pseudocode/1401e5420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e5420@0x1401e5509",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e5509"
+          }
+        },
+        {
+          "label": "Expression constant pi",
+          "value": "3.1415927",
+          "detail": "The evaluator loads binary32 π for pi; pi2 loads 2π from 0x140bb0550 (0x1401e54eb). Expression trigonometry passes its argument straight to the library, so it works in radians, unlike the Trigonometry block. Report: investigation/logic-gaps.md. Function 0x1401e5420-0x1401e7270; instruction bytes f30f103dc5ae9c00 at 0x1401e54e3 address binary32 3.1415927 (bytes db0f4940) at 0x140bb03b0. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/expression-evaluator.asm:L49-L50; ../logic-gaps/pseudocode/1401e5420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e5420@0x1401e54e3",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e54e3"
+          }
+        },
+        {
+          "label": "Expression round half",
+          "value": "0.5",
+          "detail": "round(x, step) computes step × floor((1 ÷ step) × x + 0.5) in binary32: divss forms 1 ÷ step (0x1401e59bd), mulss multiplies by x, addss adds this, floor is called at 0x1401e59cd and mulss scales by step at 0x1401e59d2. When |step| is below e it returns 0. Ties go up, not to even, and a negative step is accepted. Example: round(2.5, 1) gives 3 and round(-2.5, 1) gives -2. Report: investigation/logic-gaps.md. Function 0x1401e5420-0x1401e7270; instruction bytes f30f5805efa29c00 at 0x1401e59c5 address binary32 0.5 (bytes 0000003f) at 0x140bafcbc. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/expression-evaluator.asm:L397-L398; ../logic-gaps/pseudocode/1401e5420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e5420@0x1401e59c5",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e59c5"
+          }
+        },
+        {
+          "label": "Expression lerp",
+          "value": "(b − a) × t + a",
+          "detail": "lerp(a, b, t) subtracts, multiplies and adds in that order with no clamp on t. clamp(x, lo, hi) is min(hi, max(lo, x)) without swapping the bounds. len(x, y) is sqrt(x·x + y·y), len2(x, y) is x·x + y·y, sqrt of a negative argument gives 0, asin and acos outside -1 … 1 give 0. Report: investigation/logic-gaps.md. Function 0x1401e5420-0x1401e7270; instruction bytes f30f5cc8f30f59caf30f58c8 at 0x1401e5798. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/expression-evaluator.asm:L248-L250; ../logic-gaps/pseudocode/1401e5420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e5420@0x1401e5798",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e5798"
+          }
+        },
+        {
+          "label": "Expression sgn",
+          "value": "-1 below 0, else 1",
+          "detail": "sgn starts from -1 and selects 1 when x ≥ 0 (comiss and cmovae at 0x1401e5b7d), then converts to binary32. So sgn(0) is 1. abs clears the sign bit. Report: investigation/logic-gaps.md. Function 0x1401e5420-0x1401e7270; instruction bytes b8ffffffff at 0x1401e5b78. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/expression-evaluator.asm:L515; ../logic-gaps/pseudocode/1401e5420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e5420@0x1401e5b78",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e5b78"
+          }
+        },
+        {
+          "label": "Expression operand stack",
+          "value": "32 values",
+          "detail": "Pushing an operand compares the stack index with 32 (also at 0x1401e5754) and fails at the 33rd live value with \"stack size exceeded\". Other failures are \"too few args for\" and \"invalid end reached\". It bounds values held at once, not expression length. Setup tokenizes, converts to postfix and evaluates once with all variables 0; a parse error or a failed evaluation marks the expression invalid. Report: investigation/logic-gaps.md. Function 0x1401e5420-0x1401e7270; instruction bytes 83f820 at 0x1401e55ca. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/expression-evaluator.asm:L112; ../logic-gaps/pseudocode/1401e5420.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e5420@0x1401e55ca",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e55ca"
+          }
+        },
+        {
+          "label": "Microprocessor function node guard",
+          "value": "evaluate only on changed input and valid expression",
+          "detail": "This microprocessor function node update compares its three inputs with saved copies and returns when none changed; it then tests the valid flag at +0x150. An expression invalidated by an edit therefore leaves the stored output as it was rather than writing 0. Microprocessor function node setup (0x1403742c0, 0x14037f770) calls the same tokenizer, parser and evaluator as the physical Function blocks, and 0x14037f8e0 also skips evaluation while the expression is invalid. Report: investigation/logic-gaps.md. Function 0x140374440-0x140374498; instruction bytes 80b95001000000 at 0x140374491. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/140374440.asm:L28; ../logic-gaps/pseudocode/140374440.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140374440@0x140374491",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140374491"
+          }
+        },
+        {
+          "label": "Physical numeric output check",
+          "value": "NaN and ±infinity → 0 at the output",
+          "detail": "The physical output setter classifies the value before storing it at +0x418. Expression intermediates are not checked, so an overflow inside an expression can affect later operations before the final result is cleaned. Report: investigation/logic-gaps.md. Function 0x1403c9d10-0x1403c9d62; instruction bytes e807926000 at 0x1403c9d24. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/output-setter.asm:L7. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c9d10@0x1403c9d24",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c9d24"
+          }
+        },
+        {
+          "label": "Exponent rejection predicate",
+          "value": "(x < e and k < 1) or (|x| < e and k < e)",
+          "detail": "The guard compares x with e = 2^-23 (0x140baf85c), k with 1 (0x140bafecc) and |x| (mask 0x140bb1f20) and k with e, returning 1 (reject) at 0x1401e3c2b. So a negative base with any exponent below 1 is rejected, including 0 and negative whole exponents; 0 with a negative exponent and 0 to the power 0 are rejected too, so no infinity is published. Positive bases from e upward accept negative exponents. Examples: x = -2, k = 3 gives -8; x = -2, k = 0.5 gives 0; x = 0, k = -1 gives 0; x = 4, k = -0.5 gives 0.5. Report: investigation/logic-gaps.md. Function 0x1401e3c00-0x1401e3c40; instruction bytes 0f2fd8 at 0x1401e3c08. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/guards.asm:L3; ../logic-gaps/pseudocode/1401e3c00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e3c00@0x1401e3c08",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e3c08"
           }
         },
         {
@@ -24356,12 +24517,72 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e3c08"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e4168"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e54e3"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e5509"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e55ca"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e5798"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e59c5"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e5b78"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e7a70"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e7c20"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140374491"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c4e9f"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c6b0d"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c9d24"
         }
       ]
     },
@@ -56988,7 +57209,11 @@
       "sections": [
         {
           "title": "How it updates",
-          "body": "When the input changes it outputs x^k through a library power helper. A guard outputs 0 instead when x is below 1.1920929e-7 and k below 1, which includes every negative input with such an exponent, or when |x| and k are both below 1.1920929e-7. A NaN result, such as a negative base with a fractional exponent of 1 or more, outputs 0."
+          "body": "When the input changes it outputs x^k through the C runtime powf. A guard outputs 0 instead when x is below 1.1920929e-7 and k below 1, which includes every negative input with such an exponent, or when |x| and k are both below 1.1920929e-7. So 0 to a negative power and 0 to the power 0 output 0, never infinity or 1. A negative base with a whole exponent of 1 or more keeps the usual sign: x = -2, k = 3 gives -8. A NaN result, such as a negative base with a fractional exponent of 1 or more, outputs 0, and so does an overflow to infinity."
+        },
+        {
+          "title": "Setup and interactions",
+          "body": "Positive inputs from 1.1920929e-7 upward accept negative exponents: x = 4, k = -0.5 gives 0.5. For a signed square root or cube root, take |x| and restore the sign separately."
         }
       ],
       "findings": [
@@ -57054,6 +57279,42 @@
           }
         },
         {
+          "label": "Exponent rejection predicate",
+          "value": "(x < e and k < 1) or (|x| < e and k < e)",
+          "detail": "The guard compares x with e = 2^-23 (0x140baf85c), k with 1 (0x140bafecc) and |x| (mask 0x140bb1f20) and k with e, returning 1 (reject) at 0x1401e3c2b. So a negative base with any exponent below 1 is rejected, including 0 and negative whole exponents; 0 with a negative exponent and 0 to the power 0 are rejected too, so no infinity is published. Positive bases from e upward accept negative exponents. Examples: x = -2, k = 3 gives -8; x = -2, k = 0.5 gives 0; x = 0, k = -1 gives 0; x = 4, k = -0.5 gives 0.5. Report: investigation/logic-gaps.md. Function 0x1401e3c00-0x1401e3c40; instruction bytes 0f2fd8 at 0x1401e3c08. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/guards.asm:L3; ../logic-gaps/pseudocode/1401e3c00.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e3c00@0x1401e3c08",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e3c08"
+          }
+        },
+        {
+          "label": "Exponent power call",
+          "value": "CRT powf 0x1409b9c10",
+          "detail": "Only when the guard accepts does the Exponent case call the C runtime powf. A negative base with a fractional exponent of 1 or more reaches powf, gives NaN and is published as 0. Report: investigation/logic-gaps.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e813315f00 at 0x1403c6af8. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/trig.asm:L177; ../logic-gaps/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c6af8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c6af8"
+          }
+        },
+        {
+          "label": "Finite-value classification",
+          "value": "NaN and ±infinity → +0",
+          "detail": "The finite-value helper classifies the result (call 0x1409d2f30) and returns positive 0 for both infinities and every NaN; finite values and signed zeros pass unchanged. It does not clamp large finite values or flush subnormals, and it acts on the library's result, not on the inputs. Report: investigation/logic-gaps.md. Function 0x1401e3c40-0x1401e3c7b; instruction bytes e8dff27e00 at 0x1401e3c4c. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/guards.asm:L36; ../logic-gaps/pseudocode/1401e3c40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e3c40@0x1401e3c4c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e3c4c"
+          }
+        },
+        {
           "label": "Exponent · tooltip",
           "value": "The exponent can be changed by selecting this component with the select tool.",
           "detail": "gate_float_exponent: developer-authored description; intended behaviour, not a measurement.",
@@ -57084,6 +57345,16 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e3c08"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e3c4c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c4e9f"
         },
         {
@@ -57095,6 +57366,11 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c6ad7"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c6af8"
         },
         {
           "path": "stormworks64.exe",
@@ -57347,18 +57623,22 @@
     },
     {
       "id": "part-gate-float-modulo",
-      "summary": "Remainder of A ÷ B; when |B| ≤ 1e-6 it outputs 0.",
+      "summary": "Remainder of A ÷ B with the sign of A; when |B| ≤ 1e-6 it outputs 0.",
       "sections": [
         {
           "title": "How it updates",
-          "body": "Each update, with |B| above 1e-6, it outputs the library remainder of A ÷ B. At or below 1e-6 it outputs 0. There is no error output."
+          "body": "Each update, with |B| above 1e-6, it outputs the C runtime fmodf remainder A − trunc(A ÷ B) × B. At or below 1e-6 it outputs 0. There is no error output."
+        },
+        {
+          "title": "Setup and interactions",
+          "body": "The quotient is truncated toward zero, so the remainder has the sign of A and the sign of B does not matter: A = -7, B = 3 gives -1, and A = 7, B = -3 gives 1. Fractional values work: A = 5.5, B = 2 gives 1.5. For a remainder that is never negative, as for wrapping an angle, add B to a negative result."
         }
       ],
       "findings": [
         {
           "label": "Modulo case (logic_gate_type 26)",
-          "value": "remainder(A, B), or 0 when |B| ≤ 1e-6",
-          "detail": "Jump-table entry 26 at 0x1403c95bc leads here. The remainder helper is a library routine; its sign and rounding rules follow that library. The result passes the finite-value check, so NaN and ±infinity become 0. Report: investigation/logic.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f1086c001 at 0x1403c5e27. Interpretation rests on retained output investigation/native/behavior/../logic/asm/physical-gate.asm:L990-L1009; ../logic/dispatch.txt:L27; ../logic/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "value": "A − trunc(A ÷ B) × B, or 0 when |B| ≤ 1e-6",
+          "detail": "Jump-table entry 26 at 0x1403c95bc leads here. The case calls the C runtime fmodf after the divisor test. The result passes the finite-value check, so NaN and ±infinity become 0. Report: investigation/logic.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f3410f1086c001 at 0x1403c5e27. Interpretation rests on retained output investigation/native/behavior/../logic/asm/physical-gate.asm:L990-L1009; ../logic/dispatch.txt:L27; ../logic/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5e27",
           "status": "observed",
           "source": {
@@ -57403,6 +57683,30 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403c5e58"
           }
+        },
+        {
+          "label": "Modulo remainder call",
+          "value": "CRT fmodf 0x1409d5b34",
+          "detail": "With |B| above 0.000001 the Modulo case calls the statically linked C runtime fmodf on binary32 A and B; otherwise it outputs positive 0 without the call. The result then passes the finite-value check. Report: investigation/logic-gaps.md. Function 0x1403c4d20-0x1403c9668; instruction bytes e8cefc6000 at 0x1403c5e61. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/modulo.asm:L16; ../logic-gaps/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c5e61",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c5e61"
+          }
+        },
+        {
+          "label": "fmodf truncating quotient",
+          "value": "r = x − trunc(x ÷ y) × y",
+          "detail": "fmodf works in double precision: cvttsd2si truncates the quotient toward zero, then mulsd (0x1409d5cb6) and subsd (0x1409d5cba) subtract that multiple of y. The remainder takes the sign of x, including a signed zero, and the sign of y does not matter. Large quotients are reduced in chunks. Examples: x = -7, y = 3 gives -1; x = 7, y = -3 gives 1; x = 5.5, y = 2 gives 1.5. Report: investigation/logic-gaps.md. Function 0x1409d5b34-0x1409d5d7f; instruction bytes f20f2cc0 at 0x1409d5caa. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/fmodf.asm:L96; ../logic-gaps/pseudocode/1409d5b34.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1409d5b34@0x1409d5caa",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1409d5caa"
+          }
         }
       ],
       "limitations": [],
@@ -57427,6 +57731,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c5e58"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c5e61"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1409d5caa"
         }
       ]
     },
@@ -57635,7 +57949,7 @@
         },
         {
           "title": "Setup and interactions",
-          "body": "Sensors that report turns (compass, tilt, radar angles) feed it directly without degree or radian conversion."
+          "body": "Sensors that report turns (compass, tilt, radar angles) feed it directly without degree or radian conversion. The helpers are the C runtime sinf, cosf, tanf, asinf, acosf and atanf, so negative inputs follow the usual odd and even symmetries. atan accepts any finite input. The block has one input, so there is no atan2; use a function block for that, in radians."
         }
       ],
       "findings": [
@@ -57689,6 +58003,30 @@
           }
         },
         {
+          "label": "Trigonometry turns factor, forward modes",
+          "value": "6.2831855",
+          "detail": "The forward modes multiply x by this 2π constant and call CRT sinf (0x1403c69d3), cosf (0x1403c69f0) or tanf (0x1403c6a0d). The inverse modes call asinf (0x1403c6a3d), acosf (0x1403c6a75) or atanf (0x1403c6a7c) and divide by the same constant (0x1403c6a42). asin and acos output 0 for |x| above 1; atan accepts every finite x. There is no second operand, so the block has no atan2. Report: investigation/logic-gaps.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f30f59057d9b7e00 at 0x1403c69cb address binary32 6.2831855 (bytes db0fc940) at 0x140bb0550. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/trig.asm:L105-L106; ../logic-gaps/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c69cb",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c69cb"
+          }
+        },
+        {
+          "label": "Finite-value classification",
+          "value": "NaN and ±infinity → +0",
+          "detail": "The finite-value helper classifies the result (call 0x1409d2f30) and returns positive 0 for both infinities and every NaN; finite values and signed zeros pass unchanged. It does not clamp large finite values or flush subnormals, and it acts on the library's result, not on the inputs. Report: investigation/logic-gaps.md. Function 0x1401e3c40-0x1401e3c7b; instruction bytes e8dff27e00 at 0x1401e3c4c. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/guards.asm:L36; ../logic-gaps/pseudocode/1401e3c40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1401e3c40@0x1401e3c4c",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1401e3c4c"
+          }
+        },
+        {
           "label": "Trigonometry · tooltip",
           "value": "The available functions are sin, cos, tan, asin, acos and atan. If an invalid number is input, the output will be 0. Sin, cos and tan accept inputs measured in turns. Asin, acos and atan output values measured in turns. The function can be set by selecting this component with the select tool.",
           "detail": "gate_float_sin: developer-authored description; intended behaviour, not a measurement.",
@@ -57719,12 +58057,22 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1401e3c4c"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c4e9f"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c6978"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c69cb"
         },
         {
           "path": "stormworks64.exe",
@@ -58987,11 +59335,11 @@
     },
     {
       "id": "part-gate-torque-add",
-      "summary": "Power Add does nothing in the logic update; it acts in the transmission network.",
+      "summary": "Power Add selects a case that computes nothing in the logic update; no code that adds or measures power for it was found.",
       "sections": [
         {
           "title": "How it updates",
-          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. Its effect belongs to the transmission network; the Logic category lists what remains open."
+          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. The definition lists a single mechanical output, Combined Power, and no engine inputs. No transmission formula for this part was found, so its name and tooltip are no evidence that it adds or measures anything. The Logic category lists what remains open."
         }
       ],
       "findings": [
@@ -59031,6 +59379,19 @@
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x1403c4e9f"
           }
+        },
+        {
+          "label": "Power Add · port Combined Power",
+          "value": "Outputs the combined power of engine 1 and 2.",
+          "detail": "gate_torque_add: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/gate_torque_add.xml:2868925e0a1e:L32-L32",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/gate_torque_add.xml",
+            "sha256": "2868925e0a1ed863d596e456788007a7c9c31ac204fea949fce82e14ccbff546",
+            "lineStart": 32,
+            "lineEnd": 32
+          }
         }
       ],
       "limitations": [],
@@ -59040,6 +59401,12 @@
           "sha256": "2868925e0a1ed863d596e456788007a7c9c31ac204fea949fce82e14ccbff546",
           "lineStart": 2,
           "lineEnd": 2
+        },
+        {
+          "path": "rom/data/definitions/gate_torque_add.xml",
+          "sha256": "2868925e0a1ed863d596e456788007a7c9c31ac204fea949fce82e14ccbff546",
+          "lineStart": 32,
+          "lineEnd": 32
         },
         {
           "path": "stormworks64.exe",
@@ -59055,15 +59422,15 @@
     },
     {
       "id": "part-gate-torque-multimeter",
-      "summary": "Power Meter does nothing in the logic update; it acts in the transmission network.",
+      "summary": "Power Meter selects a case that computes nothing in the logic update; no code that adds or measures power for it was found.",
       "sections": [
         {
           "title": "How it updates",
-          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. Its effect belongs to the transmission network; the Logic category lists what remains open."
+          "body": "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. The definition lists a single mechanical output, Relay, and no engine inputs. No transmission formula for this part was found, so its name and tooltip are no evidence that it adds or measures anything. The Logic category lists what remains open."
         },
         {
           "title": "Setup and interactions",
-          "body": "Place it between engine and consumer, not on a branch."
+          "body": "The tooltip asks for it in series between engine and consumer. No code found so far relays or measures power through it."
         }
       ],
       "findings": [
@@ -59105,6 +59472,19 @@
           }
         },
         {
+          "label": "Power Meter · port Relay",
+          "value": "Relays the power received from an engine.",
+          "detail": "gate_torque_multimeter: output port. Interface description.",
+          "evidenceId": "resource:rom/data/definitions/gate_torque_multimeter.xml:26c1c4702df9:L32-L32",
+          "status": "observed",
+          "source": {
+            "path": "rom/data/definitions/gate_torque_multimeter.xml",
+            "sha256": "26c1c4702df9f268224c0ebaf9d0f75f0771bf4eedf3736f2c43fa87008fea0d",
+            "lineStart": 32,
+            "lineEnd": 32
+          }
+        },
+        {
           "label": "Power Meter · tooltip",
           "value": "To prevent a loss of power, it should be connected in series between the engine and its receiving component.",
           "detail": "gate_torque_multimeter: developer-authored description; intended behaviour, not a measurement.",
@@ -59129,6 +59509,12 @@
         {
           "path": "rom/data/definitions/gate_torque_multimeter.xml",
           "sha256": "26c1c4702df9f268224c0ebaf9d0f75f0771bf4eedf3736f2c43fa87008fea0d",
+          "lineStart": 32,
+          "lineEnd": 32
+        },
+        {
+          "path": "rom/data/definitions/gate_torque_multimeter.xml",
+          "sha256": "26c1c4702df9f268224c0ebaf9d0f75f0771bf4eedf3736f2c43fa87008fea0d",
           "lineStart": 85,
           "lineEnd": 85
         },
@@ -59146,22 +59532,22 @@
     },
     {
       "id": "part-gate-train-junction",
-      "summary": "Drives a train-junction helper object, not a Boolean toggle; its tooltip and ports copy Push To Toggle.",
+      "summary": "Binds once to the nearest train junction within 30 units and flips that junction's route on each rising edge of Toggle Signal.",
       "sections": [
         {
           "title": "How it updates",
-          "body": "Its case creates or updates a junction helper through 0x140290d10 and the object stored at +0x840. Its tooltip and ports are word for word those of Push To Toggle."
+          "body": "On its first update the controller looks for the nearest junction with at least 3 connections strictly within 30 world units, keeps it, and writes its own route bit into it. It sets a searched flag even when it found nothing, so it never searches again. After that, each update where Toggle Signal changes to on flips the route bit and writes it into the junction. Turning the signal off, or holding it on, changes nothing. Trains read the junction's bit when they choose a branch there."
         },
         {
           "title": "Setup and interactions",
-          "body": "Expect it to switch a track junction rather than to feed other logic; the Logic category lists what of its routing remains open."
+          "body": "Place the controller within 30 units of the junction it should switch, and no nearer to another junction. Of two equally near junctions it keeps the first one stored. Each controller keeps its own route bit, so two controllers on one junction can disagree: each write replaces the junction's bit and the last write wins. Its tooltip and ports are word for word those of Push To Toggle."
         }
       ],
       "findings": [
         {
           "label": "Train Junction Controller case (logic_gate_type 46)",
-          "value": "junction helper",
-          "detail": "Jump-table entry 46 at 0x1403c960c leads here. Compares a flag at +0x831 first; the helper object is kept at +0x840. Report: investigation/logic.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 4138b6310800 at 0x1403c6c4e. Interpretation rests on retained output investigation/native/behavior/../logic/asm/physical-gate.asm:L1832-L1883; ../logic/dispatch.txt:L47; ../logic/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "value": "bind once, toggle the route on a rising edge",
+          "detail": "Jump-table entry 46 at 0x1403c960c leads here. Compares the searched flag at +0x831 first; the bound junction is kept at +0x840 and the route bit at +0x848. Report: investigation/logic.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 4138b6310800 at 0x1403c6c4e. Interpretation rests on retained output investigation/native/behavior/../logic/asm/physical-gate.asm:L1832-L1883; ../logic/dispatch.txt:L47; ../logic/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c6c4e",
           "status": "observed",
           "source": {
@@ -59209,6 +59595,66 @@
           }
         },
         {
+          "label": "Train junction search radius",
+          "value": "30",
+          "detail": "While the searched flag (+0x831) is clear, the case transforms the controller position to world space and calls the nearest-junction search (0x1403c6ca9) with this radius. Report: investigation/logic-gaps.md. Function 0x1403c4d20-0x1403c9668; instruction bytes f30f1015729a7e00 at 0x1403c6c96 address binary32 30 (bytes 0000f041) at 0x140bb0710. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/junction-gate.asm:L21-L22; ../logic-gaps/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c6c96",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c6c96"
+          }
+        },
+        {
+          "label": "Train junction eligibility",
+          "value": "at least 3 connections, nearest, strictly inside the radius",
+          "detail": "The search walks the junction records in their stored order and skips records with fewer than 3 connections. It keeps a record only when its squared distance, narrowed to binary32, is strictly below both the best so far (comiss at 0x140290dc0) and the squared radius (0x140290dcc). Of two equally near records it keeps the first. It does not prefer the same vehicle or a lower ID. Report: investigation/logic-gaps.md. Function 0x140290d10-0x140290fc6; instruction bytes 83783003 at 0x140290d82. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/nearest-junction.asm:L33; ../logic-gaps/pseudocode/140290d10.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140290d10@0x140290d82",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140290d82"
+          }
+        },
+        {
+          "label": "Train junction binding",
+          "value": "junction+0x38 = route bit; searched = 1",
+          "detail": "The result is kept at +0x840. A found junction receives the controller's route bit (+0x848) at junction+0x38 (0x1403c6cc2). The searched flag is then set (0x1403c6cc5) even when nothing was found, so the update never searches again. Report: investigation/logic-gaps.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 410fb68e48080000 at 0x1403c6cba. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/junction-gate.asm:L29-L30; ../logic-gaps/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c6cba",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c6cba"
+          }
+        },
+        {
+          "label": "Train junction rising edge",
+          "value": "toggle on a change to on",
+          "detail": "Toggle Signal is compared with the value saved at +0x691. Only a change to on flips the route bit (sete at 0x1403c6d1f, stored at 0x1403c6d22); a change to off only updates the saved value, and holding the signal on does nothing. The new bit is then written into the bound junction (0x1403c6d39). Each controller keeps its own bit, so two controllers on one junction can hold different bits; each write replaces the junction's bit, and the last write wins. There is no queue, vote or priority field. Report: investigation/logic-gaps.md. Function 0x1403c4d20-0x1403c9668; instruction bytes 413a8691060000 at 0x1403c6cfc. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/junction-gate.asm:L43; ../logic-gaps/pseudocode/1403c4d20.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1403c4d20@0x1403c6cfc",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1403c6cfc"
+          }
+        },
+        {
+          "label": "Train routing reads the route bit",
+          "value": "junction+0x38",
+          "detail": "Train track following tests the junction's route bit here and on the other endpoint branch (0x1404c7a66). With several connections that fit the travel direction, it orders the first two by their sideways offset and the bit picks one side of that order. Whether a bit value means left or right depends on direction and endpoint. Report: investigation/logic-gaps.md. Function 0x1404c68b0-0x1404c7fbe; instruction bytes 80793800 at 0x1404c74d8. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/train-route.asm:L737; ../logic-gaps/pseudocode/1404c68b0.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1404c68b0@0x1404c74d8",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1404c74d8"
+          }
+        },
+        {
           "label": "Train Junction Controller · tooltip",
           "value": "This can allow regular push buttons to act as toggle buttons.",
           "detail": "gate_train_junction: developer-authored description; intended behaviour, not a measurement.",
@@ -59245,12 +59691,37 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140290d82"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c4e9f"
         },
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1403c6c4e"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c6c96"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c6cba"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1403c6cfc"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1404c74d8"
         }
       ]
     },
@@ -76103,11 +76574,11 @@
         },
         {
           "title": "Size and port placement",
-          "body": "The editor's width and length controls run from 1 to 6 in steps of 1, and the upload check rejects a microcontroller whose width or length is above 6 with \"Microcontroller must not be larger than 6x6 voxels\". A port must sit inside the grid, 0 ≤ x < width and 0 ≤ z < length, in the bottom row y = 0. Two ports at one position are rejected when they have the same kind, or kinds 0 and 1 (internal codes); other kinds may share a position. This rule sets no total, so the 6 by 6 area and the 32 composite channels do not give a port limit."
+          "body": "The editor's width and length controls run from 1 to 6 in steps of 1, and the upload check rejects a microcontroller whose width or length is above 6 with \"Microcontroller must not be larger than 6x6 voxels\". A port must sit inside the grid, 0 ≤ x < width and 0 ≤ z < length, in the bottom row y = 0. Two ports at one position are rejected when they have the same kind, or kinds 0 and 1 (internal codes); other kinds may share a position. The rule limits ports per position, not in total, and the 32 composite channels set no port limit."
         },
         {
           "title": "Port and graph counts",
-          "body": "Add Input allocates a node, gives it the next node ID, creates its bridge and appends it to the port list. It grows the list when it is full and never compares the count with a maximum. The upload check tests the size, that the graph and port lists are not empty, that an output exists and where each port sits, but not how many ports there are.\n\nThe binary format stores the port count in 16 bits and the embedded component count in 32 bits. These are field widths, not editor limits: the serializers check no count against them, and XML lists grow as they are read. Inference, not tested in game: with the five bridged kinds at most 4 ports fit one position, one on/off or number port plus one composite, one video and one audio, so 144 on a 6 by 6 grid."
+          "body": "Add Input allocates a node, gives it the next ID from a 32-bit counter, creates its bridge with an ID from a second 32-bit counter, and appends the node to the port list. The list grows when it is full, and nothing compares the count with a maximum or checks the counters for overflow or duplicates. The upload check tests the size, that the graph and port lists are not empty, that an output exists and where each port sits, but not how many ports there are.\n\nLimits depend on the path. A binary save reads the port list and each nested group list with a 16-bit count and reads the entries only for counts 1 to 32,768; a larger count skips that list. Component lists use 32-bit counts, XML import grows its lists as it reads them, and the graph update walks whatever its lists hold.\n\nWith the five bridged kinds at most 4 ports fit one position, one on/off or number port plus one composite, one video and one audio, so 144 on a 6 by 6 grid. That is a placement bound on the largest footprint, not a storage or execution limit."
         },
         {
           "title": "Composite channels inside the graph",
@@ -76569,7 +77040,7 @@
         {
           "label": "External node count, binary write",
           "value": "low 16 bits of the 32-bit count",
-          "detail": "Writing takes the low 16 bits of the list's 32-bit count, stores them as one word (0x140908d76), then writes every node of the full count (0x140908d84). Inference: 65535 is the largest count the binary field holds, and a longer list would not read back with the same count. That is a format width, not an editor limit. Report: investigation/tanks-ports.md. Function 0x140908830-0x140908dce; instruction bytes 0fb75710 at 0x140908d4f. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/port-list-serializer.asm:L376; ../tanks-ports/pseudocode/140908830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "detail": "Writing takes the low 16 bits of the list's 32-bit count, stores them as one word (0x140908d76), then writes every node of the full count (0x140908d84). The reader accepts only counts 1 to 32,768 (count guard at 0x140908c4e, investigation/logic-gaps.md), so a list longer than that does not read back. That is a read range, not an editor limit. Report: investigation/tanks-ports.md. Function 0x140908830-0x140908dce; instruction bytes 0fb75710 at 0x140908d4f. Interpretation rests on retained output investigation/native/behavior/../tanks-ports/asm/port-list-serializer.asm:L376; ../tanks-ports/pseudocode/140908830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
           "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140908830@0x140908d4f",
           "status": "observed",
           "source": {
@@ -76604,19 +77075,67 @@
         },
         {
           "label": "Ports per position for the bridged kinds",
-          "value": "at most 4; 144 on a 6 by 6 grid (not confirmed)",
-          "detail": "Inference from the placement rule: the five kinds the bridge builder 0x1403929f0 supports are 0, 1, 5, 6 and 7 (on/off, number, composite, video, audio). Kinds 0 and 1 conflict, so one position holds at most one of them plus one each of 5, 6 and 7: 4 ports, or 4 × 36 = 144 on the largest grid. No accepted 144-port microcontroller was built or loaded. Report: investigation/tanks-ports.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038ff5b, native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038feea, native:stormworks64.exe:f9206d85c82f:0x140638e00@0x140639111.",
-          "evidenceId": "derived:44ae419ec71e",
+          "value": "at most 4; 144 on a 6 by 6 grid",
+          "detail": "From the placement rule: the five kinds the bridge builder 0x1403929f0 supports are 0, 1, 5, 6 and 7 (on/off, number, composite, video, audio). Kinds 0 and 1 conflict, so one position holds at most one of them plus one each of 5, 6 and 7: 4 ports, or 4 × 36 = 144 on the largest grid. This is a placement bound, not a storage or execution limit: upload checks each port's position and compares no count with 144. Reports: investigation/tanks-ports.md, investigation/logic-gaps.md. Inputs: native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038ff5b, native:stormworks64.exe:f9206d85c82f:0x14038fee0@0x14038feea, native:stormworks64.exe:f9206d85c82f:0x140638e00@0x140639111.",
+          "evidenceId": "derived:ff37a055efb8",
           "status": "derived",
           "source": {
             "path": "stormworks64.exe",
             "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
             "address": "0x14038ff5b"
           }
+        },
+        {
+          "label": "External node count read range",
+          "value": "1 to 32,768",
+          "detail": "After reading the unsigned 16-bit count, the binary reader computes count − 1 and reads the records only when it is at most 0x7fff as a 16-bit value. So counts 1 to 32768 (32,768) read normally, 0 reads none, and 32769 to 65535 skip the list and leave its records unread. The writer still emits the low 16 bits of the count. Report: investigation/logic-gaps.md. Function 0x140908830-0x140908dce; instruction bytes 8d42ffb9ff7f0000663bc1 at 0x140908c4e. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/external-port-serializer.asm:L300-L302; ../logic-gaps/pseudocode/140908830.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140908830@0x140908c4e",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140908c4e"
+          }
+        },
+        {
+          "label": "Nested group count read range",
+          "value": "1 to 32,768 per list",
+          "detail": "Nested embedded-group lists use the same 16-bit count and the same range, 1 to 32768 (32,768). The range applies to each serialized list, not to the whole graph. Report: investigation/logic-gaps.md. Function 0x140907e40-0x1409083a6; instruction bytes 8d42ffb9ff7f0000663bc1 at 0x140908243. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/nested-group-serializer.asm:L292-L294; ../logic-gaps/pseudocode/140907e40.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140907e40@0x140908243",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140908243"
+          }
+        },
+        {
+          "label": "External node ID counter",
+          "value": "32-bit, unchecked",
+          "detail": "Add Input increments the definition's 32-bit counter at +0x74 and copies it to the node's ID (+0x40) with no overflow or duplicate test. Bridge creation keeps a separate 32-bit counter at +0x70 (0x14038f394). The record serializer stores both IDs as 32-bit fields (0x14037098e). Report: investigation/logic-gaps.md. Function 0x1407c1b60-0x1407c4b77; instruction bytes ff4774 at 0x1407c3eda. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/add-port.asm:L18; ../logic-gaps/pseudocode/1407c1b60.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x1407c1b60@0x1407c3eda",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x1407c3eda"
+          }
+        },
+        {
+          "label": "Microprocessor function node guard",
+          "value": "evaluate only on changed input and valid expression",
+          "detail": "This microprocessor function node update compares its three inputs with saved copies and returns when none changed; it then tests the valid flag at +0x150. An expression invalidated by an edit therefore leaves the stored output as it was rather than writing 0. Microprocessor function node setup (0x1403742c0, 0x14037f770) calls the same tokenizer, parser and evaluator as the physical Function blocks, and 0x14037f8e0 also skips evaluation while the expression is invalid. Report: investigation/logic-gaps.md. Function 0x140374440-0x140374498; instruction bytes 80b95001000000 at 0x140374491. Interpretation rests on retained output investigation/native/behavior/../logic-gaps/asm/140374440.asm:L28; ../logic-gaps/pseudocode/140374440.c. Provenance: Ghidra 12.1.4 headless, program imported with -noanalysis and only the cited routine disassembled/decompiled by a local script; this is not an REA session record. Static analysis of this executable only; no game process was run.",
+          "evidenceId": "native:stormworks64.exe:f9206d85c82f:0x140374440@0x140374491",
+          "status": "observed",
+          "source": {
+            "path": "stormworks64.exe",
+            "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+            "address": "0x140374491"
+          }
         }
       ],
       "limitations": [
-        "No unconditional maximum port or graph size was recovered across editor creation, XML import, binary saves and graph execution. ID validation and allocation in other creation paths were not traced, and whether the 144 ports the placement rule allows for the five bridged kinds are accepted end to end is not confirmed.",
+        "Copy and paste, the link serializers of individual component types and duplicate-ID repair after import were not traced, so no single maximum for ports, components, links or IDs is established across every path.",
         "Open questions about cable and cross-vehicle timing, video resource ownership, Lua scheduling and a composite network format are listed in the Composite data over electrical cables mechanics article."
       ],
       "sources": [
@@ -76720,6 +77239,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140374491"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x14037c92b"
         },
         {
@@ -76775,6 +77299,11 @@
         {
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x1407c3eda"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x1407c3f60"
         },
         {
@@ -76791,6 +77320,16 @@
           "path": "stormworks64.exe",
           "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
           "address": "0x140907d7a"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140908243"
+        },
+        {
+          "path": "stormworks64.exe",
+          "sha256": "f9206d85c82f4d02fd0ac391781d19c5c68394a9ffc48accca0e1f5966db8699",
+          "address": "0x140908c4e"
         },
         {
           "path": "stormworks64.exe",
@@ -162040,12 +162579,12 @@
       "weapon-s-muzzle",
       "weapon-xl-muzzle"
     ],
-    "findingCount": 8864,
+    "findingCount": 8894,
     "findingsByStatus": {
       "derived": 743,
-      "observed": 8121
+      "observed": 8151
     },
-    "nativeFindingCount": 6468,
+    "nativeFindingCount": 6496,
     "realtimeNames": {
       "inFile": 199,
       "plaintextInExecutable": [
@@ -162097,8 +162636,8 @@
     ],
     "evidenceUse": {
       "derived": 429,
-      "native": 1488,
-      "resource": 2661
+      "native": 1513,
+      "resource": 2663
     }
   }
 }

@@ -1,0 +1,91 @@
+      }
+      goto LAB_1401e5281;
+    }
+    if (iVar5 != 0x29) {
+      switch(iVar5) {
+      case 0:
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 8:
+      case 9:
+      case 10:
+        piVar18 = (int *)FUN_1408d09c0(param_2);
+        *piVar18 = *piVar15;
+        FUN_14017cbb0(piVar18 + 2);
+        if (piVar15[5] != 0) {
+          FUN_14099d3b0(*(undefined8 *)(piVar18 + 2),*(undefined8 *)(piVar15 + 2),piVar15[4] + 1);
+        }
+        piVar18[4] = piVar15[4];
+        piVar18[6] = piVar15[6];
+        break;
+      default:
+LAB_1401e417a:
+        uVar12 = (uint)uVar11;
+        if ((iVar5 == 0x13) || (iVar5 == 0x14)) {
+          if (uVar6 == uVar12) {
+            FUN_1408dd1f0(&lStack_f8);
+            uVar11 = uStack_f0 & 0xffffffff;
+            lVar10 = lStack_f8;
+            uVar6 = uStack_e8;
+            iVar13 = uStack_f0._4_4_;
+          }
+          uVar7 = uVar6 + 1;
+          piVar18 = (int *)(((ulonglong)(uVar6 + iVar13) % uVar11) * 0x20 + lVar10);
+          *piVar18 = 8;
+          piVar18[2] = 0;
+          piVar18[3] = 0;
+          piVar18[4] = 0;
+          piVar18[5] = 0;
+          uStack_e8 = uVar7;
+          piStack_e0 = piVar18;
+          FUN_14017b670(piVar18 + 2);
+          piVar18[6] = 0;
+LAB_1401e4d07:
+          *piVar18 = *piStack_c8;
+          FUN_14017cbb0(piVar18 + 2);
+          if (piStack_c8[5] != 0) {
+            FUN_14099d3b0(*(undefined8 *)(piVar18 + 2),*(undefined8 *)(piStack_c8 + 2),
+                          piStack_c8[4] + 1);
+          }
+          piVar18[4] = piStack_c8[4];
+          iVar5 = piStack_c8[6];
+        }
+        else {
+          switch(iVar5) {
+          case 0x15:
+          case 0x16:
+          case 0x17:
+          case 0x18:
+          case 0x19:
+          case 0x1a:
+          case 0x1b:
+          case 0x1c:
+          case 0x1d:
+          case 0x1e:
+          case 0x1f:
+          case 0x20:
+          case 0x21:
+          case 0x22:
+          case 0x23:
+          case 0x24:
+          case 0x25:
+          case 0x26:
+          case 0x27:
+            if (uVar6 == uVar12) {
+              FUN_1408dd1f0(&lStack_f8);
+              uVar11 = uStack_f0 & 0xffffffff;
+              lVar10 = lStack_f8;
+              uVar6 = uStack_e8;
+              iVar13 = uStack_f0._4_4_;
+            }
+            uVar7 = uVar6 + 1;
+            piVar18 = (int *)(((ulonglong)(uVar6 + iVar13) % uVar11) * 0x20 + lVar10);
+            *piVar18 = 8;
+            piVar18[2] = 0;
+            piVar18[3] = 0;
+            piVar18[4] = 0;

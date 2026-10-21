@@ -1,0 +1,56 @@
+Still open. No maximum safe tank pressure, rupture threshold or pressure-to-damage equation was recovered. This investigation does not establish that pressure damage is impossible.
+
+The previously decoded compartment pressure calculation `0x1402eb460` and pressure conversion `0x1402eb500` and fixed-tank update arm `0x1403f3766..0x1403f39cc` were retained as baseline evidence. The gas formula has no maximum-pressure constant in that calculation, and the inspected tank update arm exchanges contents and updates content/pressure outputs without a pressure-triggered rupture branch. The newly traced compartment serializer and fixed-fuel fill arm also do not supply such a threshold. The inspected shipped tank definitions have no maximum-pressure or rupture field.
+
+Ruled out as a safety rating: the 59.4-atmosphere cleared gas startup result, the 0.99 initialization multiplier, and the serializer's 100000 temperature bound. These are initialization or temperature values. They cannot be substituted for a tank pressure limit.
+
+The complete executable ASCII string/reference search for `pressure|rupture|burst|overpressure` is retained. It finds no ASCII identifier containing rupture, burst or overpressure, but it does find `max pressure` at `0x140b3ede0`, referenced at `0x1408798aa`, and `high_pressure` at `0x140b971d0`, referenced at `0x1405c0114` and `0x1406f9b0a`. Those generic references were not resolved to a tank failure mechanism and are not ruled out globally. Unlabelled comparisons, common vehicle damage code and geometry-compartment failure paths remain untraced. The scoped negative results above are not an executable-wide absence proof.
+
+## 4. Microprocessor ports and graph counts, issue #63
+
+The editor event dispatcher `0x1407c1b60`, case 0x71, creates an external node. At `0x1407c3eac` it selects the definition at editor+0x118, allocates 0x58 bytes, initializes the node, increments the 32-bit node-ID counter, creates its bridge with `0x14038f150`, grows the node list if capacity equals count, and appends it. There is no comparison against a maximum node count in this Add Input handler. The 0x20 value in list growth is a minimum allocation capacity, not a 32-port cap. This does not prove every other creation/import path has no guard.
+
+Definition serializer `0x14038db30` serializes width, length, ID counters, the external node list at definition+0x48, and the embedded group. The external-node list serializer is `0x140908830`:
+
+- XML read iterates `nodes/node` elements and grows the list dynamically. XML write traverses the list. No count cap was found in those paths.
+- Binary write stores the low 16 bits of the list's 32-bit in-memory count, then traverses the actual count. Binary read consumes an unsigned 16-bit count. Therefore 65535 is the largest count representable by this binary field, not a demonstrated enforced editor maximum. A larger in-memory count is not safely round-trippable through that count field.
+
+The embedded group's serializer is `0x14038b940`. Its `components` and `components_bridge` collections go through `0x1409077b0`. That serializer uses a four-byte count, not the external list's two-byte count. There is no recovered small fixed graph-size constant in this path. A 32-bit count is a format width, not a promise that billions of components can be allocated, assigned valid IDs, edited or evaluated.
+
+Placement and upload are separate from creation. `0x14038fee0` requires 0 <= X < width, 0 <= Z < length and Y=0. At the same cell it rejects an equal type and also rejects the 0/1 type pair. Other unequal types are allowed to share the cell. The bridge builder `0x1403929f0` supports types 0,1,5,6,7, corresponding to Boolean, number, composite, video and audio. Inference: for these five functioning types the collision rule gives four compatible groups per cell, or an upper bound of 144 placed ports over 6 by 6 cells. This is a derived bound for supported types, not a recovered constant or a demonstrated accepted maximum across all imported definitions.
+
+The upload validator `0x1407c6040` checks dimensions <=6, nonempty embedded component and external-node lists, output presence, and placement of each external node through `0x14038fee0`. The inspected validation path has no separate numerical port-count ceiling. The existing editor controls impose the lower dimension bound of 1.
+
+Still open: an unconditional maximum across editor creation, XML import, binary serialization and graph execution; any additional limits in untraced graph creation, ID validation or allocation paths; whether the derived 144 supported-port arrangement is accepted end to end. Ruled out: 32 as a cap from dynamic-list growth; 36 as a total-port cap from cell count; 65535 as an enforced editor limit; applying the 16-bit external-port count to the embedded component list. No runtime experiment was performed.
+
+Instruction anchors:
+
+- `0x1407c3eb3`, bytes `b9 58 00 00 00`: allocate external node.
+- `0x1407c3ec8`, bytes `e8 83 df b1 ff`: initialize external node.
+- `0x1407c3eda`, bytes `ff 47 74`: increment node ID.
+- `0x1407c3f60`, bytes `8b 4f 58`: load list count.
+- `0x14038ff0c`, bytes `3b 41 44`: Z dimension bound.
+- `0x14038ff11`, bytes `83 7a 24 00`: require Y zero.
+- `0x140908d17`, bytes `0f b7 10`: read unsigned 16-bit node count.
+- `0x140908d4f`, bytes `0f b7 57 10`: truncate list count to 16 bits.
+- `0x140908d76`, bytes `66 89 10`: write 16-bit node count.
+- `0x140907d7a`, bytes `44 8b 30`: read 32-bit component count.
+- `0x140907d92`, bytes `44 89 30`: write 32-bit component count.
+- `0x1407c65e1`, bytes `41 83 bc 24 58 01 00 00 06`: width upper bound six.
+- `0x1407c65ec`, bytes `41 83 bc 24 5c 01 00 00 06`: length upper bound six.
+- `0x1407c676f`, bytes `e8 6c 97 bc ff`: validate port placement.
+
+## Confidence and replacement wording
+
+High confidence in instruction bytes, field names and offsets, count widths, the Add Input handler, the inventory-limited fill calculation and type-sensitive collision test. Moderate confidence in the conditional 144-port bound. Workflow-wide persistence, settings-to-request mapping and any global absence claim remain open.
+
+#29: "Diesel and jet fuel have a separate request-gated spawn fill path. It requests 0.99 × fill fraction × geometric liquid capacity, capped to available stock on the inventory branch, and adds ambient air. Runtime compartments serialize vol_0..vol_12, vol_total, temp and rad under contained_volume and contained_volume_secondary, plus spawner_pending. Still open: complete flag/ordering trace for saved-world loading, stored-vehicle spawning and rebuild/reset workflows."
+
+#30: "Gas tanks use the same recovered runtime compartment serializer as fluid tanks. Geometric capacity is reconstructed separately; explicit reset clears amounts and re-arms fill. Still open: complete save/rebuild workflow ordering and a maximum safe pressure or pressure-triggered rupture/damage threshold. The 59.4 atm startup result is not a safety limit."
+
+#63: "The Add Input handler has no fixed count test. External-node binary serialization uses a 16-bit count; embedded component serialization uses a 32-bit count. XML lists grow dynamically. Placement allows some different signal types to share a cell, so 36 cells is not a total-port limit. Still open: an unconditional accepted port/graph maximum and end-to-end confirmation of the derived 144-port bound for the five supported types."
+
+## Reproduction
+
+Run from the repository root. All commands read the executable without running it.
+

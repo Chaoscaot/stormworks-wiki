@@ -1,0 +1,41 @@
+                  if (fVar37 * *(float *)(lVar17 + 0xc + uVar25 * 0x14) +
+                      fVar41 * *(float *)(lVar17 + 8 + uVar25 * 0x14) +
+                      fVar33 * *(float *)(lVar17 + 0x10 + uVar25 * 0x14) < fVar32) {
+                    if (uVar26 == (uint)uVar28) {
+                      FUN_1408e3df0(&uStack_1f8);
+                      uVar28 = (ulonglong)uStack_1f0;
+                      uVar23 = uStack_1f8;
+                      uVar27 = uStack_1ec;
+                      uVar26 = uStack_1e8;
+                    }
+                    uStack_1e8 = uVar26 + 1;
+                    *(uint *)(uVar23 + ((ulonglong)((uVar27 - 1) + uStack_1e8) % uVar28) * 4) =
+                         uVar20;
+                    uVar26 = uStack_1e8;
+                  }
+                }
+                param_3 = lStack_200;
+                fVar31 = _DAT_140bafecc;
+                uVar20 = uVar20 + 1;
+                iVar22 = *(int *)(param_1 + 0xd4);
+                uVar24 = *(uint *)(param_1 + 0xd0);
+                lVar17 = *(longlong *)(param_1 + 200);
+                lStack_210 = *(longlong *)
+                              (lVar17 + ((ulonglong)(iVar22 + uVar14) % (ulonglong)uVar24) * 8);
+                lVar18 = *(longlong *)(lStack_210 + 0x148);
+              } while (uVar20 < *(uint *)(lVar18 + 0x30));
+              if (uVar26 == 0) goto LAB_1404c76f8;
+              uVar24 = *(uint *)(uStack_1f8 + ((ulonglong)uVar27 % uVar28) * 4);
+              if (1 < uVar26) {
+                uVar15 = *(uint *)(uStack_1f8 + ((ulonglong)(uVar27 + 1) % uVar28) * 4);
+                uVar25 = (ulonglong)*(uint *)(*(longlong *)(lStack_210 + 0x148) + 0x28);
+                uVar23 = (ulonglong)(*(int *)(lVar18 + 0x2c) + uVar24) % uVar25;
+                lVar17 = *(longlong *)(*(longlong *)(lStack_210 + 0x148) + 0x20);
+                uVar25 = (ulonglong)(*(int *)(lVar18 + 0x2c) + uVar15) % uVar25;
+                fVar34 = fVar41 - fVar37 * 0.0;
+                fVar32 = fVar33 * 0.0 - fVar41 * 0.0;
+                fVar33 = fVar37 * 0.0 - fVar33;
+                uVar27 = uVar15;
+                uVar26 = uVar24;
+                if ((fVar32 * (float)(*(uint *)(lVar17 + 0xc + uVar23 * 0x14) ^ uVar42) -
+                    fVar33 * *(float *)(lVar17 + 8 + uVar23 * 0x14)) +

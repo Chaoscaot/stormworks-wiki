@@ -1,0 +1,59 @@
+    break;
+  case 1:
+    if (*(uint *)(param_4 + 1) == 0) {
+code_r0x0001401e7a8e:
+      *param_5 = 8;
+      if (*(int *)(param_4 + 1) == 0) {
+        param_5[6] = 0;
+        return;
+      }
+      dVar13 = (double)func_0x0001409b4c3c(*param_4);
+      param_5[6] = (float)dVar13;
+      return;
+    }
+    pcVar6 = (char *)*param_4;
+    uVar9 = (ulonglong)*(uint *)(param_4 + 1);
+    uVar8 = 0;
+    do {
+      cVar1 = *pcVar6;
+      pcVar6 = pcVar6 + 1;
+      uVar5 = uVar8 + 1;
+      if (cVar1 != '.') {
+        uVar5 = uVar8;
+      }
+      uVar9 = uVar9 - 1;
+      uVar8 = uVar5;
+    } while (uVar9 != 0);
+    if (uVar5 < 2) goto code_r0x0001401e7a8e;
+    break;
+  case 2:
+    pbVar3 = (byte *)*param_4;
+    if ((*pbVar3 == 0x28) && (pbVar3[1] == 0)) {
+      *param_5 = 0xb;
+      return;
+    }
+    uVar8 = *pbVar3 - 0x29;
+    if (uVar8 == 0) {
+      uVar8 = (uint)pbVar3[1];
+    }
+    uVar4 = 0x2a;
+    if (uVar8 == 0) {
+      uVar4 = 0xc;
+    }
+    *param_5 = uVar4;
+    return;
+  case 3:
+    pbVar3 = (byte *)*param_4;
+    if ((*pbVar3 != 0x2b) || (pbVar3[1] != 0)) {
+      if ((*pbVar3 != 0x2d) || (pbVar3[1] != 0)) {
+        if ((*pbVar3 == 0x2a) && (pbVar3[1] == 0)) {
+          *param_5 = 0xd;
+          return;
+        }
+        if ((*pbVar3 == 0x2f) && (pbVar3[1] == 0)) {
+          *param_5 = 0xe;
+          return;
+        }
+        if ((*pbVar3 == 0x25) && (pbVar3[1] == 0)) {
+          *param_5 = 0x10;
+          return;

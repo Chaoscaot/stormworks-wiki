@@ -9369,13 +9369,13 @@ def logic(B, E):
         return code(F_LOGIC, entry, hexbytes, "%s case (logic_gate_type %d)" % (name, gtype), value,
                     "Jump-table entry %d at %#x leads here. %s%s" % (gtype, LOGIC_TABLE + 4 * gtype, detail, rep))
 
-    def gate(fid, key, summary, how, value, detail, extra=(), setup=None, limits=(), ports=()):
+    def gate(fid, key, summary, how, value, detail, extra=(), setup=None, limits=(), ports=(), more=()):
         bid = GATES[key][0]
         findings = [case(key, value, detail), A(bid, "logic_gate_type", "Selects case %d of the logic update." % GATES[key][1])] + base + list(extra)
         if E.block(bid).get("description"):
             findings.append(T(bid))
         findings += [P(bid, p) for p in ports]
-        sections = [section("How it updates", how)] + ([section("Setup and interactions", setup)] if setup else [])
+        sections = [section("How it updates", how)] + list(more) + ([section("Setup and interactions", setup)] if setup else [])
         B.family(fid, summary, sections, findings, list(limits))
 
     C = " The result passes the finite-value check, so NaN and ±infinity become 0."
@@ -9405,9 +9405,12 @@ def logic(B, E):
          "Gate downstream logic on Error, because 0 is also a legitimate quotient.", ports=["Error"])
     mod = op(F_LOGIC, 0x1403C5E58, "0f2f15019a7e00", 0x140BAF860, "Modulo divisor threshold",
              "Modulo calls the library remainder helper 0x1409d5b34 only when |B| is above this; otherwise it outputs 0.")
-    gate("part-gate-float-modulo", "modulo", "Remainder of A ÷ B; when |B| ≤ 1e-6 it outputs 0.",
-         "Each update, with |B| above 1e-6, it outputs the library remainder of A ÷ B. At or below 1e-6 it outputs 0. There is no error output.",
-         "remainder(A, B), or 0 when |B| ≤ 1e-6", "The remainder helper is a library routine; its sign and rounding rules follow that library." + C, [mod])
+    lgap = logic_gaps_native(E)
+    gate("part-gate-float-modulo", "modulo", "Remainder of A ÷ B with the sign of A; when |B| ≤ 1e-6 it outputs 0.",
+         "Each update, with |B| above 1e-6, it outputs the C runtime fmodf remainder A − trunc(A ÷ B) × B. At or below 1e-6 it outputs 0. There is no error output.",
+         "A − trunc(A ÷ B) × B, or 0 when |B| ≤ 1e-6", "The case calls the C runtime fmodf after the divisor test." + C, [mod, lgap["mod_call"], lgap["mod_trunc"]],
+         "The quotient is truncated toward zero, so the remainder has the sign of A and the sign of B does not matter: A = -7, B = 3 gives -1, and A = 7, B = -3 gives 1. "
+         "Fractional values work: A = 5.5, B = 2 gives 1.5. For a remainder that is never negative, as for wrapping an angle, add B to a negative result.")
     gate("part-gate-float-clamp", "clamp", "Limits the input to the configured lower and upper bounds.",
          "Each update the output is min(max(x, lower), upper). The bounds are not swapped: if lower is above upper the output is always upper.",
          "min(max(x, lower), upper)", "Reads lower at +0x708 and upper at +0x720 and applies max, then min, in that order." + C)
@@ -9437,20 +9440,57 @@ def logic(B, E):
               "The mode order sin, cos, tan, asin, acos, atan is inferred from the six helper calls and their domains.")
     gate("part-gate-float-sin", "trig", "Trigonometry in turns: forward functions take turns, inverse functions return turns, invalid input outputs 0.",
          "When the input changes it evaluates the selected function: sin, cos and tan of x × 2π, or asin, acos and atan of x divided by 2π. asin and acos of |x| > 1 output 0. An unchanged input leaves the output as it was.",
-         "f(2π·x) or f⁻¹(x) ÷ 2π", "Mode at +0x148, six cases; the result is published through the finite-value path 0x1403c9d10." + C, [trig],
-         "Sensors that report turns (compass, tilt, radar angles) feed it directly without degree or radian conversion.")
+         "f(2π·x) or f⁻¹(x) ÷ 2π", "Mode at +0x148, six cases; the result is published through the finite-value path 0x1403c9d10." + C, [trig, lgap["trig_mul"], lgap["clean"]],
+         "Sensors that report turns (compass, tilt, radar angles) feed it directly without degree or radian conversion. The helpers are the C runtime sinf, cosf, tanf, asinf, acosf and atanf, "
+         "so negative inputs follow the usual odd and even symmetries. atan accepts any finite input. The block has one input, so there is no atan2; use a function block for that, in radians.")
     eps = E.const(F_POWER_GUARD, 0x140BAF85C, "Exponent zero guard",
                   "The guard returns 'suppress' when (x < this and k < 1) or (|x| < this and k < this), x being the input and k the exponent; the case then outputs 0.")
     guard = code(F_LOGIC, 0x1403C6AD7, "e824d1e1ff", "Exponent guard call", "call 0x1401e3c00",
                  "On a changed input the case calls the guard and outputs 0 when it returns true; otherwise it calls the library power helper 0x1409b9c10 with x and k." + rep)
     gate("part-gate-float-exponent", "exponent", "Raises the input to the configured exponent; inputs below 1.1920929e-7 with an exponent below 1 output 0.",
-         "When the input changes it outputs x^k through a library power helper. A guard outputs 0 instead when x is below 1.1920929e-7 and k below 1, which includes every negative input with such an exponent, or when |x| and k are both below 1.1920929e-7. A NaN result, such as a negative base with a fractional exponent of 1 or more, outputs 0.",
-         "x^k with a near-zero guard", "Reads the exponent property through 0x1402dc0c0." + C, [eps, guard])
+         "When the input changes it outputs x^k through the C runtime powf. A guard outputs 0 instead when x is below 1.1920929e-7 and k below 1, which includes every negative input with such an exponent, or when |x| and k are both below 1.1920929e-7. "
+         "So 0 to a negative power and 0 to the power 0 output 0, never infinity or 1. A negative base with a whole exponent of 1 or more keeps the usual sign: x = -2, k = 3 gives -8. "
+         "A NaN result, such as a negative base with a fractional exponent of 1 or more, outputs 0, and so does an overflow to infinity.",
+         "x^k with a near-zero guard", "Reads the exponent property through 0x1402dc0c0." + C, [eps, guard, lgap["pow_guard"], lgap["pow_call"], lgap["clean"]],
+         "Positive inputs from 1.1920929e-7 upward accept negative exponents: x = 4, k = -0.5 gives 0.5. For a signed square root or cube root, take |x| and restore the sign separately.")
     func = "%s%s" % ("On a changed x, y or z, and only when its expression parsed (flags +0x830 and +0x831), it calls the expression evaluator 0x1401e5360. ", C)
+    expr_ops = ("Table: Operators, tightest first\n"
+                "| Operators | Meaning | Grouping |\n"
+                "| --- | --- | --- |\n"
+                "| unary + and - | sign | binds tighter than ^, so -x^2 is (-x)^2 |\n"
+                "| ^ | power | right to left: 2^3^2 is 2^9 |\n"
+                "| * / % | multiply, divide, remainder | left to right |\n"
+                "| + - | add, subtract | left to right |")
+    expr_funcs = ("Table: Functions\n"
+                  "| Function | Result |\n"
+                  "| --- | --- |\n"
+                  "| sin, cos, tan | of an angle in radians |\n"
+                  "| asin, acos, atan | angle in radians; asin and acos outside -1 … 1 give 0 |\n"
+                  "| atan2(y, x) | angle of the point (x, y) in radians |\n"
+                  "| sqrt(x) | square root; 0 for negative x |\n"
+                  "| abs(x), sgn(x) | magnitude; sign as -1 below 0 and 1 otherwise, so sgn(0) is 1 |\n"
+                  "| floor(x), ceil(x) | round down, round up |\n"
+                  "| round(x, step) | step × floor(x ÷ step + 0.5); 0 when abs(step) < 1.1920929e-7 |\n"
+                  "| min(a, b), max(a, b) | smaller, larger |\n"
+                  "| len(x, y), len2(x, y) | sqrt(x·x + y·y), x·x + y·y |\n"
+                  "| lerp(a, b, t) | (b − a) × t + a; t is not clamped |\n"
+                  "| clamp(x, lo, hi) | min(hi, max(lo, x)); the bounds are not swapped |")
     gate("function-gate", "function", "Re-evaluates its expression only when an input changes; NaN and infinity output 0.",
          "The output updates on an update where x, y or z changed, and only if the expression parsed. Unchanged inputs keep the last result. Function (1 input) and Function (3 inputs) share this case.",
-         "f(x, y, z) on input change", func, [case("function_large", "f(x, y, z) on input change", func), A("gate_function_large", "logic_gate_type", "Selects case 45 of the logic update.")],
-         setup="Treat the operator set and rounding as the editor documents them; the Logic category lists what of the expression language remains open.")
+         "f(x, y, z) on input change", func, [case("function_large", "f(x, y, z) on input change", func), A("gate_function_large", "logic_gate_type", "Selects case 45 of the logic update.")]
+         + [lgap[k] for k in ("x_names", "x_literal", "x_prec", "x_e", "x_pi", "x_round", "x_lerp", "x_sgn", "x_stack", "x_micro", "x_publish", "pow_guard")],
+         setup="Expression trigonometry works in radians, unlike the Trigonometry block, which works in turns. Write pi2 for a full turn: sin(x * pi2) takes x in turns.",
+         more=[section(
+        "Expression language",
+        "Expressions are evaluated in binary32. The variables are x, y, z, w, a, b, c and d, in input order; a block with fewer inputs supplies 0 for the rest. "
+        "The constants are pi (π) and pi2 (2π, not π squared). Names are lowercase. A number is decimal digits with at most one decimal point, so 1e3 and 0x10 are not numbers. "
+        "There are no comparison, Boolean or conditional operators.",
+        expr_ops, expr_funcs,
+        "Division and % give 0 when |divisor| < 1.1920929e-7, a smaller threshold than the Divide block's 0.000001. ^ uses the Exponent block's guard, so a negative base with an exponent below 1 gives 0. "
+        "Intermediate results are not cleaned; only the block output turns NaN and infinity into 0.",
+        "Setup parses the expression and evaluates it once with every variable 0. A syntax error, a wrong argument count, or more than 32 values on the operand stack at once marks the expression invalid, "
+        "and the block keeps its last output. Constant expressions such as pi2 are valid without any variable. "
+        "Microprocessor function nodes use the same language and likewise skip evaluation while their inputs are unchanged or the expression is invalid.")])
     # Stateful Boolean gates.
     jk_guard = code(F_LOGIC, 0x1403C63F2, "3ac27509443ac10f84f3300000", "JK changed-input guard", "skip when Set and Reset are unchanged",
                     "The case saves Set and Reset at +0x691 and +0x692 and compares them with the previous values; when neither changed it jumps to the common exit without touching the state." + rep)
@@ -9526,24 +9566,34 @@ def logic(B, E):
     # Transmission and train parts that sit in the logic update.
     for fid, key, name in (("part-gate-torque-add", "torque_add", "Power Add"), ("part-gate-torque-multimeter", "torque_meter", "Power Meter")):
         bid = GATES[key][0]
-        B.family(fid, "%s does nothing in the logic update; it acts in the transmission network." % name,
+        port = "Combined Power" if key == "torque_add" else "Relay"
+        B.family(fid, "%s selects a case that computes nothing in the logic update; no code that adds or measures power for it was found." % name,
                  [section("How it updates",
-                          "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. Its effect belongs to the transmission network; the Logic category lists what remains open.")] +
-                 ([section("Setup and interactions", "Place it between engine and consumer, not on a branch.")] if key == "torque_meter" else []),
-                 [case(key, "no logic calculation", "Types 24 and 25 both lead to the common exit 0x1403c94f2."), A(bid, "logic_gate_type", "Selects a case with no calculation."), f["dispatch"]] + ([T(bid)] if E.block(bid).get("description") else []),
+                          "Its logic_gate_type case jumps straight to the common exit, so the logic update computes nothing for it. "
+                          "The definition lists a single mechanical output, %s, and no engine inputs. No transmission formula for this part was found, so its name and tooltip are no evidence that it adds or measures anything. "
+                          "The Logic category lists what remains open." % port)] +
+                 ([section("Setup and interactions", "The tooltip asks for it in series between engine and consumer. No code found so far relays or measures power through it.")] if key == "torque_meter" else []),
+                 [case(key, "no logic calculation", "Types 24 and 25 both lead to the common exit 0x1403c94f2."), A(bid, "logic_gate_type", "Selects a case with no calculation."), f["dispatch"], P(bid, port)]
+                 + ([T(bid)] if E.block(bid).get("description") else []),
                  [])
-    gate("part-gate-train-junction", "train", "Drives a train-junction helper object, not a Boolean toggle; its tooltip and ports copy Push To Toggle.",
-         "Its case creates or updates a junction helper through 0x140290d10 and the object stored at +0x840. Its tooltip and ports are word for word those of Push To Toggle.",
-         "junction helper", "Compares a flag at +0x831 first; the helper object is kept at +0x840.", [T("gate_push_to_toggle")],
-         "Expect it to switch a track junction rather than to feed other logic; the Logic category lists what of its routing remains open.")
+    gate("part-gate-train-junction", "train", "Binds once to the nearest train junction within 30 units and flips that junction's route on each rising edge of Toggle Signal.",
+         "On its first update the controller looks for the nearest junction with at least 3 connections strictly within 30 world units, keeps it, and writes its own route bit into it. "
+         "It sets a searched flag even when it found nothing, so it never searches again. After that, each update where Toggle Signal changes to on flips the route bit and writes it into the junction. "
+         "Turning the signal off, or holding it on, changes nothing. Trains read the junction's bit when they choose a branch there.",
+         "bind once, toggle the route on a rising edge", "Compares the searched flag at +0x831 first; the bound junction is kept at +0x840 and the route bit at +0x848.",
+         [T("gate_push_to_toggle")] + [lgap[k] for k in ("j_radius", "j_pick", "j_bind", "j_edge", "j_route")],
+         "Place the controller within 30 units of the junction it should switch, and no nearer to another junction. Of two equally near junctions it keeps the first one stored. "
+         "Each controller keeps its own route bit, so two controllers on one junction can disagree: each write replaces the junction's bit and the last write wins. Its tooltip and ports are word for word those of Push To Toggle.")
     # Microprocessor.
     mp = microprocessor(E)
     co = composite_native(E)
     tp = tanks_ports_native(E)
-    per_cell = E.derived("Ports per position for the bridged kinds", "at most 4; 144 on a 6 by 6 grid (not confirmed)",
-                         "Inference from the placement rule: the five kinds the bridge builder 0x1403929f0 supports are 0, 1, 5, 6 and 7 (on/off, number, composite, video, audio). "
+    per_cell = E.derived("Ports per position for the bridged kinds", "at most 4; 144 on a 6 by 6 grid",
+                         "From the placement rule: the five kinds the bridge builder 0x1403929f0 supports are 0, 1, 5, 6 and 7 (on/off, number, composite, video, audio). "
                          "Kinds 0 and 1 conflict, so one position holds at most one of them plus one each of 5, 6 and 7: 4 ports, or 4 × 36 = 144 on the largest grid. "
-                         "No accepted 144-port microcontroller was built or loaded. Report: %s." % TP_REPORT, [co["port_kind"], co["port_xz"], co["dim_max"]])
+                         "This is a placement bound, not a storage or execution limit: upload checks each port's position and compares no count with 144. Reports: %s, %s." % (TP_REPORT, LGAP_REPORT),
+                         [co["port_kind"], co["port_xz"], co["dim_max"]])
+    lgap_mc = [lgap[k] for k in ("mc_guard", "mc_groups", "mc_ids", "x_micro")]
     B.family("part-microprocessor",
              "A microcontroller in a block: each update it copies its connected inputs into an embedded logic graph, runs the graph, then copies the graph outputs back out. Composite bridges copy all 32 on/off and 32 number channels, video bridges a descriptor and audio bridges the samples.",
              [section("How it updates",
@@ -9558,11 +9608,15 @@ def logic(B, E):
               section("Size and port placement",
                       "The editor's width and length controls run from 1 to 6 in steps of 1, and the upload check rejects a microcontroller whose width or length is above 6 with \"Microcontroller must not be larger than 6x6 voxels\". "
                       "A port must sit inside the grid, 0 ≤ x < width and 0 ≤ z < length, in the bottom row y = 0. Two ports at one position are rejected when they have the same kind, or kinds 0 and 1 (internal codes); other kinds may share a position. "
-                      "This rule sets no total, so the 6 by 6 area and the 32 composite channels do not give a port limit."),
+                      "The rule limits ports per position, not in total, and the 32 composite channels set no port limit."),
               section("Port and graph counts",
-                      "Add Input allocates a node, gives it the next node ID, creates its bridge and appends it to the port list. It grows the list when it is full and never compares the count with a maximum. The upload check tests the size, that the graph and port lists are not empty, that an output exists and where each port sits, but not how many ports there are.",
-                      "The binary format stores the port count in 16 bits and the embedded component count in 32 bits. These are field widths, not editor limits: the serializers check no count against them, and XML lists grow as they are read. "
-                      "Inference, not tested in game: with the five bridged kinds at most 4 ports fit one position, one on/off or number port plus one composite, one video and one audio, so 144 on a 6 by 6 grid."),
+                      "Add Input allocates a node, gives it the next ID from a 32-bit counter, creates its bridge with an ID from a second 32-bit counter, and appends the node to the port list. "
+                      "The list grows when it is full, and nothing compares the count with a maximum or checks the counters for overflow or duplicates. "
+                      "The upload check tests the size, that the graph and port lists are not empty, that an output exists and where each port sits, but not how many ports there are.",
+                      "Limits depend on the path. A binary save reads the port list and each nested group list with a 16-bit count and reads the entries only for counts 1 to 32,768; "
+                      "a larger count skips that list. Component lists use 32-bit counts, XML import grows its lists as it reads them, and the graph update walks whatever its lists hold.",
+                      "With the five bridged kinds at most 4 ports fit one position, one on/off or number port plus one composite, one video and one audio, so 144 on a 6 by 6 grid. "
+                      "That is a placement bound on the largest footprint, not a storage or execution limit."),
               section("Composite channels inside the graph",
                       "The composite read nodes (on/off and number) clamp their channel to 1 to 32, so channel 0 or less reads channel 1 and anything above 32 reads channel 32. A channel taken from an input is rounded first by adding 0.5 (inference: the library call is floor). "
                       "Lua getBool and getNumber instead return false and 0 outside 1 to 32, setBool and setNumber ignore such channels, and setNumber rounds the Lua number to binary32. The Logic category gives the channel layout."),
@@ -9571,9 +9625,9 @@ def logic(B, E):
              mp + [A("microprocessor", "type", "Component type 37, the microprocessor class."), A("microprocessor", "category", "Definition category 5, the game's logic category."), f["graph_in"]]
              + [co[k] for k in ("b_co_in", "b_co_out", "b_co_gather", "b_vid_in", "b_vid_out", "b_aud_in", "b_aud_out", "vid_copy", "aud_alloc", "aud_copy",
                                 "dim_min", "dim_max", "upload", "upload_msg", "port_xz", "port_kind", "readb", "readn", "read_half", "getb", "getn", "setb", "setn", "n_getb", "n_setb")]
-             + [tp[k] for k in ("mc_add", "mc_append", "mc_nodes_read", "mc_nodes_write", "mc_comps", "mc_upload")] + [per_cell],
-             ["No unconditional maximum port or graph size was recovered across editor creation, XML import, binary saves and graph execution. ID validation and allocation in other creation paths were not traced, "
-              "and whether the 144 ports the placement rule allows for the five bridged kinds are accepted end to end is not confirmed.",
+             + [tp[k] for k in ("mc_add", "mc_append", "mc_nodes_read", "mc_nodes_write", "mc_comps", "mc_upload")] + [per_cell] + lgap_mc,
+             ["Copy and paste, the link serializers of individual component types and duplicate-ID repair after import were not traced, "
+              "so no single maximum for ports, components, links or IDs is established across every path.",
               CO_POINTER])
     # Category.
     B.category("Logic",
@@ -9585,7 +9639,8 @@ def logic(B, E):
                         "Arithmetic is single precision. Numeric gates pass their result through a finite-value check that turns NaN and ±infinity into 0. That check does not limit values to −1 … 1."),
                 section("Edge cases worth knowing",
                         "Divide outputs 0 and turns Error on when |B| ≤ 1e-6; Modulo outputs 0 for the same divisor. Threshold is on when lower ≤ x ≤ upper. Greater Than is off when A equals B. "
-                        "Trigonometry works in turns, and asin or acos of |x| > 1 gives 0. The SR latch favours Reset. The JK flip-flop and SR latch act only on an update where an input changed, so holding both JK inputs on toggles once, not every update. "
+                        "Modulo truncates the quotient, so its remainder has the sign of A. Exponent outputs 0 for a negative base with an exponent below 1 and for 0 to a negative power. "
+                        "Trigonometry works in turns, and asin or acos of |x| > 1 gives 0; function blocks work in radians. The SR latch favours Reset. The JK flip-flop and SR latch act only on an update where an input changed, so holding both JK inputs on toggles once, not every update. "
                         "Clear on the memory register restores the configured value."),
                 section("Timers count updates",
                         "Delay, Blinker and Capacitor multiply their seconds by 60 and truncate to whole updates; 0.51 s becomes 30 updates. Counters and Up/Down step every update. The PID has no time step at all."),
@@ -9608,13 +9663,13 @@ def logic(B, E):
                         "| Lua setBool, setNumber | ignored |\n"
                         "| Microprocessor composite read nodes | clamped to channel 1 or 32 |",
                         "Example: on/off channels 1, 3 and 32 on give the mask bytes 05 00 00 80, and number channel 1 = 1.5 is stored at byte 4 as 00 00 c0 3f. setNumber rounds a Lua number to binary32.")],
-               [f["dispatch"], f["sanitize"], f["sixty"], f["graph_in"], div, trig, jk_guard, T("gate_float_threshold"), T("gate_float_greater_than"), T("gate_sr_latch")] + R
+               [f["dispatch"], f["sanitize"], f["sixty"], f["graph_in"], div, trig, jk_guard, lgap["mod_trunc"], lgap["pow_guard"], lgap["x_pi"], T("gate_float_threshold"), T("gate_float_greater_than"), T("gate_sr_latch")] + R
                + [co[k] for k in ("fl_bool", "fl_f32", "fl_co", "set_co", "flush", "transport", "getb", "getn", "setb", "setn", "readb", "readn", "b_co_in", "a_comp")],
                ["Timing between vehicles and through cables is listed with the open questions of the Composite data over electrical cables mechanics article.",
-                "Sign, rounding and domain edge cases of the library helpers behind Modulo, Exponent and Trigonometry were not decoded.",
-                "The function block's expression language (operator set, parser, rounding and constant expressions) was not decoded.",
-                "Power Add and Power Meter do nothing in the logic update; their transmission-network formulas were not decoded.",
-                "Train Junction Controller routing, junction selection and the priority of conflicting requests were not traced.",
+                "Power Add and Power Meter select a case that computes nothing in the logic update. Their transmission-network formulas were not recovered, "
+                "and whether the two definitions are obsolete in this build was not traced.",
+                "A Train Junction Controller's writes replace the junction's route bit, so the last write wins, but the order in which controllers on different vehicles update was not traced: "
+                "a stable priority between controllers has not been established. Which bit value means the left or right branch for each track orientation was not established either.",
                 TICK])
 
 
@@ -9688,6 +9743,163 @@ def microprocessor(E):
                  "Reads the connected vehicle signal value and stores it in the graph node's cache at +0x38; with no connection it returns at once. RTTI also names number, composite, video and audio bridge classes." + rep),
             code(F_BRIDGE_OUT, 0x14037175D, "884218", "Boolean output bridge", "graph output +0x20 → vehicle signal +0x18",
                  "Writes the graph node's output value into the connected vehicle signal; with no connection it returns at once." + rep)]
+
+
+# Logic gaps: math helpers, expression language, train junction controller, microprocessor list limits; files under investigation/native/logic-gaps/.
+LGAP_REPORT = "investigation/logic-gaps.md"
+_LGAP = "logic-gaps/"
+F_FMODF = 0x1409D5B34         # CRT fmodf
+F_EXPR_PARSE = 0x1401E40C0    # expression infix-to-postfix parser
+F_EXPR_EVAL = 0x1401E5420     # expression evaluator
+F_EXPR_TOKEN = 0x1401E79F0    # expression token decoder: literals, operators, function names
+F_OUT_FINITE = 0x1403C9D10    # physical numeric output setter with the finite-value check
+F_NEAREST_JUNCTION = 0x140290D10  # nearest train junction within a radius
+F_TRAIN_ROUTE = 0x1404C68B0   # train track following: picks a connection at a junction
+F_MC_GROUPS = 0x140907E40     # nested embedded-group list serializer
+F_MC_IDS = 0x140370910        # external-node record serializer: external and bridge IDs
+F_BRIDGE_ID = 0x14038F394     # chained unwind chunk of bridge creation 0x14038f150: bridge ID counter
+F_MICRO_FUNC = 0x140374440    # microprocessor three-input function node update
+# The external-node serializer and the editor dispatcher are named further down (F_MC_NODES, F_MC_EVENT).
+LGAP_PSEUDO = {
+    F_LOGIC: "1403c4d20.c", F_FMODF: "1409d5b34.c", F_POWER_GUARD: "1401e3c00.c", F_SANITIZE: "1401e3c40.c",
+    F_EXPR_PARSE: "1401e40c0.c", F_EXPR_EVAL: "1401e5420.c", F_EXPR_TOKEN: "1401e79f0.c", F_NEAREST_JUNCTION: "140290d10.c",
+    F_TRAIN_ROUTE: "1404c68b0.c", 0x140908830: "140908830.c", F_MC_GROUPS: "140907e40.c", 0x1407C1B60: "1407c1b60.c",
+    F_MC_IDS: "140370910.c", F_MICRO_FUNC: "140374440.c",
+}
+# Function names the token decoder compares: (lea address, string address, name).
+EXPR_NAMES = ((0x1401E7C20, 0x140ADF0FC, "cos"), (0x1401E7C54, 0x140ADF154, "sin"), (0x1401E7C84, 0x140ADF160, "tan"),
+              (0x1401E7CB4, 0x140ADF0E4, "asin"), (0x1401E7CE4, 0x140ADF0DC, "acos"), (0x1401E7D14, 0x140B87E9C, "atan2"),
+              (0x1401E7D44, 0x140ADF0EC, "atan"), (0x1401E7D74, 0x140ADF114, "floor"), (0x1401E7DA4, 0x140ADF0F4, "ceil"),
+              (0x1401E7DD4, 0x140B8804C, "round"), (0x1401E7E04, 0x140ADF130, "min"), (0x1401E7E34, 0x140ADF12C, "max"),
+              (0x1401E7E64, 0x140ADF0D8, "abs"), (0x1401E7E94, 0x140B88090, "sgn"), (0x1401E7EC4, 0x140B88034, "pi2"),
+              (0x1401E7FBC, 0x140ADF158, "sqrt"), (0x1401E7FF4, 0x140ADFF4C, "len"), (0x1401E8024, 0x140B87F0C, "len2"),
+              (0x1401E8054, 0x140B880C4, "lerp"), (0x1401E8081, 0x140B88108, "clamp"))
+
+
+def _lgap_cite(E, func, address, hexbytes, listing, key=None):
+    """Cite logic-gaps listing lines of the cited bytes, refusing to replace another listing's citation."""
+    k = (func, address if key is None else key)
+    old = WHERE.pop(k, None)
+    _wheel_cite(E, func, address, hexbytes, key=key, listing=_LGAP + "asm/" + listing)
+    if LGAP_PSEUDO.get(func):
+        WHERE[k] += "; ../" + _LGAP + "pseudocode/" + LGAP_PSEUDO[func]
+    if old is not None and old != WHERE[k]:
+        raise ValueError("%#x@%#x is already cited from another listing" % k)
+
+
+def logic_gaps_native(E):
+    """Modulo, Exponent and Trigonometry helpers, the function-block expression language, the train junction controller and microprocessor list limits, verified once and shared."""
+    if hasattr(E, "logic_gaps"):
+        return E.logic_gaps
+    n = E.native
+    if not (E.root / LGAP_REPORT).is_file():
+        raise ValueError("Report missing: " + LGAP_REPORT)
+    rep = " Report: %s." % LGAP_REPORT
+
+    def code(func, listing, address, hexbytes, label, value, detail):
+        _lgap_cite(E, func, address, hexbytes, listing)
+        return E.code(func, address, hexbytes, label, value, detail + rep)
+
+    def op(func, listing, address, hexbytes, target, label, detail):
+        _lgap_cite(E, func, address, hexbytes, listing)
+        return E.operand(func, address, hexbytes, target, label, detail + rep)
+
+    t = {}
+    # Modulo, Exponent and Trigonometry library helpers.
+    t["mod_call"] = code(F_LOGIC, "modulo.asm", 0x1403C5E61, "e8cefc6000", "Modulo remainder call", "CRT fmodf 0x1409d5b34",
+                         "With |B| above 0.000001 the Modulo case calls the statically linked C runtime fmodf on binary32 A and B; otherwise it outputs positive 0 without the call. "
+                         "The result then passes the finite-value check.")
+    t["mod_trunc"] = code(F_FMODF, "fmodf.asm", 0x1409D5CAA, "f20f2cc0", "fmodf truncating quotient", "r = x − trunc(x ÷ y) × y",
+                          "fmodf works in double precision: cvttsd2si truncates the quotient toward zero, then mulsd (0x1409d5cb6) and subsd (0x1409d5cba) subtract that multiple of y. "
+                          "The remainder takes the sign of x, including a signed zero, and the sign of y does not matter. Large quotients are reduced in chunks. "
+                          "Examples: x = -7, y = 3 gives -1; x = 7, y = -3 gives 1; x = 5.5, y = 2 gives 1.5.")
+    t["pow_guard"] = code(F_POWER_GUARD, "guards.asm", 0x1401E3C08, "0f2fd8", "Exponent rejection predicate", "(x < e and k < 1) or (|x| < e and k < e)",
+                          "The guard compares x with e = 2^-23 (0x140baf85c), k with 1 (0x140bafecc) and |x| (mask 0x140bb1f20) and k with e, returning 1 (reject) at 0x1401e3c2b. "
+                          "So a negative base with any exponent below 1 is rejected, including 0 and negative whole exponents; 0 with a negative exponent and 0 to the power 0 are rejected too, so no infinity is published. "
+                          "Positive bases from e upward accept negative exponents. Examples: x = -2, k = 3 gives -8; x = -2, k = 0.5 gives 0; x = 0, k = -1 gives 0; x = 4, k = -0.5 gives 0.5.")
+    t["pow_call"] = code(F_LOGIC, "trig.asm", 0x1403C6AF8, "e813315f00", "Exponent power call", "CRT powf 0x1409b9c10",
+                         "Only when the guard accepts does the Exponent case call the C runtime powf. A negative base with a fractional exponent of 1 or more reaches powf, gives NaN and is published as 0.")
+    t["clean"] = code(F_SANITIZE, "guards.asm", 0x1401E3C4C, "e8dff27e00", "Finite-value classification", "NaN and ±infinity → +0",
+                      "The finite-value helper classifies the result (call 0x1409d2f30) and returns positive 0 for both infinities and every NaN; finite values and signed zeros pass unchanged. "
+                      "It does not clamp large finite values or flush subnormals, and it acts on the library's result, not on the inputs.")
+    t["trig_mul"] = op(F_LOGIC, "trig.asm", 0x1403C69CB, "f30f59057d9b7e00", 0x140BB0550, "Trigonometry turns factor, forward modes",
+                       "The forward modes multiply x by this 2π constant and call CRT sinf (0x1403c69d3), cosf (0x1403c69f0) or tanf (0x1403c6a0d). "
+                       "The inverse modes call asinf (0x1403c6a3d), acosf (0x1403c6a75) or atanf (0x1403c6a7c) and divide by the same constant (0x1403c6a42). "
+                       "asin and acos output 0 for |x| above 1; atan accepts every finite x. There is no second operand, so the block has no atan2.")
+    # Expression language of the function blocks.
+    names = []
+    for lea, target, name in EXPR_NAMES:
+        raw = n.raw(lea, 7)
+        if raw[:2] != b"\x4c\x8d" or lea + 7 + struct.unpack("<i", raw[3:7])[0] != target or n.cstring(target) != name:
+            raise ValueError("Expression function name %s not at %#x via %#x" % (name, target, lea))
+        _lgap_cite(E, F_EXPR_TOKEN, lea, raw.hex(), "token-decoder.asm", key=target)
+        names.append("%s at %#x" % (name, target))
+    t["x_names"] = code(F_EXPR_TOKEN, "token-decoder.asm", 0x1401E7C20, "4c8d0dd5748f00", "Expression function names",
+                        "sin cos tan asin acos atan atan2 sqrt floor ceil round min max abs sgn len len2 lerp clamp",
+                        "The token decoder compares identifier tokens with these strings, each loaded by lea in this routine: %s. pi2 names the constant 2π; pi is matched separately. "
+                        "Unary: sin, cos, tan, asin, acos, atan, ceil, floor, abs, sgn, sqrt. Two arguments: atan2, min, max, round, len, len2. Three arguments: lerp, clamp. "
+                        "Names are lowercase; variables are x, y, z, w, a, b, c, d in input order, and a block with fewer inputs supplies 0 for the rest." % ", ".join(names))
+    t["x_literal"] = code(F_EXPR_TOKEN, "token-decoder.asm", 0x1401E7A70, "80392e", "Expression number literal", "decimal digits, at most one point",
+                          "The decoder counts '.' characters and rejects a second one, then converts the text with the C runtime (call 0x1409b4c3c at 0x1401e7a9e) and rounds the double to binary32 (cvtsd2ss at 0x1401e7aa6). "
+                          "The lexer has no exponent or hexadecimal state, so 1e3 and 0x10 are not number literals. A sign is a separate operator.")
+    t["x_prec"] = code(F_EXPR_PARSE, "expression-parser.asm", 0x1401E4168, "41b905000000", "Expression operator precedence", "unary ± > ^ > * / % > + −",
+                       "The parser assigns precedence ranks (5 here, 4 at 0x1401e4170, 2 at 0x1401e41b7) and pops stacked operators of higher rank (jb at 0x1401e44ef). "
+                       "For * / % + − it also pops equal rank (jbe at 0x1401e469f), so they group left to right; for ^ it keeps equal rank, so power groups right to left. "
+                       "Unary signs bind tighter than power: -x^2 is (-x)^2, and 2^3^2 is 2^9. Parentheses override the ranks and commas separate function arguments. "
+                       "There are no comparison, Boolean, assignment or conditional operators.")
+    t["x_e"] = op(F_EXPR_EVAL, "expression-evaluator.asm", 0x1401E5509, "f30f100d4ba39c00", 0x140BAF85C, "Expression small-divisor threshold",
+                  "The evaluator holds e = 2^-23 in xmm1. Division compares |divisor| with it (0x1401e58e6) and skips the divss (0x1401e58f4) when |divisor| < e, so the result stays 0. "
+                  "% applies the same test (0x1401e5908) before calling fmodf (0x1401e5917), and ^ applies the Exponent block's guard before calling powf (0x1401e5953). "
+                  "This threshold differs from the 0.000001 of the Divide and Modulo blocks.")
+    t["x_pi"] = op(F_EXPR_EVAL, "expression-evaluator.asm", 0x1401E54E3, "f30f103dc5ae9c00", 0x140BB03B0, "Expression constant pi",
+                   "The evaluator loads binary32 π for pi; pi2 loads 2π from 0x140bb0550 (0x1401e54eb). Expression trigonometry passes its argument straight to the library, so it works in radians, unlike the Trigonometry block.")
+    t["x_round"] = op(F_EXPR_EVAL, "expression-evaluator.asm", 0x1401E59C5, "f30f5805efa29c00", 0x140BAFCBC, "Expression round half",
+                      "round(x, step) computes step × floor((1 ÷ step) × x + 0.5) in binary32: divss forms 1 ÷ step (0x1401e59bd), mulss multiplies by x, addss adds this, floor is called at 0x1401e59cd and mulss scales by step at 0x1401e59d2. "
+                      "When |step| is below e it returns 0. Ties go up, not to even, and a negative step is accepted. Example: round(2.5, 1) gives 3 and round(-2.5, 1) gives -2.")
+    t["x_lerp"] = code(F_EXPR_EVAL, "expression-evaluator.asm", 0x1401E5798, "f30f5cc8f30f59caf30f58c8", "Expression lerp", "(b − a) × t + a",
+                       "lerp(a, b, t) subtracts, multiplies and adds in that order with no clamp on t. clamp(x, lo, hi) is min(hi, max(lo, x)) without swapping the bounds. "
+                       "len(x, y) is sqrt(x·x + y·y), len2(x, y) is x·x + y·y, sqrt of a negative argument gives 0, asin and acos outside -1 … 1 give 0.")
+    t["x_sgn"] = code(F_EXPR_EVAL, "expression-evaluator.asm", 0x1401E5B78, "b8ffffffff", "Expression sgn", "-1 below 0, else 1",
+                      "sgn starts from -1 and selects 1 when x ≥ 0 (comiss and cmovae at 0x1401e5b7d), then converts to binary32. So sgn(0) is 1. abs clears the sign bit.")
+    t["x_stack"] = code(F_EXPR_EVAL, "expression-evaluator.asm", 0x1401E55CA, "83f820", "Expression operand stack", "32 values",
+                        "Pushing an operand compares the stack index with 32 (also at 0x1401e5754) and fails at the 33rd live value with \"stack size exceeded\". "
+                        "Other failures are \"too few args for\" and \"invalid end reached\". It bounds values held at once, not expression length. "
+                        "Setup tokenizes, converts to postfix and evaluates once with all variables 0; a parse error or a failed evaluation marks the expression invalid.")
+    t["x_micro"] = code(F_MICRO_FUNC, "140374440.asm", 0x140374491, "80b95001000000", "Microprocessor function node guard", "evaluate only on changed input and valid expression",
+                        "This microprocessor function node update compares its three inputs with saved copies and returns when none changed; it then tests the valid flag at +0x150. "
+                        "An expression invalidated by an edit therefore leaves the stored output as it was rather than writing 0. "
+                        "Microprocessor function node setup (0x1403742c0, 0x14037f770) calls the same tokenizer, parser and evaluator as the physical Function blocks, and 0x14037f8e0 also skips evaluation while the expression is invalid.")
+    t["x_publish"] = code(F_OUT_FINITE, "output-setter.asm", 0x1403C9D24, "e807926000", "Physical numeric output check", "NaN and ±infinity → 0 at the output",
+                          "The physical output setter classifies the value before storing it at +0x418. Expression intermediates are not checked, so an overflow inside an expression can affect later operations before the final result is cleaned.")
+    # Train Junction Controller.
+    t["j_radius"] = op(F_LOGIC, "junction-gate.asm", 0x1403C6C96, "f30f1015729a7e00", 0x140BB0710, "Train junction search radius",
+                       "While the searched flag (+0x831) is clear, the case transforms the controller position to world space and calls the nearest-junction search (0x1403c6ca9) with this radius.")
+    t["j_pick"] = code(F_NEAREST_JUNCTION, "nearest-junction.asm", 0x140290D82, "83783003", "Train junction eligibility", "at least 3 connections, nearest, strictly inside the radius",
+                       "The search walks the junction records in their stored order and skips records with fewer than 3 connections. "
+                       "It keeps a record only when its squared distance, narrowed to binary32, is strictly below both the best so far (comiss at 0x140290dc0) and the squared radius (0x140290dcc). "
+                       "Of two equally near records it keeps the first. It does not prefer the same vehicle or a lower ID.")
+    t["j_bind"] = code(F_LOGIC, "junction-gate.asm", 0x1403C6CBA, "410fb68e48080000", "Train junction binding", "junction+0x38 = route bit; searched = 1",
+                       "The result is kept at +0x840. A found junction receives the controller's route bit (+0x848) at junction+0x38 (0x1403c6cc2). "
+                       "The searched flag is then set (0x1403c6cc5) even when nothing was found, so the update never searches again.")
+    t["j_edge"] = code(F_LOGIC, "junction-gate.asm", 0x1403C6CFC, "413a8691060000", "Train junction rising edge", "toggle on a change to on",
+                       "Toggle Signal is compared with the value saved at +0x691. Only a change to on flips the route bit (sete at 0x1403c6d1f, stored at 0x1403c6d22); "
+                       "a change to off only updates the saved value, and holding the signal on does nothing. The new bit is then written into the bound junction (0x1403c6d39). "
+                       "Each controller keeps its own bit, so two controllers on one junction can hold different bits; each write replaces the junction's bit, and the last write wins. "
+                       "There is no queue, vote or priority field.")
+    t["j_route"] = code(F_TRAIN_ROUTE, "train-route.asm", 0x1404C74D8, "80793800", "Train routing reads the route bit", "junction+0x38",
+                        "Train track following tests the junction's route bit here and on the other endpoint branch (0x1404c7a66). With several connections that fit the travel direction, "
+                        "it orders the first two by their sideways offset and the bit picks one side of that order. Whether a bit value means left or right depends on direction and endpoint.")
+    # Microprocessor list limits.
+    t["mc_guard"] = code(F_MC_NODES, "external-port-serializer.asm", 0x140908C4E, "8d42ffb9ff7f0000663bc1", "External node count read range", "1 to 32,768",
+                         "After reading the unsigned 16-bit count, the binary reader computes count − 1 and reads the records only when it is at most 0x7fff as a 16-bit value. "
+                         "So counts 1 to 32768 (32,768) read normally, 0 reads none, and 32769 to 65535 skip the list and leave its records unread. The writer still emits the low 16 bits of the count.")
+    t["mc_groups"] = code(F_MC_GROUPS, "nested-group-serializer.asm", 0x140908243, "8d42ffb9ff7f0000663bc1", "Nested group count read range", "1 to 32,768 per list",
+                          "Nested embedded-group lists use the same 16-bit count and the same range, 1 to 32768 (32,768). The range applies to each serialized list, not to the whole graph.")
+    t["mc_ids"] = code(F_MC_EVENT, "add-port.asm", 0x1407C3EDA, "ff4774", "External node ID counter", "32-bit, unchecked",
+                       "Add Input increments the definition's 32-bit counter at +0x74 and copies it to the node's ID (+0x40) with no overflow or duplicate test. "
+                       "Bridge creation keeps a separate 32-bit counter at +0x70 (0x14038f394). The record serializer stores both IDs as 32-bit fields (0x14037098e).")
+    E.logic_gaps = t
+    return t
 
 
 # small-parts pass; files under investigation/native/small-parts/, report investigation/small-parts.md.
@@ -10884,7 +11096,7 @@ def tanks_ports_native(E):
                               "The external-node list serializer reads its binary count as one unsigned 16-bit word. Its XML branch iterates nodes/node elements and grows the list with no count limit.")
     t["mc_nodes_write"] = code(F_MC_NODES, 0x140908D4F, "0fb75710", "External node count, binary write", "low 16 bits of the 32-bit count",
                                "Writing takes the low 16 bits of the list's 32-bit count, stores them as one word (0x140908d76), then writes every node of the full count (0x140908d84). "
-                               "Inference: 65535 is the largest count the binary field holds, and a longer list would not read back with the same count. That is a format width, not an editor limit.")
+                               "The reader accepts only counts 1 to 32,768 (count guard at 0x140908c4e, investigation/logic-gaps.md), so a list longer than that does not read back. That is a read range, not an editor limit.")
     t["mc_comps"] = code(F_MC_COMPS, 0x140907D7A, "448b30", "Embedded component count", "32-bit",
                          "The embedded graph serializer 0x14038b940 sends its components and components_bridge lists through this routine, which reads (0x140907d7a) and writes (0x140907d92) a 32-bit count. That is a field width, not a component limit.")
     t["mc_upload"] = code(F_MC_UPLOAD, 0x1407C676F, "e86c97bcff", "Upload port placement call", "0x14038fee0 per external node",
